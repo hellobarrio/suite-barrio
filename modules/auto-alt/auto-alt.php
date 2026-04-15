@@ -656,6 +656,45 @@ function wp_barrio_dashboard_page() {
                 </div>
             </div>
 
+            <!-- Card Auto Fields -->
+            <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                <div style="background:#8c5dce;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                    <span class="dashicons dashicons-layout" style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                    <div>
+                        <div style="font-size:16px;font-weight:600;color:#fff;">Auto Fields</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Genera campi ACF da pagina web</div>
+                    </div>
+                </div>
+                <div style="padding:16px 20px;">
+                    <?php $acf_available = function_exists( 'acf_import_field_group' ); ?>
+                    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                        <tr>
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">Funzionalità</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">Analisi HTML → ACF</td>
+                        </tr>
+                        <tr style="border-top:1px solid #f0f0f1;">
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">ACF</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php if ( $acf_available ) : ?>
+                                    <span style="color:#00a32a;">&#x2713; Attivo</span>
+                                <?php else : ?>
+                                    <span style="color:#d63638;">✕ Non installato</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr style="border-top:1px solid #f0f0f1;">
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">Output</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">Campi ACF + GraphQL</td>
+                        </tr>
+                    </table>
+                    <div style="display:flex;gap:8px;">
+                        <a href="?page=wp-barrio-auto-fields" class="button button-primary" style="flex:1;text-align:center;">
+                            Genera campi
+                        </a>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
     <?php
