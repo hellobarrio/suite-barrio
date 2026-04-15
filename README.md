@@ -1,4 +1,4 @@
-# WP Alt AI — Plugin WordPress
+# WP Barrio — Suite Plugins WordPress
 
 Genera e gestisce alt text e title delle immagini usando Claude AI (Vision),
 con una UI di revisione manuale nell'admin di WordPress.
