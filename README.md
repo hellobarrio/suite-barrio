@@ -5,7 +5,7 @@ con una UI di revisione manuale nell'admin di WordPress.
 
 ## Installazione
 
-1. Copia la cartella `wp-alt-ai/` in `wp-content/plugins/`
+1. Copia la cartella `wp-barrio/` in `wp-content/plugins/`
 2. Attiva il plugin da **Plugin → Plugin installati**
 3. Vai su **Media → Alt AI** e inserisci la tua chiave API Anthropic
 
