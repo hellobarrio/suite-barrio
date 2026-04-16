@@ -554,7 +554,8 @@ function wp_alt_ai_fetch_models($provider)
 
     // Ordina alfabeticamente per nome
     uksort($models, function ($a, $b) {
-        return strcmp($a, $b); });
+        return strcmp($a, $b);
+    });
 
     set_transient($cache_key, $models, DAY_IN_SECONDS);
     return $models;
@@ -1662,15 +1663,21 @@ function wp_alt_ai_admin_page()
         <!-- Stats -->
         <div class="wpb-stats-bar">
             <div class="wpb-stat">
-                <div class="wpb-stat-num"><?php echo number_format($total_images); ?></div>
+                <div class="wpb-stat-num">
+                    <?php echo number_format($total_images); ?>
+                </div>
                 <div class="wpb-stat-lbl">Totale immagini</div>
             </div>
             <div class="wpb-stat">
-                <div class="wpb-stat-num red"><?php echo number_format($total_items); ?></div>
+                <div class="wpb-stat-num red">
+                    <?php echo number_format($total_items); ?>
+                </div>
                 <div class="wpb-stat-lbl">Senza alt text</div>
             </div>
             <div class="wpb-stat">
-                <div class="wpb-stat-num green"><?php echo number_format($total_images - $total_items); ?></div>
+                <div class="wpb-stat-num green">
+                    <?php echo number_format($total_images - $total_items); ?>
+                </div>
                 <div class="wpb-stat-lbl">Completate</div>
             </div>
         </div>
@@ -1707,16 +1714,21 @@ function wp_alt_ai_admin_page()
                 <div class="wpb-bulk">
                     <?php if ($job_running): ?>
                         <strong id="bulk-status-text">
-                            Elaborazione in corso: <?php echo ($job['done'] + $job['errors']); ?> / <?php echo $job['total']; ?>
+                            Elaborazione in corso:
+                            <?php echo ($job['done'] + $job['errors']); ?> /
+                            <?php echo $job['total']; ?>
                             immagini
                         </strong>
                         <button class="wpb-btn-bulk" id="bulk-stop-btn" style="background:#d63638;color:#fff;">
                             ✕ Interrompi
                         </button>
                     <?php else: ?>
-                        <strong><?php echo $total_items; ?> immagini senza alt o title</strong>
+                        <strong>
+                            <?php echo $total_items; ?> immagini senza alt o title
+                        </strong>
                         <button class="wpb-btn-bulk" id="bulk-generate-btn" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
-                            ✦ Genera e salva tutte in background (<?php echo $total_items; ?>)
+                            ✦ Genera e salva tutte in background (
+                            <?php echo $total_items; ?>)
                         </button>
                     <?php endif; ?>
                 </div>
@@ -1733,11 +1745,15 @@ function wp_alt_ai_admin_page()
                     </div>
                     <div id="bulk-progress-text" style="font-size:12px;color:#646970;padding:6px 12px 8px;">
                         <?php if ($job_running): ?>
-                            <?php echo ($job['done'] + $job['errors']); ?> / <?php echo $job['total']; ?> elaborate —
-                            <?php echo $job['done']; ?> ✓<?php echo $job['errors'] > 0 ? '  ' . $job['errors'] . ' ✗' : ''; ?>
+                            <?php echo ($job['done'] + $job['errors']); ?> /
+                            <?php echo $job['total']; ?> elaborate —
+                            <?php echo $job['done']; ?> ✓
+                            <?php echo $job['errors'] > 0 ? '  ' . $job['errors'] . ' ✗' : ''; ?>
                         <?php elseif ($job_done): ?>
-                            ✓ Completato — <?php echo $job['done']; ?>
-                            salvate<?php echo $job['errors'] > 0 ? ', ' . $job['errors'] . ' errori (vedi Log)' : ''; ?>
+                            ✓ Completato —
+                            <?php echo $job['done']; ?>
+                            salvate
+                            <?php echo $job['errors'] > 0 ? ', ' . $job['errors'] . ' errori (vedi Log)' : ''; ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -1772,7 +1788,9 @@ function wp_alt_ai_admin_page()
                                 <span class="wpb-card__ai-badge">AI</span>
                             </div>
                             <div class="wpb-card__body">
-                                <div class="wpb-card__filename"><?php echo esc_html($fname); ?></div>
+                                <div class="wpb-card__filename">
+                                    <?php echo esc_html($fname); ?>
+                                </div>
                                 <div class="wpb-field">
                                     <label>Alt Text</label>
                                     <input type="text" class="alt-input" value="<?php echo esc_attr($alt); ?>"
@@ -1834,15 +1852,21 @@ function wp_alt_ai_admin_page()
 
                 <div class="wpb-log-stats">
                     <div class="wpb-log-stat">
-                        <div class="n"><?php echo $log_total; ?></div>
+                        <div class="n">
+                            <?php echo $log_total; ?>
+                        </div>
                         <div class="l">Totale operazioni</div>
                     </div>
                     <div class="wpb-log-stat">
-                        <div class="n green"><?php echo $log_success; ?></div>
+                        <div class="n green">
+                            <?php echo $log_success; ?>
+                        </div>
                         <div class="l">Completate</div>
                     </div>
                     <div class="wpb-log-stat">
-                        <div class="n red"><?php echo $log_errors; ?></div>
+                        <div class="n red">
+                            <?php echo $log_errors; ?>
+                        </div>
                         <div class="l">Errori</div>
                     </div>
 
@@ -1896,11 +1920,17 @@ function wp_alt_ai_admin_page()
                                         <td>
                                             <?php if ($edit_link): ?>
                                                 <a href="<?php echo esc_url($edit_link); ?>" class="wpb-log-filename" target="_blank"
-                                                    onclick="event.stopPropagation()"><?php echo esc_html($entry['file']); ?></a>
+                                                    onclick="event.stopPropagation()">
+                                                    <?php echo esc_html($entry['file']); ?>
+                                                </a>
                                             <?php else: ?>
-                                                <span class="wpb-log-filename"><?php echo esc_html($entry['file'] ?: '—'); ?></span>
+                                                <span class="wpb-log-filename">
+                                                    <?php echo esc_html($entry['file'] ?: '—'); ?>
+                                                </span>
                                             <?php endif; ?>
-                                            <div class="wpb-log-id">ID <?php echo intval($entry['id']); ?></div>
+                                            <div class="wpb-log-id">ID
+                                                <?php echo intval($entry['id']); ?>
+                                            </div>
                                         </td>
                                         <td>
                                             <span class="wpb-log-status <?php echo esc_attr($entry['status']); ?>">
@@ -1910,17 +1940,23 @@ function wp_alt_ai_admin_page()
                                         </td>
                                         <td>
                                             <div class="wpb-log-alt" title="<?php echo esc_attr($entry['alt']); ?>">
-                                                <?php echo esc_html($entry['alt'] ?: '—'); ?></div>
+                                                <?php echo esc_html($entry['alt'] ?: '—'); ?>
+                                            </div>
                                         </td>
                                         <td class="log-note-cell">
                                             <?php if ($is_err): ?>
-                                                <div class="wpb-log-note wpb-log-note-error"><?php echo esc_html($entry['note'] ?: '—'); ?>
+                                                <div class="wpb-log-note wpb-log-note-error">
+                                                    <?php echo esc_html($entry['note'] ?: '—'); ?>
                                                 </div>
                                             <?php else: ?>
-                                                <div class="wpb-log-note"><?php echo esc_html($entry['note'] ?: '—'); ?></div>
+                                                <div class="wpb-log-note">
+                                                    <?php echo esc_html($entry['note'] ?: '—'); ?>
+                                                </div>
                                             <?php endif; ?>
                                         </td>
-                                        <td><span class="wpb-log-time"><?php echo date_i18n('d/m/Y H:i', $entry['ts']); ?></span></td>
+                                        <td><span class="wpb-log-time">
+                                                <?php echo date_i18n('d/m/Y H:i', $entry['ts']); ?>
+                                            </span></td>
                                     </tr>
 
                                 <?php endforeach; ?>
@@ -1932,8 +1968,12 @@ function wp_alt_ai_admin_page()
                         <div class="wpb-pagination" style="margin-top:20px">
                             <?php for ($i = 1; $i <= $log_total_pages; $i++):
                                 $url = add_query_arg(['page' => 'wp-barrio-auto-alt', 'tab' => 'log', 'log_page' => $i]);
-                                if ($i === $log_page): ?><span class="current"><?php echo $i; ?></span>
-                                <?php else: ?><a href="<?php echo esc_url($url); ?>"><?php echo $i; ?></a>
+                                if ($i === $log_page): ?><span class="current">
+                                        <?php echo $i; ?>
+                                    </span>
+                                <?php else: ?><a href="<?php echo esc_url($url); ?>">
+                                        <?php echo $i; ?>
+                                    </a>
                                 <?php endif; endfor; ?>
                         </div>
                     <?php endif;
@@ -2164,25 +2204,33 @@ function wp_alt_ai_admin_page()
                                         <div class="wpb-provider-block">
                                             <label class="wpb-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
                                                 data-provider="<?php echo esc_attr($pval); ?>">
-                                                <input type="radio" name="wp_alt_ai_provider"
-                                                    value="<?php echo esc_attr($pval); ?>" <?php checked($provider, $pval); ?>>
-                                                <span class="wpb-pc-logo"><?php echo $pdata['logo']; ?></span>
+                                                <input type="radio" name="wp_alt_ai_provider" value="<?php echo esc_attr($pval); ?>"
+                                                    <?php checked($provider, $pval); ?>>
+                                                <span class="wpb-pc-logo">
+                                                    <?php echo $pdata['logo']; ?>
+                                                </span>
                                                 <div>
-                                                    <div class="wpb-pc-name"><?php echo esc_html($pdata['name']); ?></div>
-                                                    <div class="wpb-pc-desc"><?php echo esc_html($pdata['desc']); ?></div>
+                                                    <div class="wpb-pc-name">
+                                                        <?php echo esc_html($pdata['name']); ?>
+                                                    </div>
+                                                    <div class="wpb-pc-desc">
+                                                        <?php echo esc_html($pdata['desc']); ?>
+                                                    </div>
                                                 </div>
                                             </label>
                                             <div class="wpb-provider-keys <?php echo $is_sel ? 'visible' : ''; ?>"
                                                 id="keys-<?php echo esc_attr($pval); ?>">
                                                 <div class="wpb-key-group">
-                                                    <label><?php echo esc_html($pdata['key_label']); ?></label>
+                                                    <label>
+                                                        <?php echo esc_html($pdata['key_label']); ?>
+                                                    </label>
                                                     <input type="password" name="<?php echo esc_attr($pdata['key_field']); ?>"
                                                         value="<?php echo esc_attr($pdata['key_val']); ?>"
-                                                        placeholder="<?php echo esc_attr($pdata['key_ph']); ?>"
-                                                        autocomplete="off">
+                                                        placeholder="<?php echo esc_attr($pdata['key_ph']); ?>" autocomplete="off">
                                                     <div class="wpb-key-hint">Ottieni la chiave su <a
-                                                            href="<?php echo esc_url($pdata['key_url']); ?>"
-                                                            target="_blank"><?php echo esc_url($pdata['key_url']); ?></a></div>
+                                                            href="<?php echo esc_url($pdata['key_url']); ?>" target="_blank">
+                                                            <?php echo esc_url($pdata['key_url']); ?>
+                                                        </a></div>
                                                 </div>
                                                 <div class="wpb-key-group">
                                                     <label>Modello</label>
@@ -2192,13 +2240,18 @@ function wp_alt_ai_admin_page()
                                                             ?>
                                                             <label class="wpb-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
                                                                 <input type="radio" name="wp_alt_ai_model"
-                                                                    value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
+                                                                    value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>
+                                                                <?php echo !$is_sel ? 'disabled' : ''; ?>>
                                                                 <div>
                                                                     <div class="wpb-model-name">
-                                                                        <?php echo esc_html($mdata['name']); ?></div>
+                                                                        <?php echo esc_html($mdata['name']); ?>
+                                                                    </div>
                                                                     <div class="wpb-model-desc">
-                                                                        <?php echo esc_html($mdata['desc']); ?></div>
-                                                                    <div class="wpb-model-id"><?php echo esc_html($mval); ?></div>
+                                                                        <?php echo esc_html($mdata['desc']); ?>
+                                                                    </div>
+                                                                    <div class="wpb-model-id">
+                                                                        <?php echo esc_html($mval); ?>
+                                                                    </div>
                                                                 </div>
                                                             </label>
                                                         <?php endforeach; ?>
@@ -2304,7 +2357,8 @@ function wp_alt_ai_admin_page()
                                 elementi visivi</option>
                             <option value="contextual" <?php selected($style, 'contextual'); ?>>Contestuale — interpreta
                                 significato e scopo</option>
-                            <option value="emotional" <?php selected($style, 'emotional'); ?>>Evocativo — trasmette sensazioni e
+                            <option value="emotional" <?php selected($style, 'emotional'); ?>>Evocativo — trasmette sensazioni
+                                e
                                 atmosfera</option>
                             <option value="journalistic" <?php selected($style, 'journalistic'); ?>>Giornalistico — sintetico
                                 come una didascalia</option>
@@ -2599,19 +2653,19 @@ function wp_alt_ai_admin_page()
                 } catch (_) { /* silently ignore network errors during polling */ }
             }
 
-            // Avvia polling se c'è un job in corso al caricamento della pagina
-            <?php $job = wp_alt_ai_get_job(); ?>
-            <?php if ($job && $job['status'] === 'running'): ?>
-                startPolling();
-            <?php elseif ($job && $job['status'] === 'done'): ?>
-                // Job completato: pulisci dopo 4s senza ricaricare in loop
-                setTimeout(function () {
-                    fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_dismiss_job', nonce: apiNonce }) })
-                        .then(function () { location.reload(); });
-                }, 4000);
-            <?php endif; ?>
+                // Avvia polling se c'è un job in corso al caricamento della pagina
+                <?php $job = wp_alt_ai_get_job(); ?>
+                <?php if ($job && $job['status'] === 'running'): ?>
+                    startPolling();
+                <?php elseif ($job && $job['status'] === 'done'): ?>
+                    // Job completato: pulisci dopo 4s senza ricaricare in loop
+                    setTimeout(function () {
+                        fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_dismiss_job', nonce: apiNonce }) })
+                            .then(function () { location.reload(); });
+                    }, 4000);
+                <?php endif; ?>
 
-            const bulkGenBtn = document.getElementById('bulk-generate-btn');
+                const bulkGenBtn = document.getElementById('bulk-generate-btn');
             if (bulkGenBtn) {
                 bulkGenBtn.addEventListener('click', async () => {
                     bulkGenBtn.disabled = true;

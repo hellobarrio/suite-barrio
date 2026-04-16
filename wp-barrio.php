@@ -30,6 +30,7 @@ define('WP_ALT_AI_BATCH_SIZE', 5);
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/dashboard/dashboard.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-alt/auto-alt.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/forms/forms.php';
+require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-fields/auto-fields.php';
 
 /* ─────────────────────────────────────────
    MODULI OPZIONALI (richiedono plugin di terze parti)
