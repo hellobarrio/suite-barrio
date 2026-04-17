@@ -9,7 +9,7 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_FORMS_VERSION', '1.0.9');
+define('WPB_FORMS_VERSION', '1.0.10');
 define('WPB_FORMS_TABLE', 'wpb_forms');
 define('WPB_FORMS_SUB_TABLE', 'wpb_form_submissions');
 
@@ -2009,6 +2009,10 @@ function wpb_forms_admin_page()
 
         .wpb-reg-table tr:hover td {
             background: #fafafa;
+        }
+
+        .wpb-reg-table tbody tr {
+            cursor: pointer;
         }
 
         .wpb-reg-table td:first-child {
@@ -4268,17 +4272,18 @@ function wpb_forms_admin_page()
 
                     if (delAllEl) delAllEl.style.display = '';
 
-                    // Intestazioni: tutte le colonne del form
+                    // Intestazioni: solo le prime 2 colonne + data
+                    const listFields = formFields.slice(0, 2);
                     let thead = '<tr><th>#</th>';
-                    formFields.forEach(f => { thead += `<th>${esc(f.label || f.name)}</th>`; });
+                    listFields.forEach(f => { thead += `<th>${esc(f.label || f.name)}</th>`; });
                     thead += '<th>Data</th><th></th></tr>';
 
-                    // Righe: mostra il valore se presente, altrimenti —
+                    // Righe: compatte, cliccabili per dettaglio
                     let tbody = '';
                     subs.forEach((sub, idx) => {
                         const d = sub.data || {};
-                        tbody += `<tr data-sub-id="${sub.id}"><td>${sub.id}</td>`;
-                        formFields.forEach(f => {
+                        tbody += `<tr data-sub-id="${sub.id}" data-idx="${idx}" class="wpb-btn-reg-detail"><td>${sub.id}</td>`;
+                        listFields.forEach(f => {
                             const key = f.name || '';
                             const cell = d[key];
                             let val = cell ? cell.value : null;
@@ -4289,7 +4294,7 @@ function wpb_forms_admin_page()
                                 : `<td title="${esc(String(val))}">${esc(String(val))}</td>`;
                         });
                         tbody += `<td><span class="wpb-reg-date">${esc(sub.created_at)}</span></td>`;
-                        tbody += `<td style="white-space:nowrap;"><button class="button button-small wpb-btn-reg-detail" data-idx="${idx}" style="margin-right:4px;">Dettaglio</button><button class="button button-small wpb-btn-reg-del" style="color:#d63638;border-color:#d63638;" data-id="${sub.id}">Elimina</button></td>`;
+                        tbody += `<td style="white-space:nowrap;"><button class="button button-small wpb-btn-reg-del" style="color:#d63638;border-color:#d63638;" data-id="${sub.id}" onclick="event.stopPropagation()">Elimina</button></td>`;
                         tbody += '</tr>';
                     });
 
@@ -4301,10 +4306,10 @@ function wpb_forms_admin_page()
                                                                                                                                                                 </table>
                                                                                                                                                             </div>`;
 
-                    // Bind dettaglio singola
-                    content.querySelectorAll('.wpb-btn-reg-detail').forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const idx = parseInt(btn.dataset.idx);
+                    // Bind dettaglio: riga intera cliccabile
+                    content.querySelectorAll('tr.wpb-btn-reg-detail').forEach(row => {
+                        row.addEventListener('click', () => {
+                            const idx = parseInt(row.dataset.idx);
                             showDetail(subs[idx], formFields);
                         });
                     });
@@ -4506,6 +4511,10 @@ function wpb_forms_submissions_page()
         background: #f6f7f7
     }
 
+    .wpb-subs-reg-table tbody tr {
+        cursor: pointer
+    }
+
     .wpb-subs-reg-cell-empty {
         color: #a7aaad;
         font-style: italic
@@ -4664,15 +4673,16 @@ function wpb_forms_submissions_page()
                 const content = document.getElementById('wpb-subs-content');
                 if (!subsData.length) { content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>'; return; }
 
+                const listFields = formFields.slice(0, 2);
                 let thead = '<tr><th>#</th>';
-                formFields.forEach(f => { thead += '<th>' + esc(f.label || f.name || '—') + '</th>'; });
-                thead += '<th>Data</th><th>Azioni</th></tr>';
+                listFields.forEach(f => { thead += '<th>' + esc(f.label || f.name || '—') + '</th>'; });
+                thead += '<th>Data</th></tr>';
 
                 let tbody = '';
                 subsData.forEach((sub, idx) => {
                     const d = sub.data || {};
-                    tbody += '<tr><td>' + sub.id + '</td>';
-                    formFields.forEach(f => {
+                    tbody += '<tr data-idx="' + idx + '"><td>' + sub.id + '</td>';
+                    listFields.forEach(f => {
                         const key = f.name || '';
                         const cell = d[key];
                         let val = cell ? cell.value : null;
@@ -4681,14 +4691,13 @@ function wpb_forms_submissions_page()
                         tbody += empty ? '<td class="wpb-subs-reg-cell-empty">—</td>' : '<td title="' + esc(String(val)) + '">' + esc(String(val)) + '</td>';
                     });
                     tbody += '<td><span class="wpb-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
-                    tbody += '<td><button class="button button-small wpb-subs-btn-detail" data-idx="' + idx + '">Dettaglio</button></td>';
                     tbody += '</tr>';
                 });
 
                 content.innerHTML = '<div class="wpb-subs-reg-table-wrap"><table class="wpb-subs-reg-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
 
-                content.querySelectorAll('.wpb-subs-btn-detail').forEach(btn => {
-                    btn.addEventListener('click', () => { showDetail(parseInt(btn.dataset.idx, 10)); });
+                content.querySelectorAll('.wpb-subs-reg-table tbody tr').forEach(row => {
+                    row.addEventListener('click', () => { showDetail(parseInt(row.dataset.idx, 10)); });
                 });
             }
 
