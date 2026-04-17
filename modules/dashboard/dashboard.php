@@ -163,8 +163,8 @@ function wp_barrio_dashboard_page()
                         <a href="?page=wp-barrio-forms" class="button button-primary" style="flex:1;text-align:center;">
                             Gestisci form
                         </a>
-                        <a href="?page=wp-barrio-forms&tab=builder" class="button" style="flex:1;text-align:center;">
-                            + Nuovo form
+                        <a href="?page=wp-barrio-forms&tab=settings" class="button" style="flex:1;text-align:center;">
+                            Impostazioni
                         </a>
                     </div>
                 </div>
