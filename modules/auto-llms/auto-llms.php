@@ -1719,7 +1719,7 @@ function wpb_llms_admin_page()
                                             </span>
                                         </td>
                                         <td>
-                                            <div class="wpb-log-note <?php echo $is_err ? 'error' : ''; ?>">
+                                            <div class="<?php echo $is_err ? 'error' : ''; ?>">
                                                 <?php echo esc_html($entry['note'] ?: '—'); ?>
                                             </div>
                                         </td>
