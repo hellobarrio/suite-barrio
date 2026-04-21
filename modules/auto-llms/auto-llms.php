@@ -1215,7 +1215,7 @@ function wpb_llms_admin_page()
         }
 
         .wpb-log-note { font-size: 11px; color: #646970; }
-        .wpb-log-note.error { color: #d63638; font-weight: 500; }
+        .wpb-log-note-error { color: #d63638; font-weight: 500; }
         .wpb-log-time { font-size: 11px; color: #a7aaad; white-space: nowrap; }
         .wpb-log-empty { text-align: center; padding: 40px 20px; color: #646970; font-size: 13px; }
 
@@ -1719,7 +1719,7 @@ function wpb_llms_admin_page()
                                             </span>
                                         </td>
                                         <td>
-                                            <div class="<?php echo $is_err ? 'error' : ''; ?>">
+                                            <div class="wpb-log-note<?php echo $is_err ? ' wpb-log-note-error' : ''; ?>">
                                                 <?php echo esc_html($entry['note'] ?: '—'); ?>
                                             </div>
                                         </td>
