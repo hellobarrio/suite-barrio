@@ -9,7 +9,7 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_FORMS_VERSION', '1.0.11');
+define('WPB_FORMS_VERSION', '1.0.13');
 define('WPB_FORMS_TABLE', 'wpb_forms');
 define('WPB_FORMS_SUB_TABLE', 'wpb_form_submissions');
 
@@ -379,20 +379,37 @@ function wpb_forms_shortcode($atts)
 
     <?php
     // Logica condizionale front-end — costruisce la mappa trigger→regole
+    // Nuovo formato: {fields, relation, conditions[{operator, value}]}
+    // Vecchio formato: {targets, operator, value} — migrato automaticamente
     $cond_rules = [];
     foreach ($fields as $field) {
         foreach ($field['showFields'] ?? [] as $rule) {
-            if (empty($rule['targets']))
-                continue;
             $trigger_name = $field['name'] ?? '';
             if (!$trigger_name)
                 continue;
+
+            // Normalizza: vecchio formato → nuovo
+            if (isset($rule['targets']) && !isset($rule['conditions'])) {
+                // Vecchio formato {targets, operator, value}
+                $targets = (array) ($rule['targets'] ?? []);
+                $conditions = [['operator' => $rule['operator'] ?? '=', 'value' => $rule['value'] ?? '']];
+                $relation = 'OR';
+            } else {
+                // Nuovo formato {fields, relation, conditions}
+                $targets = (array) ($rule['fields'] ?? $rule['targets'] ?? []);
+                $conditions = $rule['conditions'] ?? [['operator' => '=', 'value' => '']];
+                $relation = $rule['relation'] ?? 'OR';
+            }
+
+            if (empty($targets))
+                continue;
+
             if (!isset($cond_rules[$trigger_name]))
                 $cond_rules[$trigger_name] = [];
             $cond_rules[$trigger_name][] = [
-                'targets' => (array) $rule['targets'],
-                'operator' => $rule['operator'] ?? '=',
-                'value' => $rule['value'] ?? '',
+                'targets' => $targets,
+                'relation' => $relation,
+                'conditions' => $conditions,
             ];
         }
     }
@@ -439,10 +456,10 @@ function wpb_forms_shortcode($atts)
                     return String(inputs[0].value || '');
                 }
 
-                function testRule(rule, val) {
+                function testCondition(cond, val) {
                     var v = Array.isArray(val) ? val : [val];
-                    var rv = String(rule.value || '');
-                    switch (rule.operator) {
+                    var rv = String(cond.value || '');
+                    switch (cond.operator) {
                         case '=': return v.some(function (x) { return x === rv; });
                         case '!=': return v.every(function (x) { return x !== rv; });
                         case 'contains': return v.some(function (x) { return x.indexOf(rv) !== -1; });
@@ -452,21 +469,44 @@ function wpb_forms_shortcode($atts)
                     }
                 }
 
+                function testRule(rule, val) {
+                    var conditions = rule.conditions || [];
+                    // Retrocompatibilità: vecchio formato con operator/value singoli
+                    if (!conditions.length && (rule.operator || rule.value !== undefined)) {
+                        conditions = [{ operator: rule.operator || '=', value: rule.value || '' }];
+                    }
+                    if (!conditions.length) return false;
+                    var relation = (rule.relation || 'OR').toUpperCase();
+                    if (relation === 'AND') {
+                        return conditions.every(function (c) { return testCondition(c, val); });
+                    } else {
+                        return conditions.some(function (c) { return testCondition(c, val); });
+                    }
+                }
+
                 function applyRules(triggerName) {
                     var rules = RULES[triggerName];
                     if (!rules) return;
                     var val = getFieldValue(triggerName);
+
+                    // Raccogli per target: se QUALUNQUE gruppo passa → mostra (OR tra gruppi)
+                    var targetResults = {};
                     rules.forEach(function (rule) {
                         var show = testRule(rule, val);
                         rule.targets.forEach(function (targetName) {
-                            var el = wrap.querySelector('[data-field-name="' + targetName + '"]');
-                            if (!el) return;
-                            el.style.display = show ? '' : 'none';
-                            el.dataset.condHidden = show ? '0' : '1';
-                            // Se nascosto, disabilita i campi interni per non includerli nel submit
-                            el.querySelectorAll('input,select,textarea').forEach(function (inp) {
-                                inp.disabled = !show;
-                            });
+                            if (targetResults[targetName] === undefined) targetResults[targetName] = false;
+                            if (show) targetResults[targetName] = true; // OR: basta un gruppo che passa
+                        });
+                    });
+
+                    Object.keys(targetResults).forEach(function (targetName) {
+                        var show = targetResults[targetName];
+                        var el = wrap.querySelector('[data-field-name="' + targetName + '"]');
+                        if (!el) return;
+                        el.style.display = show ? '' : 'none';
+                        el.dataset.condHidden = show ? '0' : '1';
+                        el.querySelectorAll('input,select,textarea').forEach(function (inp) {
+                            inp.disabled = !show;
                         });
                     });
                 }
@@ -1080,15 +1120,22 @@ add_action('wp_ajax_wpb_forms_save', function () {
                 $field['pattern'] = '[a-z0-9\\._%+!$&*=^|~#%{}/\\-]+@([a-z0-9\\-]+\\.){1,}([a-z]{2,22})';
             }
 
-            // Normalizza showFields: converte il vecchio formato {fields} nel nuovo {targets}
+            // Normalizza showFields al nuovo formato {fields, relation, conditions}
             if (!isset($field['showFields']))
                 continue;
             foreach ($field['showFields'] as &$rule) {
-                // Se ha la chiave vecchia "fields" ma non "targets", migra
-                if (isset($rule['fields']) && !isset($rule['targets'])) {
-                    $rule['targets'] = $rule['fields'];
+                // Migra vecchio formato {targets, operator, value} → nuovo {fields, relation, conditions}
+                if (isset($rule['targets']) && !isset($rule['conditions'])) {
+                    $rule['fields'] = (array) $rule['targets'];
+                    $rule['relation'] = 'OR';
+                    $rule['conditions'] = [['operator' => $rule['operator'] ?? '=', 'value' => $rule['value'] ?? '']];
+                    unset($rule['targets'], $rule['operator'], $rule['value']);
                 }
-                unset($rule['fields']); // rimuovi l'alias dal DB
+                // Assicurati che fields esista (alias da targets)
+                if (isset($rule['targets']) && !isset($rule['fields'])) {
+                    $rule['fields'] = (array) $rule['targets'];
+                    unset($rule['targets']);
+                }
             }
             unset($rule);
         }
@@ -1393,7 +1440,6 @@ function wpb_forms_admin_page()
             border-radius: 3px;
             overflow: hidden;
             background: #fff;
-            height: 600px;
         }
 
         .wpb-panel-fields {
@@ -1875,22 +1921,111 @@ function wpb_forms_admin_page()
             font-family: inherit;
         }
 
-        .wpb-cond-then {
-            font-size: 11px;
-            color: #646970;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+        .wpb-cond-or-badge {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #2271b1;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding: 2px 0;
         }
 
-        .wpb-cond-then select {
-            flex: 1;
+        .wpb-cond-conditions {
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .wpb-cond-cond-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+        }
+
+        .wpb-cond-cond-op,
+        .wpb-cond-cond-val {
+            width: 100%;
+        }
+
+        .wpb-cond-cond-row select,
+        .wpb-cond-cond-row input {
             padding: 3px 6px;
             font-size: 11px;
             border: 1px solid #c3c4c7;
             border-radius: 3px;
             background: #fff;
             font-family: inherit;
+        }
+
+        .wpb-cond-cond-row select {
+            flex: 0 0 auto;
+        }
+
+        .wpb-cond-cond-row input,
+        .wpb-cond-cond-row select.wpb-cond-cond-val {
+            flex: 1;
+        }
+
+        .wpb-cond-relation-toggle {
+            display: inline-flex;
+            border: 1px solid #c3c4c7;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 2px 0;
+            align-self: flex-start;
+        }
+
+        .wpb-cond-relation-btn {
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            background: #f6f7f7;
+            color: #646970;
+        }
+
+        .wpb-cond-relation-btn.active {
+            background: #2271b1;
+            color: #fff;
+        }
+
+        .wpb-btn-rm-cond-cond {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #d63638;
+            font-size: 13px;
+            line-height: 1;
+            padding: 0 2px;
+            flex-shrink: 0;
+            opacity: .6;
+        }
+
+        .wpb-btn-rm-cond-cond:hover {
+            opacity: 1;
+        }
+
+        .wpb-btn-add-cond-cond {
+            font-size: 10px;
+            background: none;
+            border: 1px dashed #c3c4c7;
+            border-radius: 3px;
+            padding: 2px 8px;
+            cursor: pointer;
+            color: #646970;
+            align-self: flex-start;
+            margin-top: 2px;
+        }
+
+        .wpb-btn-add-cond-cond:hover {
+            border-color: #2271b1;
+            color: #2271b1;
         }
 
         .wpb-btn-rm-cond {
@@ -1979,6 +2114,7 @@ function wpb_forms_admin_page()
             border-radius: 3px;
             overflow: hidden;
             overflow-x: auto;
+            width: 100%;
         }
 
         .wpb-reg-table {
@@ -2152,6 +2288,7 @@ function wpb_forms_admin_page()
             border: 1px solid #c3c4c7;
             border-radius: 3px;
             max-width: 760px;
+            width: 60%;
         }
 
         .wpb-sub-detail-header {
@@ -2243,6 +2380,8 @@ function wpb_forms_admin_page()
             max-width: 760px;
             margin-top: 14px;
             overflow: hidden;
+            width: calc(40% - 30px);
+            height: 100%;
         }
 
         .wpb-resend-header {
@@ -2699,6 +2838,31 @@ function wpb_forms_admin_page()
             background: #b32d2e;
             border-color: #b32d2e;
         }
+
+        #wpb-tab-notifiche {
+            display: flex;
+            column-gap: 30px;
+            flex-direction: row-reverse;
+        }
+
+        .email-style-settings {
+            height: 100%;
+        }
+
+        .email-notifications-list {
+            width: 100%;
+        }
+
+        #wpb-tab-settings>div {
+            display: flex;
+            max-width: none !important;
+        }
+
+        #wpb-reg-content {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
     </style>
 
     <div id="wpb-forms-wrap" class="wrap">
@@ -3012,7 +3176,7 @@ function wpb_forms_admin_page()
             <div id="wpb-tab-notifiche" style="display:none;">
 
                 <!-- Impostazioni globali email -->
-                <div
+                <div class="email-style-settings"
                     style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;max-width:600px;margin-bottom:20px;">
                     <h3
                         style="margin:0 0 16px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;">
@@ -3070,7 +3234,7 @@ function wpb_forms_admin_page()
                 </div>
 
                 <!-- Lista notifiche email -->
-                <div style="max-width:600px;">
+                <div class="email-notifications-list" style="max-width:600px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
                         <div>
                             <h3
@@ -3771,13 +3935,13 @@ function wpb_forms_admin_page()
             }
 
             card.innerHTML = `
-                                                                                                                                                                                        <div class="wpb-field-card-header">
-                                                                                                                                                                                            <span class="wpb-drag-handle">⠿</span>
-                                                                                                                                                                                            <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
-                                                                                                                                                                                            <span class="wpb-field-card-type">${esc(f.type)}</span>
-                                                                                                                                                                                            <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        <div class="wpb-field-card-preview">${preview}</div>`;
+                                                                                                                                                                                                                                                                            <div class="wpb-field-card-header">
+                                                                                                                                                                                                                                                                                <span class="wpb-drag-handle">⠿</span>
+                                                                                                                                                                                                                                                                                <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
+                                                                                                                                                                                                                                                                                <span class="wpb-field-card-type">${esc(f.type)}</span>
+                                                                                                                                                                                                                                                                                <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
+                                                                                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                                                                                            <div class="wpb-field-card-preview">${preview}</div>`;
 
             card.addEventListener('click', e => { if (!e.target.classList.contains('wpb-btn-remove-field')) selectField(f.id); });
             card.querySelector('.wpb-btn-remove-field').addEventListener('click', e => { e.stopPropagation(); removeField(f.id); });
@@ -3876,10 +4040,10 @@ function wpb_forms_admin_page()
 
             if (f.type === 'page_break') {
                 propsInner.innerHTML = `<div style="padding:12px 0;text-align:center;color:#646970;">
-                                                            <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#2271b1;"></span>
-                                                            <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
-                                                            <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
-                                                        </div>`;
+                                                                                                                                                <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#2271b1;"></span>
+                                                                                                                                                <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
+                                                                                                                                                <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
+                                                                                                                                            </div>`;
                 return;
             }
 
@@ -3891,16 +4055,16 @@ function wpb_forms_admin_page()
             const showPlaceholder = (!hasOpts || isSelect) && !isDatepicker && !isFile;
 
             propsInner.innerHTML = `
-                                                                                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                                                                                            <label>Etichetta</label>
-                                                                                                                                                                                            <input type="text" id="prop-label" value="${esc(f.label)}">
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                                                                                            <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
-                                                                                                                                                                                            <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
-                                                                                                                                                                                        ${isNumber ? `
+                                                        <div class="wpb-prop-group">
+                                                            <label>Etichetta</label>
+                                                            <input type="text" id="prop-label" value="${esc(f.label)}">
+                                                        </div>
+                                                        <div class="wpb-prop-group">
+                                                            <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
+                                                            <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
+                                                        </div>
+                                                        ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
+                                                        ${isNumber ? `
                 <div class="wpb-prop-group">
                     <label>Valore minimo</label>
                     <input type="number" id="prop-min" value="${esc(f.min ?? '')}">
@@ -3909,42 +4073,47 @@ function wpb_forms_admin_page()
                     <label>Valore massimo</label>
                     <input type="number" id="prop-max" value="${esc(f.max ?? '')}">
                 </div>` : ''}
-                                                                                                                                                                                        ${isDatepicker ? `
+                                                        ${isDatepicker ? `
                 <div class="wpb-prop-group">
                     <label>Formato data</label>
                     <input type="text" id="prop-format" value="${esc(f.format || 'dd/MM/y')}" placeholder="dd/MM/y">
                     <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Es: dd/MM/y · MM/dd/yyyy · yyyy-MM-dd</p>
                 </div>` : ''}
-                                                                                                                                                                                        ${hasOpts ? `<div class="wpb-prop-group">
+                                                        ${hasOpts ? `<div class="wpb-prop-group">
                     <label>Opzioni</label>
                     <div class="wpb-options-list" id="wpb-opts-list">
                     ${(f.options || []).map((o, i) => `<div class="wpb-option-row"><input type="text" class="wpb-opt-input" data-idx="${i}" value="${esc(o)}" placeholder="Opzione ${i + 1}"><button class="wpb-btn-rm-opt" data-idx="${i}">×</button></div>`).join('')}
                     </div>
                     <button class="wpb-btn-add-opt" id="wpb-btn-add-opt">+ Aggiungi opzione</button>
                 </div>` : ''}
-                                                                                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                                                                                            <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                                                                                            <label>Messaggio di errore</label>
-                                                                                                                                                                                            <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
-                                                                                                                                                                                            <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
-                                                                                                                                                                                            Tipo: <strong>${esc(f.type)}</strong>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        <div class="wpb-cond-section">
-                                                                                                                                                                                            <div class="wpb-cond-section-title">
-                                                                                                                                                                                                <span>Logica condizionale</span>
-                                                                                                                                                                                            </div>
-                                                                                                                                                                                            <p style="font-size:11px;color:#a7aaad;margin:0 0 8px;line-height:1.5;">
-                                                                                                                                                                                                Questo campo mostra altri campi quando vengono soddisfatte le condizioni seguenti.
-                                                                                                                                                                                            </p>
-                                                                                                                                                                                            <div class="wpb-cond-list" id="wpb-cond-list">
-                                                                                                                                                                                                ${(f.showFields || []).map((rule, ri) => renderCondRow(rule, ri, f)).join('')}
-                                                                                                                                                                                            </div>
-                                                                                                                                                                                            <button class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
-                                                                                                                                                                                        </div>`;
+                                                        <div class="wpb-prop-group">
+                                                            <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
+                                                        </div>
+                                                        <div class="wpb-prop-group">
+                                                            <label>Messaggio di errore</label>
+                                                            <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
+                                                            <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
+                                                        </div>
+                                                        <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
+                                                            Tipo: <strong>${esc(f.type)}</strong>
+                                                        </div>
+                                                        <div class="wpb-cond-section">
+                                                            <div class="wpb-cond-section-title">
+                                                                <span>Logica condizionale</span>
+                                                            </div>
+                                                            <p style="font-size:11px;color:#a7aaad;margin:0 0 8px;line-height:1.5;">
+                                                                Questo campo mostra altri campi quando vengono soddisfatte le condizioni. Più gruppi sono in relazione OR.
+                                                            </p>
+                                                            <div class="wpb-cond-list" id="wpb-cond-list">
+                                                                ${(f.showFields || []).map((rule, ri) => {
+                    let html = '';
+                    if (ri > 0) html += '<div class="wpb-cond-or-badge">oppure</div>';
+                    html += renderCondRow(rule, ri, f);
+                    return html;
+                }).join('')}
+                                                            </div>
+                                                            <button class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi gruppo</button>
+                                                        </div>`;
 
             const bi = (elId, key) => { const el = document.getElementById(elId); if (el) el.addEventListener('input', () => updateField(f.id, key, el.value)); };
 
@@ -3992,51 +4161,97 @@ function wpb_forms_admin_page()
             bindCondEvents(f);
         }
 
-        /* ── Logica condizionale: render riga regola ── */
+        /* ── Logica condizionale: render riga regola (gruppo) ── */
         function renderCondRow(rule, ri, f) {
             const otherFields = fields.filter(x => x.id !== f.id && x.type !== 'page_break');
-            // Supporta sia il nuovo formato (targets) che il vecchio (fields)
-            const selected = rule.targets || rule.fields || [];
+
+            // Normalizza: supporta vecchio formato {targets,operator,value} → nuovo {fields,relation,conditions}
+            const targetNames = rule.fields || rule.targets || [];
+            const relation = rule.relation || 'OR';
+            let conditions = rule.conditions || [];
+            // Migra vecchio formato con operator/value singoli
+            if (!conditions.length && (rule.operator || rule.value)) {
+                conditions = [{ operator: rule.operator || '=', value: rule.value || '' }];
+            }
+            if (!conditions.length) conditions = [{ operator: '=', value: '' }];
+
             const targetOpts = otherFields.map(x =>
-                `<option value="${esc(x.name)}" ${selected.includes(x.name) ? 'selected' : ''}>${esc(x.label || x.name)}</option>`
+                `<option value="${esc(x.name)}" ${targetNames.includes(x.name) ? 'selected' : ''}>${esc(x.label || x.name)}</option>`
             ).join('');
 
-            const ops = [
-                { v: '=', l: 'è uguale a' },
-                { v: '!=', l: 'è diverso da' },
-                { v: 'contains', l: 'contiene' },
-                { v: 'empty', l: 'è vuoto' },
-                { v: 'notempty', l: 'non è vuoto' },
-            ];
-            const opOpts = ops.map(o =>
-                `<option value="${o.v}" ${(rule.operator || '=') === o.v ? 'selected' : ''}>${o.l}</option>`
-            ).join('');
+            const hasOptions = ['select', 'radio', 'checkbox'].includes(f.type) && Array.isArray(f.options) && f.options.length;
 
-            const needsValue = !['empty', 'notempty'].includes(rule.operator || '=');
+            const opsForType = hasOptions
+                ? [{ v: '=', l: 'è uguale a' }, { v: '!=', l: 'è diverso da' }]
+                : [
+                    { v: '=', l: 'è uguale a' },
+                    { v: '!=', l: 'è diverso da' },
+                    { v: 'contains', l: 'contiene' },
+                    { v: 'empty', l: 'è vuoto' },
+                    { v: 'notempty', l: 'non è vuoto' },
+                ];
+
+            // Render conditions
+            const conditionsHtml = conditions.map((cond, ci) => {
+                const opOpts = opsForType.map(o =>
+                    `<option value="${o.v}" ${(cond.operator || '=') === o.v ? 'selected' : ''}>${o.l}</option>`
+                ).join('');
+
+                const needsValue = !['empty', 'notempty'].includes(cond.operator || '=');
+                let valueEl = '';
+                if (needsValue) {
+                    if (hasOptions) {
+                        const valOpts = f.options.map(opt =>
+                            `<option value="${esc(opt)}" ${(cond.value || '') === opt ? 'selected' : ''}>${esc(opt)}</option>`
+                        ).join('');
+                        valueEl = `<select class="wpb-cond-cond-val" data-ci="${ci}"
+                                            style="flex:1;padding:3px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                        <option value="" disabled ${!(cond.value) ? 'selected' : ''} hidden>Seleziona…</option>
+                                        ${valOpts}
+                                    </select>`;
+                    } else {
+                        valueEl = `<input type="text" class="wpb-cond-cond-val" data-ci="${ci}"
+                                           value="${esc(cond.value || '')}" placeholder="Valore…"
+                                           style="flex:1;padding:3px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
+                    }
+                }
+
+                const relLabel = ci > 0
+                    ? `<span style="font-size:10px;font-weight:600;color:#2271b1;text-transform:uppercase;flex-shrink:0;">${esc(relation)}</span>`
+                    : `<span style="font-size:10px;color:#646970;flex-shrink:0;">quando</span>`;
+
+                return `<div class="wpb-cond-cond-row" data-ci="${ci}">
+                            ${relLabel}
+                            <select class="wpb-cond-cond-op" data-ci="${ci}"
+                                    style="flex:0 0 auto;min-width:90px;">
+                                ${opOpts}
+                            </select>
+                            ${valueEl}
+                            ${conditions.length > 1 ? `<button class="wpb-btn-rm-cond-cond" data-ci="${ci}" title="Rimuovi condizione">×</button>` : ''}
+                        </div>`;
+            }).join('');
+
+            // Relation toggle
+            const relToggle = `<div class="wpb-cond-relation-toggle">
+                        <button type="button" class="wpb-cond-relation-btn${relation === 'AND' ? ' active' : ''}" data-rel="AND">AND</button>
+                        <button type="button" class="wpb-cond-relation-btn${relation === 'OR' ? ' active' : ''}" data-rel="OR">OR</button>
+                    </div>`;
 
             return `<div class="wpb-cond-row" data-ri="${ri}">
-                                                                                                                                                                                        <div class="wpb-cond-row-header">
-                                                                                                                                                                                            <span style="flex-shrink:0;font-size:11px;color:#646970;">Mostra</span>
-                                                                                                                                                                                            <select class="wpb-cond-target" data-ri="${ri}" multiple size="3"
-                                                                                                                                                                                                    style="flex:1;padding:3px 4px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;height:auto;">
-                                                                                                                                                                                                ${targetOpts || '<option disabled>Nessun altro campo</option>'}
-                                                                                                                                                                                            </select>
-                                                                                                                                                                                            <button class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi">×</button>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        <div class="wpb-cond-then" style="font-size:11px;color:#646970;display:flex;align-items:center;gap:6px;margin-top:4px;">
-                                                                                                                                                                                            <span style="flex-shrink:0;">quando</span>
-                                                                                                                                                                                            <select class="wpb-cond-op" data-ri="${ri}"
-                                                                                                                                                                                                    style="flex:1;padding:3px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                                                                                                                ${opOpts}
-                                                                                                                                                                                            </select>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                        ${needsValue ? `<div style="font-size:11px;display:flex;align-items:center;gap:6px;margin-top:4px;">
-                    <span style="flex-shrink:0;color:#646970;width:52px;">valore</span>
-                    <input type="text" class="wpb-cond-val" data-ri="${ri}"
-                           value="${esc(rule.value || '')}" placeholder="Valore atteso…"
-                           style="flex:1;padding:3px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">
-                </div>` : ''}
-                                                                                                                                                                                    </div>`;
+                        <div class="wpb-cond-row-header">
+                            <span style="flex-shrink:0;font-size:11px;color:#646970;">Mostra</span>
+                            <select class="wpb-cond-target" data-ri="${ri}" multiple size="3"
+                                    style="flex:1;padding:3px 4px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;height:auto;">
+                                ${targetOpts || '<option disabled>Nessun altro campo</option>'}
+                            </select>
+                            <button class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi gruppo">×</button>
+                        </div>
+                        ${conditions.length > 1 ? `<div style="margin-top:4px;">${relToggle}</div>` : ''}
+                        <div class="wpb-cond-conditions">
+                            ${conditionsHtml}
+                        </div>
+                        <button type="button" class="wpb-btn-add-cond-cond" data-ri="${ri}">+ Aggiungi condizione</button>
+                    </div>`;
         }
 
         /* ── Logica condizionale: bind eventi ── */
@@ -4048,15 +4263,30 @@ function wpb_forms_admin_page()
                 const rules = [];
                 list.querySelectorAll('.wpb-cond-row').forEach(row => {
                     const targetSel = row.querySelector('.wpb-cond-target');
-                    const opSel = row.querySelector('.wpb-cond-op');
-                    const valInp = row.querySelector('.wpb-cond-val');
-                    if (!targetSel || !opSel) return;
+                    if (!targetSel) return;
                     const targets = Array.from(targetSel.selectedOptions).map(o => o.value).filter(Boolean);
                     if (!targets.length) return;
+
+                    // Leggi relation dal toggle attivo
+                    const relBtn = row.querySelector('.wpb-cond-relation-btn.active');
+                    const relation = relBtn ? relBtn.dataset.rel : 'OR';
+
+                    // Leggi tutte le condizioni
+                    const conditions = [];
+                    row.querySelectorAll('.wpb-cond-cond-row').forEach(cr => {
+                        const opSel = cr.querySelector('.wpb-cond-cond-op');
+                        const valEl = cr.querySelector('.wpb-cond-cond-val');
+                        if (!opSel) return;
+                        conditions.push({
+                            operator: opSel.value,
+                            value: valEl ? valEl.value : '',
+                        });
+                    });
+
                     rules.push({
-                        targets: targets,
-                        operator: opSel.value,
-                        value: valInp ? valInp.value : '',
+                        fields: targets,
+                        relation: relation,
+                        conditions: conditions.length ? conditions : [{ operator: '=', value: '' }],
                     });
                 });
                 return rules;
@@ -4064,6 +4294,7 @@ function wpb_forms_admin_page()
 
             function saveRules() { updateField(f.id, 'showFields', readAllRules()); }
 
+            // Elimina gruppo
             list.querySelectorAll('.wpb-btn-rm-cond').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const ri = parseInt(btn.dataset.ri);
@@ -4073,22 +4304,68 @@ function wpb_forms_admin_page()
                 });
             });
 
-            list.querySelectorAll('.wpb-cond-op').forEach(sel => {
+            // Elimina condizione singola
+            list.querySelectorAll('.wpb-btn-rm-cond-cond').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const ri = parseInt(btn.closest('.wpb-cond-row').dataset.ri);
+                    const ci = parseInt(btn.dataset.ci);
+                    const rules = readAllRules();
+                    if (rules[ri] && rules[ri].conditions.length > 1) {
+                        rules[ri].conditions.splice(ci, 1);
+                        updateField(f.id, 'showFields', rules);
+                        renderProps();
+                    }
+                });
+            });
+
+            // Cambio operatore → re-render per mostrare/nascondere campo valore
+            list.querySelectorAll('.wpb-cond-cond-op').forEach(sel => {
                 sel.addEventListener('change', () => {
                     updateField(f.id, 'showFields', readAllRules());
                     renderProps();
                 });
             });
 
-            list.querySelectorAll('.wpb-cond-target, .wpb-cond-val').forEach(el => {
+            // Target fields
+            list.querySelectorAll('.wpb-cond-target').forEach(el => {
+                el.addEventListener('change', saveRules);
+            });
+
+            // Valori condizione (input e select)
+            list.querySelectorAll('.wpb-cond-cond-val').forEach(el => {
                 el.addEventListener('change', saveRules);
                 el.addEventListener('input', saveRules);
             });
 
+            // Toggle relazione AND/OR
+            list.querySelectorAll('.wpb-cond-relation-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const rules = readAllRules();
+                    const ri = parseInt(btn.closest('.wpb-cond-row').dataset.ri);
+                    if (rules[ri]) rules[ri].relation = btn.dataset.rel;
+                    updateField(f.id, 'showFields', rules);
+                    renderProps();
+                });
+            });
+
+            // Aggiungi condizione dentro un gruppo
+            list.querySelectorAll('.wpb-btn-add-cond-cond').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const ri = parseInt(btn.dataset.ri);
+                    const rules = readAllRules();
+                    if (rules[ri]) {
+                        rules[ri].conditions.push({ operator: '=', value: '' });
+                        updateField(f.id, 'showFields', rules);
+                        renderProps();
+                    }
+                });
+            });
+
+            // Aggiungi nuovo gruppo
             const addBtn = document.getElementById('wpb-btn-add-cond');
             if (addBtn) {
                 addBtn.addEventListener('click', () => {
-                    const rules = [...(f.showFields || []), { targets: [], operator: '=', value: '' }];
+                    const rules = [...(f.showFields || []), { fields: [], relation: 'OR', conditions: [{ operator: '=', value: '' }] }];
                     updateField(f.id, 'showFields', rules);
                     renderProps();
                 });
@@ -4162,9 +4439,9 @@ function wpb_forms_admin_page()
                 const valHtml = checkHtml || (empty ? 'Non compilato' : esc(String(val)));
 
                 fieldsHtml += `<div class="wpb-sub-detail-row">
-                                    <div class="wpb-sub-detail-label">${esc(f.label || f.name)}</div>
-                                    <div class="wpb-sub-detail-value${empty ? ' wpb-empty' : ''}">${valHtml}</div>
-                                </div>`;
+                                                                            <div class="wpb-sub-detail-label">${esc(f.label || f.name)}</div>
+                                                                            <div class="wpb-sub-detail-value${empty ? ' wpb-empty' : ''}">${valHtml}</div>
+                                                                        </div>`;
             });
 
             // Sezione informazioni pagina (se presenti nella submission)
@@ -4176,15 +4453,15 @@ function wpb_forms_admin_page()
                     const urlEsc = esc(String(pageUrl));
                     const urlLink = pageUrl ? `<a href="${urlEsc}" target="_blank" rel="noopener">${urlEsc}</a>` : '';
                     fieldsHtml += `<div class="wpb-sub-detail-row">
-                                                                                                                                                                <div class="wpb-sub-detail-label">URL pagina</div>
-                                                                                                                                                                <div class="wpb-sub-detail-value" style="word-break:break-all;">${urlLink}</div>
-                                                                                                                                                            </div>`;
+                                                                                                                                                                                                        <div class="wpb-sub-detail-label">URL pagina</div>
+                                                                                                                                                                                                        <div class="wpb-sub-detail-value" style="word-break:break-all;">${urlLink}</div>
+                                                                                                                                                                                                    </div>`;
                 }
                 if (pageTitle) {
                     fieldsHtml += `<div class="wpb-sub-detail-row">
-                                                                                                                                                                <div class="wpb-sub-detail-label">Titolo pagina</div>
-                                                                                                                                                                <div class="wpb-sub-detail-value">${esc(String(pageTitle))}</div>
-                                                                                                                                                            </div>`;
+                                                                                                                                                                                                        <div class="wpb-sub-detail-label">Titolo pagina</div>
+                                                                                                                                                                                                        <div class="wpb-sub-detail-value">${esc(String(pageTitle))}</div>
+                                                                                                                                                                                                    </div>`;
                 }
             }
 
@@ -4204,42 +4481,42 @@ function wpb_forms_admin_page()
                     optionsHtml += `<option value="${i}">${esc(label)}</option>`;
                 });
                 resendHtml = `
-                                                                                                                <div class="wpb-resend-wrap">
-                                                                                                                    <div class="wpb-resend-header">
-                                                                                                                        <h4><span class="dashicons dashicons-email-alt" style="font-size:18px;width:18px;height:18px;color:#2271b1;"></span> Rinvia notifica</h4>
-                                                                                                                    </div>
-                                                                                                                    <div class="wpb-resend-body">
-                                                                                                                        <div class="wpb-resend-field">
-                                                                                                                            <label for="wpb-resend-template">Template di notifica <span style="color:#d63638;">*</span></label>
-                                                                                                                            <select id="wpb-resend-template" required>${optionsHtml}</select>
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-resend-field">
-                                                                                                                            <label for="wpb-resend-email">Email destinatario (override)</label>
-                                                                                                                            <input type="email" id="wpb-resend-email" placeholder="Lascia vuoto per usare il destinatario configurato">
-                                                                                                                            <p class="description">Se compilato, la notifica verrà inviata a questo indirizzo invece che al destinatario del template.</p>
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-resend-actions">
-                                                                                                                            <button class="button button-primary" id="wpb-btn-resend">Invia notifica</button>
-                                                                                                                            <span id="wpb-resend-result" class="wpb-resend-result"></span>
-                                                                                                                        </div>
-                                                                                                                    </div>
-                                                                                                                </div>`;
+                                                                                                                                                        <div class="wpb-resend-wrap">
+                                                                                                                                                            <div class="wpb-resend-header">
+                                                                                                                                                                <h4><span class="dashicons dashicons-email-alt" style="font-size:18px;width:18px;height:18px;color:#2271b1;"></span> Rinvia notifica</h4>
+                                                                                                                                                            </div>
+                                                                                                                                                            <div class="wpb-resend-body">
+                                                                                                                                                                <div class="wpb-resend-field">
+                                                                                                                                                                    <label for="wpb-resend-template">Template di notifica <span style="color:#d63638;">*</span></label>
+                                                                                                                                                                    <select id="wpb-resend-template" required>${optionsHtml}</select>
+                                                                                                                                                                </div>
+                                                                                                                                                                <div class="wpb-resend-field">
+                                                                                                                                                                    <label for="wpb-resend-email">Email destinatario (override)</label>
+                                                                                                                                                                    <input type="email" id="wpb-resend-email" placeholder="Lascia vuoto per usare il destinatario configurato">
+                                                                                                                                                                    <p class="description">Se compilato, la notifica verrà inviata a questo indirizzo invece che al destinatario del template.</p>
+                                                                                                                                                                </div>
+                                                                                                                                                                <div class="wpb-resend-actions">
+                                                                                                                                                                    <button class="button button-primary" id="wpb-btn-resend">Invia notifica</button>
+                                                                                                                                                                    <span id="wpb-resend-result" class="wpb-resend-result"></span>
+                                                                                                                                                                </div>
+                                                                                                                                                            </div>
+                                                                                                                                                        </div>`;
             }
 
             const content = document.getElementById('wpb-reg-content');
             content.innerHTML = `
-                                                                                                                                                                                <button class="button" id="wpb-reg-back">\u2190 Torna alla lista</button>
-                                                                                                                                                                                <div class="wpb-sub-detail-wrap" style="margin-top:14px;">
-                                                                                                                                                                                    <div class="wpb-sub-detail-header">
-                                                                                                                                                                                        <h3>Registrazione #${sub.id}</h3>
-                                                                                                                                                                                        <button class="button button-small wpb-btn-reg-del-detail"
-                                                                                                                                                                                                style="color:#d63638;border-color:#d63638;"
-                                                                                                                                                                                                data-id="${sub.id}">Elimina</button>
-                                                                                                                                                                                    </div>
-                                                                                                                                                                                    <div class="wpb-sub-detail-meta">${metaHtml}</div>
-                                                                                                                                                                                    <div class="wpb-sub-detail-fields">${fieldsHtml}</div>
-                                                                                                                                                                                </div>
-                                                                                                                                                                                ${resendHtml}`;
+                                                                                                                                                                                                                        <div class="wpb-sub-detail-wrap" style="margin-top:14px;">
+                                                                                                                                                                                                                            <div class="wpb-sub-detail-header">
+                                                                                                                                                                                                                                <h3>Registrazione #${sub.id}</h3>
+                                                                                                                                                                                                                                <button class="button button-small wpb-btn-reg-del-detail"
+                                                                                                                                                                                                                                        style="color:#d63638;border-color:#d63638;"
+                                                                                                                                                                                                                                        data-id="${sub.id}">Elimina</button>
+                                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                                            <div class="wpb-sub-detail-meta">${metaHtml}</div>
+                                                                                                                                                                                                                            <div class="wpb-sub-detail-fields">${fieldsHtml}</div>
+                                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                                        ${resendHtml}
+                                                                                                                                                                                                                        <button class="button" id="wpb-reg-back" style="margin-top: 30px;">\u2190 Torna alla lista</button>`;
 
             document.getElementById('wpb-reg-back').addEventListener('click', () => {
                 regLoaded = false;
@@ -4331,9 +4608,9 @@ function wpb_forms_admin_page()
 
                     if (!subs || !subs.length) {
                         content.innerHTML = `<div class="wpb-reg-empty">
-                                                                                                                                                                                                <span class="dashicons dashicons-email-alt" style="font-size:36px;width:36px;height:36px;color:#c3c4c7;display:block;margin:0 auto 10px;"></span>
-                                                                                                                                                                                                Nessuna registrazione ancora.
-                                                                                                                                                                                            </div>`;
+                                                                                                                                                                                                                                        <span class="dashicons dashicons-email-alt" style="font-size:36px;width:36px;height:36px;color:#c3c4c7;display:block;margin:0 auto 10px;"></span>
+                                                                                                                                                                                                                                        Nessuna registrazione ancora.
+                                                                                                                                                                                                                                    </div>`;
                         return;
                     }
 
@@ -4367,12 +4644,12 @@ function wpb_forms_admin_page()
                     });
 
                     content.innerHTML = `
-                                                                                                                                                                                            <div class="wpb-reg-table-wrap">
-                                                                                                                                                                                                <table class="wpb-reg-table">
-                                                                                                                                                                                                    <thead>${thead}</thead>
-                                                                                                                                                                                                    <tbody>${tbody}</tbody>
-                                                                                                                                                                                                </table>
-                                                                                                                                                                                            </div>`;
+                                                                                                                                                                                                                                    <div class="wpb-reg-table-wrap">
+                                                                                                                                                                                                                                        <table class="wpb-reg-table">
+                                                                                                                                                                                                                                            <thead>${thead}</thead>
+                                                                                                                                                                                                                                            <tbody>${tbody}</tbody>
+                                                                                                                                                                                                                                        </table>
+                                                                                                                                                                                                                                    </div>`;
 
                     // Bind dettaglio: riga intera cliccabile
                     content.querySelectorAll('tr.wpb-btn-reg-detail').forEach(row => {

@@ -485,18 +485,39 @@ function wpb_graphql_format_field(array $f): array
         }
     }
 
-    // Normalizza showFields — supporta sia il vecchio formato {fields,conditions} che il nuovo {targets,operator,value}
+    // Normalizza showFields — supporta vecchio formato {targets,operator,value} e nuovo {fields,relation,conditions}
     $show_fields = [];
     foreach ($f['showFields'] ?? [] as $rule) {
-        // Nuovo formato semplificato
-        if (isset($rule['targets'])) {
+        if (isset($rule['conditions']) && is_array($rule['conditions'])) {
+            // Nuovo formato {fields, relation, conditions}
+            $conditions = [];
+            foreach ($rule['conditions'] as $cond) {
+                $conditions[] = [
+                    'value' => (string) ($cond['value'] ?? ''),
+                    'operator' => (string) ($cond['operator'] ?? '='),
+                ];
+            }
+            $targets = (array) ($rule['fields'] ?? $rule['targets'] ?? []);
             $show_fields[] = [
-                'targets' => (array) ($rule['targets'] ?? []),
-                'fields' => (array) ($rule['targets'] ?? []), // alias
+                'targets' => $targets,
+                'fields' => $targets,
+                'operator' => '',
+                'value' => '',
+                'relation' => (string) ($rule['relation'] ?? 'OR'),
+                'conditions' => $conditions,
+            ];
+        } elseif (isset($rule['targets'])) {
+            // Vecchio formato {targets, operator, value} → migra
+            $targets = (array) ($rule['targets'] ?? []);
+            $show_fields[] = [
+                'targets' => $targets,
+                'fields' => $targets,
                 'operator' => (string) ($rule['operator'] ?? '='),
                 'value' => (string) ($rule['value'] ?? ''),
-                'relation' => '',
-                'conditions' => [],
+                'relation' => 'OR',
+                'conditions' => [
+                    ['value' => (string) ($rule['value'] ?? ''), 'operator' => (string) ($rule['operator'] ?? '=')],
+                ],
             ];
         } else {
             // Vecchio formato esteso {fields, relation, conditions}
