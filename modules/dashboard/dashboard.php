@@ -163,8 +163,85 @@ function wp_barrio_dashboard_page()
                         <a href="?page=wp-barrio-forms" class="button button-primary" style="flex:1;text-align:center;">
                             Gestisci form
                         </a>
-                        <a href="?page=wp-barrio-forms&tab=builder" class="button" style="flex:1;text-align:center;">
-                            + Nuovo form
+                        <a href="?page=wp-barrio-forms&tab=settings" class="button" style="flex:1;text-align:center;">
+                            Impostazioni
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Auto LLMs -->
+            <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                <div style="background:#0e7490;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                    <span class="dashicons dashicons-text-page"
+                        style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                    <div>
+                        <div style="font-size:16px;font-weight:600;color:#fff;">Auto LLMs</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Genera llms.txt e
+                            llms-full.txt per la GEO</div>
+                    </div>
+                </div>
+                <div style="padding:16px 20px;">
+                    <?php
+                    $llms_short_exists = file_exists(ABSPATH . 'llms.txt');
+                    $llms_full_exists = file_exists(ABSPATH . 'llms-full.txt');
+                    $llms_provider = get_option('wpb_llms_provider', 'anthropic');
+                    $llms_provider_name = $llms_provider === 'gemini' ? 'Google Gemini' : 'Anthropic Claude';
+                    $llms_last = get_option('wpb_llms_last_generated', null);
+                    ?>
+                    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                        <tr>
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">llms.txt</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php if ($llms_short_exists): ?>
+                                    <span style="color:#00a32a;">&#x2713; Presente
+                                        (<?php echo size_format(filesize(ABSPATH . 'llms.txt')); ?>)</span>
+                                <?php else: ?>
+                                    <span style="color:#646970;">Non generato</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr style="border-top:1px solid #f0f0f1;">
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">llms-full.txt</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php if ($llms_full_exists): ?>
+                                    <span style="color:#00a32a;">&#x2713; Presente
+                                        (<?php echo size_format(filesize(ABSPATH . 'llms-full.txt')); ?>)</span>
+                                <?php else: ?>
+                                    <span style="color:#646970;">Non generato</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr style="border-top:1px solid #f0f0f1;">
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">Provider attivo</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php echo esc_html($llms_provider_name); ?>
+                            </td>
+                        </tr>
+                        <tr style="border-top:1px solid #f0f0f1;">
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">Ultima generazione</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php echo $llms_last ? date_i18n('d/m/Y H:i', $llms_last['ts']) : '—'; ?>
+                            </td>
+                        </tr>
+                        <tr style="border-top:1px solid #f0f0f1;">
+                            <td style="padding:6px 0;font-size:13px;color:#646970;">GraphQL</td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php if ($graphql_active): ?>
+                                    <span style="color:#00a32a;">&#x2713; hbLlms · hbLlmsFull</span>
+                                <?php else: ?>
+                                    <span style="color:#646970;">WPGraphQL non attivo</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    </table>
+                    <div style="display:flex;gap:8px;">
+                        <a href="?page=wp-barrio-auto-llms&tab=generate" class="button button-primary"
+                            style="flex:1;text-align:center;">
+                            Genera
+                        </a>
+                        <a href="?page=wp-barrio-auto-llms&tab=settings" class="button" style="flex:1;text-align:center;">
+                            Impostazioni
                         </a>
                     </div>
                 </div>

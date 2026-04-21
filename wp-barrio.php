@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:  WP Barrio
- * Description:  WP Barrio — suite di strumenti AI per WordPress. Auto Alt genera automaticamente alt text e title delle immagini. Forms permette di creare form di contatto con builder drag & drop.
- * Version:      2.4.9
+ * Description:  WP Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
+ * Version:      3.7.2
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('WP_ALT_AI_VERSION', '2.4.9');
+define('WP_ALT_AI_VERSION', '3.7.2');
 define('WP_ALT_AI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_ALT_AI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WP_ALT_AI_LOG_OPTION', 'wp_alt_ai_log');
@@ -31,6 +31,7 @@ require_once WP_ALT_AI_PLUGIN_DIR . 'modules/dashboard/dashboard.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-alt/auto-alt.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/forms/forms.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-fields/auto-fields.php';
+require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-llms/auto-llms.php';
 
 /* ─────────────────────────────────────────
    MODULI OPZIONALI (richiedono plugin di terze parti)

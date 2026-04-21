@@ -177,6 +177,14 @@ function wpb_graphql_register_schema(): void
         ],
     ]);
 
+    // ── 5b. HBFormStep ──────────────────────────────────────────────────────────
+    register_graphql_object_type('HBFormStep', [
+        'description' => 'Uno step di un form multistep. Contiene i campi di quella schermata.',
+        'fields' => [
+            'fields' => ['type' => ['list_of' => 'HBFormField'], 'description' => 'Campi dello step.'],
+        ],
+    ]);
+
     // ── 6. HBForm ─────────────────────────────────────────────────────────────
     register_graphql_object_type('HBForm', [
         'description' => 'Form completo con campi e impostazioni.',
@@ -185,7 +193,8 @@ function wpb_graphql_register_schema(): void
             'title' => ['type' => 'String', 'description' => 'Titolo del form.'],
             'createdAt' => ['type' => 'String', 'description' => 'Data di creazione.'],
             'updatedAt' => ['type' => 'String', 'description' => 'Data di ultima modifica.'],
-            'fields' => ['type' => ['list_of' => 'HBFormField'], 'description' => 'Campi del form.'],
+            'fields' => ['type' => ['list_of' => 'HBFormField'], 'description' => 'Lista piatta di tutti i campi (esclusi page_break). Per il multistep usare steps.'],
+            'steps' => ['type' => ['list_of' => 'HBFormStep'], 'description' => 'Campi raggruppati per step. Se non ci sono page_break, contiene un unico step con tutti i campi.'],
             'settings' => ['type' => 'HBFormSettings', 'description' => 'Impostazioni del form.'],
         ],
     ]);
@@ -320,6 +329,8 @@ function wpb_graphql_register_schema(): void
                 // ── Validazione required ──────────────────────────────────────────
                 $errors = [];
                 foreach ($form_fields as $field) {
+                    if (($field['type'] ?? '') === 'page_break')
+                        continue;
                     if (empty($field['required']))
                         continue;
                     $name = $field['name'] ?? '';
@@ -343,6 +354,8 @@ function wpb_graphql_register_schema(): void
                 // ── Costruisci dati submission ────────────────────────────────────
                 $submission_data = [];
                 foreach ($form_fields as $field) {
+                    if (($field['type'] ?? '') === 'page_break')
+                        continue;
                     $name = $field['name'] ?? '';
                     $val = $input_map[$name] ?? '';
                     $submission_data[$name] = [
@@ -426,12 +439,30 @@ function wpb_graphql_format_form(object $form): array
     $raw_fields = json_decode($form->fields, true) ?: [];
     $raw_settings = json_decode($form->settings, true) ?: [];
 
+    // Filtra i page_break per la lista piatta fields
+    $real_fields = array_values(array_filter($raw_fields, fn($f) => ($f['type'] ?? '') !== 'page_break'));
+
+    // Costruisci steps: splitta per page_break
+    $steps = [];
+    $current_step_fields = [];
+    foreach ($raw_fields as $f) {
+        if (($f['type'] ?? '') === 'page_break') {
+            $steps[] = ['fields' => array_map('wpb_graphql_format_field', $current_step_fields)];
+            $current_step_fields = [];
+        } else {
+            $current_step_fields[] = $f;
+        }
+    }
+    // Ultimo step (o unico se nessun page_break)
+    $steps[] = ['fields' => array_map('wpb_graphql_format_field', $current_step_fields)];
+
     return [
         'id' => (int) $form->id,
         'title' => $form->title,
         'createdAt' => $form->created_at,
         'updatedAt' => $form->updated_at ?? $form->created_at,
-        'fields' => array_map('wpb_graphql_format_field', $raw_fields),
+        'fields' => array_map('wpb_graphql_format_field', $real_fields),
+        'steps' => $steps,
         'settings' => wpb_graphql_format_settings($raw_settings),
     ];
 }
@@ -454,18 +485,39 @@ function wpb_graphql_format_field(array $f): array
         }
     }
 
-    // Normalizza showFields — supporta sia il vecchio formato {fields,conditions} che il nuovo {targets,operator,value}
+    // Normalizza showFields — supporta vecchio formato {targets,operator,value} e nuovo {fields,relation,conditions}
     $show_fields = [];
     foreach ($f['showFields'] ?? [] as $rule) {
-        // Nuovo formato semplificato
-        if (isset($rule['targets'])) {
+        if (isset($rule['conditions']) && is_array($rule['conditions'])) {
+            // Nuovo formato {fields, relation, conditions}
+            $conditions = [];
+            foreach ($rule['conditions'] as $cond) {
+                $conditions[] = [
+                    'value' => (string) ($cond['value'] ?? ''),
+                    'operator' => (string) ($cond['operator'] ?? '='),
+                ];
+            }
+            $targets = (array) ($rule['fields'] ?? $rule['targets'] ?? []);
             $show_fields[] = [
-                'targets' => (array) ($rule['targets'] ?? []),
-                'fields' => (array) ($rule['targets'] ?? []), // alias
+                'targets' => $targets,
+                'fields' => $targets,
+                'operator' => '',
+                'value' => '',
+                'relation' => (string) ($rule['relation'] ?? 'OR'),
+                'conditions' => $conditions,
+            ];
+        } elseif (isset($rule['targets'])) {
+            // Vecchio formato {targets, operator, value} → migra
+            $targets = (array) ($rule['targets'] ?? []);
+            $show_fields[] = [
+                'targets' => $targets,
+                'fields' => $targets,
                 'operator' => (string) ($rule['operator'] ?? '='),
                 'value' => (string) ($rule['value'] ?? ''),
-                'relation' => '',
-                'conditions' => [],
+                'relation' => 'OR',
+                'conditions' => [
+                    ['value' => (string) ($rule['value'] ?? ''), 'operator' => (string) ($rule['operator'] ?? '=')],
+                ],
             ];
         } else {
             // Vecchio formato esteso {fields, relation, conditions}
@@ -494,21 +546,35 @@ function wpb_graphql_format_field(array $f): array
         $format = (string) ($f['format'] ?? 'dd/MM/y');
     }
 
-    return [
+    // Campi tel: pattern fisso, niente min/max
+    $type = (string) ($f['type'] ?? 'text');
+    $pattern = (string) ($f['pattern'] ?? '');
+    if ($type === 'tel') {
+        $pattern = '^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})(?: *x(\d+))?\s*$';
+    } else if ($type === 'email') {
+        $pattern = '[a-z0-9\\._%+!$&*=^|~#%{}/\\-]+@([a-z0-9\\-]+\\.){1,}([a-z]{2,22})';
+    }
+
+    $result = [
         'id' => (string) ($f['name'] ?? ''),  // alias per retrocompatibilità
         'name' => (string) ($f['name'] ?? ''),
-        'type' => (string) ($f['type'] ?? 'text'),
+        'type' => $type,
         'label' => (string) ($f['label'] ?? ''),
         'placeholder' => (string) ($f['placeholder'] ?? ''),
         'errorMessage' => (string) ($f['error_message'] ?? ''),
         'required' => (bool) ($f['required'] ?? false),
-        'pattern' => (string) ($f['pattern'] ?? ''),
-        'min' => isset($f['min']) && $f['min'] !== '' ? (string) $f['min'] : null,
-        'max' => isset($f['max']) && $f['max'] !== '' ? (string) $f['max'] : null,
+        'pattern' => $pattern,
         'format' => $format,
         'options' => $options,
         'showFields' => $show_fields,
     ];
+
+    if ($type !== 'tel') {
+        $result['min'] = isset($f['min']) && $f['min'] !== '' ? (string) $f['min'] : null;
+        $result['max'] = isset($f['max']) && $f['max'] !== '' ? (string) $f['max'] : null;
+    }
+
+    return $result;
 }
 
 /* ─────────────────────────────────────────
