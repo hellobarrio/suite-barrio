@@ -2934,3 +2934,152 @@ add_action('wp_ajax_wp_alt_ai_dismiss_job', function () {
     wp_send_json_success();
 });
 
+/* ─────────────────────────────────────────
+   13. PULSANTE GENERA nella pagina dettaglio media
+       HTML puro nel filtro (niente <script>).
+       Il JS e i dati di configurazione vengono caricati
+       tramite wp_enqueue_script + wp_localize_script,
+       che sono gli unici metodi sicuri rispetto al
+       parser di Backbone/Underscore usato nel modale media.
+   ───────────────────────────────────────── */
+add_filter('attachment_fields_to_edit', function ($form_fields, $post) {
+    if (strpos($post->post_mime_type, 'image/') === false)
+        return $form_fields;
+
+    $api_key  = wp_alt_ai_active_key();
+    $disabled = empty($api_key) ? ' disabled' : '';
+
+    // HTML ridotto al minimo: nessun attributo title, nessun campo helps,
+    // nessun carattere non-ASCII. Qualsiasi testo extra passa attraverso
+    // _.template() di Underscore e puo' rompere il modale Backbone.
+    $html = '<button type="button"'
+          . ' class="button wpb-gen-btn"'
+          . ' data-id="' . esc_attr($post->ID) . '"'
+          . $disabled . '>'
+          . 'Genera con AI'
+          . '</button>'
+          . '<p class="wpb-gen-result" style="margin:6px 0 0;font-size:12px;min-height:16px;"></p>';
+
+    $form_fields['wpb_auto_alt'] = [
+        'label' => 'Auto Alt',
+        'input' => 'html',
+        'html'  => $html,
+    ];
+
+    return $form_fields;
+}, 10, 2);
+
+// Enqueue del file JS fisico + localizzazione dati (nonce, ajaxurl)
+// Usare un file .js reale e wp_localize_script e' l'unico modo
+// per passare dati al JS senza toccare i template Backbone.
+add_action('admin_enqueue_scripts', function () {
+    $js_url = WP_ALT_AI_PLUGIN_URL . 'modules/auto-alt/js/media-generate.js';
+    $js_ver = WP_ALT_AI_VERSION;
+
+    wp_enqueue_script(
+        'wpb-media-generate',
+        $js_url,
+        ['jquery'],
+        $js_ver,
+        true   // in footer
+    );
+
+    wp_localize_script('wpb-media-generate', 'wpbAutoAlt', [
+        'nonce'   => wp_create_nonce('wp_alt_ai_nonce'),
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+    ]);
+});
+
+/* ─────────────────────────────────────────
+   14. AJAX: genera e salva FORZANDO sovrascrittura
+       (usato dal pulsante nella pagina media)
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wp_alt_ai_generate_force', function () {
+    check_ajax_referer('wp_alt_ai_nonce', 'nonce');
+    if (!current_user_can('upload_files'))
+        wp_send_json_error('Permesso negato.');
+
+    $id = intval($_POST['attachment_id'] ?? 0);
+    if (!$id || get_post_type($id) !== 'attachment')
+        wp_send_json_error('ID attachment non valido.');
+    if (strpos(get_post_mime_type($id), 'image/') === false)
+        wp_send_json_error('Il file non è un\'immagine.');
+
+    // Leggi immagine da filesystem o da URL
+    $image_path = get_attached_file($id);
+    if ($image_path && file_exists($image_path)) {
+        $image_data = file_get_contents($image_path);
+    } else {
+        $image_url  = wp_get_attachment_url($id);
+        $image_data = $image_url ? @file_get_contents($image_url) : false;
+    }
+
+    if (!$image_data) {
+        wp_alt_ai_log($id, 'error', '', '', 'Media detail: impossibile leggere il file immagine');
+        wp_send_json_error('Impossibile leggere il file immagine.');
+    }
+
+    $mime      = get_post_mime_type($id) ?: 'image/jpeg';
+    $lang      = get_option('wp_alt_ai_language', 'it');
+    $lang_map  = ['it' => 'italiano', 'en' => 'English', 'es' => 'español', 'fr' => 'français', 'de' => 'Deutsch'];
+    $lang_name = $lang_map[$lang] ?? 'italiano';
+
+    // Forza generazione di entrambi i campi ('both'), ignorando quelli già presenti
+    $result = wp_alt_ai_call_api($id, $image_data, $mime, $lang_name, 'both');
+
+    if (isset($result['error'])) {
+        wp_alt_ai_log($id, 'error', '', '', 'Media detail: ' . $result['error']);
+        wp_send_json_error($result['error']);
+    }
+
+    // Salva sovrascrivendo i valori esistenti
+    update_post_meta($id, '_wp_attachment_image_alt', $result['alt']);
+    wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
+
+    $provider = get_option('wp_alt_ai_provider', 'anthropic');
+    $model    = get_option('wp_alt_ai_model', '');
+    wp_alt_ai_log(
+        $id,
+        'success',
+        $result['alt'],
+        $result['title'],
+        'Generato con AI (' . $provider . ($model ? ' / ' . $model : '') . ') — sovrascrittura forzata da pagina media'
+    );
+
+    wp_send_json_success([
+        'alt'   => $result['alt'],
+        'title' => $result['title'],
+    ]);
+});
+
+/* ─────────────────────────────────────────
+   15. BULK ACTION nella libreria media (upload.php)
+       Aggiunge "Genera Alt + Title (AI)" al menu
+       Azioni di massa e carica il JS dedicato.
+   ───────────────────────────────────────── */
+
+// Registra l'azione nel menu dropdown Azioni di massa
+add_filter('bulk_actions-upload', function ($actions) {
+    if (current_user_can('upload_files')) {
+        $actions['wpb_generate_alt'] = 'Genera Alt + Title (AI)';
+    }
+    return $actions;
+});
+
+// Enqueue JS bulk solo sulla pagina libreria media
+add_action('admin_enqueue_scripts', function ($hook) {
+    if ($hook !== 'upload.php') return;
+
+    wp_enqueue_script(
+        'wpb-media-bulk',
+        WP_ALT_AI_PLUGIN_URL . 'modules/auto-alt/js/media-bulk.js',
+        ['jquery'],
+        WP_ALT_AI_VERSION,
+        true
+    );
+
+    wp_localize_script('wpb-media-bulk', 'wpbAutoAlt', [
+        'nonce'   => wp_create_nonce('wp_alt_ai_nonce'),
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+    ]);
+});
