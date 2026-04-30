@@ -350,17 +350,55 @@ function wpb_graphql_register_schema(): void
                     ];
                 }
 
-                // ── Costruisci dati submission ────────────────────────────────────
+                // ── Costruisci dati submission + decodifica allegati ──────────────
                 $submission_data = [];
+                $attachments     = [];
+
                 foreach ($form_fields as $field) {
                     if (($field['type'] ?? '') === 'page_break')
                         continue;
-                    $name = $field['name'] ?? '';
-                    $val = $input_map[$name] ?? '';
-                    $submission_data[$name] = [
-                        'label' => $field['label'] ?? $name,
-                        'value' => $val,
-                    ];
+
+                    $name  = $field['name']  ?? '';
+                    $type  = $field['type']  ?? 'text';
+                    $label = $field['label'] ?? $name;
+                    $val   = $input_map[$name] ?? '';
+
+                    if ($type === 'file' && $val !== '') {
+                        // Il frontend invia: {"content":"<base64>","filename":"...","type":"..."}
+                        $file_data = json_decode($val, true);
+
+                        if (
+                            is_array($file_data)
+                            && !empty($file_data['content'])
+                            && !empty($file_data['filename'])
+                        ) {
+                            $decoded = base64_decode($file_data['content'], true);
+
+                            if ($decoded !== false) {
+                                // Salva in wp-uploads (organizzato per anno/mese come wp_handle_upload)
+                                $upload     = wp_upload_dir();
+                                $safe_name  = wp_unique_filename($upload['path'], sanitize_file_name($file_data['filename']));
+                                $file_path  = $upload['path'] . DIRECTORY_SEPARATOR . $safe_name;
+                                $file_url   = $upload['url']  . '/' . $safe_name;
+
+                                file_put_contents($file_path, $decoded);
+
+                                $attachments[] = $file_path;
+
+                                // Stesso formato dell'handler AJAX: visibile nel back office con link
+                                $submission_data['_file_' . $name] = [
+                                    'label'   => $label,
+                                    'value'   => $safe_name,
+                                    'url'     => $file_url,
+                                    'is_file' => true,
+                                ];
+                            }
+                        }
+
+                        continue; // non salvare il blob base64 nei dati testuali
+                    }
+
+                    $submission_data[$name] = ['label' => $label, 'value' => $val];
                 }
 
                 // Aggiungi informazioni pagina se attivo
@@ -402,12 +440,10 @@ function wpb_graphql_register_schema(): void
 
                 $submission_id = (int) $wpdb->insert_id;
 
-                // ── Invia notifiche email ─────────────────────────────────────────
-                // Usa la funzione condivisa con l'handler AJAX (shortcode front-end).
-                // Viene eseguita qui, lato server WordPress, indipendentemente dal
-                // frontend Next.js che ha inviato i dati tramite mutation GraphQL.
-                $mail_log = wpb_forms_send_notifications($form, $settings, $submission_data);
+                // ── Invia notifiche email (con allegati) ──────────────────────────
+                $mail_log = wpb_forms_send_notifications($form, $settings, $submission_data, $attachments);
                 error_log('[WP Barrio][mutation] mail_log: ' . implode(' | ', $mail_log));
+
 
                 return [
                     'success' => true,
