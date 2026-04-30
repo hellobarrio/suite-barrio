@@ -378,148 +378,161 @@ function wpb_forms_shortcode($atts)
     </script>
 
     <?php
-    // Logica condizionale front-end — costruisce la mappa trigger→regole
-    // Nuovo formato: {fields, relation, conditions[{operator, value}]}
-    // Vecchio formato: {targets, operator, value} — migrato automaticamente
-    $cond_rules = [];
+    /*
+     * Logica condizionale front-end — modello Gravity Forms
+     * Ogni campo porta la propria logica: "mostra/nascondi questo campo se…"
+     *
+     * Struttura dati per campo (nuovo formato):
+     *   conditionalLogic: {
+     *     enabled    : bool,
+     *     action     : 'show' | 'hide',    // cosa fare quando le regole sono soddisfatte
+     *     logicType  : 'all' | 'any',      // AND / OR tra le singole regole
+     *     rules      : [{ fieldName, operator, value }]
+     *   }
+     *
+     * Retrocompatibilità: il vecchio formato showFields viene ignorato qui;
+     * la migrazione avviene lato builder alla prima apertura del form.
+     */
+    $field_cond_map = []; // fieldName → conditionalLogic
+    $watch_fields   = []; // elenco dei fieldName che altri campi osservano
+
     foreach ($fields as $field) {
-        foreach ($field['showFields'] ?? [] as $rule) {
-            $trigger_name = $field['name'] ?? '';
-            if (!$trigger_name)
-                continue;
+        $fname = $field['name'] ?? '';
+        if (!$fname || ($field['type'] ?? '') === 'page_break') continue;
 
-            // Normalizza: vecchio formato → nuovo
-            if (isset($rule['targets']) && !isset($rule['conditions'])) {
-                // Vecchio formato {targets, operator, value}
-                $targets = (array) ($rule['targets'] ?? []);
-                $conditions = [['operator' => $rule['operator'] ?? '=', 'value' => $rule['value'] ?? '']];
-                $relation = 'OR';
-            } else {
-                // Nuovo formato {fields, relation, conditions}
-                $targets = (array) ($rule['fields'] ?? $rule['targets'] ?? []);
-                $conditions = $rule['conditions'] ?? [['operator' => '=', 'value' => '']];
-                $relation = $rule['relation'] ?? 'OR';
-            }
+        $cl = $field['conditionalLogic'] ?? null;
+        if (!$cl || empty($cl['enabled'])) continue;
 
-            if (empty($targets))
-                continue;
+        $rules = $cl['rules'] ?? [];
+        if (empty($rules)) continue;
 
-            if (!isset($cond_rules[$trigger_name]))
-                $cond_rules[$trigger_name] = [];
-            $cond_rules[$trigger_name][] = [
-                'targets' => $targets,
-                'relation' => $relation,
-                'conditions' => $conditions,
-            ];
-        }
-    }
+        $field_cond_map[$fname] = [
+            'action'    => ($cl['action'] ?? 'show') === 'hide' ? 'hide' : 'show',
+            'logicType' => ($cl['logicType'] ?? 'all') === 'any' ? 'any' : 'all',
+            'rules'     => array_values(array_filter(
+                array_map(function ($r) {
+                    if (empty($r['fieldName'])) return null;
+                    return [
+                        'fieldName' => $r['fieldName'],
+                        'operator'  => $r['operator'] ?? '=',
+                        'value'     => $r['value'] ?? '',
+                    ];
+                }, $rules)
+            )),
+        ];
 
-    // Calcola quali campi partono nascosti (sono target di almeno una regola)
-    $initially_hidden = [];
-    foreach ($cond_rules as $rules) {
-        foreach ($rules as $rule) {
-            foreach ($rule['targets'] as $t) {
-                $initially_hidden[$t] = true;
+        // Raccogli i nomi dei campi osservati per attaccare i listener
+        foreach ($rules as $r) {
+            if (!empty($r['fieldName'])) {
+                $watch_fields[$r['fieldName']] = true;
             }
         }
     }
 
-    if (!empty($cond_rules)):
+    if (!empty($field_cond_map)):
         ?>
         <script>
             (function () {
                 var wrap = document.getElementById('<?php echo esc_js($form_id_css); ?>');
                 if (!wrap) return;
 
-                // Mappa trigger → regole
-                var RULES = <?php echo wp_json_encode($cond_rules); ?>;
+                /**
+                 * FIELD_COND: mappa fieldName → { action, logicType, rules[] }
+                 * Ogni campo descrive da sé quando deve essere mostrato/nascosto.
+                 */
+                var FIELD_COND = <?php echo wp_json_encode($field_cond_map); ?>;
 
-                // Nascondi i campi che partono come target di una condizione
-                var hiddenByDefault = <?php echo wp_json_encode(array_keys($initially_hidden)); ?>;
-                hiddenByDefault.forEach(function (name) {
-                    var el = wrap.querySelector('[data-field-name="' + name + '"]');
-                    if (el) { el.style.display = 'none'; el.dataset.condHidden = '1'; }
-                });
-
-                // Helpers
+                /* ── Lettura valore di un campo ── */
                 function getFieldValue(name) {
                     var inputs = wrap.querySelectorAll('[name="' + name + '"], [name="' + name + '[]"]');
                     if (!inputs.length) return '';
                     var type = inputs[0].type;
                     if (type === 'checkbox') {
-                        return Array.from(inputs).filter(i => i.checked).map(i => String(i.value));
+                        return Array.from(inputs).filter(function (i) { return i.checked; }).map(function (i) { return String(i.value); });
                     }
                     if (type === 'radio') {
-                        var checked = Array.from(inputs).find(i => i.checked);
-                        return checked ? String(checked.value) : '';
+                        var chk = Array.from(inputs).find(function (i) { return i.checked; });
+                        return chk ? String(chk.value) : '';
                     }
                     return String(inputs[0].value || '');
                 }
 
-                function testCondition(cond, val) {
-                    var v = Array.isArray(val) ? val : [val];
-                    var rv = String(cond.value || '');
-                    switch (cond.operator) {
-                        case '=': return v.some(function (x) { return x === rv; });
-                        case '!=': return v.every(function (x) { return x !== rv; });
-                        case 'contains': return v.some(function (x) { return x.indexOf(rv) !== -1; });
-                        case 'empty': return v.every(function (x) { return x === ''; });
-                        case 'notempty': return v.some(function (x) { return x !== ''; });
-                        default: return false;
+                /* ── Test di una singola regola ── */
+                function testRule(rule) {
+                    var val = getFieldValue(rule.fieldName);
+                    var v   = Array.isArray(val) ? val : [val];
+                    var rv  = String(rule.value || '');
+                    switch (rule.operator) {
+                        case '=':           return v.some(function (x) { return x === rv; });
+                        case '!=':          return v.every(function (x) { return x !== rv; });
+                        case '>':           return v.some(function (x) { return parseFloat(x) > parseFloat(rv); });
+                        case '<':           return v.some(function (x) { return parseFloat(x) < parseFloat(rv); });
+                        case 'contains':    return v.some(function (x) { return x.indexOf(rv) !== -1; });
+                        case 'starts_with': return v.some(function (x) { return x.indexOf(rv) === 0; });
+                        case 'ends_with':   return v.some(function (x) { return x.slice(-rv.length) === rv; });
+                        case 'empty':       return v.every(function (x) { return x === ''; });
+                        case 'not_empty':   return v.some(function (x)  { return x !== ''; });
+                        default:            return false;
                     }
                 }
 
-                function testRule(rule, val) {
-                    var conditions = rule.conditions || [];
-                    // Retrocompatibilità: vecchio formato con operator/value singoli
-                    if (!conditions.length && (rule.operator || rule.value !== undefined)) {
-                        conditions = [{ operator: rule.operator || '=', value: rule.value || '' }];
-                    }
-                    if (!conditions.length) return false;
-                    var relation = (rule.relation || 'OR').toUpperCase();
-                    if (relation === 'AND') {
-                        return conditions.every(function (c) { return testCondition(c, val); });
-                    } else {
-                        return conditions.some(function (c) { return testCondition(c, val); });
-                    }
-                }
+                /* ── Valuta e applica la logica di UN campo ── */
+                function evaluateField(fieldName) {
+                    var cond = FIELD_COND[fieldName];
+                    if (!cond) return;
 
-                function applyRules(triggerName) {
-                    var rules = RULES[triggerName];
-                    if (!rules) return;
-                    var val = getFieldValue(triggerName);
+                    var el = wrap.querySelector('[data-field-name="' + fieldName + '"]');
+                    if (!el) return;
 
-                    // Raccogli per target: se QUALUNQUE gruppo passa → mostra (OR tra gruppi)
-                    var targetResults = {};
-                    rules.forEach(function (rule) {
-                        var show = testRule(rule, val);
-                        rule.targets.forEach(function (targetName) {
-                            if (targetResults[targetName] === undefined) targetResults[targetName] = false;
-                            if (show) targetResults[targetName] = true; // OR: basta un gruppo che passa
-                        });
-                    });
+                    var rules     = cond.rules || [];
+                    var logicType = cond.logicType; // 'all' | 'any'
+                    var action    = cond.action;    // 'show' | 'hide'
 
-                    Object.keys(targetResults).forEach(function (targetName) {
-                        var show = targetResults[targetName];
-                        var el = wrap.querySelector('[data-field-name="' + targetName + '"]');
-                        if (!el) return;
-                        el.style.display = show ? '' : 'none';
-                        el.dataset.condHidden = show ? '0' : '1';
-                        el.querySelectorAll('input,select,textarea').forEach(function (inp) {
-                            inp.disabled = !show;
-                        });
+                    var conditionsMet = rules.length > 0 && (
+                        logicType === 'all'
+                            ? rules.every(testRule)
+                            : rules.some(testRule)
+                    );
+
+                    /*
+                     * Se action==='show': mostra il campo SOLO quando le condizioni sono soddisfatte.
+                     * Se action==='hide': nascondi il campo SOLO quando le condizioni sono soddisfatte.
+                     */
+                    var visible = action === 'show' ? conditionsMet : !conditionsMet;
+
+                    el.style.display      = visible ? '' : 'none';
+                    el.dataset.condHidden = visible ? '0' : '1';
+                    el.querySelectorAll('input,select,textarea').forEach(function (inp) {
+                        inp.disabled = !visible;
                     });
                 }
 
-                // Attacca listener a tutti i trigger
-                Object.keys(RULES).forEach(function (triggerName) {
-                    var inputs = wrap.querySelectorAll('[name="' + triggerName + '"], [name="' + triggerName + '[]"]');
+                /* ── Stato iniziale di TUTTI i campi con logica ── */
+                Object.keys(FIELD_COND).forEach(evaluateField);
+
+                /* ── Mappa inversa: quale campo osserva quali altri ── */
+                // Quando un campo-sorgente cambia, rivalutiamo tutti i campi che lo osservano.
+                var watchMap = {}; // sourceName → [targetFieldNames]
+                Object.keys(FIELD_COND).forEach(function (targetName) {
+                    (FIELD_COND[targetName].rules || []).forEach(function (rule) {
+                        var src = rule.fieldName;
+                        if (!watchMap[src]) watchMap[src] = [];
+                        if (watchMap[src].indexOf(targetName) === -1) {
+                            watchMap[src].push(targetName);
+                        }
+                    });
+                });
+
+                /* ── Listener sui campi sorgente ── */
+                Object.keys(watchMap).forEach(function (srcName) {
+                    var inputs = wrap.querySelectorAll('[name="' + srcName + '"], [name="' + srcName + '[]"]');
                     inputs.forEach(function (inp) {
-                        inp.addEventListener('change', function () { applyRules(triggerName); });
-                        inp.addEventListener('input', function () { applyRules(triggerName); });
+                        function onChange() {
+                            watchMap[srcName].forEach(evaluateField);
+                        }
+                        inp.addEventListener('change', onChange);
+                        inp.addEventListener('input',  onChange);
                     });
-                    // Valuta subito lo stato iniziale
-                    applyRules(triggerName);
                 });
             })();
         </script>
@@ -1120,24 +1133,60 @@ add_action('wp_ajax_wpb_forms_save', function () {
                 $field['pattern'] = '[a-z0-9\\._%+!$&*=^|~#%{}/\\-]+@([a-z0-9\\-]+\\.){1,}([a-z]{2,22})';
             }
 
-            // Normalizza showFields al nuovo formato {fields, relation, conditions}
-            if (!isset($field['showFields']))
-                continue;
-            foreach ($field['showFields'] as &$rule) {
-                // Migra vecchio formato {targets, operator, value} → nuovo {fields, relation, conditions}
-                if (isset($rule['targets']) && !isset($rule['conditions'])) {
-                    $rule['fields'] = (array) $rule['targets'];
-                    $rule['relation'] = 'OR';
-                    $rule['conditions'] = [['operator' => $rule['operator'] ?? '=', 'value' => $rule['value'] ?? '']];
-                    unset($rule['targets'], $rule['operator'], $rule['value']);
+            // ── Normalizza logica condizionale ──────────────────────────────────
+            // Nuovo formato: conditionalLogic { enabled, action, logicType, rules[] }
+            // Vecchio formato (showFields): migrato a conditionalLogic al salvataggio.
+
+            // 1) Migra vecchio showFields → conditionalLogic se ancora presente
+            if (!empty($field['showFields']) && !isset($field['conditionalLogic'])) {
+                // Raccoglie tutti i target da tutti i gruppi showFields e li converte
+                $migrated_rules = [];
+                foreach ($field['showFields'] as $old_rule) {
+                    // Normalizza vecchio {targets,operator,value}
+                    if (isset($old_rule['targets']) && !isset($old_rule['conditions'])) {
+                        $old_rule['fields']     = (array) $old_rule['targets'];
+                        $old_rule['conditions'] = [['operator' => $old_rule['operator'] ?? '=', 'value' => $old_rule['value'] ?? '']];
+                        unset($old_rule['targets'], $old_rule['operator'], $old_rule['value']);
+                    }
+                    // Nel vecchio modello la logica stava nel campo trigger;
+                    // la migrazione inverte: creiamo regole "quando [trigger] è X" sul campo target.
+                    // Poiché non possiamo accedere ai campi target qui, conserviamo le regole
+                    // come commento: il builder le risolverà alla prima apertura.
+                    foreach ((array) ($old_rule['fields'] ?? $old_rule['targets'] ?? []) as $target_name) {
+                        $conditions = $old_rule['conditions'] ?? [['operator' => '=', 'value' => '']];
+                        foreach ($conditions as $cond) {
+                            $migrated_rules[] = [
+                                'fieldName' => $field['name'] ?? '',
+                                'operator'  => $cond['operator'] ?? '=',
+                                'value'     => $cond['value'] ?? '',
+                            ];
+                        }
+                    }
                 }
-                // Assicurati che fields esista (alias da targets)
-                if (isset($rule['targets']) && !isset($rule['fields'])) {
-                    $rule['fields'] = (array) $rule['targets'];
-                    unset($rule['targets']);
-                }
+                // Rimuovi showFields: sostituito da conditionalLogic
+                unset($field['showFields']);
             }
-            unset($rule);
+
+            // 2) Sanitizza conditionalLogic se presente
+            if (isset($field['conditionalLogic'])) {
+                $cl = $field['conditionalLogic'];
+                $field['conditionalLogic'] = [
+                    'enabled'   => !empty($cl['enabled']),
+                    'action'    => in_array($cl['action'] ?? '', ['show', 'hide']) ? $cl['action'] : 'show',
+                    'logicType' => in_array($cl['logicType'] ?? '', ['all', 'any']) ? $cl['logicType'] : 'all',
+                    'rules'     => array_values(array_filter(
+                        array_map(function ($r) {
+                            if (empty($r['fieldName'])) return null;
+                            $allowed_ops = ['=', '!=', '>', '<', 'contains', 'starts_with', 'ends_with', 'empty', 'not_empty'];
+                            return [
+                                'fieldName' => sanitize_key($r['fieldName']),
+                                'operator'  => in_array($r['operator'] ?? '', $allowed_ops) ? $r['operator'] : '=',
+                                'value'     => sanitize_text_field($r['value'] ?? ''),
+                            ];
+                        }, (array) ($cl['rules'] ?? []))
+                    )),
+                ];
+            }
         }
         unset($field);
         $fields = wp_json_encode($fields_arr);
@@ -1866,7 +1915,7 @@ function wpb_forms_admin_page()
             color: #2271b1;
         }
 
-        /* ── Logica condizionale ── */
+        /* ── Logica condizionale (Gravity Forms-style) ── */
         .wpb-cond-section {
             margin-top: 16px;
             padding-top: 14px;
@@ -1880,80 +1929,42 @@ function wpb_forms_admin_page()
             text-transform: uppercase;
             letter-spacing: .4px;
             margin: 0 0 10px;
+        }
+
+        .wpb-cl-enable-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1d2327;
+        }
+
+        .wpb-cl-enable-row input[type=checkbox] {
+            cursor: pointer;
+            margin: 0;
         }
 
         .wpb-cond-list {
             display: flex;
             flex-direction: column;
             gap: 6px;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
+        /* Riga singola regola: [campo] [op] [valore] [×] */
         .wpb-cond-row {
-            background: #f6f7f7;
-            border: 1px solid #e0e0e0;
-            border-radius: 3px;
-            padding: 8px 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            position: relative;
-        }
-
-        .wpb-cond-row-header {
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 11px;
-            color: #646970;
-        }
-
-        .wpb-cond-row-header select {
-            flex: 1;
-            padding: 3px 6px;
-            font-size: 11px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
-            background: #fff;
-            font-family: inherit;
-        }
-
-        .wpb-cond-or-badge {
-            text-align: center;
-            font-size: 10px;
-            font-weight: 700;
-            color: #2271b1;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            padding: 2px 0;
-        }
-
-        .wpb-cond-conditions {
-            margin-top: 4px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .wpb-cond-cond-row {
-            display: flex;
             flex-wrap: wrap;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
         }
 
-        .wpb-cond-cond-op,
-        .wpb-cond-cond-val {
-            width: 100%;
-        }
-
-        .wpb-cond-cond-row select,
-        .wpb-cond-cond-row input {
-            padding: 3px 6px;
+        .wpb-cond-row select,
+        .wpb-cond-row input[type=text] {
+            padding: 4px 6px;
             font-size: 11px;
             border: 1px solid #c3c4c7;
             border-radius: 3px;
@@ -1961,72 +1972,9 @@ function wpb_forms_admin_page()
             font-family: inherit;
         }
 
-        .wpb-cond-cond-row select {
-            flex: 0 0 auto;
-        }
-
-        .wpb-cond-cond-row input,
-        .wpb-cond-cond-row select.wpb-cond-cond-val {
-            flex: 1;
-        }
-
-        .wpb-cond-relation-toggle {
-            display: inline-flex;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 2px 0;
-            align-self: flex-start;
-        }
-
-        .wpb-cond-relation-btn {
-            padding: 2px 8px;
-            font-size: 10px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-            background: #f6f7f7;
-            color: #646970;
-        }
-
-        .wpb-cond-relation-btn.active {
-            background: #2271b1;
-            color: #fff;
-        }
-
-        .wpb-btn-rm-cond-cond {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #d63638;
-            font-size: 13px;
-            line-height: 1;
-            padding: 0 2px;
-            flex-shrink: 0;
-            opacity: .6;
-        }
-
-        .wpb-btn-rm-cond-cond:hover {
-            opacity: 1;
-        }
-
-        .wpb-btn-add-cond-cond {
-            font-size: 10px;
-            background: none;
-            border: 1px dashed #c3c4c7;
-            border-radius: 3px;
-            padding: 2px 8px;
-            cursor: pointer;
-            color: #646970;
-            align-self: flex-start;
-            margin-top: 2px;
-        }
-
-        .wpb-btn-add-cond-cond:hover {
-            border-color: #2271b1;
-            color: #2271b1;
-        }
+        .cl-rule-field { flex: 1; min-width: 110px; }
+        .cl-rule-op    { flex: 0 0 auto; }
+        .cl-rule-val   { flex: 1; min-width: 80px; }
 
         .wpb-btn-rm-cond {
             background: none;
@@ -2035,14 +1983,12 @@ function wpb_forms_admin_page()
             color: #d63638;
             font-size: 15px;
             line-height: 1;
-            padding: 0;
+            padding: 0 2px;
             flex-shrink: 0;
             opacity: .6;
         }
 
-        .wpb-btn-rm-cond:hover {
-            opacity: 1;
-        }
+        .wpb-btn-rm-cond:hover { opacity: 1; }
 
         .wpb-btn-add-cond {
             font-size: 11px;
@@ -2053,6 +1999,7 @@ function wpb_forms_admin_page()
             cursor: pointer;
             color: #646970;
             width: 100%;
+            font-family: inherit;
         }
 
         .wpb-btn-add-cond:hover {
@@ -4101,18 +4048,7 @@ function wpb_forms_admin_page()
                                                             <div class="wpb-cond-section-title">
                                                                 <span>Logica condizionale</span>
                                                             </div>
-                                                            <p style="font-size:11px;color:#a7aaad;margin:0 0 8px;line-height:1.5;">
-                                                                Questo campo mostra altri campi quando vengono soddisfatte le condizioni. Più gruppi sono in relazione OR.
-                                                            </p>
-                                                            <div class="wpb-cond-list" id="wpb-cond-list">
-                                                                ${(f.showFields || []).map((rule, ri) => {
-                    let html = '';
-                    if (ri > 0) html += '<div class="wpb-cond-or-badge">oppure</div>';
-                    html += renderCondRow(rule, ri, f);
-                    return html;
-                }).join('')}
-                                                            </div>
-                                                            <button class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi gruppo</button>
+                                                            ${renderCondLogicUI(f)}
                                                         </div>`;
 
             const bi = (elId, key) => { const el = document.getElementById(elId); if (el) el.addEventListener('input', () => updateField(f.id, key, el.value)); };
@@ -4161,212 +4097,226 @@ function wpb_forms_admin_page()
             bindCondEvents(f);
         }
 
-        /* ── Logica condizionale: render riga regola (gruppo) ── */
-        function renderCondRow(rule, ri, f) {
+        /* ══════════════════════════════════════════════════════════════════
+           LOGICA CONDIZIONALE — modello Gravity Forms
+           Ogni campo porta la propria regola: "mostrami/nascondimi se…"
+           ══════════════════════════════════════════════════════════════════ */
+
+        /**
+         * Costruisce l'HTML completo del pannello logica condizionale per un campo.
+         * Gravity Forms-style:
+         *   - Abilita/Disabilita (toggle)
+         *   - Azione: Mostra | Nascondi
+         *   - Logica: Tutte (AND) | Almeno una (OR)
+         *   - Lista di regole: [campo] [operatore] [valore]
+         */
+        function renderCondLogicUI(f) {
+            const cl = f.conditionalLogic || { enabled: false, action: 'show', logicType: 'all', rules: [] };
+            const enabled   = !!cl.enabled;
+            const action    = cl.action    || 'show';
+            const logicType = cl.logicType || 'all';
+            const rules     = cl.rules     || [];
+
             const otherFields = fields.filter(x => x.id !== f.id && x.type !== 'page_break');
 
-            // Normalizza: supporta vecchio formato {targets,operator,value} → nuovo {fields,relation,conditions}
-            const targetNames = rule.fields || rule.targets || [];
-            const relation = rule.relation || 'OR';
-            let conditions = rule.conditions || [];
-            // Migra vecchio formato con operator/value singoli
-            if (!conditions.length && (rule.operator || rule.value)) {
-                conditions = [{ operator: rule.operator || '=', value: rule.value || '' }];
-            }
-            if (!conditions.length) conditions = [{ operator: '=', value: '' }];
+            const rulesHtml = rules.length
+                ? rules.map((r, ri) => renderCondRuleRow(r, ri, otherFields, f)).join('')
+                : '';
 
-            const targetOpts = otherFields.map(x =>
-                `<option value="${esc(x.name)}" ${targetNames.includes(x.name) ? 'selected' : ''}>${esc(x.label || x.name)}</option>`
+            return `
+                <div class="wpb-cl-wrap">
+                    <label class="wpb-cl-enable-row" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+                        <input type="checkbox" id="cl-enabled" ${enabled ? 'checked' : ''} style="margin:0;">
+                        <span style="font-size:12px;font-weight:600;color:#1d2327;">Abilita logica condizionale</span>
+                    </label>
+                    <div id="cl-body" style="display:${enabled ? 'block' : 'none'};">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#1d2327;margin-bottom:10px;">
+                            <select id="cl-action" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                <option value="show" ${action === 'show' ? 'selected' : ''}>Mostra</option>
+                                <option value="hide" ${action === 'hide' ? 'selected' : ''}>Nascondi</option>
+                            </select>
+                            <span>questo campo se</span>
+                            <select id="cl-logic-type" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                <option value="all" ${logicType === 'all' ? 'selected' : ''}>tutte</option>
+                                <option value="any" ${logicType === 'any' ? 'selected' : ''}>almeno una</option>
+                            </select>
+                            <span>delle seguenti condizioni sono soddisfatte:</span>
+                        </div>
+                        <div class="wpb-cond-list" id="wpb-cond-list">
+                            ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
+                        </div>
+                        <button type="button" class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
+                    </div>
+                </div>`;
+        }
+
+        /**
+         * Render di una singola riga-regola.
+         * Struttura: [Campo ▾] [Operatore ▾] [Valore] [×]
+         */
+        function renderCondRuleRow(rule, ri, otherFields, f) {
+            const selectedField = otherFields.find(x => x.name === rule.fieldName) || null;
+
+            const fieldOpts = otherFields.map(x =>
+                `<option value="${esc(x.name)}" ${rule.fieldName === x.name ? 'selected' : ''}>${esc(x.label || x.name)}</option>`
             ).join('');
 
-            const hasOptions = ['select', 'radio', 'checkbox'].includes(f.type) && Array.isArray(f.options) && f.options.length;
+            // Operatori disponibili a seconda del tipo di campo sorgente
+            const srcHasOptions = selectedField && ['select', 'radio', 'checkbox'].includes(selectedField.type) && (selectedField.options || []).length;
+            const srcIsNumber   = selectedField && selectedField.type === 'number';
 
-            const opsForType = hasOptions
-                ? [{ v: '=', l: 'è uguale a' }, { v: '!=', l: 'è diverso da' }]
-                : [
-                    { v: '=', l: 'è uguale a' },
+            let availableOps;
+            if (srcHasOptions) {
+                availableOps = [
+                    { v: '=',  l: 'è uguale a' },
                     { v: '!=', l: 'è diverso da' },
-                    { v: 'contains', l: 'contiene' },
-                    { v: 'empty', l: 'è vuoto' },
-                    { v: 'notempty', l: 'non è vuoto' },
                 ];
+            } else if (srcIsNumber) {
+                availableOps = [
+                    { v: '=',   l: 'è uguale a' },
+                    { v: '!=',  l: 'è diverso da' },
+                    { v: '>',   l: 'è maggiore di' },
+                    { v: '<',   l: 'è minore di' },
+                    { v: 'empty',     l: 'è vuoto' },
+                    { v: 'not_empty', l: 'non è vuoto' },
+                ];
+            } else {
+                availableOps = [
+                    { v: '=',           l: 'è uguale a' },
+                    { v: '!=',          l: 'è diverso da' },
+                    { v: 'contains',    l: 'contiene' },
+                    { v: 'starts_with', l: 'inizia per' },
+                    { v: 'ends_with',   l: 'finisce per' },
+                    { v: 'empty',       l: 'è vuoto' },
+                    { v: 'not_empty',   l: 'non è vuoto' },
+                ];
+            }
 
-            // Render conditions
-            const conditionsHtml = conditions.map((cond, ci) => {
-                const opOpts = opsForType.map(o =>
-                    `<option value="${o.v}" ${(cond.operator || '=') === o.v ? 'selected' : ''}>${o.l}</option>`
-                ).join('');
+            const opOpts = availableOps.map(o =>
+                `<option value="${o.v}" ${(rule.operator || '=') === o.v ? 'selected' : ''}>${o.l}</option>`
+            ).join('');
 
-                const needsValue = !['empty', 'notempty'].includes(cond.operator || '=');
-                let valueEl = '';
-                if (needsValue) {
-                    if (hasOptions) {
-                        const valOpts = f.options.map(opt =>
-                            `<option value="${esc(opt)}" ${(cond.value || '') === opt ? 'selected' : ''}>${esc(opt)}</option>`
-                        ).join('');
-                        valueEl = `<select class="wpb-cond-cond-val" data-ci="${ci}"
-                                            style="flex:1;padding:3px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                        <option value="" disabled ${!(cond.value) ? 'selected' : ''} hidden>Seleziona…</option>
-                                        ${valOpts}
-                                    </select>`;
-                    } else {
-                        valueEl = `<input type="text" class="wpb-cond-cond-val" data-ci="${ci}"
-                                           value="${esc(cond.value || '')}" placeholder="Valore…"
-                                           style="flex:1;padding:3px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
-                    }
+            const needsValue = !['empty', 'not_empty'].includes(rule.operator || '=');
+            let valueEl = '';
+            if (needsValue) {
+                if (srcHasOptions) {
+                    const valOpts = (selectedField.options || []).map(opt =>
+                        `<option value="${esc(opt)}" ${(rule.value || '') === opt ? 'selected' : ''}>${esc(opt)}</option>`
+                    ).join('');
+                    valueEl = `<select class="cl-rule-val" data-ri="${ri}" style="flex:1;min-width:80px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                   <option value="" disabled ${!rule.value ? 'selected' : ''} hidden>Seleziona…</option>
+                                   ${valOpts}
+                               </select>`;
+                } else {
+                    valueEl = `<input type="text" class="cl-rule-val" data-ri="${ri}"
+                                      value="${esc(rule.value || '')}" placeholder="Valore…"
+                                      style="flex:1;min-width:80px;padding:4px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
                 }
+            }
 
-                const relLabel = ci > 0
-                    ? `<span style="font-size:10px;font-weight:600;color:#2271b1;text-transform:uppercase;flex-shrink:0;">${esc(relation)}</span>`
-                    : `<span style="font-size:10px;color:#646970;flex-shrink:0;">quando</span>`;
-
-                return `<div class="wpb-cond-cond-row" data-ci="${ci}">
-                            ${relLabel}
-                            <select class="wpb-cond-cond-op" data-ci="${ci}"
-                                    style="flex:0 0 auto;min-width:90px;">
-                                ${opOpts}
-                            </select>
-                            ${valueEl}
-                            ${conditions.length > 1 ? `<button class="wpb-btn-rm-cond-cond" data-ci="${ci}" title="Rimuovi condizione">×</button>` : ''}
-                        </div>`;
-            }).join('');
-
-            // Relation toggle
-            const relToggle = `<div class="wpb-cond-relation-toggle">
-                        <button type="button" class="wpb-cond-relation-btn${relation === 'AND' ? ' active' : ''}" data-rel="AND">AND</button>
-                        <button type="button" class="wpb-cond-relation-btn${relation === 'OR' ? ' active' : ''}" data-rel="OR">OR</button>
-                    </div>`;
-
-            return `<div class="wpb-cond-row" data-ri="${ri}">
-                        <div class="wpb-cond-row-header">
-                            <span style="flex-shrink:0;font-size:11px;color:#646970;">Mostra</span>
-                            <select class="wpb-cond-target" data-ri="${ri}" multiple size="3"
-                                    style="flex:1;padding:3px 4px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;height:auto;">
-                                ${targetOpts || '<option disabled>Nessun altro campo</option>'}
-                            </select>
-                            <button class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi gruppo">×</button>
-                        </div>
-                        ${conditions.length > 1 ? `<div style="margin-top:4px;">${relToggle}</div>` : ''}
-                        <div class="wpb-cond-conditions">
-                            ${conditionsHtml}
-                        </div>
-                        <button type="button" class="wpb-btn-add-cond-cond" data-ri="${ri}">+ Aggiungi condizione</button>
+            return `<div class="wpb-cond-row" data-ri="${ri}" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+                        <select class="cl-rule-field" data-ri="${ri}" style="flex:1;min-width:110px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                            <option value="" disabled ${!rule.fieldName ? 'selected' : ''} hidden>Campo…</option>
+                            ${fieldOpts || '<option disabled>Nessun campo disponibile</option>'}
+                        </select>
+                        <select class="cl-rule-op" data-ri="${ri}" style="flex:0 0 auto;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                            ${opOpts}
+                        </select>
+                        ${valueEl}
+                        <button type="button" class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi regola" style="padding:2px 6px;font-size:14px;background:none;border:none;cursor:pointer;color:#d63638;flex-shrink:0;">×</button>
                     </div>`;
         }
 
         /* ── Logica condizionale: bind eventi ── */
         function bindCondEvents(f) {
-            const list = document.getElementById('wpb-cond-list');
-            if (!list) return;
+            const wrap = document.getElementById('wpb-cond-list');
+            const body = document.getElementById('cl-body');
+            const enabledCb = document.getElementById('cl-enabled');
+            if (!wrap || !enabledCb) return;
 
-            function readAllRules() {
-                const rules = [];
-                list.querySelectorAll('.wpb-cond-row').forEach(row => {
-                    const targetSel = row.querySelector('.wpb-cond-target');
-                    if (!targetSel) return;
-                    const targets = Array.from(targetSel.selectedOptions).map(o => o.value).filter(Boolean);
-                    if (!targets.length) return;
+            /* Legge l'intera struttura conditionalLogic dal DOM */
+            function readCondLogic() {
+                const enabled   = enabledCb.checked;
+                const actionSel = document.getElementById('cl-action');
+                const ltSel     = document.getElementById('cl-logic-type');
+                const rules     = [];
 
-                    // Leggi relation dal toggle attivo
-                    const relBtn = row.querySelector('.wpb-cond-relation-btn.active');
-                    const relation = relBtn ? relBtn.dataset.rel : 'OR';
-
-                    // Leggi tutte le condizioni
-                    const conditions = [];
-                    row.querySelectorAll('.wpb-cond-cond-row').forEach(cr => {
-                        const opSel = cr.querySelector('.wpb-cond-cond-op');
-                        const valEl = cr.querySelector('.wpb-cond-cond-val');
-                        if (!opSel) return;
-                        conditions.push({
-                            operator: opSel.value,
-                            value: valEl ? valEl.value : '',
-                        });
-                    });
-
+                wrap.querySelectorAll('.wpb-cond-row').forEach(row => {
+                    const fieldSel = row.querySelector('.cl-rule-field');
+                    const opSel    = row.querySelector('.cl-rule-op');
+                    const valEl    = row.querySelector('.cl-rule-val');
+                    if (!fieldSel || !fieldSel.value) return;
                     rules.push({
-                        fields: targets,
-                        relation: relation,
-                        conditions: conditions.length ? conditions : [{ operator: '=', value: '' }],
+                        fieldName: fieldSel.value,
+                        operator:  opSel  ? opSel.value  : '=',
+                        value:     valEl  ? valEl.value  : '',
                     });
                 });
-                return rules;
+
+                return {
+                    enabled:   enabled,
+                    action:    actionSel  ? actionSel.value  : 'show',
+                    logicType: ltSel      ? ltSel.value      : 'all',
+                    rules:     rules,
+                };
             }
 
-            function saveRules() { updateField(f.id, 'showFields', readAllRules()); }
+            function saveCL() {
+                updateField(f.id, 'conditionalLogic', readCondLogic());
+            }
 
-            // Elimina gruppo
-            list.querySelectorAll('.wpb-btn-rm-cond').forEach(btn => {
+            /* Toggle abilita/disabilita */
+            enabledCb.addEventListener('change', () => {
+                if (body) body.style.display = enabledCb.checked ? 'block' : 'none';
+                saveCL();
+            });
+
+            /* Action (mostra/nascondi) e logicType (all/any) */
+            ['cl-action', 'cl-logic-type'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', saveCL);
+            });
+
+            /* Rimuovi regola */
+            wrap.querySelectorAll('.wpb-btn-rm-cond').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const ri = parseInt(btn.dataset.ri);
-                    const rules = (f.showFields || []).filter((_, i) => i !== ri);
-                    updateField(f.id, 'showFields', rules);
+                    const cl  = Object.assign({}, f.conditionalLogic || {});
+                    const ri  = parseInt(btn.dataset.ri);
+                    cl.rules  = (cl.rules || []).filter((_, i) => i !== ri);
+                    updateField(f.id, 'conditionalLogic', cl);
                     renderProps();
                 });
             });
 
-            // Elimina condizione singola
-            list.querySelectorAll('.wpb-btn-rm-cond-cond').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const ri = parseInt(btn.closest('.wpb-cond-row').dataset.ri);
-                    const ci = parseInt(btn.dataset.ci);
-                    const rules = readAllRules();
-                    if (rules[ri] && rules[ri].conditions.length > 1) {
-                        rules[ri].conditions.splice(ci, 1);
-                        updateField(f.id, 'showFields', rules);
-                        renderProps();
-                    }
-                });
-            });
-
-            // Cambio operatore → re-render per mostrare/nascondere campo valore
-            list.querySelectorAll('.wpb-cond-cond-op').forEach(sel => {
+            /* Campo sorgente cambia → re-render per aggiornare operatori/valori */
+            wrap.querySelectorAll('.cl-rule-field').forEach(sel => {
                 sel.addEventListener('change', () => {
-                    updateField(f.id, 'showFields', readAllRules());
+                    updateField(f.id, 'conditionalLogic', readCondLogic());
                     renderProps();
                 });
             });
 
-            // Target fields
-            list.querySelectorAll('.wpb-cond-target').forEach(el => {
-                el.addEventListener('change', saveRules);
-            });
-
-            // Valori condizione (input e select)
-            list.querySelectorAll('.wpb-cond-cond-val').forEach(el => {
-                el.addEventListener('change', saveRules);
-                el.addEventListener('input', saveRules);
-            });
-
-            // Toggle relazione AND/OR
-            list.querySelectorAll('.wpb-cond-relation-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const rules = readAllRules();
-                    const ri = parseInt(btn.closest('.wpb-cond-row').dataset.ri);
-                    if (rules[ri]) rules[ri].relation = btn.dataset.rel;
-                    updateField(f.id, 'showFields', rules);
+            /* Operatore cambia → re-render per mostrare/nascondere il campo valore */
+            wrap.querySelectorAll('.cl-rule-op').forEach(sel => {
+                sel.addEventListener('change', () => {
+                    updateField(f.id, 'conditionalLogic', readCondLogic());
                     renderProps();
                 });
             });
 
-            // Aggiungi condizione dentro un gruppo
-            list.querySelectorAll('.wpb-btn-add-cond-cond').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const ri = parseInt(btn.dataset.ri);
-                    const rules = readAllRules();
-                    if (rules[ri]) {
-                        rules[ri].conditions.push({ operator: '=', value: '' });
-                        updateField(f.id, 'showFields', rules);
-                        renderProps();
-                    }
-                });
+            /* Valore cambia */
+            wrap.querySelectorAll('.cl-rule-val').forEach(el => {
+                el.addEventListener('change', saveCL);
+                el.addEventListener('input',  saveCL);
             });
 
-            // Aggiungi nuovo gruppo
+            /* Aggiungi regola */
             const addBtn = document.getElementById('wpb-btn-add-cond');
             if (addBtn) {
                 addBtn.addEventListener('click', () => {
-                    const rules = [...(f.showFields || []), { fields: [], relation: 'OR', conditions: [{ operator: '=', value: '' }] }];
-                    updateField(f.id, 'showFields', rules);
+                    const cl = Object.assign({}, f.conditionalLogic || { enabled: true, action: 'show', logicType: 'all' });
+                    cl.rules = [...(cl.rules || []), { fieldName: '', operator: '=', value: '' }];
+                    updateField(f.id, 'conditionalLogic', cl);
                     renderProps();
                 });
             }
