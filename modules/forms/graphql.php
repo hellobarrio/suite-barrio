@@ -122,25 +122,24 @@ function wpb_graphql_register_schema(): void
         ],
     ]);
 
-    // ── 2. HBShowFieldCondition ───────────────────────────────────────────────
-    register_graphql_object_type('HBShowFieldCondition', [
-        'description' => 'Condizione per la visibilità condizionale di un campo.',
+    // ── 2. HBConditionalLogicRule ─────────────────────────────────────────────
+    register_graphql_object_type('HBConditionalLogicRule', [
+        'description' => 'Singola regola della logica condizionale (Gravity Forms-style).',
         'fields' => [
-            'value' => ['type' => 'String', 'description' => 'Valore atteso.'],
-            'operator' => ['type' => 'String', 'description' => 'Operatore di confronto (=, !=, >, <, >=, <=).'],
+            'fieldName' => ['type' => 'String', 'description' => 'Name del campo sorgente da osservare.'],
+            'operator'  => ['type' => 'String', 'description' => 'Operatore: =, !=, >, <, contains, starts_with, ends_with, empty, not_empty.'],
+            'value'     => ['type' => 'String', 'description' => 'Valore atteso.'],
         ],
     ]);
 
-    // ── 3. HBShowFieldRule ────────────────────────────────────────────────────
-    register_graphql_object_type('HBShowFieldRule', [
-        'description' => 'Regola di visibilità condizionale.',
+    // ── 3. HBConditionalLogic ─────────────────────────────────────────────────
+    register_graphql_object_type('HBConditionalLogic', [
+        'description' => 'Logica condizionale di un campo (Gravity Forms-style): il campo stesso descrive quando mostrarsi o nascondersi.',
         'fields' => [
-            'targets' => ['type' => ['list_of' => 'String'], 'description' => 'Names dei campi da mostrare.'],
-            'fields' => ['type' => ['list_of' => 'String'], 'description' => 'Alias di targets (retrocompatibilità).'],
-            'operator' => ['type' => 'String', 'description' => 'Operatore: =, !=, contains, empty, notempty.'],
-            'value' => ['type' => 'String', 'description' => 'Valore atteso.'],
-            'relation' => ['type' => 'String', 'description' => 'Relazione logica: AND oppure OR.'],
-            'conditions' => ['type' => ['list_of' => 'HBShowFieldCondition'], 'description' => 'Condizioni (formato esteso).'],
+            'enabled'   => ['type' => 'Boolean', 'description' => 'Se true la logica condizionale è attiva.'],
+            'action'    => ['type' => 'String',  'description' => 'Cosa fare quando le regole sono soddisfatte: "show" oppure "hide".'],
+            'logicType' => ['type' => 'String',  'description' => 'Relazione tra le regole: "all" (AND) oppure "any" (OR).'],
+            'rules'     => ['type' => ['list_of' => 'HBConditionalLogicRule'], 'description' => 'Lista delle regole da soddisfare.'],
         ],
     ]);
 
@@ -159,8 +158,8 @@ function wpb_graphql_register_schema(): void
             'min' => ['type' => 'String', 'description' => 'Valore minimo (number).'],
             'max' => ['type' => 'String', 'description' => 'Valore massimo (number).'],
             'format' => ['type' => 'String', 'description' => 'Formato data per il datepicker (es. dd/MM/y).'],
-            'options' => ['type' => ['list_of' => 'HBFormOption'], 'description' => 'Opzioni per select, radio, checkbox.'],
-            'showFields' => ['type' => ['list_of' => 'HBShowFieldRule'], 'description' => 'Regole di visibilità condizionale.'],
+            'options'          => ['type' => ['list_of' => 'HBFormOption'], 'description' => 'Opzioni per select, radio, checkbox.'],
+            'conditionalLogic' => ['type' => 'HBConditionalLogic', 'description' => 'Logica condizionale del campo (Gravity Forms-style).'],
         ],
     ]);
 
@@ -472,7 +471,7 @@ function wpb_graphql_format_form(object $form): array
    ───────────────────────────────────────── */
 function wpb_graphql_format_field(array $f): array
 {
-    // Normalizza opzioni: stringa semplice → {value, label}
+    // Normalizza opzioni: stringa semplice -> {value, label}
     $options = [];
     foreach ($f['options'] ?? [] as $opt) {
         if (is_array($opt) && isset($opt['value'])) {
@@ -485,88 +484,51 @@ function wpb_graphql_format_field(array $f): array
         }
     }
 
-    // Normalizza showFields — supporta vecchio formato {targets,operator,value} e nuovo {fields,relation,conditions}
-    $show_fields = [];
-    foreach ($f['showFields'] ?? [] as $rule) {
-        if (isset($rule['conditions']) && is_array($rule['conditions'])) {
-            // Nuovo formato {fields, relation, conditions}
-            $conditions = [];
-            foreach ($rule['conditions'] as $cond) {
-                $conditions[] = [
-                    'value' => (string) ($cond['value'] ?? ''),
-                    'operator' => (string) ($cond['operator'] ?? '='),
-                ];
-            }
-            $targets = (array) ($rule['fields'] ?? $rule['targets'] ?? []);
-            $show_fields[] = [
-                'targets' => $targets,
-                'fields' => $targets,
-                'operator' => '',
-                'value' => '',
-                'relation' => (string) ($rule['relation'] ?? 'OR'),
-                'conditions' => $conditions,
-            ];
-        } elseif (isset($rule['targets'])) {
-            // Vecchio formato {targets, operator, value} → migra
-            $targets = (array) ($rule['targets'] ?? []);
-            $show_fields[] = [
-                'targets' => $targets,
-                'fields' => $targets,
-                'operator' => (string) ($rule['operator'] ?? '='),
-                'value' => (string) ($rule['value'] ?? ''),
-                'relation' => 'OR',
-                'conditions' => [
-                    ['value' => (string) ($rule['value'] ?? ''), 'operator' => (string) ($rule['operator'] ?? '=')],
-                ],
-            ];
-        } else {
-            // Vecchio formato esteso {fields, relation, conditions}
-            $conditions = [];
-            foreach ($rule['conditions'] ?? [] as $cond) {
-                $conditions[] = [
-                    'value' => (string) ($cond['value'] ?? ''),
-                    'operator' => (string) ($cond['operator'] ?? '='),
-                ];
-            }
-            $targets = (array) ($rule['fields'] ?? []);
-            $show_fields[] = [
-                'targets' => $targets,
-                'fields' => $targets,
-                'operator' => '',
-                'value' => '',
-                'relation' => (string) ($rule['relation'] ?? 'AND'),
-                'conditions' => $conditions,
+    // Logica condizionale — espone il nuovo formato conditionalLogic
+    $conditional_logic = null;
+    if (!empty($f['conditionalLogic'])) {
+        $cl    = $f['conditionalLogic'];
+        $rules = [];
+        foreach ((array) ($cl['rules'] ?? []) as $r) {
+            if (empty($r['fieldName'])) continue;
+            $rules[] = [
+                'fieldName' => (string) $r['fieldName'],
+                'operator'  => (string) ($r['operator'] ?? '='),
+                'value'     => (string) ($r['value'] ?? ''),
             ];
         }
+        $conditional_logic = [
+            'enabled'   => (bool) ($cl['enabled'] ?? false),
+            'action'    => in_array($cl['action'] ?? '', ['show', 'hide']) ? $cl['action'] : 'show',
+            'logicType' => in_array($cl['logicType'] ?? '', ['all', 'any']) ? $cl['logicType'] : 'all',
+            'rules'     => $rules,
+        ];
     }
 
     // Formato default per datepicker
-    $format = '';
-    if (($f['type'] ?? '') === 'datepicker') {
-        $format = (string) ($f['format'] ?? 'dd/MM/y');
-    }
+    $type   = (string) ($f['type'] ?? 'text');
+    $format = ($type === 'datepicker') ? (string) ($f['format'] ?? 'dd/MM/y') : '';
 
-    // Campi tel: pattern fisso, niente min/max
-    $type = (string) ($f['type'] ?? 'text');
+    // Pattern
     $pattern = (string) ($f['pattern'] ?? '');
     if ($type === 'tel') {
-        $pattern = '^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})(?: *x(\d+))?\s*$';
-    } else if ($type === 'email') {
+        $pattern = '^\\s*(?:\\+?(\\d{1,3}))?[-. (]*(\\d{3})[-. )]*(\\d{3})[-. ]*(\\d{4})(?: *x(\\d+))?\\s*$';
+    } elseif ($type === 'email') {
         $pattern = '[a-z0-9\\._%+!$&*=^|~#%{}/\\-]+@([a-z0-9\\-]+\\.){1,}([a-z]{2,22})';
     }
 
     $result = [
-        'id' => (string) ($f['name'] ?? ''),  // alias per retrocompatibilità
-        'name' => (string) ($f['name'] ?? ''),
-        'type' => $type,
-        'label' => (string) ($f['label'] ?? ''),
-        'placeholder' => (string) ($f['placeholder'] ?? ''),
-        'errorMessage' => (string) ($f['error_message'] ?? ''),
-        'required' => (bool) ($f['required'] ?? false),
-        'pattern' => $pattern,
-        'format' => $format,
-        'options' => $options,
-        'showFields' => $show_fields,
+        'id'               => (string) ($f['name'] ?? ''),  // alias retrocompatibilita
+        'name'             => (string) ($f['name'] ?? ''),
+        'type'             => $type,
+        'label'            => (string) ($f['label'] ?? ''),
+        'placeholder'      => (string) ($f['placeholder'] ?? ''),
+        'errorMessage'     => (string) ($f['error_message'] ?? ''),
+        'required'         => (bool) ($f['required'] ?? false),
+        'pattern'          => $pattern,
+        'format'           => $format,
+        'options'          => $options,
+        'conditionalLogic' => $conditional_logic,
     ];
 
     if ($type !== 'tel') {
