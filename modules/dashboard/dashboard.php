@@ -72,15 +72,20 @@ function wp_barrio_dashboard_page()
 
     // Dati Popups (solo se modulo attivo)
     if (wpb_tools_module_enabled('popups')) {
-        $popups_count  = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_popups");
-        $popup_active  = wpb_popups_get_active();
+        $popups_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_popups");
+        $popup_active = wpb_popups_get_active();
+    }
+    // Dati Banners (solo se modulo attivo)
+    if (wpb_tools_module_enabled('banners')) {
+        $banners_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_banners");
+        $banner_active = function_exists('wpb_banners_get_active') ? wpb_banners_get_active() : null;
     }
     if (wpb_tools_module_enabled('orari')) {
-        $orari_data     = get_option(WPB_ORARI_DATA_OPTION, []);
+        $orari_data = get_option(WPB_ORARI_DATA_OPTION, []);
         $orari_settings = get_option(WPB_ORARI_OPTION, []);
         $orari_next_cron = wp_next_scheduled(WPB_ORARI_CRON_HOOK);
         $orari_configured = !empty(trim($orari_settings['google_api_key'] ?? ''))
-                         && !empty(trim($orari_settings['place_id'] ?? ''));
+            && !empty(trim($orari_settings['place_id'] ?? ''));
     }
     ?>
     <div class="wrap">
@@ -366,7 +371,8 @@ function wp_barrio_dashboard_page()
                             style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                         <div>
                             <div style="font-size:16px;font-weight:600;color:#fff;">Popups</div>
-                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Gestione popup frontend</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Gestione popup frontend
+                            </div>
                         </div>
                     </div>
                     <div style="padding:16px 20px;">
@@ -411,6 +417,60 @@ function wp_barrio_dashboard_page()
 
             <?php endif; ?>
 
+            <?php if (wpb_tools_module_enabled('banners')): ?>
+                <!-- Card Banners -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                    <div style="background:#0891b2;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                        <span class="dashicons dashicons-flag"
+                            style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#fff;">Banners</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Banner marquee a scorrimento
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding:16px 20px;">
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                            <tr>
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Banner totali</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo number_format($banners_count); ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Banner attivo</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($banner_active): ?>
+                                        <span style="color:#00a32a;">&#x2713; <?php echo esc_html($banner_active->title); ?></span>
+                                    <?php else: ?>
+                                        <span style="color:#a7aaad;">Nessuno</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">GraphQL</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($graphql_active): ?>
+                                        <span style="color:#00a32a;">&#x2713; hbBanner</span>
+                                    <?php else: ?>
+                                        <span style="color:#646970;">WPGraphQL non attivo</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        </table>
+                        <div style="display:flex;gap:8px;">
+                            <a href="?page=wp-barrio-banners" class="button button-primary" style="flex:1;text-align:center;">
+                                Gestisci banner
+                            </a>
+                            <a href="?page=wp-barrio-banners&edit_id=new" class="button" style="flex:1;text-align:center;">
+                                + Nuovo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            <?php endif; ?>
+
             <?php if (wpb_tools_module_enabled('orari')): ?>
                 <!-- Card Orari -->
                 <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
@@ -419,7 +479,8 @@ function wp_barrio_dashboard_page()
                             style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                         <div>
                             <div style="font-size:16px;font-weight:600;color:#fff;">Orari</div>
-                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Sincronizzazione orari da Google Places</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Sincronizzazione orari da
+                                Google Places</div>
                         </div>
                     </div>
                     <div style="padding:16px 20px;">
