@@ -11,6 +11,7 @@
  *   hbForms           → [HBFormListItem]
  *   hbPopup           → HBPopup (popup attivo)
  *   hbOrari           → HBOrari (orari da Google Places)
+ *   hbBanner          → HBBanner (banner marquee attivo)
  *
  * Mutation disponibili:
  *   hbSubmitForm(input: { formId, fields: [HbFormFieldInput], pageUrl?, pageTitle?, pageReferrer? })
@@ -303,6 +304,49 @@ function wpb_graphql_register_schema(): void
     ]);
 
     // ── 9b. HBOrariGiorno ─────────────────────────────────────────────────────
+
+    // ── 9a3. HBBannerCta ──────────────────────────────────────────────────────
+    register_graphql_object_type('HBBannerCta', [
+        'description' => 'Link del banner (opzionale).',
+        'fields' => [
+            'url'    => ['type' => 'String', 'description' => 'URL del link.'],
+            'target' => ['type' => 'String', 'description' => 'Target del link (_self o _blank).'],
+        ],
+    ]);
+
+    // ── 9a4. HBBanner ─────────────────────────────────────────────────────────
+    register_graphql_object_type('HBBanner', [
+        'description' => 'Banner a scorrimento (marquee) attivo sul sito.',
+        'fields' => [
+            'id'    => ['type' => 'Int',         'description' => 'ID univoco del banner.'],
+            'title' => ['type' => 'String',       'description' => 'Testo del banner.'],
+            'link'  => ['type' => 'HBBannerCta',  'description' => 'Link del banner (opzionale).'],
+        ],
+    ]);
+
+    // ── 9a5. RootQuery: hbBanner ──────────────────────────────────────────────
+    register_graphql_field('RootQuery', 'hbBanner', [
+        'type'        => 'HBBanner',
+        'description' => 'Restituisce il banner attivo, o null se nessuno è attivo.',
+        'resolve'     => function (): ?array {
+            if (!function_exists('wpb_banners_get_active'))
+                return null;
+
+            $banner = wpb_banners_get_active();
+            if (!$banner)
+                return null;
+
+            return [
+                'id'    => (int) $banner->id,
+                'title' => (string) $banner->title,
+                'link'  => !empty($banner->link) ? [
+                    'url'    => (string) $banner->link,
+                    'target' => (string) ($banner->link_target ?? '_self'),
+                ] : null,
+            ];
+        },
+    ]);
+
     register_graphql_object_type('HBOrariGiorno', [
         'description' => 'Orari di apertura per un singolo giorno della settimana.',
         'fields' => [
