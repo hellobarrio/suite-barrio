@@ -151,6 +151,10 @@ add_action('wp_ajax_wpb_popups_save', function () {
     if ($ok === false)
         wp_send_json_error('Errore DB: ' . $wpdb->last_error);
 
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
+
     wp_send_json_success(['id' => $id, 'message' => 'Popup salvato.']);
 });
 
@@ -174,6 +178,10 @@ add_action('wp_ajax_wpb_popups_set_active', function () {
         $wpdb->update($table, ['active' => 1], ['id' => $id], ['%d'], ['%d']);
     }
 
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
+
     wp_send_json_success('Popup attivo aggiornato.');
 });
 
@@ -191,6 +199,9 @@ add_action('wp_ajax_wpb_popups_delete', function () {
         wp_send_json_error('ID non valido.');
 
     $wpdb->delete($wpdb->prefix . WPB_POPUPS_TABLE, ['id' => $id], ['%d']);
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
     wp_send_json_success('Popup eliminato.');
 });
 
@@ -204,6 +215,9 @@ add_action('wp_ajax_wpb_popups_save_limit', function () {
 
     $limit = max(1, intval($_POST['popup_limit'] ?? 1));
     update_option('wpb_popups_limit', $limit, false);
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
     wp_send_json_success('Limite salvato.');
 });
 
