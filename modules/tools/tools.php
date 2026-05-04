@@ -49,6 +49,14 @@ function wpb_tools_modules_list()
             'label' => 'Auto LLMs',
             'desc'  => 'Generazione di llms.txt e llms-full.txt tramite AI.',
         ],
+        'orari'       => [
+            'label' => 'Orari',
+            'desc'  => 'Sincronizzazione automatica degli orari di apertura da Google Places API.',
+        ],
+        'popups'      => [
+            'label' => 'Popups',
+            'desc'  => 'Crea e gestisci popup per il frontend. Un solo popup attivo alla volta.',
+        ],
     ];
 }
 

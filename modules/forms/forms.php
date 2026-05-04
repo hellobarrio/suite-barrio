@@ -1155,6 +1155,68 @@ function wpb_forms_handle_submit()
     // Invia le notifiche email con gli allegati
     wpb_forms_send_notifications($form, $settings, $submission_data, $attachments);
 
+    // ── Integrazione MailUp ───────────────────────────────────────────────
+    // Esegui solo se l'integrazione è abilitata per questo form
+    if (!empty($settings['mailup_enabled'])) {
+        $mu_global      = get_option('wpb_forms_mailup', []);
+        $mu_client_id   = trim($mu_global['client_id'] ?? '');
+        $mu_secret      = trim($mu_global['client_secret'] ?? '');
+        $mu_list_id     = max(1, intval($settings['mailup_list_id'] ?? 1));
+        $mu_email_field = sanitize_key($settings['mailup_email_field'] ?? 'email');
+        $mu_name_field  = sanitize_key($settings['mailup_name_field'] ?? 'nome');
+        $mu_optin_field = sanitize_key($settings['mailup_optin_field'] ?? '');
+
+        // Se è configurato un campo opt-in, controlla che sia stato checkato
+        $optin_ok = true;
+        if ($mu_optin_field !== '') {
+            $optin_raw   = $submission_data[$mu_optin_field]['value'] ?? '';
+            $optin_value = is_array($optin_raw) ? implode(',', $optin_raw) : $optin_raw;
+            // Il campo checkbox invia il valore dell'opzione selezionata; consideriamo
+            // l'utente iscritto se il valore non è vuoto (= checkbox spuntata)
+            $optin_ok = trim($optin_value) !== '';
+            if (!$optin_ok) {
+                error_log('[WP Barrio][MailUp] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
+            }
+        }
+
+        $mu_email = sanitize_email(
+            is_array($submission_data[$mu_email_field]['value'] ?? null)
+                ? implode('', $submission_data[$mu_email_field]['value'])
+                : ($submission_data[$mu_email_field]['value'] ?? '')
+        );
+
+        if ($optin_ok && $mu_client_id && $mu_secret && is_email($mu_email)) {
+            $mu_name = sanitize_text_field(
+                is_array($submission_data[$mu_name_field]['value'] ?? null)
+                    ? implode(' ', $submission_data[$mu_name_field]['value'])
+                    : ($submission_data[$mu_name_field]['value'] ?? '')
+            );
+
+            // Costruisci array Fields da field_map: [{form_field, mailup_field_id}]
+            $mu_extra_fields = [];
+            $field_map = $settings['mailup_field_map'] ?? [];
+            if (is_array($field_map)) {
+                foreach ($field_map as $map) {
+                    $form_slug    = sanitize_key($map['form_field'] ?? '');
+                    $mailup_id    = intval($map['mailup_field_id'] ?? 0);
+                    if (!$form_slug || !$mailup_id) continue;
+                    $raw = $submission_data[$form_slug]['value'] ?? '';
+                    $value = sanitize_text_field(
+                        is_array($raw) ? implode(', ', $raw) : $raw
+                    );
+                    $mu_extra_fields[] = ['Id' => $mailup_id, 'Value' => $value];
+                }
+            }
+
+            $result = wpb_mailup_subscribe($mu_client_id, $mu_secret, $mu_email, $mu_name, $mu_list_id, $mu_extra_fields);
+            if (is_wp_error($result)) {
+                error_log('[WP Barrio][MailUp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
+            }
+        } else {
+            error_log('[WP Barrio][MailUp] Salto iscrizione: credenziali mancanti o email non valida (' . $mu_email . ')');
+        }
+    }
+
     wp_send_json_success(['message' => $settings['success_message'] ?? 'Grazie! Il tuo messaggio è stato inviato.']);
 }
 
@@ -1174,8 +1236,102 @@ add_action('wp_ajax_wpb_forms_save_global_settings', function () {
         'secret_key' => $secret_key,
     ], false);
 
+    // MailUp credentials
+    $mu_client_id     = sanitize_text_field(wp_unslash($_POST['mailup_client_id'] ?? ''));
+    $mu_client_secret = sanitize_text_field(wp_unslash($_POST['mailup_client_secret'] ?? ''));
+
+    update_option('wpb_forms_mailup', [
+        'client_id'     => $mu_client_id,
+        'client_secret' => $mu_client_secret,
+    ], false);
+
     wp_send_json_success('Impostazioni salvate.');
 });
+
+/* ─────────────────────────────────────────
+   HELPER: iscrizione tramite MailUp API
+   ───────────────────────────────────────── */
+/**
+ * Iscrive un contatto a una lista MailUp tramite le API REST v1.1.
+ *
+ * @param string $client_id     MailUp OAuth2 Client ID.
+ * @param string $client_secret MailUp OAuth2 Client Secret.
+ * @param string $email         Email del contatto da iscrivere.
+ * @param string $name          Nome del contatto (opzionale).
+ * @param int    $list_id       ID della lista MailUp (default 1).
+ * @return bool|WP_Error        true se iscritto con successo, WP_Error in caso di errore.
+ */
+function wpb_mailup_subscribe(
+    string $client_id,
+    string $client_secret,
+    string $email,
+    string $name = '',
+    int $list_id = 1,
+    array $extra_fields = []
+) {
+    // Step 1 — Ottieni access token via OAuth2 Resource Owner Password Credentials
+    $token_response = wp_remote_post('https://services.mailup.com/Authorization/OAuth/Token', [
+        'timeout' => 15,
+        'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
+        'body'    => [
+            'grant_type'    => 'client_credentials',
+            'client_id'     => $client_id,
+            'client_secret' => $client_secret,
+        ],
+    ]);
+
+    if (is_wp_error($token_response)) {
+        error_log('[WP Barrio][MailUp] Token request error: ' . $token_response->get_error_message());
+        return $token_response;
+    }
+
+    $token_body = json_decode(wp_remote_retrieve_body($token_response), true);
+    $access_token = $token_body['access_token'] ?? '';
+
+    if (empty($access_token)) {
+        $err = 'MailUp: impossibile ottenere access_token. Risposta: ' . wp_remote_retrieve_body($token_response);
+        error_log('[WP Barrio][MailUp] ' . $err);
+        return new WP_Error('mailup_token', $err);
+    }
+
+    // Step 2 — Iscrivi il contatto alla lista
+    // $extra_fields è un array di ['Id' => int, 'Value' => string] come richiesto dall'API MailUp
+    $recipient = [
+        'Email'  => $email,
+        'Name'   => $name,
+        'Fields' => array_values($extra_fields),
+    ];
+
+    $subscribe_response = wp_remote_post(
+        "https://services.mailup.com/API/v1.1/Rest/ConsoleService.svc/Console/List/{$list_id}/Recipient?ConfirmEmail=false",
+        [
+            'timeout' => 15,
+            'headers' => [
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer ' . $access_token,
+            ],
+            'body' => wp_json_encode($recipient),
+        ]
+    );
+
+    if (is_wp_error($subscribe_response)) {
+        error_log('[WP Barrio][MailUp] Subscribe error: ' . $subscribe_response->get_error_message());
+        return $subscribe_response;
+    }
+
+    $http_code = wp_remote_retrieve_response_code($subscribe_response);
+    $body      = wp_remote_retrieve_body($subscribe_response);
+
+    // MailUp restituisce l'ID del recipient (intero) in caso di successo
+    if ($http_code >= 200 && $http_code < 300) {
+        error_log("[WP Barrio][MailUp] Iscrizione OK — email={$email} list={$list_id} response={$body}");
+        return true;
+    }
+
+    $err = "MailUp: iscrizione fallita HTTP {$http_code} — {$body}";
+    error_log('[WP Barrio][MailUp] ' . $err);
+    return new WP_Error('mailup_subscribe', $err);
+}
 
 /* ─────────────────────────────────────────
    HELPER: rivalidazione cache Next.js
@@ -2917,7 +3073,6 @@ function wpb_forms_admin_page()
         }
 
         #wpb-tab-settings>div {
-            display: flex;
             max-width: none !important;
         }
 
@@ -3001,8 +3156,6 @@ function wpb_forms_admin_page()
                                             style="background:none;border:1px solid #c3c4c7;border-radius:3px;padding:5px 9px;cursor:pointer;color:#646970;font-size:12px;white-space:nowrap;"
                                             onclick="(function(){var i=document.getElementById('wpb-global-mj-secret-key');i.type=i.type==='password'?'text':'password';})();">Mostra</button>
                                     </div>
-                                    <p class="description">Trovate su <a href="https://app.mailjet.com/account/api_keys"
-                                            target="_blank">app.mailjet.com → Account → API Keys</a>.</p>
                                 </td>
                             </tr>
                         </tbody>
@@ -3013,6 +3166,51 @@ function wpb_forms_admin_page()
                         </button>
                         <span id="wpb-global-saved-msg" style="display:none;margin-left:10px;color:#00a32a;font-size:13px;">✓
                             Salvato</span>
+                    </p>
+                </div>
+
+                <!-- MailUp card -->
+                <?php $mu_opts = get_option('wpb_forms_mailup', []); ?>
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;margin-bottom:20px;">
+                    <h3 style="margin:0 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;display:flex;align-items:center;gap:8px;">
+                        <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                            <rect width="32" height="32" rx="6" fill="#00529C"/>
+                            <path d="M7 8h18v3H7zm0 6.5h18v3H7zm0 6.5h11v3H7z" fill="#fff"/>
+                            <circle cx="24" cy="22" r="4" fill="#F7A600"/>
+                        </svg>
+                        MailUp
+                    </h3>
+                    <p style="margin:0 0 16px;font-size:12px;color:#a7aaad;">Credenziali OAuth2 dell'applicazione MailUp. Necessarie per iscrivere i contatti alle liste. <a href="https://help.mailup.com/display/MUG/Authorization+and+Authentication" target="_blank" rel="noopener">Dove trovo le credenziali?</a></p>
+                    <table class="form-table" style="max-width:100%;">
+                        <tbody>
+                            <tr>
+                                <th style="width:220px;"><label for="wpb-global-mu-client-id">Client ID</label></th>
+                                <td>
+                                    <input type="text" id="wpb-global-mu-client-id" class="large-text"
+                                        value="<?php echo esc_attr($mu_opts['client_id'] ?? ''); ?>"
+                                        placeholder="es. c1a2b3d4-..." autocomplete="off" spellcheck="false">
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><label for="wpb-global-mu-client-secret">Client Secret</label></th>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="password" id="wpb-global-mu-client-secret" class="large-text"
+                                            value="<?php echo esc_attr($mu_opts['client_secret'] ?? ''); ?>"
+                                            placeholder="es. s3cr3t..." autocomplete="new-password" spellcheck="false">
+                                        <button type="button"
+                                            style="background:none;border:1px solid #c3c4c7;border-radius:3px;padding:5px 9px;cursor:pointer;color:#646970;font-size:12px;white-space:nowrap;"
+                                            onclick="(function(){var i=document.getElementById('wpb-global-mu-client-secret');i.type=i.type==='password'?'text':'password';})();">Mostra</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin:16px 0 0;">
+                        <button type="button" class="button button-primary" id="wpb-btn-save-global-mu">
+                            Salva impostazioni MailUp
+                        </button>
+                        <span id="wpb-global-saved-msg-mu" style="display:none;margin-left:10px;color:#00a32a;font-size:13px;">✓ Salvato</span>
                     </p>
                 </div>
             </div>
@@ -3042,6 +3240,36 @@ function wpb_forms_admin_page()
                         }).catch(function () { alert('Errore di rete.'); }).finally(function () {
                             btn.disabled = false;
                             btn.textContent = 'Salva impostazioni';
+                        });
+                    });
+
+                    // MailUp save button
+                    var btnMu = document.getElementById('wpb-btn-save-global-mu');
+                    var msgMu = document.getElementById('wpb-global-saved-msg-mu');
+                    btnMu.addEventListener('click', function () {
+                        btnMu.disabled = true;
+                        btnMu.textContent = 'Salvataggio…';
+                        var fd = new URLSearchParams({
+                            action: 'wpb_forms_save_global_settings',
+                            nonce: '<?php echo esc_js($nonce); ?>',
+                            mailjet_api_key: document.getElementById('wpb-global-mj-api-key').value.trim(),
+                            mailjet_secret_key: document.getElementById('wpb-global-mj-secret-key').value.trim(),
+                            mailup_client_id: document.getElementById('wpb-global-mu-client-id').value.trim(),
+                            mailup_client_secret: document.getElementById('wpb-global-mu-client-secret').value.trim()
+                        });
+                        fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
+                            method: 'POST',
+                            body: fd
+                        }).then(function (r) { return r.json(); }).then(function (res) {
+                            if (res.success) {
+                                msgMu.style.display = 'inline';
+                                setTimeout(function () { msgMu.style.display = 'none'; }, 3000);
+                            } else {
+                                alert(res.data || 'Errore.');
+                            }
+                        }).catch(function () { alert('Errore di rete.'); }).finally(function () {
+                            btnMu.disabled = false;
+                            btnMu.textContent = 'Salva impostazioni MailUp';
                         });
                     });
                 })();
@@ -3183,56 +3411,114 @@ function wpb_forms_admin_page()
 
             <!-- TAB IMPOSTAZIONI -->
             <div id="wpb-tab-settings" style="display:none;">
+
+                <!-- Impostazioni generali -->
                 <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;max-width:540px;">
-                    <table class="form-table" style="max-width:100%;">
-                        <tbody>
+                    <h3 style="margin:0 0 16px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;">Impostazioni generali</h3>
 
-                            <tr>
-                                <th style="width:200px;"><label>Testo pulsante invia</label></th>
-                                <td><input type="text" id="wpb-setting-submit-text" class="regular-text" placeholder="Invia">
-                                </td>
-                            </tr>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block;font-weight:600;font-size:13px;margin-bottom:6px;" for="wpb-setting-submit-text">Testo pulsante invio</label>
+                        <input type="text" id="wpb-setting-submit-text" class="regular-text" placeholder="Invia">
+                    </div>
 
-                            <tr>
-                                <th><label for="wpb-setting-display-page-info">Informazioni pagina</label></th>
-                                <td>
-                                    <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;">
-                                        <input type="checkbox" id="wpb-setting-display-page-info" value="1">
-                                        Registra URL e titolo della pagina al momento dell'invio
-                                    </label>
-                                </td>
-                            </tr>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block;font-weight:600;font-size:13px;margin-bottom:6px;" for="wpb-setting-display-page-info">Informazioni pagina</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;font-size:13px;">
+                            <input type="checkbox" id="wpb-setting-display-page-info" value="1">
+                            Registra URL e titolo della pagina al momento dell'invio
+                        </label>
+                    </div>
 
-                            <tr>
-                                <th style="vertical-align:top;padding-top:14px;"><label>Conferma di invio</label></th>
-                                <td>
-                                    <div class="wpb-after-submit-toggle">
-                                        <button type="button" class="wpb-ast-btn active" data-value="message">
-                                            Mostra messaggio
-                                        </button>
-                                        <button type="button" class="wpb-ast-btn" data-value="redirect">
-                                            Reindirizza a una pagina
-                                        </button>
-                                    </div>
-                                    <input type="hidden" id="wpb-setting-after-submit" value="message">
-
-                                    <div id="wpb-ast-panel-message">
-                                        <textarea id="wpb-setting-success-msg" rows="3" class="large-text"
-                                            placeholder="Grazie! Il tuo messaggio è stato inviato."></textarea>
-                                        <p class="description">Testo mostrato al visitatore dopo l'invio.</p>
-                                    </div>
-
-                                    <div id="wpb-ast-panel-redirect" style="display:none;">
-                                        <input type="url" id="wpb-setting-redirect-url" class="large-text"
-                                            placeholder="https://example.com/grazie">
-                                        <p class="description">URL della pagina di ringraziamento a cui rimandare l'utente.</p>
-                                    </div>
-                                </td>
-                            </tr>
-
-                        </tbody>
-                    </table>
+                    <div>
+                        <label style="display:block;font-weight:600;font-size:13px;margin-bottom:6px;">Conferma di invio</label>
+                        <div class="wpb-after-submit-toggle" style="margin-bottom:12px;">
+                            <button type="button" class="wpb-ast-btn active" data-value="message">Mostra messaggio</button>
+                            <button type="button" class="wpb-ast-btn" data-value="redirect">Reindirizza a una pagina</button>
+                        </div>
+                        <input type="hidden" id="wpb-setting-after-submit" value="message">
+                        <div id="wpb-ast-panel-message">
+                            <textarea id="wpb-setting-success-msg" rows="3" class="large-text" placeholder="Grazie! Il tuo messaggio è stato inviato."></textarea>
+                            <p class="description" style="margin-top:4px;">Testo mostrato al visitatore dopo l'invio.</p>
+                        </div>
+                        <div id="wpb-ast-panel-redirect" style="display:none;">
+                            <input type="url" id="wpb-setting-redirect-url" class="large-text" placeholder="https://example.com/grazie">
+                            <p class="description" style="margin-top:4px;">URL della pagina di ringraziamento a cui rimandare l'utente.</p>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- MailUp per-form card -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;max-width:540px;margin-top:20px;">
+                    <h3 style="margin:0 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;display:flex;align-items:center;gap:8px;">
+                        <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                            <rect width="32" height="32" rx="6" fill="#00529C"/>
+                            <path d="M7 8h18v3H7zm0 6.5h18v3H7zm0 6.5h11v3H7z" fill="#fff"/>
+                            <circle cx="24" cy="22" r="4" fill="#F7A600"/>
+                        </svg>
+                        Integrazione MailUp
+                    </h3>
+                    <p style="margin:0 0 20px;font-size:12px;color:#a7aaad;">Iscrivi automaticamente i contatti a una lista MailUp al submit di questo form. Le credenziali API vanno configurate nelle <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms&tab=settings')); ?>">Impostazioni globali</a>.</p>
+
+                    <!-- Toggle abilitazione -->
+                    <div style="margin-bottom:20px;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                            <input type="checkbox" id="wpb-setting-mailup-enabled" value="1" style="width:16px;height:16px;">
+                            <span style="font-size:13px;font-weight:600;">Abilita iscrizione MailUp</span>
+                        </label>
+                    </div>
+
+                    <!-- Campi extra — visibili solo se abilitato -->
+                    <div id="wpb-mailup-fields-wrap" style="display:none;border-top:1px solid #f0f0f0;padding-top:20px;">
+
+                        <!-- ID Lista -->
+                        <div style="margin-bottom:20px;">
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;" for="wpb-setting-mailup-list-id">ID Lista MailUp</label>
+                            <input type="number" id="wpb-setting-mailup-list-id" style="width:100px;" class="small-text" value="1" min="1" placeholder="1">
+                            <p class="description" style="margin-top:4px;">L'ID numerico della lista su cui iscrivere il contatto. Trovalo in <strong>Liste e gruppi</strong> nel backend MailUp.</p>
+                        </div>
+
+                        <!-- Campo email -->
+                        <div style="margin-bottom:20px;">
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;" for="wpb-setting-mailup-email-field">Campo email del form</label>
+                            <input type="text" id="wpb-setting-mailup-email-field" class="regular-text" placeholder="email">
+                            <p class="description" style="margin-top:4px;">Lo <strong>slug</strong> del campo email di questo form. Viene usato come indirizzo del contatto iscritto. Default: <code>email</code>.</p>
+                        </div>
+
+                        <!-- Campo nome -->
+                        <div style="margin-bottom:24px;">
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;" for="wpb-setting-mailup-name-field">Campo nome del form <span style="font-weight:400;color:#a7aaad;">(opzionale)</span></label>
+                            <input type="text" id="wpb-setting-mailup-name-field" class="regular-text" placeholder="nome">
+                            <p class="description" style="margin-top:4px;">Lo slug del campo che contiene il nome del contatto. Lascia vuoto per non inviare il nome.</p>
+                        </div>
+
+                        <!-- Campo opt-in newsletter -->
+                        <div style="margin-bottom:24px;padding:16px;background:#f6f7f7;border-radius:3px;border:1px solid #e2e4e7;">
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;" for="wpb-setting-mailup-optin-field">
+                                Campo opt-in newsletter
+                                <span style="font-weight:400;color:#a7aaad;"> (opzionale)</span>
+                            </label>
+                            <p class="description" style="margin-bottom:10px;margin-top:0;">Se specificato, l'iscrizione a MailUp avviene <strong>solo se questo campo checkbox è spuntato</strong> al momento dell'invio. Lascia vuoto per iscrivere sempre.</p>
+                            <select id="wpb-setting-mailup-optin-field" style="width:100%;max-width:340px;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                                <option value="">— Iscrivi sempre —</option>
+                            </select>
+                            <p class="description" style="margin-top:6px;">Seleziona il campo <strong>checkbox</strong> del form che funge da consenso newsletter (es. "Iscriviti alla newsletter").</p>
+                        </div>
+
+                        <!-- Mapping campi aggiuntivi → Fields MailUp -->
+                        <div>
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;">Mappa altri campi su Fields MailUp <span style="font-weight:400;color:#a7aaad;">(opzionale)</span></label>
+                            <p class="description" style="margin-bottom:12px;">Collega i campi di questo form ai <strong>campi personalizzati</strong> del profilo MailUp (es. telefono, città). Per ogni riga: inserisci lo slug del campo del form a sinistra e l'ID numerico del campo MailUp a destra.</p>
+                            <div id="wpb-mailup-field-map-rows"></div>
+                            <button type="button" id="wpb-mailup-add-map-row"
+                                style="margin-top:8px;background:none;border:1px dashed #c3c4c7;border-radius:3px;padding:6px 14px;cursor:pointer;font-size:12px;color:#646970;width:100%;text-align:center;">
+                                + Aggiungi mappatura campo
+                            </button>
+                            <p class="description" style="margin-top:8px;">Trovi gli ID dei campi personalizzati in MailUp: <em>Impostazioni → Profilo iscritto → Campi personalizzati</em>.</p>
+                        </div>
+
+                    </div><!-- #wpb-mailup-fields-wrap -->
+                </div>
+
             </div><!-- #wpb-tab-settings -->
 
             <!-- TAB NOTIFICHE -->
@@ -3454,6 +3740,31 @@ function wpb_forms_admin_page()
                 renderNotifications();
                 const after = s.after_submit || 'message';
                 setAfterPanel(after);
+                // MailUp
+                const muEnabled = el('wpb-setting-mailup-enabled');
+                if (muEnabled) {
+                    muEnabled.checked = !!(s.mailup_enabled);
+                    toggleMailupFields(muEnabled.checked);
+                }
+                if (el('wpb-setting-mailup-list-id')) el('wpb-setting-mailup-list-id').value = s.mailup_list_id || '1';
+                if (el('wpb-setting-mailup-email-field')) el('wpb-setting-mailup-email-field').value = s.mailup_email_field || '';
+                if (el('wpb-setting-mailup-name-field')) el('wpb-setting-mailup-name-field').value = s.mailup_name_field || '';
+                // Opt-in select: popola con i campi checkbox presenti nel form
+                const optinSel = el('wpb-setting-mailup-optin-field');
+                if (optinSel) {
+                    // Rimuovi opzioni precedenti tranne la prima (— Iscrivi sempre —)
+                    while (optinSel.options.length > 1) optinSel.remove(1);
+                    fields.filter(f => f.type === 'checkbox').forEach(f => {
+                        const opt = document.createElement('option');
+                        opt.value = f.name || '';
+                        opt.textContent = (f.label || f.name || f.id) + ' [' + (f.name || '') + ']';
+                        optinSel.appendChild(opt);
+                    });
+                    optinSel.value = s.mailup_optin_field || '';
+                }
+                // Field mapping
+                mailupFieldMap = Array.isArray(s.mailup_field_map) ? s.mailup_field_map.map(r => ({ ...r })) : [];
+                renderMailupMapRows();
             }
 
             function setAfterPanel(val) {
@@ -3470,6 +3781,60 @@ function wpb_forms_admin_page()
             }
 
             document.querySelectorAll('.wpb-ast-btn').forEach(b => b.addEventListener('click', () => setAfterPanel(b.dataset.value)));
+
+            function toggleMailupFields(show) {
+                const wrap = document.getElementById('wpb-mailup-fields-wrap');
+                if (wrap) wrap.style.display = show ? '' : 'none';
+            }
+            const muCb = document.getElementById('wpb-setting-mailup-enabled');
+            if (muCb) muCb.addEventListener('change', () => toggleMailupFields(muCb.checked));
+
+            // ── Field mapping rows ──────────────────────────────────────────
+            let mailupFieldMap = []; // [{form_field, mailup_field_id}]
+
+            function renderMailupMapRows() {
+                const container = document.getElementById('wpb-mailup-field-map-rows');
+                if (!container) return;
+                container.innerHTML = '';
+                mailupFieldMap.forEach((row, idx) => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+                    div.innerHTML = `
+                        <input type="text" placeholder="slug campo form (es. telefono)"
+                            value="${esc(row.form_field)}"
+                            data-idx="${idx}" data-key="form_field"
+                            style="flex:1;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                        <span style="color:#a7aaad;font-size:13px;white-space:nowrap;">→ ID campo MailUp</span>
+                        <input type="number" placeholder="es. 3" min="1"
+                            value="${esc(String(row.mailup_field_id || ''))}"
+                            data-idx="${idx}" data-key="mailup_field_id"
+                            style="width:80px;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                        <button type="button" data-idx="${idx}"
+                            style="background:none;border:none;color:#d63638;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;"
+                            title="Rimuovi">×</button>`;
+                    // Input change handlers
+                    div.querySelectorAll('input[data-key]').forEach(inp => {
+                        inp.addEventListener('input', e => {
+                            const i = parseInt(e.target.dataset.idx, 10);
+                            mailupFieldMap[i][e.target.dataset.key] = e.target.value;
+                        });
+                    });
+                    // Remove button
+                    div.querySelector('button[data-idx]').addEventListener('click', e => {
+                        const i = parseInt(e.currentTarget.dataset.idx, 10);
+                        mailupFieldMap.splice(i, 1);
+                        renderMailupMapRows();
+                    });
+                    container.appendChild(div);
+                });
+            }
+
+            const addMapBtn = document.getElementById('wpb-mailup-add-map-row');
+            if (addMapBtn) addMapBtn.addEventListener('click', () => {
+                mailupFieldMap.push({ form_field: '', mailup_field_id: '' });
+                renderMailupMapRows();
+            });
+
             initSettings();
 
             function readSettings() {
@@ -3488,6 +3853,13 @@ function wpb_forms_admin_page()
                         .filter(n => n.to_email && n.to_email.trim())
                         .map(({ _open, ...rest }) => rest),
                     display_page_info: dpi ? dpi.checked : !!(settings.display_page_info),
+                    // MailUp
+                    mailup_enabled: el('wpb-setting-mailup-enabled') ? el('wpb-setting-mailup-enabled').checked : !!(settings.mailup_enabled),
+                    mailup_list_id: el('wpb-setting-mailup-list-id') ? parseInt(el('wpb-setting-mailup-list-id').value, 10) || 1 : (settings.mailup_list_id || 1),
+                    mailup_email_field: el('wpb-setting-mailup-email-field') ? el('wpb-setting-mailup-email-field').value.trim() : (settings.mailup_email_field || 'email'),
+                    mailup_name_field: el('wpb-setting-mailup-name-field') ? el('wpb-setting-mailup-name-field').value.trim() : (settings.mailup_name_field || ''),
+                    mailup_optin_field: el('wpb-setting-mailup-optin-field') ? el('wpb-setting-mailup-optin-field').value : (settings.mailup_optin_field || ''),
+                    mailup_field_map: mailupFieldMap.filter(r => r.form_field && r.mailup_field_id),
                 };
             }
 
@@ -3967,6 +4339,23 @@ function wpb_forms_admin_page()
             dropZone.querySelectorAll('.wpb-field-card').forEach(c => c.remove());
             emptyState.style.display = fields.length === 0 ? 'flex' : 'none';
             fields.forEach((f, i) => dropZone.appendChild(buildCard(f, i)));
+            refreshMailupOptinSelect();
+        }
+
+        // Aggiorna il <select> opt-in MailUp con i campi checkbox presenti nel canvas
+        function refreshMailupOptinSelect() {
+            const sel = document.getElementById('wpb-setting-mailup-optin-field');
+            if (!sel) return;
+            const current = sel.value;
+            while (sel.options.length > 1) sel.remove(1);
+            fields.filter(f => f.type === 'checkbox').forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.name || '';
+                opt.textContent = (f.label || f.name || f.id) + '  [slug: ' + (f.name || '') + ']';
+                sel.appendChild(opt);
+            });
+            // Ripristina il valore precedente se esiste ancora
+            if ([...sel.options].some(o => o.value === current)) sel.value = current;
         }
 
         function buildCard(f, idx) {

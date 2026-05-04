@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  WP Barrio
  * Description:  WP Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      3.8.0
+ * Version:      4.0.0
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('WP_ALT_AI_VERSION', '3.8.0');
+define('WP_ALT_AI_VERSION', '4.0.0');
 define('WP_ALT_AI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_ALT_AI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WP_ALT_AI_LOG_OPTION', 'wp_alt_ai_log');
@@ -44,14 +44,17 @@ if (wpb_tools_module_enabled('auto_fields'))
 if (wpb_tools_module_enabled('auto_llms'))
    require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-llms/auto-llms.php';
 
-/* ─────────────────────────────────────────
-   MODULI OPZIONALI (richiedono plugin di terze parti)
-   ───────────────────────────────────────── */
+if (wpb_tools_module_enabled('orari'))
+   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/orari/orari.php';
 
-// GraphQL — caricato solo se WPGraphQL è attivo.
-// `graphql_register_types` non esiste se WPGraphQL non è installato,
-// quindi il file è sicuro da includere sempre: al suo interno tutti gli
-// hook su `graphql_register_types` vengono silenziosamente ignorati.
-// Il notice admin è invece sempre attivo per avvisare l'utente.
-if (wpb_tools_module_enabled('forms'))
-   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/forms/graphql.php';
+if (wpb_tools_module_enabled('popups'))
+   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/popups/popups.php';
+
+/* ─────────────────────────────────────────
+   GRAPHQL — caricato sempre.
+   I resolver verificano internamente la disponibilità
+   delle funzioni richieste da ciascun modulo.
+   Se WPGraphQL non è installato tutti gli hook su
+   `graphql_register_types` vengono ignorati silenziosamente.
+   ───────────────────────────────────────── */
+require_once WP_ALT_AI_PLUGIN_DIR . 'modules/graphql.php';

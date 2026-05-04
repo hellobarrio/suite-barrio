@@ -1,13 +1,16 @@
 <?php
 /**
- * WP Barrio — Forms GraphQL
+ * WP Barrio — GraphQL
  *
- * Estende lo schema WPGraphQL con i tipi e le query per i form WP Barrio.
- * Viene caricato SOLO se WPGraphQL è attivo.
+ * Estende lo schema WPGraphQL con tutti i tipi e le query del plugin.
+ * Viene caricato sempre (indipendentemente dai moduli attivi) ma i singoli
+ * resolver verificano internamente la disponibilità delle funzioni richieste.
  *
  * Query disponibili:
  *   hbForm(id: Int)   → HBForm
  *   hbForms           → [HBFormListItem]
+ *   hbPopup           → HBPopup (popup attivo)
+ *   hbOrari           → HBOrari (orari da Google Places)
  *
  * Mutation disponibili:
  *   hbSubmitForm(input: { formId, fields: [HbFormFieldInput], pageUrl?, pageTitle?, pageReferrer? })
@@ -229,6 +232,121 @@ function wpb_graphql_register_schema(): void
     // Nota: HbSubmitFormPayload viene generato automaticamente da WPGraphQL
     // a partire da outputFields — non serve registrarlo manualmente.
 
+    // ── 9a. HBPopup ───────────────────────────────────────────────────────────
+    // HBPopupImage usa il tipo nativo MediaItem di WPGraphQL per node,
+    // così i fragment come MediaItemFragment funzionano senza errori.
+    register_graphql_object_type('HBPopupImage', [
+        'description' => 'Wrapper immagine del popup (compatibile con la connessione MediaItem di WPGraphQL).',
+        'fields' => [
+            'node' => ['type' => 'MediaItem', 'description' => 'Il MediaItem WordPress dell\'immagine.'],
+        ],
+    ]);
+
+    register_graphql_object_type('HBPopupCta', [
+        'description' => 'CTA (call to action) del popup.',
+        'fields' => [
+            'url'    => ['type' => 'String', 'description' => 'URL di destinazione.'],
+            'title'  => ['type' => 'String', 'description' => 'Testo del pulsante.'],
+            'target' => ['type' => 'String', 'description' => 'Target del link: _self o _blank.'],
+        ],
+    ]);
+
+    register_graphql_object_type('HBPopup', [
+        'description' => 'Popup attivo da mostrare sul frontend.',
+        'fields' => [
+            'id'      => ['type' => ['non_null' => 'Int'], 'description' => 'ID del popup.'],
+            'title'   => ['type' => 'String', 'description' => 'Titolo del popup.'],
+            'content' => ['type' => 'String', 'description' => 'Testo/HTML del popup.'],
+            'link'    => ['type' => 'HBPopupCta', 'description' => 'CTA del popup (opzionale).'],
+            'image'   => ['type' => 'HBPopupImage', 'description' => 'Immagine del popup (opzionale).'],
+        ],
+    ]);
+
+    // ── 9a2. RootQuery: hbPopup ───────────────────────────────────────────────
+    register_graphql_field('RootQuery', 'hbPopup', [
+        'type'        => 'HBPopup',
+        'description' => 'Restituisce il popup attivo, o null se nessuno è attivo.',
+        'resolve'     => function (): ?array {
+            if (!function_exists('wpb_popups_get_active'))
+                return null;
+
+            $popup = wpb_popups_get_active();
+            if (!$popup)
+                return null;
+
+            // Costruisce il wrapper image solo se c'è un attachment valido.
+            // Restituiamo l'ID del post: WPGraphQL risolve il MediaItem nativo
+            // a partire da esso, rendendo i fragment come MediaItemFragment compatibili.
+            $image    = null;
+            $image_id = (int) ($popup->image_id ?? 0);
+            if ($image_id > 0) {
+                $post = get_post($image_id);
+                if ($post && $post->post_type === 'attachment') {
+                    $image = [
+                        'node' => new \WPGraphQL\Model\Post($post),
+                    ];
+                }
+            }
+
+            return [
+                'id'      => (int) $popup->id,
+                'title'   => (string) $popup->title,
+                'content' => (string) $popup->content,
+                'link'    => !empty($popup->link) ? [
+                    'url'    => (string) $popup->link,
+                    'title'  => (string) ($popup->link_title ?? ''),
+                    'target' => (string) ($popup->link_target ?? '_self'),
+                ] : null,
+                'image'   => $image,
+            ];
+        },
+    ]);
+
+    // ── 9b. HBOrariGiorno ─────────────────────────────────────────────────────
+    register_graphql_object_type('HBOrariGiorno', [
+        'description' => 'Orari di apertura per un singolo giorno della settimana.',
+        'fields' => [
+            'giorno' => ['type' => 'String', 'description' => 'Nome del giorno (es. Lunedì).'],
+            'slots'  => ['type' => ['list_of' => 'String'], 'description' => 'Fasce orarie (es. ["09:00 - 13:00", "15:00 - 19:00"]). Array vuoto = chiuso.'],
+            'chiuso' => ['type' => 'Boolean', 'description' => 'true se il locale è chiuso quel giorno.'],
+        ],
+    ]);
+
+    // ── 9c. HBOrari ───────────────────────────────────────────────────────────
+    register_graphql_object_type('HBOrari', [
+        'description' => 'Orari di apertura del locale, sincronizzati da Google Places.',
+        'fields' => [
+            'ultimoAggiornamento' => ['type' => 'String', 'description' => 'Data/ora dell\'ultimo aggiornamento (formato d/m/Y H:i).'],
+            'displayName'         => ['type' => 'String', 'description' => 'Nome del locale come restituito da Google Places.'],
+            'settimana'           => ['type' => ['list_of' => 'HBOrariGiorno'], 'description' => 'Orari per ciascun giorno della settimana.'],
+        ],
+    ]);
+
+    // ── 9d. RootQuery: hbOrari ────────────────────────────────────────────────
+    register_graphql_field('RootQuery', 'hbOrari', [
+        'type'        => 'HBOrari',
+        'description' => 'Restituisce gli orari di apertura del locale.',
+        'resolve'     => function (): array {
+            $data_option = defined('WPB_ORARI_DATA_OPTION') ? WPB_ORARI_DATA_OPTION : 'wpb_orari_data';
+            $data        = get_option($data_option, []);
+
+            $settimana = [];
+            foreach ($data['orari_settimanali'] ?? [] as $giorno => $slots) {
+                $settimana[] = [
+                    'giorno' => $giorno,
+                    'slots'  => array_values($slots),
+                    'chiuso' => empty($slots),
+                ];
+            }
+
+            return [
+                'ultimoAggiornamento' => $data['ultimo_aggiornamento'] ?? null,
+                'displayName'         => $data['display_name'] ?? null,
+                'settimana'           => $settimana,
+            ];
+        },
+    ]);
+
     // ── 10. RootQuery: hbForm ──────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbForm', [
         'type' => 'HBForm',
@@ -443,6 +561,62 @@ function wpb_graphql_register_schema(): void
                 // ── Invia notifiche email (con allegati) ──────────────────────────
                 $mail_log = wpb_forms_send_notifications($form, $settings, $submission_data, $attachments);
                 error_log('[WP Barrio][mutation] mail_log: ' . implode(' | ', $mail_log));
+
+                // ── Integrazione MailUp ───────────────────────────────────────────
+                if (!empty($settings['mailup_enabled'])) {
+                    $mu_global      = get_option('wpb_forms_mailup', []);
+                    $mu_client_id   = trim($mu_global['client_id'] ?? '');
+                    $mu_secret      = trim($mu_global['client_secret'] ?? '');
+                    $mu_list_id     = max(1, intval($settings['mailup_list_id'] ?? 1));
+                    $mu_email_field = sanitize_key($settings['mailup_email_field'] ?? 'email');
+                    $mu_name_field  = sanitize_key($settings['mailup_name_field'] ?? '');
+                    $mu_optin_field = sanitize_key($settings['mailup_optin_field'] ?? '');
+
+                    // Controlla opt-in se configurato
+                    $optin_ok = true;
+                    if ($mu_optin_field !== '') {
+                        $optin_raw   = $submission_data[$mu_optin_field]['value'] ?? '';
+                        $optin_value = is_array($optin_raw) ? implode(',', $optin_raw) : $optin_raw;
+                        $optin_ok    = trim($optin_value) !== '';
+                        if (!$optin_ok) {
+                            error_log('[WP Barrio][MailUp][GraphQL] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
+                        }
+                    }
+
+                    $mu_email = sanitize_email(
+                        is_array($submission_data[$mu_email_field]['value'] ?? null)
+                            ? implode('', $submission_data[$mu_email_field]['value'])
+                            : ($submission_data[$mu_email_field]['value'] ?? '')
+                    );
+
+                    if ($optin_ok && $mu_client_id && $mu_secret && is_email($mu_email)) {
+                        $mu_name = sanitize_text_field(
+                            is_array($submission_data[$mu_name_field]['value'] ?? null)
+                                ? implode(' ', $submission_data[$mu_name_field]['value'])
+                                : ($submission_data[$mu_name_field]['value'] ?? '')
+                        );
+
+                        $mu_extra_fields = [];
+                        $field_map = $settings['mailup_field_map'] ?? [];
+                        if (is_array($field_map)) {
+                            foreach ($field_map as $map) {
+                                $form_slug = sanitize_key($map['form_field'] ?? '');
+                                $mailup_id = intval($map['mailup_field_id'] ?? 0);
+                                if (!$form_slug || !$mailup_id) continue;
+                                $raw   = $submission_data[$form_slug]['value'] ?? '';
+                                $value = sanitize_text_field(is_array($raw) ? implode(', ', $raw) : $raw);
+                                $mu_extra_fields[] = ['Id' => $mailup_id, 'Value' => $value];
+                            }
+                        }
+
+                        $mu_result = wpb_mailup_subscribe($mu_client_id, $mu_secret, $mu_email, $mu_name, $mu_list_id, $mu_extra_fields);
+                        if (is_wp_error($mu_result)) {
+                            error_log('[WP Barrio][MailUp][GraphQL] Errore iscrizione form_id=' . $form_id . ': ' . $mu_result->get_error_message());
+                        }
+                    } elseif ($optin_ok) {
+                        error_log('[WP Barrio][MailUp][GraphQL] Salto iscrizione: credenziali mancanti o email non valida.');
+                    }
+                }
 
 
                 return [

@@ -69,6 +69,19 @@ function wp_barrio_dashboard_page()
         $forms_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_forms");
         $subs_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_form_submissions");
     }
+
+    // Dati Popups (solo se modulo attivo)
+    if (wpb_tools_module_enabled('popups')) {
+        $popups_count  = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_popups");
+        $popup_active  = wpb_popups_get_active();
+    }
+    if (wpb_tools_module_enabled('orari')) {
+        $orari_data     = get_option(WPB_ORARI_DATA_OPTION, []);
+        $orari_settings = get_option(WPB_ORARI_OPTION, []);
+        $orari_next_cron = wp_next_scheduled(WPB_ORARI_CRON_HOOK);
+        $orari_configured = !empty(trim($orari_settings['google_api_key'] ?? ''))
+                         && !empty(trim($orari_settings['place_id'] ?? ''));
+    }
     ?>
     <div class="wrap">
         <h1>
@@ -338,6 +351,119 @@ function wp_barrio_dashboard_page()
                             <a href="?page=wp-barrio-auto-fields" class="button button-primary"
                                 style="flex:1;text-align:center;">
                                 Genera campi
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            <?php endif; ?>
+
+            <?php if (wpb_tools_module_enabled('popups')): ?>
+                <!-- Card Popups -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                    <div style="background:#7c3aed;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                        <span class="dashicons dashicons-megaphone"
+                            style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#fff;">Popups</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Gestione popup frontend</div>
+                        </div>
+                    </div>
+                    <div style="padding:16px 20px;">
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                            <tr>
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Popup totali</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo number_format($popups_count); ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Popup attivo</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($popup_active): ?>
+                                        <span style="color:#00a32a;">&#x2713; <?php echo esc_html($popup_active->title); ?></span>
+                                    <?php else: ?>
+                                        <span style="color:#a7aaad;">Nessuno</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">GraphQL</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($graphql_active): ?>
+                                        <span style="color:#00a32a;">&#x2713; hbPopup</span>
+                                    <?php else: ?>
+                                        <span style="color:#646970;">WPGraphQL non attivo</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        </table>
+                        <div style="display:flex;gap:8px;">
+                            <a href="?page=wp-barrio-popups" class="button button-primary" style="flex:1;text-align:center;">
+                                Gestisci popup
+                            </a>
+                            <a href="?page=wp-barrio-popups&edit_id=new" class="button" style="flex:1;text-align:center;">
+                                + Nuovo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            <?php endif; ?>
+
+            <?php if (wpb_tools_module_enabled('orari')): ?>
+                <!-- Card Orari -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                    <div style="background:#c2410c;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                        <span class="dashicons dashicons-clock"
+                            style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#fff;">Orari</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Sincronizzazione orari da Google Places</div>
+                        </div>
+                    </div>
+                    <div style="padding:16px 20px;">
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                            <tr>
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Credenziali</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($orari_configured): ?>
+                                        <span style="color:#00a32a;">&#x2713; Configurate</span>
+                                    <?php else: ?>
+                                        <span style="color:#d63638;">✕ Non configurate</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Ultimo aggiornamento</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo !empty($orari_data['ultimo_aggiornamento'])
+                                        ? esc_html($orari_data['ultimo_aggiornamento'])
+                                        : '<span style="color:#646970;">Mai</span>'; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Prossimo cron</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo $orari_next_cron
+                                        ? esc_html(date_i18n('d/m H:i', $orari_next_cron + get_option('gmt_offset') * 3600))
+                                        : '<span style="color:#646970;">—</span>'; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">GraphQL</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($graphql_active): ?>
+                                        <span style="color:#00a32a;">&#x2713; hbOrari</span>
+                                    <?php else: ?>
+                                        <span style="color:#646970;">WPGraphQL non attivo</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        </table>
+                        <div style="display:flex;gap:8px;">
+                            <a href="?page=wp-barrio-orari" class="button button-primary" style="flex:1;text-align:center;">
+                                Gestisci orari
                             </a>
                         </div>
                     </div>
