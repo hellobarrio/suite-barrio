@@ -573,6 +573,9 @@ add_action('wp_ajax_wpb_llms_generate', function () {
     $model    = get_option('wpb_llms_model', '');
     wpb_llms_log('success', $type, 'Generato con ' . $provider . ($model ? ' / ' . $model : ''));
 
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
     wp_send_json_success($results);
 });
 
@@ -601,6 +604,10 @@ add_action('wp_ajax_wpb_llms_save_inclusion', function () {
 
     update_option('wpb_llms_pt_modes',  $pt_modes,  false);
     update_option('wpb_llms_tax_modes', $tax_modes, false);
+    
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
 
     wp_send_json_success();
 });
