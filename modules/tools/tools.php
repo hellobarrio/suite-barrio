@@ -57,6 +57,10 @@ function wpb_tools_modules_list()
             'label' => 'Popups',
             'desc'  => 'Crea e gestisci popup per il frontend. Un solo popup attivo alla volta.',
         ],
+        'banners'     => [
+            'label' => 'Banners',
+            'desc'  => 'Crea e gestisci banner a scorrimento (marquee) per il frontend. Un solo banner attivo alla volta.',
+        ],
     ];
 }
 
