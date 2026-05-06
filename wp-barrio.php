@@ -29,6 +29,7 @@ define('WP_ALT_AI_BATCH_SIZE', 5);
    ───────────────────────────────────────── */
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/dashboard/dashboard.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/tools/tools.php';
+require_once WP_ALT_AI_PLUGIN_DIR . 'modules/seo/seo.php';
 
 // Carica ogni modulo solo se non e' stato disattivato dalla pagina Strumenti
 if (wpb_tools_module_enabled('auto_alt'))
@@ -40,9 +41,6 @@ if (wpb_tools_module_enabled('forms')) {
 
 if (wpb_tools_module_enabled('auto_fields'))
    require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-fields/auto-fields.php';
-
-if (wpb_tools_module_enabled('auto_llms'))
-   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-llms/auto-llms.php';
 
 if (wpb_tools_module_enabled('orari'))
    require_once WP_ALT_AI_PLUGIN_DIR . 'modules/orari/orari.php';
