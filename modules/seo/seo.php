@@ -106,12 +106,14 @@ function wpb_seo_page()
                             <tr style="border-top:1px solid #f0f0f1;">
                                 <td style="padding:6px 0;font-size:13px;color:#646970;">Post type indicizzabili</td>
                                 <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
-                                    <?php echo $pt_count ?: 0; ?></td>
+                                    <?php echo $pt_count ?: 0; ?>
+                                </td>
                             </tr>
                             <tr style="border-top:1px solid #f0f0f1;">
                                 <td style="padding:6px 0;font-size:13px;color:#646970;">Tassonomie indicizzabili</td>
                                 <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
-                                    <?php echo $tax_count ?: 0; ?></td>
+                                    <?php echo $tax_count ?: 0; ?>
+                                </td>
                             </tr>
                         </table>
                         <div style="display:flex;gap:8px;">
@@ -130,8 +132,8 @@ function wpb_seo_page()
             <?php if (wpb_tools_module_enabled('seo_sitemap')):
                 $any_seo_sub_active = true;
                 $sm_entries = function_exists('wpb_sitemap_build_entries') ? wpb_sitemap_build_entries() : [];
-                $sm_total   = count($sm_entries);
-            ?>
+                $sm_total = count($sm_entries);
+                ?>
                 <!-- Card Sitemap -->
                 <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
                     <div style="background:#e6600d;padding:16px 20px;display:flex;align-items:center;gap:12px;">
@@ -139,14 +141,16 @@ function wpb_seo_page()
                             style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                         <div>
                             <div style="font-size:16px;font-weight:600;color:#fff;">Sitemap</div>
-                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Gestione della sitemap XML</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Gestione della sitemap XML
+                            </div>
                         </div>
                     </div>
                     <div style="padding:16px 20px;">
                         <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
                             <tr>
                                 <td style="padding:6px 0;font-size:13px;color:#646970;">URL totali</td>
-                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;"><?php echo $sm_total; ?></td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo $sm_total; ?></td>
                             </tr>
                         </table>
                         <div style="display:flex;gap:8px;">
@@ -161,8 +165,8 @@ function wpb_seo_page()
             <?php
             // ── Card Schema ─────────────────────────────────────────────
             $any_seo_sub_active = true;
-            $schema_s   = get_option(WPB_SCHEMA_OPTION, []);
-            $schema_ok  = !empty($schema_s['business_name']) || !empty($schema_s['url']);
+            $schema_s = get_option(WPB_SCHEMA_OPTION, []);
+            $schema_ok = !empty($schema_s['business_name']) || !empty($schema_s['url']);
             ?>
             <!-- Card Schema -->
             <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
@@ -171,7 +175,8 @@ function wpb_seo_page()
                         style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                     <div>
                         <div style="font-size:16px;font-weight:600;color:#fff;">Schema</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">JSON-LD strutturato per tutti i contenuti</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">JSON-LD strutturato per
+                            tutti i contenuti</div>
                     </div>
                 </div>
                 <div style="padding:16px 20px;">
@@ -202,9 +207,9 @@ function wpb_seo_page()
             <?php
             // ── Card Redirects ──────────────────────────────────────────
             $any_seo_sub_active = true;
-            $rd_rows  = function_exists('wpb_redirects_get_all') ? wpb_redirects_get_all() : [];
+            $rd_rows = function_exists('wpb_redirects_get_all') ? wpb_redirects_get_all() : [];
             $rd_total = count($rd_rows);
-            $rd_301   = count(array_filter($rd_rows, fn($r) => ((int)($r['code'] ?? 301)) === 301));
+            $rd_301 = count(array_filter($rd_rows, fn($r) => ((int) ($r['code'] ?? 301)) === 301));
             ?>
             <!-- Card Redirects -->
             <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
@@ -213,18 +218,21 @@ function wpb_seo_page()
                         style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                     <div>
                         <div style="font-size:16px;font-weight:600;color:#fff;">Redirects</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Gestione redirect per il frontend headless</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Gestione redirect per il
+                            frontend headless</div>
                     </div>
                 </div>
                 <div style="padding:16px 20px;">
                     <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
                         <tr>
                             <td style="padding:6px 0;font-size:13px;color:#646970;">Redirect totali</td>
-                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;"><?php echo $rd_total; ?></td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php echo $rd_total; ?></td>
                         </tr>
                         <tr style="border-top:1px solid #f0f0f1;">
                             <td style="padding:6px 0;font-size:13px;color:#646970;">301 Permanenti</td>
-                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;"><?php echo $rd_301; ?></td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php echo $rd_301; ?></td>
                         </tr>
                     </table>
                     <div style="display:flex;gap:8px;">
@@ -238,8 +246,8 @@ function wpb_seo_page()
             <?php
             // ── Card SEO Advisor ────────────────────────────────────────
             $any_seo_sub_active = true;
-            $adv_key_ok  = !empty(wpb_advisor_active_key());
-            $adv_log     = get_option(WPB_ADVISOR_LOG_OPTION, []);
+            $adv_key_ok = !empty(wpb_advisor_active_key());
+            $adv_log = get_option(WPB_ADVISOR_LOG_OPTION, []);
             $adv_success = count(array_filter($adv_log, fn($e) => ($e['status'] ?? '') === 'success'));
             ?>
             <!-- Card SEO Advisor -->
@@ -266,11 +274,13 @@ function wpb_seo_page()
                         </tr>
                         <tr style="border-top:1px solid #f0f0f1;">
                             <td style="padding:6px 0;font-size:13px;color:#646970;">Generazioni riuscite</td>
-                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;"><?php echo $adv_success; ?></td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php echo $adv_success; ?></td>
                         </tr>
                     </table>
                     <div style="display:flex;gap:8px;">
-                        <a href="?page=wp-barrio-seo-advisor&tab=generate" class="button button-primary" style="flex:1;text-align:center;">
+                        <a href="?page=wp-barrio-seo-advisor&tab=generate" class="button button-primary"
+                            style="flex:1;text-align:center;">
                             Genera
                         </a>
                         <a href="?page=wp-barrio-seo-advisor&tab=settings" class="button" style="flex:1;text-align:center;">
@@ -283,9 +293,9 @@ function wpb_seo_page()
             <?php
             // ── Card Auto LLMs ──────────────────────────────────────────
             $any_seo_sub_active = true;
-            $llms_key_ok  = function_exists('wpb_llms_active_key') && !empty(wpb_llms_active_key());
-            $llms_cache   = get_option('wpb_llms_last_generated', []);
-            $llms_last    = !empty($llms_cache['time']) ? date_i18n('d/m/Y H:i', $llms_cache['time']) : '—';
+            $llms_key_ok = function_exists('wpb_llms_active_key') && !empty(wpb_llms_active_key());
+            $llms_cache = get_option('wpb_llms_last_generated', []);
+            $llms_last = !empty($llms_cache['time']) ? date_i18n('d/m/Y H:i', $llms_cache['time']) : '—';
             ?>
             <!-- Card Auto LLMs -->
             <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
@@ -294,7 +304,8 @@ function wpb_seo_page()
                         style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                     <div>
                         <div style="font-size:16px;font-weight:600;color:#fff;">Auto LLMs</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Generazione llms.txt e llms-full.txt</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Generazione llms.txt e
+                            llms-full.txt</div>
                     </div>
                 </div>
                 <div style="padding:16px 20px;">
@@ -311,7 +322,8 @@ function wpb_seo_page()
                         </tr>
                         <tr style="border-top:1px solid #f0f0f1;">
                             <td style="padding:6px 0;font-size:13px;color:#646970;">Ultima generazione</td>
-                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;"><?php echo esc_html($llms_last); ?></td>
+                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                <?php echo esc_html($llms_last); ?></td>
                         </tr>
                     </table>
                     <div style="display:flex;gap:8px;">
