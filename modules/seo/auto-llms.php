@@ -12,9 +12,9 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI
    ───────────────────────────────────────── */
-define('WPB_LLMS_LOG_OPTION',     'wpb_llms_log');
-define('WPB_LLMS_LOG_MAX',        100);
-define('WPB_LLMS_CACHE_OPTION',   'wpb_llms_last_generated');
+if (!defined('WPB_LLMS_LOG_OPTION'))   define('WPB_LLMS_LOG_OPTION',   'wpb_llms_log');
+if (!defined('WPB_LLMS_LOG_MAX'))       define('WPB_LLMS_LOG_MAX',       100);
+if (!defined('WPB_LLMS_CACHE_OPTION')) define('WPB_LLMS_CACHE_OPTION',  'wpb_llms_last_generated');
 
 /* ─────────────────────────────────────────
    HELPER: scrivi una riga nel log
@@ -697,6 +697,10 @@ add_action('graphql_register_types', function () {
    1. MENU ADMIN
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
+    if (!wpb_tools_module_enabled('seo'))
+        return;
+
+    // Figlio di wp-barrio (mantiene capability check) ma nascosto via CSS
     add_submenu_page(
         'wp-barrio',
         'Auto LLMs — WP Barrio',
@@ -706,6 +710,16 @@ add_action('admin_menu', function () {
         'wpb_llms_admin_page'
     );
 }, 15);
+
+add_action('admin_head', function () {
+    echo '<style>#adminmenu a[href="admin.php?page=wp-barrio-auto-llms"]{display:none!important}</style>';
+});
+
+add_filter('submenu_file', function ($submenu_file) {
+    if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-auto-llms')
+        return 'wp-barrio-seo';
+    return $submenu_file;
+});
 
 /* ─────────────────────────────────────────
    2. IMPOSTAZIONI
