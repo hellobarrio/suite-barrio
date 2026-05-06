@@ -131,8 +131,8 @@ function wpb_graphql_register_schema(): void
         'description' => 'Singola regola della logica condizionale (Gravity Forms-style).',
         'fields' => [
             'fieldName' => ['type' => 'String', 'description' => 'Name del campo sorgente da osservare.'],
-            'operator'  => ['type' => 'String', 'description' => 'Operatore: =, !=, >, <, contains, starts_with, ends_with, empty, not_empty.'],
-            'value'     => ['type' => 'String', 'description' => 'Valore atteso.'],
+            'operator' => ['type' => 'String', 'description' => 'Operatore: =, !=, >, <, contains, starts_with, ends_with, empty, not_empty.'],
+            'value' => ['type' => 'String', 'description' => 'Valore atteso.'],
         ],
     ]);
 
@@ -140,10 +140,10 @@ function wpb_graphql_register_schema(): void
     register_graphql_object_type('HBConditionalLogic', [
         'description' => 'Logica condizionale di un campo (Gravity Forms-style): il campo stesso descrive quando mostrarsi o nascondersi.',
         'fields' => [
-            'enabled'   => ['type' => 'Boolean', 'description' => 'Se true la logica condizionale è attiva.'],
-            'action'    => ['type' => 'String',  'description' => 'Cosa fare quando le regole sono soddisfatte: "show" oppure "hide".'],
-            'logicType' => ['type' => 'String',  'description' => 'Relazione tra le regole: "all" (AND) oppure "any" (OR).'],
-            'rules'     => ['type' => ['list_of' => 'HBConditionalLogicRule'], 'description' => 'Lista delle regole da soddisfare.'],
+            'enabled' => ['type' => 'Boolean', 'description' => 'Se true la logica condizionale è attiva.'],
+            'action' => ['type' => 'String', 'description' => 'Cosa fare quando le regole sono soddisfatte: "show" oppure "hide".'],
+            'logicType' => ['type' => 'String', 'description' => 'Relazione tra le regole: "all" (AND) oppure "any" (OR).'],
+            'rules' => ['type' => ['list_of' => 'HBConditionalLogicRule'], 'description' => 'Lista delle regole da soddisfare.'],
         ],
     ]);
 
@@ -162,7 +162,7 @@ function wpb_graphql_register_schema(): void
             'min' => ['type' => 'String', 'description' => 'Valore minimo (number).'],
             'max' => ['type' => 'String', 'description' => 'Valore massimo (number).'],
             'format' => ['type' => 'String', 'description' => 'Formato data per il datepicker (es. dd/MM/y).'],
-            'options'          => ['type' => ['list_of' => 'HBFormOption'], 'description' => 'Opzioni per select, radio, checkbox.'],
+            'options' => ['type' => ['list_of' => 'HBFormOption'], 'description' => 'Opzioni per select, radio, checkbox.'],
             'conditionalLogic' => ['type' => 'HBConditionalLogic', 'description' => 'Logica condizionale del campo (Gravity Forms-style).'],
         ],
     ]);
@@ -246,8 +246,8 @@ function wpb_graphql_register_schema(): void
     register_graphql_object_type('HBPopupCta', [
         'description' => 'CTA (call to action) del popup.',
         'fields' => [
-            'url'    => ['type' => 'String', 'description' => 'URL di destinazione.'],
-            'title'  => ['type' => 'String', 'description' => 'Testo del pulsante.'],
+            'url' => ['type' => 'String', 'description' => 'URL di destinazione.'],
+            'title' => ['type' => 'String', 'description' => 'Testo del pulsante.'],
             'target' => ['type' => 'String', 'description' => 'Target del link: _self o _blank.'],
         ],
     ]);
@@ -255,19 +255,19 @@ function wpb_graphql_register_schema(): void
     register_graphql_object_type('HBPopup', [
         'description' => 'Popup attivo da mostrare sul frontend.',
         'fields' => [
-            'id'      => ['type' => ['non_null' => 'Int'], 'description' => 'ID del popup.'],
-            'title'   => ['type' => 'String', 'description' => 'Titolo del popup.'],
+            'id' => ['type' => ['non_null' => 'Int'], 'description' => 'ID del popup.'],
+            'title' => ['type' => 'String', 'description' => 'Titolo del popup.'],
             'content' => ['type' => 'String', 'description' => 'Testo/HTML del popup.'],
-            'link'    => ['type' => 'HBPopupCta', 'description' => 'CTA del popup (opzionale).'],
-            'image'   => ['type' => 'HBPopupImage', 'description' => 'Immagine del popup (opzionale).'],
+            'link' => ['type' => 'HBPopupCta', 'description' => 'CTA del popup (opzionale).'],
+            'image' => ['type' => 'HBPopupImage', 'description' => 'Immagine del popup (opzionale).'],
         ],
     ]);
 
     // ── 9a2. RootQuery: hbPopup ───────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbPopup', [
-        'type'        => 'HBPopup',
+        'type' => 'HBPopup',
         'description' => 'Restituisce il popup attivo, o null se nessuno è attivo.',
-        'resolve'     => function (): ?array {
+        'resolve' => function (): ?array {
             if (!function_exists('wpb_popups_get_active'))
                 return null;
 
@@ -278,7 +278,7 @@ function wpb_graphql_register_schema(): void
             // Costruisce il wrapper image solo se c'è un attachment valido.
             // Restituiamo l'ID del post: WPGraphQL risolve il MediaItem nativo
             // a partire da esso, rendendo i fragment come MediaItemFragment compatibili.
-            $image    = null;
+            $image = null;
             $image_id = (int) ($popup->image_id ?? 0);
             if ($image_id > 0) {
                 $post = get_post($image_id);
@@ -290,15 +290,15 @@ function wpb_graphql_register_schema(): void
             }
 
             return [
-                'id'      => (int) $popup->id,
-                'title'   => (string) $popup->title,
+                'id' => (int) $popup->id,
+                'title' => (string) $popup->title,
                 'content' => (string) $popup->content,
-                'link'    => !empty($popup->link) ? [
-                    'url'    => (string) $popup->link,
-                    'title'  => (string) ($popup->link_title ?? ''),
+                'link' => !empty($popup->link) ? [
+                    'url' => (string) $popup->link,
+                    'title' => (string) ($popup->link_title ?? ''),
                     'target' => (string) ($popup->link_target ?? '_self'),
                 ] : null,
-                'image'   => $image,
+                'image' => $image,
             ];
         },
     ]);
@@ -309,7 +309,7 @@ function wpb_graphql_register_schema(): void
     register_graphql_object_type('HBBannerCta', [
         'description' => 'Link del banner (opzionale).',
         'fields' => [
-            'url'    => ['type' => 'String', 'description' => 'URL del link.'],
+            'url' => ['type' => 'String', 'description' => 'URL del link.'],
             'target' => ['type' => 'String', 'description' => 'Target del link (_self o _blank).'],
         ],
     ]);
@@ -318,17 +318,17 @@ function wpb_graphql_register_schema(): void
     register_graphql_object_type('HBBanner', [
         'description' => 'Banner a scorrimento (marquee) attivo sul sito.',
         'fields' => [
-            'id'    => ['type' => 'Int',         'description' => 'ID univoco del banner.'],
-            'title' => ['type' => 'String',       'description' => 'Testo del banner.'],
-            'link'  => ['type' => 'HBBannerCta',  'description' => 'Link del banner (opzionale).'],
+            'id' => ['type' => 'Int', 'description' => 'ID univoco del banner.'],
+            'title' => ['type' => 'String', 'description' => 'Testo del banner.'],
+            'link' => ['type' => 'HBBannerCta', 'description' => 'Link del banner (opzionale).'],
         ],
     ]);
 
     // ── 9a5. RootQuery: hbBanner ──────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbBanner', [
-        'type'        => 'HBBanner',
+        'type' => 'HBBanner',
         'description' => 'Restituisce il banner attivo, o null se nessuno è attivo.',
-        'resolve'     => function (): ?array {
+        'resolve' => function (): ?array {
             if (!function_exists('wpb_banners_get_active'))
                 return null;
 
@@ -337,10 +337,10 @@ function wpb_graphql_register_schema(): void
                 return null;
 
             return [
-                'id'    => (int) $banner->id,
+                'id' => (int) $banner->id,
                 'title' => (string) $banner->title,
-                'link'  => !empty($banner->link) ? [
-                    'url'    => (string) $banner->link,
+                'link' => !empty($banner->link) ? [
+                    'url' => (string) $banner->link,
                     'target' => (string) ($banner->link_target ?? '_self'),
                 ] : null,
             ];
@@ -351,7 +351,7 @@ function wpb_graphql_register_schema(): void
         'description' => 'Orari di apertura per un singolo giorno della settimana.',
         'fields' => [
             'giorno' => ['type' => 'String', 'description' => 'Nome del giorno (es. Lunedì).'],
-            'slots'  => ['type' => ['list_of' => 'String'], 'description' => 'Fasce orarie (es. ["09:00 - 13:00", "15:00 - 19:00"]). Array vuoto = chiuso.'],
+            'slots' => ['type' => ['list_of' => 'String'], 'description' => 'Fasce orarie (es. ["09:00 - 13:00", "15:00 - 19:00"]). Array vuoto = chiuso.'],
             'chiuso' => ['type' => 'Boolean', 'description' => 'true se il locale è chiuso quel giorno.'],
         ],
     ]);
@@ -361,32 +361,32 @@ function wpb_graphql_register_schema(): void
         'description' => 'Orari di apertura del locale, sincronizzati da Google Places.',
         'fields' => [
             'ultimoAggiornamento' => ['type' => 'String', 'description' => 'Data/ora dell\'ultimo aggiornamento (formato d/m/Y H:i).'],
-            'displayName'         => ['type' => 'String', 'description' => 'Nome del locale come restituito da Google Places.'],
-            'settimana'           => ['type' => ['list_of' => 'HBOrariGiorno'], 'description' => 'Orari per ciascun giorno della settimana.'],
+            'displayName' => ['type' => 'String', 'description' => 'Nome del locale come restituito da Google Places.'],
+            'settimana' => ['type' => ['list_of' => 'HBOrariGiorno'], 'description' => 'Orari per ciascun giorno della settimana.'],
         ],
     ]);
 
     // ── 9d. RootQuery: hbOrari ────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbOrari', [
-        'type'        => 'HBOrari',
+        'type' => 'HBOrari',
         'description' => 'Restituisce gli orari di apertura del locale.',
-        'resolve'     => function (): array {
+        'resolve' => function (): array {
             $data_option = defined('WPB_ORARI_DATA_OPTION') ? WPB_ORARI_DATA_OPTION : 'wpb_orari_data';
-            $data        = get_option($data_option, []);
+            $data = get_option($data_option, []);
 
             $settimana = [];
             foreach ($data['orari_settimanali'] ?? [] as $giorno => $slots) {
                 $settimana[] = [
                     'giorno' => $giorno,
-                    'slots'  => array_values($slots),
+                    'slots' => array_values($slots),
                     'chiuso' => empty($slots),
                 ];
             }
 
             return [
                 'ultimoAggiornamento' => $data['ultimo_aggiornamento'] ?? null,
-                'displayName'         => $data['display_name'] ?? null,
-                'settimana'           => $settimana,
+                'displayName' => $data['display_name'] ?? null,
+                'settimana' => $settimana,
             ];
         },
     ]);
@@ -514,16 +514,16 @@ function wpb_graphql_register_schema(): void
 
                 // ── Costruisci dati submission + decodifica allegati ──────────────
                 $submission_data = [];
-                $attachments     = [];
+                $attachments = [];
 
                 foreach ($form_fields as $field) {
                     if (($field['type'] ?? '') === 'page_break')
                         continue;
 
-                    $name  = $field['name']  ?? '';
-                    $type  = $field['type']  ?? 'text';
+                    $name = $field['name'] ?? '';
+                    $type = $field['type'] ?? 'text';
                     $label = $field['label'] ?? $name;
-                    $val   = $input_map[$name] ?? '';
+                    $val = $input_map[$name] ?? '';
 
                     if ($type === 'file' && $val !== '') {
                         // Il frontend invia: {"content":"<base64>","filename":"...","type":"..."}
@@ -538,10 +538,10 @@ function wpb_graphql_register_schema(): void
 
                             if ($decoded !== false) {
                                 // Salva in wp-uploads (organizzato per anno/mese come wp_handle_upload)
-                                $upload     = wp_upload_dir();
-                                $safe_name  = wp_unique_filename($upload['path'], sanitize_file_name($file_data['filename']));
-                                $file_path  = $upload['path'] . DIRECTORY_SEPARATOR . $safe_name;
-                                $file_url   = $upload['url']  . '/' . $safe_name;
+                                $upload = wp_upload_dir();
+                                $safe_name = wp_unique_filename($upload['path'], sanitize_file_name($file_data['filename']));
+                                $file_path = $upload['path'] . DIRECTORY_SEPARATOR . $safe_name;
+                                $file_url = $upload['url'] . '/' . $safe_name;
 
                                 file_put_contents($file_path, $decoded);
 
@@ -549,9 +549,9 @@ function wpb_graphql_register_schema(): void
 
                                 // Stesso formato dell'handler AJAX: visibile nel back office con link
                                 $submission_data['_file_' . $name] = [
-                                    'label'   => $label,
-                                    'value'   => $safe_name,
-                                    'url'     => $file_url,
+                                    'label' => $label,
+                                    'value' => $safe_name,
+                                    'url' => $file_url,
                                     'is_file' => true,
                                 ];
                             }
@@ -608,20 +608,20 @@ function wpb_graphql_register_schema(): void
 
                 // ── Integrazione MailUp ───────────────────────────────────────────
                 if (!empty($settings['mailup_enabled'])) {
-                    $mu_global      = get_option('wpb_forms_mailup', []);
-                    $mu_client_id   = trim($mu_global['client_id'] ?? '');
-                    $mu_secret      = trim($mu_global['client_secret'] ?? '');
-                    $mu_list_id     = max(1, intval($settings['mailup_list_id'] ?? 1));
+                    $mu_global = get_option('wpb_forms_mailup', []);
+                    $mu_client_id = trim($mu_global['client_id'] ?? '');
+                    $mu_secret = trim($mu_global['client_secret'] ?? '');
+                    $mu_list_id = max(1, intval($settings['mailup_list_id'] ?? 1));
                     $mu_email_field = sanitize_key($settings['mailup_email_field'] ?? 'email');
-                    $mu_name_field  = sanitize_key($settings['mailup_name_field'] ?? '');
+                    $mu_name_field = sanitize_key($settings['mailup_name_field'] ?? '');
                     $mu_optin_field = sanitize_key($settings['mailup_optin_field'] ?? '');
 
                     // Controlla opt-in se configurato
                     $optin_ok = true;
                     if ($mu_optin_field !== '') {
-                        $optin_raw   = $submission_data[$mu_optin_field]['value'] ?? '';
+                        $optin_raw = $submission_data[$mu_optin_field]['value'] ?? '';
                         $optin_value = is_array($optin_raw) ? implode(',', $optin_raw) : $optin_raw;
-                        $optin_ok    = trim($optin_value) !== '';
+                        $optin_ok = trim($optin_value) !== '';
                         if (!$optin_ok) {
                             error_log('[WP Barrio][MailUp][GraphQL] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
                         }
@@ -629,15 +629,15 @@ function wpb_graphql_register_schema(): void
 
                     $mu_email = sanitize_email(
                         is_array($submission_data[$mu_email_field]['value'] ?? null)
-                            ? implode('', $submission_data[$mu_email_field]['value'])
-                            : ($submission_data[$mu_email_field]['value'] ?? '')
+                        ? implode('', $submission_data[$mu_email_field]['value'])
+                        : ($submission_data[$mu_email_field]['value'] ?? '')
                     );
 
                     if ($optin_ok && $mu_client_id && $mu_secret && is_email($mu_email)) {
                         $mu_name = sanitize_text_field(
                             is_array($submission_data[$mu_name_field]['value'] ?? null)
-                                ? implode(' ', $submission_data[$mu_name_field]['value'])
-                                : ($submission_data[$mu_name_field]['value'] ?? '')
+                            ? implode(' ', $submission_data[$mu_name_field]['value'])
+                            : ($submission_data[$mu_name_field]['value'] ?? '')
                         );
 
                         $mu_extra_fields = [];
@@ -646,8 +646,9 @@ function wpb_graphql_register_schema(): void
                             foreach ($field_map as $map) {
                                 $form_slug = sanitize_key($map['form_field'] ?? '');
                                 $mailup_id = intval($map['mailup_field_id'] ?? 0);
-                                if (!$form_slug || !$mailup_id) continue;
-                                $raw   = $submission_data[$form_slug]['value'] ?? '';
+                                if (!$form_slug || !$mailup_id)
+                                    continue;
+                                $raw = $submission_data[$form_slug]['value'] ?? '';
                                 $value = sanitize_text_field(is_array($raw) ? implode(', ', $raw) : $raw);
                                 $mu_extra_fields[] = ['Id' => $mailup_id, 'Value' => $value];
                             }
@@ -680,6 +681,241 @@ function wpb_graphql_register_schema(): void
                     'errors' => [$e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine()],
                 ];
             }
+        },
+    ]);
+
+    // ── Tipo: dati SEO di un singolo post ────────────────────────────────
+    register_graphql_object_type('HBSeoPost', [
+        'description' => 'Dati SEO di un post calcolati da WP Barrio Meta Tags',
+        'fields' => [
+            'title'         => ['type' => 'String',  'description' => 'Meta title completo (custom o generato dal titolo del post)'],
+            'description'   => ['type' => 'String',  'description' => 'Meta description (custom, excerpt o default globale)'],
+            'robots'        => ['type' => 'String',  'description' => 'Valore del tag robots (es. index,follow)'],
+            'canonical'     => ['type' => 'String',  'description' => 'URL canonical del post'],
+            'ogTitle'       => ['type' => 'String',  'description' => 'og:title'],
+            'ogDescription' => ['type' => 'String',  'description' => 'og:description'],
+            'ogImage'       => ['type' => 'String',  'description' => 'URL assoluto dell\'immagine og:image'],
+            'ogType'        => ['type' => 'String',  'description' => 'og:type (article per i post singoli)'],
+            'twitterCard'   => ['type' => 'String',  'description' => 'twitter:card'],
+            'twitterTitle'  => ['type' => 'String',  'description' => 'twitter:title'],
+            'twitterImage'  => ['type' => 'String',  'description' => 'URL assoluto dell\'immagine twitter:image'],
+            'isIndexed'     => ['type' => 'Boolean', 'description' => 'Il post è indicizzabile (override per-post o default post type)'],
+            'isInSitemap'   => ['type' => 'Boolean', 'description' => 'Il post è incluso nella sitemap (override per-post o default post type)'],
+            'keywords'      => ['type' => ['list_of' => 'String'], 'description' => 'Keywords SEO: il primo elemento è la keyword primaria'],
+        ],
+    ]);
+
+    // ── Campo seo su ogni post type indicizzato ──────────────────────────
+    // Ricava il graphql_single_name di ogni post type pubblico e registra
+    // il campo seo direttamente sul tipo WPGraphQL corrispondente.
+    // Es: Post → post { seo { ... } }
+    //     Page → page { seo { ... } }
+    //     CPT  → mioTipo { seo { ... } }
+    $content = get_option(WPB_META_CONTENT_OPTION, []);
+
+    foreach (get_post_types(['public' => true, 'show_in_graphql' => true], 'objects') as $pt_obj) {
+        $pt_slug = $pt_obj->name;
+        if ($pt_slug === 'attachment') continue;
+
+        // Rispetta la configurazione della tab Contenuti:
+        // se il post type non è indicizzato il campo esiste comunque
+        // ma isIndexed sarà false — utile per sapere lato client.
+
+        $graphql_type = $pt_obj->graphql_single_name ?? null;
+        if (empty($graphql_type)) continue;
+
+        // Capitalizza la prima lettera per corrispondere al tipo WPGraphQL
+        $graphql_type = ucfirst($graphql_type);
+
+        register_graphql_field($graphql_type, 'seo', [
+            'type'        => 'HBSeoPost',
+            'description' => 'Dati SEO calcolati da WP Barrio Meta Tags',
+            'resolve'     => function ($post_obj) use ($pt_slug) {
+                // $post_obj è il model WPGraphQL — recupera il WP_Post
+                $post_id = $post_obj->databaseId ?? ($post_obj->ID ?? null);
+                if (!$post_id) return null;
+
+                $post = get_post((int) $post_id);
+                if (!$post || $post->post_status !== 'publish') return null;
+
+                $s       = get_option(WPB_META_OPTION, []);
+                $content = get_option(WPB_META_CONTENT_OPTION, []);
+
+                $sep       = $s['separator']   ?? '—';
+                $site_name = $s['site_title']  ?? get_bloginfo('name');
+                $order     = $s['title_order'] ?? 'page_site';
+
+                // Title
+                $custom_title = get_post_meta($post_id, '_wpb_seo_title', true);
+                $base_title   = $custom_title ?: get_the_title($post);
+                $full_title   = $order === 'site_page'
+                    ? $site_name . ' ' . $sep . ' ' . $base_title
+                    : $base_title . ' ' . $sep . ' ' . $site_name;
+
+                // Description
+                $description = get_post_meta($post_id, '_wpb_seo_description', true);
+                if (empty($description)) $description = get_the_excerpt($post);
+                if (empty($description)) $description = $s['default_desc'] ?? '';
+                $description = wp_strip_all_tags($description);
+
+                // OG Image
+                $og_image_url = '';
+                $custom_og_id = (int) get_post_meta($post_id, '_wpb_seo_og_image_id', true);
+                if ($custom_og_id)
+                    $og_image_url = wp_get_attachment_image_url($custom_og_id, 'full');
+                if (empty($og_image_url) && has_post_thumbnail($post_id))
+                    $og_image_url = get_the_post_thumbnail_url($post_id, 'full');
+                if (empty($og_image_url) && !empty($s['og_image_id']))
+                    $og_image_url = wp_get_attachment_image_url((int) $s['og_image_id'], 'full');
+
+                // Robots (override per-post + fallback post type config)
+                $cfg         = $content['post_types'][$pt_slug] ?? ['index' => 1, 'follow' => 1];
+                $post_index   = get_post_meta($post_id, '_wpb_seo_index',   true);
+                $post_follow  = get_post_meta($post_id, '_wpb_seo_follow',  true);
+                $post_sitemap = get_post_meta($post_id, '_wpb_seo_sitemap', true);
+                $idx     = $post_index   !== '' ? (bool)(int)$post_index   : (bool)($cfg['index']   ?? 1);
+                $follow  = $post_follow  !== '' ? (bool)(int)$post_follow  : (bool)($cfg['follow']  ?? 1);
+                $sitemap = $post_sitemap !== '' ? (bool)(int)$post_sitemap : (bool)($cfg['sitemap'] ?? 1);
+                $robots = ($idx ? 'index' : 'noindex') . ',' . ($follow ? 'follow' : 'nofollow');
+
+                return [
+                    'title'         => $full_title,
+                    'description'   => $description,
+                    'robots'        => $robots,
+                    'canonical'     => get_permalink($post_id) ?: '',
+                    'ogTitle'       => $full_title,
+                    'ogDescription' => $description,
+                    'ogImage'       => $og_image_url ?: null,
+                    'ogType'        => 'article',
+                    'twitterCard'   => $s['twitter_card'] ?? 'summary_large_image',
+                    'twitterTitle'  => $full_title,
+                    'twitterImage'  => $og_image_url ?: null,
+                    'isIndexed'     => $idx,
+                    'isInSitemap'   => $sitemap,
+                    'keywords'      => (function() use ($post_id) {
+                        $raw = get_post_meta($post_id, '_wpb_seo_keywords', true);
+                        if (!$raw) return [];
+                        $kws = json_decode($raw, true);
+                        return is_array($kws) ? $kws : [];
+                    })(),
+                ];
+            },
+        ]);
+    }
+
+    // ── Tipo: impostazioni SEO globali del sito ──────────────────────────
+    register_graphql_object_type('HBSeoSite', [
+        'description' => 'Impostazioni SEO globali del sito configurate in WP Barrio',
+        'fields' => [
+            'siteTitle' => ['type' => 'String', 'description' => 'Titolo del sito'],
+            'separator' => ['type' => 'String', 'description' => 'Separatore usato nel title tag (es. —)'],
+            'titleOrder' => ['type' => 'String', 'description' => 'Ordine del title: page_site o site_page'],
+            'defaultDesc' => ['type' => 'String', 'description' => 'Meta description di default'],
+            'robotsDefault' => ['type' => 'String', 'description' => 'Valore robots globale di default'],
+            'ogImage' => ['type' => 'String', 'description' => 'URL dell\'immagine OG di default'],
+            'favicon' => ['type' => 'String', 'description' => 'URL assoluto della favicon del sito'],
+        ],
+    ]);
+
+    // ── Query: hbSeoSite ─────────────────────────────────────────────────
+    register_graphql_field('RootQuery', 'hbSeoSite', [
+        'type' => 'HBSeoSite',
+        'description' => 'Restituisce le impostazioni SEO globali del sito configurate in WP Barrio',
+        'resolve' => function () {
+            $s = get_option(WPB_META_OPTION, []);
+
+            $og_image_url = '';
+            if (!empty($s['og_image_id']))
+                $og_image_url = wp_get_attachment_image_url((int) $s['og_image_id'], 'full');
+
+            $favicon_url = '';
+            if (!empty($s['favicon_id']))
+                $favicon_url = wp_get_attachment_image_url((int) $s['favicon_id'], 'full');
+
+            return [
+                'siteTitle' => $s['site_title'] ?? get_bloginfo('name'),
+                'separator' => $s['separator'] ?? '—',
+                'titleOrder' => $s['title_order'] ?? 'page_site',
+                'defaultDesc' => $s['default_desc'] ?? '',
+                'robotsDefault' => $s['robots_default'] ?? 'index,follow',
+                'ogImage' => $og_image_url ?: null,
+                'favicon' => $favicon_url ?: null,
+            ];
+        },
+    ]);
+
+    // ── Tipo: singolo redirect ────────────────────────────────────────────
+    register_graphql_object_type('HBRedirect', [
+        'description' => 'Un redirect configurato in WP Barrio SEO',
+        'fields'      => [
+            'id'   => ['type' => ['non_null' => 'String'], 'description' => 'UUID univoco del redirect'],
+            'from' => ['type' => ['non_null' => 'String'], 'description' => 'URI relativo di origine (es. /vecchio-path/)'],
+            'to'   => ['type' => 'String',                 'description' => 'URI relativo di destinazione (null se codice 410)'],
+            'code' => ['type' => ['non_null' => 'Int'],    'description' => 'Codice HTTP: 301, 302, 307, 308 o 410'],
+            'note' => ['type' => 'String',                 'description' => 'Nota descrittiva opzionale'],
+        ],
+    ]);
+
+    // ── Query: hbRedirects ───────────────────────────────────────────────
+    register_graphql_field('RootQuery', 'hbRedirects', [
+        'type'        => ['list_of' => 'HBRedirect'],
+        'description' => 'Restituisce tutti i redirect configurati in WP Barrio SEO come URI relativi',
+        'resolve'     => function () {
+            if (!function_exists('wpb_redirects_get_all'))
+                return [];
+
+            return array_map(function ($row) {
+                return [
+                    'id'   => $row['id']   ?? '',
+                    'from' => $row['from'] ?? '',
+                    'to'   => ($row['code'] ?? 301) === 410 ? null : ($row['to'] ?? ''),
+                    'code' => (int) ($row['code'] ?? 301),
+                    'note' => $row['note'] ?? null,
+                ];
+            }, wpb_redirects_get_all());
+        },
+    ]);
+
+    // ── Tipo: singola entry della sitemap ────────────────────────────────
+    register_graphql_object_type('HBSitemapEntry', [
+        'description' => 'Una singola URL nella sitemap di WP Barrio',
+        'fields'      => [
+            'loc'      => ['type' => ['non_null' => 'String'], 'description' => 'URL assoluto'],
+            'lastmod'  => ['type' => 'String',                 'description' => 'Data ultima modifica in formato ISO 8601 (solo per i post)'],
+            'type'     => ['type' => ['non_null' => 'String'], 'description' => '"post" o "term"'],
+            'subtype'  => ['type' => ['non_null' => 'String'], 'description' => 'Post type o slug tassonomia'],
+            'id'       => ['type' => ['non_null' => 'Int'],    'description' => 'ID WordPress del post o del termine'],
+            'title'    => ['type' => 'String',                 'description' => 'Titolo del post o nome del termine'],
+            'priority' => ['type' => 'Float',                  'description' => 'Priority SEO (0.0–1.0): homepage=1.0, pagine=0.8, post recenti=0.9, tassonomie=0.3–0.6'],
+        ],
+    ]);
+
+    // ── Query: hbSitemap ─────────────────────────────────────────────────
+    register_graphql_field('RootQuery', 'hbSitemap', [
+        'type'        => ['list_of' => 'HBSitemapEntry'],
+        'description' => 'Restituisce tutte le URL incluse nella sitemap di WP Barrio',
+        'resolve'     => function () {
+            if (!function_exists('wpb_sitemap_build_entries'))
+                return [];
+
+            $entries = wpb_sitemap_build_entries();
+            $result  = [];
+
+            foreach ($entries as $entry) {
+                $loc = $entry['loc'];
+                if (is_wp_error($loc) || empty($loc)) continue;
+                $result[] = [
+                    'loc'      => wp_make_link_relative($loc),
+                    'lastmod'  => $entry['lastmod'] ?: null,
+                    'type'     => $entry['type'],
+                    'subtype'  => $entry['subtype'],
+                    'id'       => (int) $entry['id'],
+                    'title'    => $entry['title'] ?? null,
+                    'priority' => (float) ($entry['priority'] ?? 0.5),
+                ];
+            }
+
+            return $result;
         },
     ]);
 }
@@ -741,26 +977,27 @@ function wpb_graphql_format_field(array $f): array
     // Logica condizionale — espone il nuovo formato conditionalLogic
     $conditional_logic = null;
     if (!empty($f['conditionalLogic'])) {
-        $cl    = $f['conditionalLogic'];
+        $cl = $f['conditionalLogic'];
         $rules = [];
         foreach ((array) ($cl['rules'] ?? []) as $r) {
-            if (empty($r['fieldName'])) continue;
+            if (empty($r['fieldName']))
+                continue;
             $rules[] = [
                 'fieldName' => (string) $r['fieldName'],
-                'operator'  => (string) ($r['operator'] ?? '='),
-                'value'     => (string) ($r['value'] ?? ''),
+                'operator' => (string) ($r['operator'] ?? '='),
+                'value' => (string) ($r['value'] ?? ''),
             ];
         }
         $conditional_logic = [
-            'enabled'   => (bool) ($cl['enabled'] ?? false),
-            'action'    => in_array($cl['action'] ?? '', ['show', 'hide']) ? $cl['action'] : 'show',
+            'enabled' => (bool) ($cl['enabled'] ?? false),
+            'action' => in_array($cl['action'] ?? '', ['show', 'hide']) ? $cl['action'] : 'show',
             'logicType' => in_array($cl['logicType'] ?? '', ['all', 'any']) ? $cl['logicType'] : 'all',
-            'rules'     => $rules,
+            'rules' => $rules,
         ];
     }
 
     // Formato default per datepicker
-    $type   = (string) ($f['type'] ?? 'text');
+    $type = (string) ($f['type'] ?? 'text');
     $format = ($type === 'datepicker') ? (string) ($f['format'] ?? 'dd/MM/y') : '';
 
     // Pattern
@@ -772,16 +1009,16 @@ function wpb_graphql_format_field(array $f): array
     }
 
     $result = [
-        'id'               => (string) ($f['name'] ?? ''),  // alias retrocompatibilita
-        'name'             => (string) ($f['name'] ?? ''),
-        'type'             => $type,
-        'label'            => (string) ($f['label'] ?? ''),
-        'placeholder'      => (string) ($f['placeholder'] ?? ''),
-        'errorMessage'     => (string) ($f['error_message'] ?? ''),
-        'required'         => (bool) ($f['required'] ?? false),
-        'pattern'          => $pattern,
-        'format'           => $format,
-        'options'          => $options,
+        'id' => (string) ($f['name'] ?? ''),  // alias retrocompatibilita
+        'name' => (string) ($f['name'] ?? ''),
+        'type' => $type,
+        'label' => (string) ($f['label'] ?? ''),
+        'placeholder' => (string) ($f['placeholder'] ?? ''),
+        'errorMessage' => (string) ($f['error_message'] ?? ''),
+        'required' => (bool) ($f['required'] ?? false),
+        'pattern' => $pattern,
+        'format' => $format,
+        'options' => $options,
         'conditionalLogic' => $conditional_logic,
     ];
 

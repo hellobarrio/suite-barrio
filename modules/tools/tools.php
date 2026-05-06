@@ -13,7 +13,7 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI
    ───────────────────────────────────────── */
-define('WPB_TOOLS_OPTION',     'wpb_tools_modules');
+define('WPB_TOOLS_OPTION',        'wpb_tools_modules');
 define('WPB_TOOLS_ALLOWED_EMAIL', 'support@hellobarrio.it');
 
 /* ─────────────────────────────────────────
@@ -45,10 +45,6 @@ function wpb_tools_modules_list()
             'label' => 'Auto Fields',
             'desc'  => 'Generazione automatica dei campi custom tramite AI.',
         ],
-        'auto_llms'   => [
-            'label' => 'Auto LLMs',
-            'desc'  => 'Generazione di llms.txt e llms-full.txt tramite AI.',
-        ],
         'orari'       => [
             'label' => 'Orari',
             'desc'  => 'Sincronizzazione automatica degli orari di apertura da Google Places API.',
@@ -60,6 +56,10 @@ function wpb_tools_modules_list()
         'banners'     => [
             'label' => 'Banners',
             'desc'  => 'Crea e gestisci banner a scorrimento (marquee) per il frontend. Un solo banner attivo alla volta.',
+        ],
+        'seo'         => [
+            'label' => 'SEO',
+            'desc'  => 'Strumenti per l\'ottimizzazione sui motori di ricerca.',
         ],
     ];
 }
