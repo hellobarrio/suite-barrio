@@ -407,7 +407,7 @@ function wp_barrio_dashboard_page()
                             <td style="padding:6px 0;font-size:13px;color:#646970;">Sotto-strumenti</td>
                             <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
                                 <?php
-                        $seo_sub_keys = ['seo_meta'];
+                        $seo_sub_keys = ['global_seo', 'sitemap', 'schema', 'redirects', 'seo_advisor', 'auto-llms'];
                                 $seo_active_count = 0;
                                 foreach ($seo_sub_keys as $k) {
                                     if (wpb_tools_module_enabled($k)) $seo_active_count++;
