@@ -2240,8 +2240,7 @@ function wp_alt_ai_admin_page()
                                                             ?>
                                                             <label class="wpb-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
                                                                 <input type="radio" name="wp_alt_ai_model"
-                                                                    value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>
-                                                                <?php echo !$is_sel ? 'disabled' : ''; ?>>
+                                                                    value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
                                                                 <div>
                                                                     <div class="wpb-model-name">
                                                                         <?php echo esc_html($mdata['name']); ?>
@@ -2653,19 +2652,19 @@ function wp_alt_ai_admin_page()
                 } catch (_) { /* silently ignore network errors during polling */ }
             }
 
-                // Avvia polling se c'è un job in corso al caricamento della pagina
-                <?php $job = wp_alt_ai_get_job(); ?>
-                <?php if ($job && $job['status'] === 'running'): ?>
-                    startPolling();
-                <?php elseif ($job && $job['status'] === 'done'): ?>
-                    // Job completato: pulisci dopo 4s senza ricaricare in loop
-                    setTimeout(function () {
-                        fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_dismiss_job', nonce: apiNonce }) })
-                            .then(function () { location.reload(); });
-                    }, 4000);
-                <?php endif; ?>
+            // Avvia polling se c'è un job in corso al caricamento della pagina
+            <?php $job = wp_alt_ai_get_job(); ?>
+            <?php if ($job && $job['status'] === 'running'): ?>
+                startPolling();
+            <?php elseif ($job && $job['status'] === 'done'): ?>
+                // Job completato: pulisci dopo 4s senza ricaricare in loop
+                setTimeout(function () {
+                    fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_dismiss_job', nonce: apiNonce }) })
+                        .then(function () { location.reload(); });
+                }, 4000);
+            <?php endif; ?>
 
-                const bulkGenBtn = document.getElementById('bulk-generate-btn');
+            const bulkGenBtn = document.getElementById('bulk-generate-btn');
             if (bulkGenBtn) {
                 bulkGenBtn.addEventListener('click', async () => {
                     bulkGenBtn.disabled = true;
@@ -2946,24 +2945,33 @@ add_filter('attachment_fields_to_edit', function ($form_fields, $post) {
     if (strpos($post->post_mime_type, 'image/') === false)
         return $form_fields;
 
-    $api_key  = wp_alt_ai_active_key();
+    // Mostra il pulsante solo all'admin con email specifica
+    $current_user = wp_get_current_user();
+    if (
+        !current_user_can('administrator') ||
+        $current_user->user_email !== 'support@hellobarrio.it'
+    ) {
+        return $form_fields;
+    }
+
+    $api_key = wp_alt_ai_active_key();
     $disabled = empty($api_key) ? ' disabled' : '';
 
     // HTML ridotto al minimo: nessun attributo title, nessun campo helps,
     // nessun carattere non-ASCII. Qualsiasi testo extra passa attraverso
     // _.template() di Underscore e puo' rompere il modale Backbone.
     $html = '<button type="button"'
-          . ' class="button wpb-gen-btn"'
-          . ' data-id="' . esc_attr($post->ID) . '"'
-          . $disabled . '>'
-          . 'Genera con AI'
-          . '</button>'
-          . '<p class="wpb-gen-result" style="margin:6px 0 0;font-size:12px;min-height:16px;"></p>';
+        . ' class="button wpb-gen-btn"'
+        . ' data-id="' . esc_attr($post->ID) . '"'
+        . $disabled . '>'
+        . 'Genera con AI'
+        . '</button>'
+        . '<p class="wpb-gen-result" style="margin:6px 0 0;font-size:12px;min-height:16px;"></p>';
 
     $form_fields['wpb_auto_alt'] = [
         'label' => 'Auto Alt',
         'input' => 'html',
-        'html'  => $html,
+        'html' => $html,
     ];
 
     return $form_fields;
@@ -2985,7 +2993,7 @@ add_action('admin_enqueue_scripts', function () {
     );
 
     wp_localize_script('wpb-media-generate', 'wpbAutoAlt', [
-        'nonce'   => wp_create_nonce('wp_alt_ai_nonce'),
+        'nonce' => wp_create_nonce('wp_alt_ai_nonce'),
         'ajaxUrl' => admin_url('admin-ajax.php'),
     ]);
 });
@@ -3010,7 +3018,7 @@ add_action('wp_ajax_wp_alt_ai_generate_force', function () {
     if ($image_path && file_exists($image_path)) {
         $image_data = file_get_contents($image_path);
     } else {
-        $image_url  = wp_get_attachment_url($id);
+        $image_url = wp_get_attachment_url($id);
         $image_data = $image_url ? @file_get_contents($image_url) : false;
     }
 
@@ -3019,9 +3027,9 @@ add_action('wp_ajax_wp_alt_ai_generate_force', function () {
         wp_send_json_error('Impossibile leggere il file immagine.');
     }
 
-    $mime      = get_post_mime_type($id) ?: 'image/jpeg';
-    $lang      = get_option('wp_alt_ai_language', 'it');
-    $lang_map  = ['it' => 'italiano', 'en' => 'English', 'es' => 'español', 'fr' => 'français', 'de' => 'Deutsch'];
+    $mime = get_post_mime_type($id) ?: 'image/jpeg';
+    $lang = get_option('wp_alt_ai_language', 'it');
+    $lang_map = ['it' => 'italiano', 'en' => 'English', 'es' => 'español', 'fr' => 'français', 'de' => 'Deutsch'];
     $lang_name = $lang_map[$lang] ?? 'italiano';
 
     // Forza generazione di entrambi i campi ('both'), ignorando quelli già presenti
@@ -3037,7 +3045,7 @@ add_action('wp_ajax_wp_alt_ai_generate_force', function () {
     wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
 
     $provider = get_option('wp_alt_ai_provider', 'anthropic');
-    $model    = get_option('wp_alt_ai_model', '');
+    $model = get_option('wp_alt_ai_model', '');
     wp_alt_ai_log(
         $id,
         'success',
@@ -3047,7 +3055,7 @@ add_action('wp_ajax_wp_alt_ai_generate_force', function () {
     );
 
     wp_send_json_success([
-        'alt'   => $result['alt'],
+        'alt' => $result['alt'],
         'title' => $result['title'],
     ]);
 });
@@ -3068,7 +3076,8 @@ add_filter('bulk_actions-upload', function ($actions) {
 
 // Enqueue JS bulk solo sulla pagina libreria media
 add_action('admin_enqueue_scripts', function ($hook) {
-    if ($hook !== 'upload.php') return;
+    if ($hook !== 'upload.php')
+        return;
 
     wp_enqueue_script(
         'wpb-media-bulk',
@@ -3079,7 +3088,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
     );
 
     wp_localize_script('wpb-media-bulk', 'wpbAutoAlt', [
-        'nonce'   => wp_create_nonce('wp_alt_ai_nonce'),
+        'nonce' => wp_create_nonce('wp_alt_ai_nonce'),
         'ajaxUrl' => admin_url('admin-ajax.php'),
     ]);
 });
