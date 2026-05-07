@@ -76,14 +76,28 @@ function wpb_banners_get_active(): ?object
    MENU ADMIN
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    add_submenu_page(
-        'wp-barrio',
-        'Banners — WP Barrio',
-        'Banners',
-        'manage_options',
-        'wp-barrio-banners',
-        'wpb_banners_admin_page'
-    );
+    if (current_user_can('manage_options')) {
+        // Amministratori: sottovoce nel menu WP Barrio
+        add_submenu_page(
+            'wp-barrio',
+            'Banners — WP Barrio',
+            'Banners',
+            'manage_options',
+            'wp-barrio-banners',
+            'wpb_banners_admin_page'
+        );
+    } elseif (current_user_can('edit_others_posts')) {
+        // Editor e ruoli con edit_others_posts: voce principale nel menu admin
+        add_menu_page(
+            'Banners — WP Barrio',
+            'Banners',
+            'edit_others_posts',
+            'wp-barrio-banners',
+            'wpb_banners_admin_page',
+            'dashicons-flag',
+            77
+        );
+    }
 }, 17);
 
 /* ─────────────────────────────────────────
@@ -91,7 +105,7 @@ add_action('admin_menu', function () {
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_banners_save', function () {
     check_ajax_referer('wpb_banners_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
 
     global $wpdb;
@@ -134,7 +148,7 @@ add_action('wp_ajax_wpb_banners_save', function () {
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_banners_set_active', function () {
     check_ajax_referer('wpb_banners_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
 
     global $wpdb;
@@ -159,7 +173,7 @@ add_action('wp_ajax_wpb_banners_set_active', function () {
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_banners_delete', function () {
     check_ajax_referer('wpb_banners_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
 
     global $wpdb;

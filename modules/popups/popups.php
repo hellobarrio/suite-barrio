@@ -91,14 +91,28 @@ function wpb_popups_get_active(): ?object
    MENU ADMIN
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    add_submenu_page(
-        'wp-barrio',
-        'Popups — WP Barrio',
-        'Popups',
-        'manage_options',
-        'wp-barrio-popups',
-        'wpb_popups_admin_page'
-    );
+    if (current_user_can('manage_options')) {
+        // Amministratori: sottovoce nel menu WP Barrio
+        add_submenu_page(
+            'wp-barrio',
+            'Popups — WP Barrio',
+            'Popups',
+            'manage_options',
+            'wp-barrio-popups',
+            'wpb_popups_admin_page'
+        );
+    } elseif (current_user_can('edit_others_posts')) {
+        // Editor e ruoli con edit_others_posts: voce principale nel menu admin
+        add_menu_page(
+            'Popups — WP Barrio',
+            'Popups',
+            'edit_others_posts',
+            'wp-barrio-popups',
+            'wpb_popups_admin_page',
+            'dashicons-megaphone',
+            79
+        );
+    }
 }, 16);
 
 /* ─────────────────────────────────────────
@@ -116,7 +130,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_popups_save', function () {
     check_ajax_referer('wpb_popups_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
 
     global $wpdb;
@@ -163,7 +177,7 @@ add_action('wp_ajax_wpb_popups_save', function () {
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_popups_set_active', function () {
     check_ajax_referer('wpb_popups_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
 
     global $wpdb;
@@ -190,7 +204,7 @@ add_action('wp_ajax_wpb_popups_set_active', function () {
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_popups_delete', function () {
     check_ajax_referer('wpb_popups_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
 
     global $wpdb;

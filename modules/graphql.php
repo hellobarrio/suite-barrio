@@ -23,6 +23,17 @@
 if (!defined('ABSPATH'))
     exit;
 
+if (!defined('WPB_META_OPTION')) {
+    define('WPB_META_OPTION', 'wpb_meta_settings');
+}
+if (!defined('WPB_META_CONTENT_OPTION')) {
+    define('WPB_META_CONTENT_OPTION', 'wpb_meta_content');
+}
+// Serve anche questa per i form
+if (!defined('WPB_FORMS_SUB_TABLE')) {
+    define('WPB_FORMS_SUB_TABLE', 'wpb_form_submissions');
+}
+
 /* ─────────────────────────────────────────
    CORS — permette richieste GraphQL dal
    frontend Next.js su dominio esterno.
@@ -608,58 +619,55 @@ function wpb_graphql_register_schema(): void
 
                 // ── Integrazione MailUp ───────────────────────────────────────────
                 if (!empty($settings['mailup_enabled'])) {
-                    $mu_global = get_option('wpb_forms_mailup', []);
-                    $mu_client_id = trim($mu_global['client_id'] ?? '');
-                    $mu_secret = trim($mu_global['client_secret'] ?? '');
-                    $mu_list_id = max(1, intval($settings['mailup_list_id'] ?? 1));
-                    $mu_email_field = sanitize_key($settings['mailup_email_field'] ?? 'email');
-                    $mu_name_field = sanitize_key($settings['mailup_name_field'] ?? '');
-                    $mu_optin_field = sanitize_key($settings['mailup_optin_field'] ?? '');
+                    $mu_list_id = max(1, intval($settings['mailup_list_id'] ?: 1));
+                    $mu_group_id = max(1, intval($settings['mailup_group_id'] ?: 1));
+                    $mu_email_field = sanitize_key($settings['mailup_email_field'] ?: 'email');
+                    $mu_optin_field = sanitize_key($settings['mailup_optin_field'] ?: '');
 
-                    // Controlla opt-in se configurato
+                    // Se è configurato un campo opt-in, controlla che sia stato checkato
                     $optin_ok = true;
                     if ($mu_optin_field !== '') {
-                        $optin_raw = $submission_data[$mu_optin_field]['value'] ?? '';
+                        $optin_raw = $submission_data[$mu_optin_field]['value'] ?: '';
                         $optin_value = is_array($optin_raw) ? implode(',', $optin_raw) : $optin_raw;
+                        // Il campo checkbox invia il valore dell'opzione selezionata; consideriamo
+                        // l'utente iscritto se il valore non è vuoto (= checkbox spuntata)
                         $optin_ok = trim($optin_value) !== '';
                         if (!$optin_ok) {
-                            error_log('[WP Barrio][MailUp][GraphQL] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
+                            error_log('[WP Barrio][MailUp] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
                         }
                     }
 
                     $mu_email = sanitize_email(
-                        is_array($submission_data[$mu_email_field]['value'] ?? null)
+                        is_array($submission_data[$mu_email_field]['value'] ?: null)
                         ? implode('', $submission_data[$mu_email_field]['value'])
-                        : ($submission_data[$mu_email_field]['value'] ?? '')
+                        : ($submission_data[$mu_email_field]['value'] ?: '')
                     );
 
-                    if ($optin_ok && $mu_client_id && $mu_secret && is_email($mu_email)) {
-                        $mu_name = sanitize_text_field(
-                            is_array($submission_data[$mu_name_field]['value'] ?? null)
-                            ? implode(' ', $submission_data[$mu_name_field]['value'])
-                            : ($submission_data[$mu_name_field]['value'] ?? '')
-                        );
-
-                        $mu_extra_fields = [];
-                        $field_map = $settings['mailup_field_map'] ?? [];
+                    if ($optin_ok && is_email($mu_email)) {
+                        // Costruisci query-string dei campi mappati da passare a xmlSubscribe
+                        // Ogni riga del field_map è: {form_field: slug, mailup_field_name: string}
+                        $mu_mapped_fields = [];
+                        $field_map = $settings['mailup_field_map'] ?: [];
                         if (is_array($field_map)) {
                             foreach ($field_map as $map) {
-                                $form_slug = sanitize_key($map['form_field'] ?? '');
-                                $mailup_id = intval($map['mailup_field_id'] ?? 0);
-                                if (!$form_slug || !$mailup_id)
+                                $form_slug = sanitize_key($map['form_field'] ?: '');
+                                $mailup_fname = sanitize_text_field($map['mailup_field_name'] ?: '');
+                                if (!$form_slug || !$mailup_fname)
                                     continue;
-                                $raw = $submission_data[$form_slug]['value'] ?? '';
-                                $value = sanitize_text_field(is_array($raw) ? implode(', ', $raw) : $raw);
-                                $mu_extra_fields[] = ['Id' => $mailup_id, 'Value' => $value];
+                                $raw = $submission_data[$form_slug]['value'] ?: '';
+                                $value = sanitize_text_field(
+                                    is_array($raw) ? implode(', ', $raw) : $raw
+                                );
+                                $mu_mapped_fields[$mailup_fname] = $value;
                             }
                         }
 
-                        $mu_result = wpb_mailup_subscribe($mu_client_id, $mu_secret, $mu_email, $mu_name, $mu_list_id, $mu_extra_fields);
-                        if (is_wp_error($mu_result)) {
-                            error_log('[WP Barrio][MailUp][GraphQL] Errore iscrizione form_id=' . $form_id . ': ' . $mu_result->get_error_message());
+                        $result = wpb_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
+                        if (is_wp_error($result)) {
+                            error_log('[WP Barrio][MailUp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
                         }
-                    } elseif ($optin_ok) {
-                        error_log('[WP Barrio][MailUp][GraphQL] Salto iscrizione: credenziali mancanti o email non valida.');
+                    } else {
+                        error_log('[WP Barrio][MailUp] Salto iscrizione: email non valida (' . $mu_email . ')');
                     }
                 }
 
@@ -688,20 +696,20 @@ function wpb_graphql_register_schema(): void
     register_graphql_object_type('HBSeoPost', [
         'description' => 'Dati SEO di un post calcolati da WP Barrio Meta Tags',
         'fields' => [
-            'title'         => ['type' => 'String',  'description' => 'Meta title completo (custom o generato dal titolo del post)'],
-            'description'   => ['type' => 'String',  'description' => 'Meta description (custom, excerpt o default globale)'],
-            'robots'        => ['type' => 'String',  'description' => 'Valore del tag robots (es. index,follow)'],
-            'canonical'     => ['type' => 'String',  'description' => 'URL canonical del post'],
-            'ogTitle'       => ['type' => 'String',  'description' => 'og:title'],
-            'ogDescription' => ['type' => 'String',  'description' => 'og:description'],
-            'ogImage'       => ['type' => 'String',  'description' => 'URL assoluto dell\'immagine og:image'],
-            'ogType'        => ['type' => 'String',  'description' => 'og:type (article per i post singoli)'],
-            'twitterCard'   => ['type' => 'String',  'description' => 'twitter:card'],
-            'twitterTitle'  => ['type' => 'String',  'description' => 'twitter:title'],
-            'twitterImage'  => ['type' => 'String',  'description' => 'URL assoluto dell\'immagine twitter:image'],
-            'isIndexed'     => ['type' => 'Boolean', 'description' => 'Il post è indicizzabile (override per-post o default post type)'],
-            'isInSitemap'   => ['type' => 'Boolean', 'description' => 'Il post è incluso nella sitemap (override per-post o default post type)'],
-            'keywords'      => ['type' => ['list_of' => 'String'], 'description' => 'Keywords SEO: il primo elemento è la keyword primaria'],
+            'title' => ['type' => 'String', 'description' => 'Meta title completo (custom o generato dal titolo del post)'],
+            'description' => ['type' => 'String', 'description' => 'Meta description (custom, excerpt o default globale)'],
+            'robots' => ['type' => 'String', 'description' => 'Valore del tag robots (es. index,follow)'],
+            'canonical' => ['type' => 'String', 'description' => 'URL canonical del post'],
+            'ogTitle' => ['type' => 'String', 'description' => 'og:title'],
+            'ogDescription' => ['type' => 'String', 'description' => 'og:description'],
+            'ogImage' => ['type' => 'String', 'description' => 'URL assoluto dell\'immagine og:image'],
+            'ogType' => ['type' => 'String', 'description' => 'og:type (article per i post singoli)'],
+            'twitterCard' => ['type' => 'String', 'description' => 'twitter:card'],
+            'twitterTitle' => ['type' => 'String', 'description' => 'twitter:title'],
+            'twitterImage' => ['type' => 'String', 'description' => 'URL assoluto dell\'immagine twitter:image'],
+            'isIndexed' => ['type' => 'Boolean', 'description' => 'Il post è indicizzabile (override per-post o default post type)'],
+            'isInSitemap' => ['type' => 'Boolean', 'description' => 'Il post è incluso nella sitemap (override per-post o default post type)'],
+            'keywords' => ['type' => ['list_of' => 'String'], 'description' => 'Keywords SEO: il primo elemento è la keyword primaria'],
         ],
     ]);
 
@@ -715,47 +723,53 @@ function wpb_graphql_register_schema(): void
 
     foreach (get_post_types(['public' => true, 'show_in_graphql' => true], 'objects') as $pt_obj) {
         $pt_slug = $pt_obj->name;
-        if ($pt_slug === 'attachment') continue;
+        if ($pt_slug === 'attachment')
+            continue;
 
         // Rispetta la configurazione della tab Contenuti:
         // se il post type non è indicizzato il campo esiste comunque
         // ma isIndexed sarà false — utile per sapere lato client.
 
         $graphql_type = $pt_obj->graphql_single_name ?? null;
-        if (empty($graphql_type)) continue;
+        if (empty($graphql_type))
+            continue;
 
         // Capitalizza la prima lettera per corrispondere al tipo WPGraphQL
         $graphql_type = ucfirst($graphql_type);
 
         register_graphql_field($graphql_type, 'seo', [
-            'type'        => 'HBSeoPost',
+            'type' => 'HBSeoPost',
             'description' => 'Dati SEO calcolati da WP Barrio Meta Tags',
-            'resolve'     => function ($post_obj) use ($pt_slug) {
+            'resolve' => function ($post_obj) use ($pt_slug) {
                 // $post_obj è il model WPGraphQL — recupera il WP_Post
                 $post_id = $post_obj->databaseId ?? ($post_obj->ID ?? null);
-                if (!$post_id) return null;
+                if (!$post_id)
+                    return null;
 
                 $post = get_post((int) $post_id);
-                if (!$post || $post->post_status !== 'publish') return null;
+                if (!$post || $post->post_status !== 'publish')
+                    return null;
 
-                $s       = get_option(WPB_META_OPTION, []);
+                $s = get_option(WPB_META_OPTION, []);
                 $content = get_option(WPB_META_CONTENT_OPTION, []);
 
-                $sep       = $s['separator']   ?? '—';
-                $site_name = $s['site_title']  ?? get_bloginfo('name');
-                $order     = $s['title_order'] ?? 'page_site';
+                $sep = $s['separator'] ?? '—';
+                $site_name = $s['site_title'] ?? get_bloginfo('name');
+                $order = $s['title_order'] ?? 'page_site';
 
                 // Title
                 $custom_title = get_post_meta($post_id, '_wpb_seo_title', true);
-                $base_title   = $custom_title ?: get_the_title($post);
-                $full_title   = $order === 'site_page'
+                $base_title = $custom_title ?: get_the_title($post);
+                $full_title = $order === 'site_page'
                     ? $site_name . ' ' . $sep . ' ' . $base_title
                     : $base_title . ' ' . $sep . ' ' . $site_name;
 
                 // Description
                 $description = get_post_meta($post_id, '_wpb_seo_description', true);
-                if (empty($description)) $description = get_the_excerpt($post);
-                if (empty($description)) $description = $s['default_desc'] ?? '';
+                if (empty($description))
+                    $description = get_the_excerpt($post);
+                if (empty($description))
+                    $description = $s['default_desc'] ?? '';
                 $description = wp_strip_all_tags($description);
 
                 // OG Image
@@ -769,32 +783,33 @@ function wpb_graphql_register_schema(): void
                     $og_image_url = wp_get_attachment_image_url((int) $s['og_image_id'], 'full');
 
                 // Robots (override per-post + fallback post type config)
-                $cfg         = $content['post_types'][$pt_slug] ?? ['index' => 1, 'follow' => 1];
-                $post_index   = get_post_meta($post_id, '_wpb_seo_index',   true);
-                $post_follow  = get_post_meta($post_id, '_wpb_seo_follow',  true);
+                $cfg = $content['post_types'][$pt_slug] ?? ['index' => 1, 'follow' => 1];
+                $post_index = get_post_meta($post_id, '_wpb_seo_index', true);
+                $post_follow = get_post_meta($post_id, '_wpb_seo_follow', true);
                 $post_sitemap = get_post_meta($post_id, '_wpb_seo_sitemap', true);
-                $idx     = $post_index   !== '' ? (bool)(int)$post_index   : (bool)($cfg['index']   ?? 1);
-                $follow  = $post_follow  !== '' ? (bool)(int)$post_follow  : (bool)($cfg['follow']  ?? 1);
-                $sitemap = $post_sitemap !== '' ? (bool)(int)$post_sitemap : (bool)($cfg['sitemap'] ?? 1);
+                $idx = $post_index !== '' ? (bool) (int) $post_index : (bool) ($cfg['index'] ?? 1);
+                $follow = $post_follow !== '' ? (bool) (int) $post_follow : (bool) ($cfg['follow'] ?? 1);
+                $sitemap = $post_sitemap !== '' ? (bool) (int) $post_sitemap : (bool) ($cfg['sitemap'] ?? 1);
                 $robots = ($idx ? 'index' : 'noindex') . ',' . ($follow ? 'follow' : 'nofollow');
 
                 return [
-                    'title'         => $full_title,
-                    'description'   => $description,
-                    'robots'        => $robots,
-                    'canonical'     => get_permalink($post_id) ?: '',
-                    'ogTitle'       => $full_title,
+                    'title' => $full_title,
+                    'description' => $description,
+                    'robots' => $robots,
+                    'canonical' => get_permalink($post_id) ?: '',
+                    'ogTitle' => $full_title,
                     'ogDescription' => $description,
-                    'ogImage'       => $og_image_url ?: null,
-                    'ogType'        => 'article',
-                    'twitterCard'   => $s['twitter_card'] ?? 'summary_large_image',
-                    'twitterTitle'  => $full_title,
-                    'twitterImage'  => $og_image_url ?: null,
-                    'isIndexed'     => $idx,
-                    'isInSitemap'   => $sitemap,
-                    'keywords'      => (function() use ($post_id) {
+                    'ogImage' => $og_image_url ?: null,
+                    'ogType' => 'article',
+                    'twitterCard' => $s['twitter_card'] ?? 'summary_large_image',
+                    'twitterTitle' => $full_title,
+                    'twitterImage' => $og_image_url ?: null,
+                    'isIndexed' => $idx,
+                    'isInSitemap' => $sitemap,
+                    'keywords' => (function () use ($post_id) {
                         $raw = get_post_meta($post_id, '_wpb_seo_keywords', true);
-                        if (!$raw) return [];
+                        if (!$raw)
+                            return [];
                         $kws = json_decode($raw, true);
                         return is_array($kws) ? $kws : [];
                     })(),
@@ -847,28 +862,28 @@ function wpb_graphql_register_schema(): void
     // ── Tipo: singolo redirect ────────────────────────────────────────────
     register_graphql_object_type('HBRedirect', [
         'description' => 'Un redirect configurato in WP Barrio SEO',
-        'fields'      => [
-            'id'   => ['type' => ['non_null' => 'String'], 'description' => 'UUID univoco del redirect'],
+        'fields' => [
+            'id' => ['type' => ['non_null' => 'String'], 'description' => 'UUID univoco del redirect'],
             'from' => ['type' => ['non_null' => 'String'], 'description' => 'URI relativo di origine (es. /vecchio-path/)'],
-            'to'   => ['type' => 'String',                 'description' => 'URI relativo di destinazione (null se codice 410)'],
-            'code' => ['type' => ['non_null' => 'Int'],    'description' => 'Codice HTTP: 301, 302, 307, 308 o 410'],
-            'note' => ['type' => 'String',                 'description' => 'Nota descrittiva opzionale'],
+            'to' => ['type' => 'String', 'description' => 'URI relativo di destinazione (null se codice 410)'],
+            'code' => ['type' => ['non_null' => 'Int'], 'description' => 'Codice HTTP: 301, 302, 307, 308 o 410'],
+            'note' => ['type' => 'String', 'description' => 'Nota descrittiva opzionale'],
         ],
     ]);
 
     // ── Query: hbRedirects ───────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbRedirects', [
-        'type'        => ['list_of' => 'HBRedirect'],
+        'type' => ['list_of' => 'HBRedirect'],
         'description' => 'Restituisce tutti i redirect configurati in WP Barrio SEO come URI relativi',
-        'resolve'     => function () {
+        'resolve' => function () {
             if (!function_exists('wpb_redirects_get_all'))
                 return [];
 
             return array_map(function ($row) {
                 return [
-                    'id'   => $row['id']   ?? '',
+                    'id' => $row['id'] ?? '',
                     'from' => $row['from'] ?? '',
-                    'to'   => ($row['code'] ?? 301) === 410 ? null : ($row['to'] ?? ''),
+                    'to' => ($row['code'] ?? 301) === 410 ? null : ($row['to'] ?? ''),
                     'code' => (int) ($row['code'] ?? 301),
                     'note' => $row['note'] ?? null,
                 ];
@@ -879,38 +894,39 @@ function wpb_graphql_register_schema(): void
     // ── Tipo: singola entry della sitemap ────────────────────────────────
     register_graphql_object_type('HBSitemapEntry', [
         'description' => 'Una singola URL nella sitemap di WP Barrio',
-        'fields'      => [
-            'loc'      => ['type' => ['non_null' => 'String'], 'description' => 'URL assoluto'],
-            'lastmod'  => ['type' => 'String',                 'description' => 'Data ultima modifica in formato ISO 8601 (solo per i post)'],
-            'type'     => ['type' => ['non_null' => 'String'], 'description' => '"post" o "term"'],
-            'subtype'  => ['type' => ['non_null' => 'String'], 'description' => 'Post type o slug tassonomia'],
-            'id'       => ['type' => ['non_null' => 'Int'],    'description' => 'ID WordPress del post o del termine'],
-            'title'    => ['type' => 'String',                 'description' => 'Titolo del post o nome del termine'],
-            'priority' => ['type' => 'Float',                  'description' => 'Priority SEO (0.0–1.0): homepage=1.0, pagine=0.8, post recenti=0.9, tassonomie=0.3–0.6'],
+        'fields' => [
+            'loc' => ['type' => ['non_null' => 'String'], 'description' => 'URL assoluto'],
+            'lastmod' => ['type' => 'String', 'description' => 'Data ultima modifica in formato ISO 8601 (solo per i post)'],
+            'type' => ['type' => ['non_null' => 'String'], 'description' => '"post" o "term"'],
+            'subtype' => ['type' => ['non_null' => 'String'], 'description' => 'Post type o slug tassonomia'],
+            'id' => ['type' => ['non_null' => 'Int'], 'description' => 'ID WordPress del post o del termine'],
+            'title' => ['type' => 'String', 'description' => 'Titolo del post o nome del termine'],
+            'priority' => ['type' => 'Float', 'description' => 'Priority SEO (0.0–1.0): homepage=1.0, pagine=0.8, post recenti=0.9, tassonomie=0.3–0.6'],
         ],
     ]);
 
     // ── Query: hbSitemap ─────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbSitemap', [
-        'type'        => ['list_of' => 'HBSitemapEntry'],
+        'type' => ['list_of' => 'HBSitemapEntry'],
         'description' => 'Restituisce tutte le URL incluse nella sitemap di WP Barrio',
-        'resolve'     => function () {
+        'resolve' => function () {
             if (!function_exists('wpb_sitemap_build_entries'))
                 return [];
 
             $entries = wpb_sitemap_build_entries();
-            $result  = [];
+            $result = [];
 
             foreach ($entries as $entry) {
                 $loc = $entry['loc'];
-                if (is_wp_error($loc) || empty($loc)) continue;
+                if (is_wp_error($loc) || empty($loc))
+                    continue;
                 $result[] = [
-                    'loc'      => wp_make_link_relative($loc),
-                    'lastmod'  => $entry['lastmod'] ?: null,
-                    'type'     => $entry['type'],
-                    'subtype'  => $entry['subtype'],
-                    'id'       => (int) $entry['id'],
-                    'title'    => $entry['title'] ?? null,
+                    'loc' => wp_make_link_relative($loc),
+                    'lastmod' => $entry['lastmod'] ?: null,
+                    'type' => $entry['type'],
+                    'subtype' => $entry['subtype'],
+                    'id' => (int) $entry['id'],
+                    'title' => $entry['title'] ?? null,
                     'priority' => (float) ($entry['priority'] ?? 0.5),
                 ];
             }
