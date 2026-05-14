@@ -11,10 +11,10 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_ORARI_VERSION',    '1.0.0');
-define('WPB_ORARI_OPTION',     'wpb_orari_settings');   // credenziali globali
-define('WPB_ORARI_DATA_OPTION','wpb_orari_data');        // dati orari salvati
-define('WPB_ORARI_CRON_HOOK',  'wpb_cron_aggiorna_orari');
+define('WPB_ORARI_VERSION', '1.0.0');
+define('WPB_ORARI_OPTION', 'wpb_orari_settings');   // credenziali globali
+define('WPB_ORARI_DATA_OPTION', 'wpb_orari_data');        // dati orari salvati
+define('WPB_ORARI_CRON_HOOK', 'wpb_cron_aggiorna_orari');
 
 /* ─────────────────────────────────────────
    MENU ADMIN
@@ -50,9 +50,9 @@ add_action(WPB_ORARI_CRON_HOOK, 'wpb_orari_fetch_and_save');
    ───────────────────────────────────────── */
 function wpb_orari_fetch_and_save(): array
 {
-    $settings  = get_option(WPB_ORARI_OPTION, []);
-    $api_key   = trim($settings['google_api_key'] ?? '');
-    $place_id  = trim($settings['place_id'] ?? '');
+    $settings = get_option(WPB_ORARI_OPTION, []);
+    $api_key = trim($settings['google_api_key'] ?? '');
+    $place_id = trim($settings['place_id'] ?? '');
 
     if (!$api_key || !$place_id) {
         return ['success' => false, 'message' => 'API Key o Place ID mancanti.'];
@@ -63,7 +63,7 @@ function wpb_orari_fetch_and_save(): array
     $response = wp_remote_get($url, [
         'timeout' => 15,
         'headers' => [
-            'Content-Type'      => 'application/json',
+            'Content-Type' => 'application/json',
             'X-Goog-Api-Locale' => 'it',
         ],
     ]);
@@ -73,7 +73,7 @@ function wpb_orari_fetch_and_save(): array
     }
 
     $http_code = wp_remote_retrieve_response_code($response);
-    $body      = json_decode(wp_remote_retrieve_body($response), true);
+    $body = json_decode(wp_remote_retrieve_body($response), true);
 
     if ($http_code !== 200) {
         $err = $body['error']['message'] ?? "HTTP {$http_code}";
@@ -102,8 +102,10 @@ function wpb_orari_fetch_and_save(): array
     }
 
     foreach ($oh['periods'] ?? [] as $period) {
-        $day_idx     = $period['open']['day'];
+        $day_idx = $period['open']['day'];
         $giorno_nome = $giorni_it[$day_idx];
+        // Sempre salvato in formato 24h "HH:MM - HH:MM".
+        // La traduzione (nomi giorni + formato 12h/24h) avviene nel resolver GraphQL via l'argomento `lang`.
         $settimana[$giorno_nome][] = sprintf(
             '%02d:%02d - %02d:%02d',
             $period['open']['hour'],
@@ -117,8 +119,8 @@ function wpb_orari_fetch_and_save(): array
 
     $data = [
         'ultimo_aggiornamento' => current_time('d/m/Y H:i'),
-        'display_name'         => $display_name,
-        'orari_settimanali'    => $settimana,
+        'display_name' => $display_name,
+        'orari_settimanali' => $settimana,
     ];
 
     update_option(WPB_ORARI_DATA_OPTION, $data, false);
@@ -139,12 +141,12 @@ add_action('wp_ajax_wpb_orari_save_settings', function () {
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.');
 
-    $api_key  = sanitize_text_field(wp_unslash($_POST['google_api_key'] ?? ''));
+    $api_key = sanitize_text_field(wp_unslash($_POST['google_api_key'] ?? ''));
     $place_id = sanitize_text_field(wp_unslash($_POST['place_id'] ?? ''));
 
     update_option(WPB_ORARI_OPTION, [
         'google_api_key' => $api_key,
-        'place_id'       => $place_id,
+        'place_id' => $place_id,
     ], false);
 
     wp_send_json_success('Impostazioni salvate.');
@@ -172,14 +174,16 @@ add_action('wp_ajax_wpb_orari_refresh', function () {
    ───────────────────────────────────────── */
 function wpb_orari_admin_page()
 {
-    $settings  = get_option(WPB_ORARI_OPTION, []);
-    $orari     = get_option(WPB_ORARI_DATA_OPTION, []);
+    $settings = get_option(WPB_ORARI_OPTION, []);
+    $orari = get_option(WPB_ORARI_DATA_OPTION, []);
     $next_cron = wp_next_scheduled(WPB_ORARI_CRON_HOOK);
-    $nonce     = wp_create_nonce('wpb_orari_nonce');
+    $nonce = wp_create_nonce('wpb_orari_nonce');
     $graphql_active = function_exists('register_graphql_field');
     ?>
     <style>
-        #wpb-orari-wrap { max-width: 700px; }
+        #wpb-orari-wrap {
+            max-width: 700px;
+        }
 
         .wpb-orari-card {
             background: #fff;
@@ -204,7 +208,9 @@ function wpb_orari_admin_page()
             color: #a7aaad;
         }
 
-        .wpb-orari-field { margin-bottom: 20px; }
+        .wpb-orari-field {
+            margin-bottom: 20px;
+        }
 
         .wpb-orari-field label {
             display: block;
@@ -289,7 +295,9 @@ function wpb_orari_admin_page()
             flex-shrink: 0;
         }
 
-        .wpb-orari-status .wpb-dot.active { background: #00a32a; }
+        .wpb-orari-status .wpb-dot.active {
+            background: #00a32a;
+        }
 
         #wpb-orari-refresh-result {
             display: none;
@@ -297,8 +305,13 @@ function wpb_orari_admin_page()
             font-size: 13px;
         }
 
-        #wpb-orari-refresh-result.success { color: #00a32a; }
-        #wpb-orari-refresh-result.error   { color: #d63638; }
+        #wpb-orari-refresh-result.success {
+            color: #00a32a;
+        }
+
+        #wpb-orari-refresh-result.error {
+            color: #d63638;
+        }
     </style>
 
     <div id="wpb-orari-wrap" class="wrap">
@@ -325,8 +338,9 @@ function wpb_orari_admin_page()
             <h3>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
                     style="vertical-align:middle;margin-right:5px;margin-bottom:1px;">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
-                        fill="#50575e"/>
+                    <path
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
+                        fill="#50575e" />
                 </svg>
                 Google Places API
             </h3>
@@ -338,15 +352,16 @@ function wpb_orari_admin_page()
             <div class="wpb-orari-field">
                 <label for="wpb-orari-api-key">Google API Key</label>
                 <input type="password" id="wpb-orari-api-key" class="regular-text"
-                    value="<?php echo esc_attr($settings['google_api_key'] ?? ''); ?>"
-                    placeholder="AIza..." autocomplete="new-password" spellcheck="false">
+                    value="<?php echo esc_attr($settings['google_api_key'] ?? ''); ?>" placeholder="AIza..."
+                    autocomplete="new-password" spellcheck="false">
                 <div style="display:inline-block;margin-left:8px;vertical-align:middle;">
                     <button type="button" class="button"
                         onclick="(function(){var i=document.getElementById('wpb-orari-api-key');i.type=i.type==='password'?'text':'password';})();"
                         style="font-size:12px;padding:3px 9px;">Mostra</button>
                 </div>
                 <p class="description">
-                    Trovata su <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console → Credenziali</a>.
+                    Trovata su <a href="https://console.cloud.google.com/apis/credentials" target="_blank"
+                        rel="noopener">Google Cloud Console → Credenziali</a>.
                     Deve avere accesso alle API <strong>Places (New)</strong>.
                 </p>
             </div>
@@ -354,11 +369,12 @@ function wpb_orari_admin_page()
             <div class="wpb-orari-field">
                 <label for="wpb-orari-place-id">Place ID</label>
                 <input type="text" id="wpb-orari-place-id" class="regular-text"
-                    value="<?php echo esc_attr($settings['place_id'] ?? ''); ?>"
-                    placeholder="ChIJ..." autocomplete="off" spellcheck="false">
+                    value="<?php echo esc_attr($settings['place_id'] ?? ''); ?>" placeholder="ChIJ..." autocomplete="off"
+                    spellcheck="false">
                 <p class="description">
                     L'ID univoco del tuo locale su Google Maps. Cercalo su
-                    <a href="https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder" target="_blank" rel="noopener">Place ID Finder</a>.
+                    <a href="https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder"
+                        target="_blank" rel="noopener">Place ID Finder</a>.
                 </p>
             </div>
 
@@ -366,14 +382,16 @@ function wpb_orari_admin_page()
                 <button type="button" class="button button-primary" id="wpb-orari-save-btn">
                     Salva impostazioni
                 </button>
-                <span id="wpb-orari-save-msg" style="display:none;margin-left:10px;color:#00a32a;font-size:13px;">✓ Salvato</span>
+                <span id="wpb-orari-save-msg" style="display:none;margin-left:10px;color:#00a32a;font-size:13px;">✓
+                    Salvato</span>
             </p>
         </div>
 
         <!-- Card aggiornamento manuale -->
         <div class="wpb-orari-card">
             <h3>
-                <span class="dashicons dashicons-update" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:5px;"></span>
+                <span class="dashicons dashicons-update"
+                    style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:5px;"></span>
                 Aggiornamento orari
             </h3>
             <p class="wpb-card-desc">
@@ -393,7 +411,8 @@ function wpb_orari_admin_page()
 
             <p style="margin:0;">
                 <button type="button" class="button button-primary" id="wpb-orari-refresh-btn">
-                    <span class="dashicons dashicons-update" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;margin-top:-1px;"></span>
+                    <span class="dashicons dashicons-update"
+                        style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;margin-top:-1px;"></span>
                     Aggiorna orari da Google
                 </button>
                 <span id="wpb-orari-refresh-result"></span>
@@ -402,120 +421,125 @@ function wpb_orari_admin_page()
 
         <!-- Card orari correnti -->
         <?php if (!empty($orari['orari_settimanali'])): ?>
-        <div class="wpb-orari-card">
-            <h3>
-                <span class="dashicons dashicons-calendar-alt" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:5px;"></span>
-                Orari salvati
-            </h3>
-            <p class="wpb-card-desc" style="margin-bottom:12px;">
-                Dati correntemente in uso. Aggiornati il <?php echo esc_html($orari['ultimo_aggiornamento'] ?? '—'); ?>.
-            </p>
-            <table class="wpb-orari-table">
-                <thead>
-                    <tr>
-                        <th>Giorno</th>
-                        <th>Orari</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($orari['orari_settimanali'] as $giorno => $slots): ?>
-                    <tr>
-                        <th><?php echo esc_html($giorno); ?></th>
-                        <td>
-                            <?php if (empty($slots)): ?>
-                                <span class="wpb-chiuso">Chiuso</span>
-                            <?php else: ?>
-                                <?php foreach ($slots as $slot): ?>
-                                    <span class="wpb-slot"><?php echo esc_html($slot); ?></span>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+            <div class="wpb-orari-card">
+                <h3>
+                    <span class="dashicons dashicons-calendar-alt"
+                        style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:5px;"></span>
+                    Orari salvati
+                </h3>
+                <p class="wpb-card-desc" style="margin-bottom:12px;">
+                    Dati correntemente in uso. Aggiornati il <?php echo esc_html($orari['ultimo_aggiornamento'] ?? '—'); ?>.
+                </p>
+                <table class="wpb-orari-table">
+                    <thead>
+                        <tr>
+                            <th>Giorno</th>
+                            <th>Orari</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($orari['orari_settimanali'] as $giorno => $slots): ?>
+                            <tr>
+                                <th><?php echo esc_html($giorno); ?></th>
+                                <td>
+                                    <?php if (empty($slots)): ?>
+                                        <span class="wpb-chiuso">Chiuso</span>
+                                    <?php else: ?>
+                                        <?php foreach ($slots as $slot): ?>
+                                            <span class="wpb-slot"><?php echo esc_html($slot); ?></span>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php endif; ?>
 
     </div>
 
     <script>
-    (function () {
-        var nonce   = <?php echo wp_json_encode($nonce); ?>;
-        var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+        (function () {
+            var nonce = <?php echo wp_json_encode($nonce); ?>;
+            var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
 
-        /* ── Salva impostazioni ── */
-        document.getElementById('wpb-orari-save-btn').addEventListener('click', function () {
-            var btn = this;
-            var msg = document.getElementById('wpb-orari-save-msg');
-            btn.disabled = true;
-            btn.textContent = 'Salvataggio…';
+            /* ── Salva impostazioni ── */
+            document.getElementById('wpb-orari-save-btn').addEventListener('click', function () {
+                var btn = this;
+                var msg = document.getElementById('wpb-orari-save-msg');
+                btn.disabled = true;
+                btn.textContent = 'Salvataggio…';
 
-            var fd = new URLSearchParams({
-                action:         'wpb_orari_save_settings',
-                nonce:          nonce,
-                google_api_key: document.getElementById('wpb-orari-api-key').value.trim(),
-                place_id:       document.getElementById('wpb-orari-place-id').value.trim(),
-            });
-
-            fetch(ajaxUrl, { method: 'POST', body: fd })
-                .then(function (r) { return r.json(); })
-                .then(function (res) {
-                    if (res.success) {
-                        msg.style.display = 'inline';
-                        setTimeout(function () { msg.style.display = 'none'; }, 3000);
-                    } else {
-                        alert(res.data || 'Errore nel salvataggio.');
-                    }
-                })
-                .catch(function () { alert('Errore di rete.'); })
-                .finally(function () {
-                    btn.disabled = false;
-                    btn.textContent = 'Salva impostazioni';
+                var fd = new URLSearchParams({
+                    action: 'wpb_orari_save_settings',
+                    nonce: nonce,
+                    google_api_key: document.getElementById('wpb-orari-api-key').value.trim(),
+                    place_id: document.getElementById('wpb-orari-place-id').value.trim(),
                 });
-        });
 
-        /* ── Aggiorna orari ── */
-        document.getElementById('wpb-orari-refresh-btn').addEventListener('click', function () {
-            var btn    = this;
-            var result = document.getElementById('wpb-orari-refresh-result');
-
-            btn.disabled = true;
-            btn.innerHTML = '<span class="dashicons dashicons-update wpb-spin" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;margin-top:-1px;animation:wpb-spin .8s linear infinite;"></span> Aggiornamento…';
-            result.style.display = 'none';
-            result.className = '';
-
-            var fd = new URLSearchParams({
-                action: 'wpb_orari_refresh',
-                nonce:  nonce,
+                fetch(ajaxUrl, { method: 'POST', body: fd })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        if (res.success) {
+                            msg.style.display = 'inline';
+                            setTimeout(function () { msg.style.display = 'none'; }, 3000);
+                        } else {
+                            alert(res.data || 'Errore nel salvataggio.');
+                        }
+                    })
+                    .catch(function () { alert('Errore di rete.'); })
+                    .finally(function () {
+                        btn.disabled = false;
+                        btn.textContent = 'Salva impostazioni';
+                    });
             });
 
-            fetch(ajaxUrl, { method: 'POST', body: fd })
-                .then(function (r) { return r.json(); })
-                .then(function (res) {
-                    result.style.display = 'inline';
-                    if (res.success) {
-                        result.className = 'success';
-                        result.textContent = '✓ Orari aggiornati — ricarica la pagina per vedere i dati.';
-                    } else {
+            /* ── Aggiorna orari ── */
+            document.getElementById('wpb-orari-refresh-btn').addEventListener('click', function () {
+                var btn = this;
+                var result = document.getElementById('wpb-orari-refresh-result');
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="dashicons dashicons-update wpb-spin" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;margin-top:-1px;animation:wpb-spin .8s linear infinite;"></span> Aggiornamento…';
+                result.style.display = 'none';
+                result.className = '';
+
+                var fd = new URLSearchParams({
+                    action: 'wpb_orari_refresh',
+                    nonce: nonce,
+                });
+
+                fetch(ajaxUrl, { method: 'POST', body: fd })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        result.style.display = 'inline';
+                        if (res.success) {
+                            result.className = 'success';
+                            result.textContent = '✓ Orari aggiornati — ricarica la pagina per vedere i dati.';
+                        } else {
+                            result.className = 'error';
+                            result.textContent = '✗ ' + (res.data || 'Errore sconosciuto.');
+                        }
+                    })
+                    .catch(function () {
+                        result.style.display = 'inline';
                         result.className = 'error';
-                        result.textContent = '✗ ' + (res.data || 'Errore sconosciuto.');
-                    }
-                })
-                .catch(function () {
-                    result.style.display = 'inline';
-                    result.className = 'error';
-                    result.textContent = '✗ Errore di rete.';
-                })
-                .finally(function () {
-                    btn.disabled = false;
-                    btn.innerHTML = '<span class="dashicons dashicons-update" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;margin-top:-1px;"></span> Aggiorna orari da Google';
-                });
-        });
-    })();
+                        result.textContent = '✗ Errore di rete.';
+                    })
+                    .finally(function () {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="dashicons dashicons-update" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;margin-top:-1px;"></span> Aggiorna orari da Google';
+                    });
+            });
+        })();
     </script>
     <style>
-        @keyframes wpb-spin { to { transform: rotate(360deg); } }
+        @keyframes wpb-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
     <?php
 }
