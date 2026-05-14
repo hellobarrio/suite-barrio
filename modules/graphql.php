@@ -361,8 +361,8 @@ function wpb_graphql_register_schema(): void
     register_graphql_object_type('HBOrariGiorno', [
         'description' => 'Orari di apertura per un singolo giorno della settimana.',
         'fields' => [
-            'giorno' => ['type' => 'String', 'description' => 'Nome del giorno (es. Lunedì).'],
-            'slots' => ['type' => ['list_of' => 'String'], 'description' => 'Fasce orarie (es. ["09:00 - 13:00", "15:00 - 19:00"]). Array vuoto = chiuso.'],
+            'giorno' => ['type' => 'String', 'description' => 'Nome del giorno nella lingua richiesta.'],
+            'slots' => ['type' => ['list_of' => 'String'], 'description' => 'Fasce orarie formattate nella lingua richiesta. Array vuoto = chiuso.'],
             'chiuso' => ['type' => 'Boolean', 'description' => 'true se il locale è chiuso quel giorno.'],
         ],
     ]);
@@ -380,16 +380,96 @@ function wpb_graphql_register_schema(): void
     // ── 9d. RootQuery: hbOrari ────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbOrari', [
         'type' => 'HBOrari',
-        'description' => 'Restituisce gli orari di apertura del locale.',
-        'resolve' => function (): array {
+        'description' => 'Restituisce gli orari di apertura del locale. Accetta un argomento opzionale `lang` (codice ISO 639-1 a due lettere, es. "it", "en", "fr") per localizzare i nomi dei giorni e il formato orario. Default: "it".',
+        'args' => [
+            'lang' => [
+                'type' => 'String',
+                'description' => 'Codice lingua ISO 639-1 (es. "it", "en", "fr", "de", "es"). Default: "it". Determina i nomi dei giorni e il formato orario (12h per en, 24h per le altre).',
+            ],
+        ],
+        'resolve' => function ($root, array $args): array {
+            // ── helpers i18n ──────────────────────────────────────────────────
+    
+            /**
+             * Normalizza il codice lingua: lowercase, solo i primi due caratteri.
+             * Falls back a "it" per lingue sconosciute.
+             */
+            $raw_lang = strtolower(trim($args['lang'] ?? 'it'));
+            $lang = substr($raw_lang, 0, 2);
+
+            /**
+             * Mappa giorno italiano → nome nella lingua richiesta.
+             * La chiave è il nome salvato nel DB (sempre in italiano).
+             */
+            $giorni_map = [
+                // italiano → [it, en, fr, de, es, pt, nl, pl, ru, zh, ja, ar]
+                'Lunedì' => ['it' => 'Lunedì', 'en' => 'Monday', 'fr' => 'Lundi', 'de' => 'Montag', 'es' => 'Lunes', 'pt' => 'Segunda', 'nl' => 'Maandag', 'pl' => 'Poniedziałek', 'ru' => 'Понедельник', 'zh' => '星期一', 'ja' => '月曜日', 'ar' => 'الاثنين'],
+                'Martedì' => ['it' => 'Martedì', 'en' => 'Tuesday', 'fr' => 'Mardi', 'de' => 'Dienstag', 'es' => 'Martes', 'pt' => 'Terça', 'nl' => 'Dinsdag', 'pl' => 'Wtorek', 'ru' => 'Вторник', 'zh' => '星期二', 'ja' => '火曜日', 'ar' => 'الثلاثاء'],
+                'Mercoledì' => ['it' => 'Mercoledì', 'en' => 'Wednesday', 'fr' => 'Mercredi', 'de' => 'Mittwoch', 'es' => 'Miércoles', 'pt' => 'Quarta', 'nl' => 'Woensdag', 'pl' => 'Środa', 'ru' => 'Среда', 'zh' => '星期三', 'ja' => '水曜日', 'ar' => 'الأربعاء'],
+                'Giovedì' => ['it' => 'Giovedì', 'en' => 'Thursday', 'fr' => 'Jeudi', 'de' => 'Donnerstag', 'es' => 'Jueves', 'pt' => 'Quinta', 'nl' => 'Donderdag', 'pl' => 'Czwartek', 'ru' => 'Четверг', 'zh' => '星期四', 'ja' => '木曜日', 'ar' => 'الخميس'],
+                'Venerdì' => ['it' => 'Venerdì', 'en' => 'Friday', 'fr' => 'Vendredi', 'de' => 'Freitag', 'es' => 'Viernes', 'pt' => 'Sexta', 'nl' => 'Vrijdag', 'pl' => 'Piątek', 'ru' => 'Пятница', 'zh' => '星期五', 'ja' => '金曜日', 'ar' => 'الجمعة'],
+                'Sabato' => ['it' => 'Sabato', 'en' => 'Saturday', 'fr' => 'Samedi', 'de' => 'Samstag', 'es' => 'Sábado', 'pt' => 'Sábado', 'nl' => 'Zaterdag', 'pl' => 'Sobota', 'ru' => 'Суббота', 'zh' => '星期六', 'ja' => '土曜日', 'ar' => 'السبت'],
+                'Domenica' => ['it' => 'Domenica', 'en' => 'Sunday', 'fr' => 'Dimanche', 'de' => 'Sonntag', 'es' => 'Domingo', 'pt' => 'Domingo', 'nl' => 'Zondag', 'pl' => 'Niedziela', 'ru' => 'Воскресенье', 'zh' => '星期日', 'ja' => '日曜日', 'ar' => 'الأحد'],
+            ];
+
+            /**
+             * Lingue che usano il formato 12h (AM/PM).
+             * Tutte le altre usano 24h.
+             */
+            $use_12h = in_array($lang, ['en'], true);
+
+            /**
+             * Converte uno slot "HH:MM - HH:MM" (24h, dal DB) nel formato
+             * corretto per la lingua richiesta.
+             *
+             * @param string $slot   Es. "09:00 - 22:30"
+             * @param bool   $use12h true → 12h con AM/PM, false → 24h
+             * @return string        Es. "9:00 AM - 10:30 PM" oppure "09:00 - 22:30"
+             */
+            $format_slot = static function (string $slot, bool $use12h): string {
+                // Lo slot è sempre "HH:MM - HH:MM"
+                if (!preg_match('/^(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})$/', $slot, $m)) {
+                    return $slot; // formato inatteso: restituisce as-is
+                }
+                [, $oh, $om, $ch, $cm] = $m;
+
+                if (!$use12h) {
+                    return sprintf('%02d:%02d - %02d:%02d', $oh, $om, $ch, $cm);
+                }
+
+                // Conversione 12h
+                $fmt12 = static function (int $h, int $m): string {
+                    $period = $h < 12 ? 'AM' : 'PM';
+                    $h12 = $h % 12;
+                    if ($h12 === 0)
+                        $h12 = 12;
+                    return sprintf('%d:%02d %s', $h12, $m, $period);
+                };
+
+                return $fmt12((int) $oh, (int) $om) . ' - ' . $fmt12((int) $ch, (int) $cm);
+            };
+
+            // ── lettura dati dal DB ───────────────────────────────────────────
             $data_option = defined('WPB_ORARI_DATA_OPTION') ? WPB_ORARI_DATA_OPTION : 'wpb_orari_data';
             $data = get_option($data_option, []);
 
+            // ── costruzione risposta localizzata ──────────────────────────────
             $settimana = [];
-            foreach ($data['orari_settimanali'] ?? [] as $giorno => $slots) {
+            foreach ($data['orari_settimanali'] ?? [] as $giorno_it => $slots) {
+                // Traduce il nome del giorno (fallback al nome italiano originale)
+                $giorno_localizzato = $giorni_map[$giorno_it][$lang]
+                    ?? $giorni_map[$giorno_it]['it']
+                    ?? $giorno_it;
+
+                // Formatta ogni slot nel formato corretto per la lingua
+                $slots_localizzati = array_map(
+                    static fn(string $s) => $format_slot($s, $use_12h),
+                    array_values($slots)
+                );
+
                 $settimana[] = [
-                    'giorno' => $giorno,
-                    'slots' => array_values($slots),
+                    'giorno' => $giorno_localizzato,
+                    'slots' => $slots_localizzati,
                     'chiuso' => empty($slots),
                 ];
             }
