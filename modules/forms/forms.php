@@ -1157,17 +1157,19 @@ function wpb_forms_handle_submit()
 
     // ── Integrazione MailUp ───────────────────────────────────────────────
     // Esegui solo se l'integrazione è abilitata per questo form
-
     if (!empty($settings['mailup_enabled'])) {
-        $mu_list_id = max(1, intval($settings['mailup_list_id'] ?: 1));
-        $mu_group_id = max(1, intval($settings['mailup_group_id'] ?: 1));
-        $mu_email_field = sanitize_key($settings['mailup_email_field'] ?: 'email');
-        $mu_optin_field = sanitize_key($settings['mailup_optin_field'] ?: '');
+        $mu_global = get_option('wpb_forms_mailup', []);
+        $mu_client_id = trim($mu_global['client_id'] ?? '');
+        $mu_secret = trim($mu_global['client_secret'] ?? '');
+        $mu_list_id = max(1, intval($settings['mailup_list_id'] ?? 1));
+        $mu_email_field = sanitize_key($settings['mailup_email_field'] ?? 'email');
+        $mu_name_field = sanitize_key($settings['mailup_name_field'] ?? 'nome');
+        $mu_optin_field = sanitize_key($settings['mailup_optin_field'] ?? '');
 
         // Se è configurato un campo opt-in, controlla che sia stato checkato
         $optin_ok = true;
         if ($mu_optin_field !== '') {
-            $optin_raw = $submission_data[$mu_optin_field]['value'] ?: '';
+            $optin_raw = $submission_data[$mu_optin_field]['value'] ?? '';
             $optin_value = is_array($optin_raw) ? implode(',', $optin_raw) : $optin_raw;
             // Il campo checkbox invia il valore dell'opzione selezionata; consideriamo
             // l'utente iscritto se il valore non è vuoto (= checkbox spuntata)
@@ -1178,36 +1180,41 @@ function wpb_forms_handle_submit()
         }
 
         $mu_email = sanitize_email(
-            is_array($submission_data[$mu_email_field]['value'] ?: null)
+            is_array($submission_data[$mu_email_field]['value'] ?? null)
             ? implode('', $submission_data[$mu_email_field]['value'])
-            : ($submission_data[$mu_email_field]['value'] ?: '')
+            : ($submission_data[$mu_email_field]['value'] ?? '')
         );
 
-        if ($optin_ok && is_email($mu_email)) {
-            // Costruisci query-string dei campi mappati da passare a xmlSubscribe
-            // Ogni riga del field_map è: {form_field: slug, mailup_field_name: string}
-            $mu_mapped_fields = [];
-            $field_map = $settings['mailup_field_map'] ?: [];
+        if ($optin_ok && $mu_client_id && $mu_secret && is_email($mu_email)) {
+            $mu_name = sanitize_text_field(
+                is_array($submission_data[$mu_name_field]['value'] ?? null)
+                ? implode(' ', $submission_data[$mu_name_field]['value'])
+                : ($submission_data[$mu_name_field]['value'] ?? '')
+            );
+
+            // Costruisci array Fields da field_map: [{form_field, mailup_field_id}]
+            $mu_extra_fields = [];
+            $field_map = $settings['mailup_field_map'] ?? [];
             if (is_array($field_map)) {
                 foreach ($field_map as $map) {
-                    $form_slug = sanitize_key($map['form_field'] ?: '');
-                    $mailup_fname = sanitize_text_field($map['mailup_field_name'] ?: '');
-                    if (!$form_slug || !$mailup_fname)
+                    $form_slug = sanitize_key($map['form_field'] ?? '');
+                    $mailup_id = intval($map['mailup_field_id'] ?? 0);
+                    if (!$form_slug || !$mailup_id)
                         continue;
-                    $raw = $submission_data[$form_slug]['value'] ?: '';
+                    $raw = $submission_data[$form_slug]['value'] ?? '';
                     $value = sanitize_text_field(
                         is_array($raw) ? implode(', ', $raw) : $raw
                     );
-                    $mu_mapped_fields[$mailup_fname] = $value;
+                    $mu_extra_fields[] = ['Id' => $mailup_id, 'Value' => $value];
                 }
             }
 
-            $result = wpb_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
+            $result = wpb_mailup_subscribe($mu_client_id, $mu_secret, $mu_email, $mu_name, $mu_list_id, $mu_extra_fields);
             if (is_wp_error($result)) {
                 error_log('[WP Barrio][MailUp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
             }
         } else {
-            error_log('[WP Barrio][MailUp] Salto iscrizione: email non valida (' . $mu_email . ')');
+            error_log('[WP Barrio][MailUp] Salto iscrizione: credenziali mancanti o email non valida (' . $mu_email . ')');
         }
     }
 
@@ -1230,8 +1237,14 @@ add_action('wp_ajax_wpb_forms_save_global_settings', function () {
         'secret_key' => $secret_key,
     ], false);
 
-    // MailUp: nessuna credenziale necessaria — la chiamata è pubblica
-    update_option('wpb_forms_mailup', [], false);
+    // MailUp credentials
+    $mu_client_id = sanitize_text_field(wp_unslash($_POST['mailup_client_id'] ?? ''));
+    $mu_client_secret = sanitize_text_field(wp_unslash($_POST['mailup_client_secret'] ?? ''));
+
+    update_option('wpb_forms_mailup', [
+        'client_id' => $mu_client_id,
+        'client_secret' => $mu_client_secret,
+    ], false);
 
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
@@ -1240,97 +1253,88 @@ add_action('wp_ajax_wpb_forms_save_global_settings', function () {
 });
 
 /* ─────────────────────────────────────────
-   HELPER: iscrizione tramite MailUp xmlSubscribe
+   HELPER: iscrizione tramite MailUp API
    ───────────────────────────────────────── */
 /**
- * Iscrive un contatto a una lista/gruppo MailUp tramite l'endpoint xmlSubscribe.
+ * Iscrive un contatto a una lista MailUp tramite le API REST v1.1.
  *
- * @param string $email          Email del contatto da iscrivere.
- * @param int    $list_id        ID della lista MailUp (parametro List, default 1).
- * @param int    $group_id       ID del gruppo MailUp (parametro Group, default 1).
- * @param array  $mapped_fields  Campi aggiuntivi come ['NomeCampoMailUp' => 'valore'].
- * @return bool|WP_Error         true se iscritto con successo, WP_Error in caso di errore.
+ * @param string $client_id     MailUp OAuth2 Client ID.
+ * @param string $client_secret MailUp OAuth2 Client Secret.
+ * @param string $email         Email del contatto da iscrivere.
+ * @param string $name          Nome del contatto (opzionale).
+ * @param int    $list_id       ID della lista MailUp (default 1).
+ * @return bool|WP_Error        true se iscritto con successo, WP_Error in caso di errore.
  */
 function wpb_mailup_subscribe(
+    string $client_id,
+    string $client_secret,
     string $email,
+    string $name = '',
     int $list_id = 1,
-    int $group_id = 1,
-    array $mapped_fields = []
+    array $extra_fields = []
 ) {
-    $params = [
-        'List' => $list_id,
-        'Group' => $group_id,
-        'Confirm' => 'false',
-        'Email' => $email,
-        'csvFldNames' => '',
-        'csvFldValues' => ''
-    ];
-
-    // Aggiunge i campi mappati come parametri query aggiuntivi
-    foreach ($mapped_fields as $field_name => $field_value) {
-        $params['csvFldNames'] .= $field_name . ";";
-        $params['csvFldValues'] .= $field_value . ";";
-    }
-
-    $params['csvFldNames'] = rtrim($params['csvFldNames'], ";");
-    $params['csvFldValues'] = rtrim($params['csvFldValues'], ";");
-
-    $urlNewsletter = 'https://a9c1g2.mailupclient.com/frontend/xmlSubscribe.aspx?' . http_build_query($params);
-    error_log($urlNewsletter);
-
-    $curl = curl_init();
-    curl_setopt_array($curl, [
-        CURLOPT_URL => $urlNewsletter,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'GET',
-        CURLOPT_HTTPHEADER => [
-            'Cookie: BIGipServercu_front_80_pool=!SZdQ+v1gd8oQ8VNyTiB5XWD/TCWaDTD7AeDqgydX491rNiByeurG+QWHNKLmufuzRVmHW51J5iseiX0=',
+    // Step 1 — Ottieni access token via OAuth2 Resource Owner Password Credentials
+    $token_response = wp_remote_post('https://services.mailup.com/Authorization/OAuth/Token', [
+        'timeout' => 15,
+        'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
+        'body' => [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client_id,
+            'client_secret' => $client_secret,
         ],
     ]);
 
-    $response = curl_exec($curl);
-    $curl_errno = curl_errno($curl);
-    $curl_error = curl_error($curl);
-    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
+    if (is_wp_error($token_response)) {
+        error_log('[WP Barrio][MailUp] Token request error: ' . $token_response->get_error_message());
+        return $token_response;
+    }
 
-    // Errore di trasporto cURL
-    if ($curl_errno !== 0 || $response === false) {
-        $err = "MailUp xmlSubscribe: errore cURL #{$curl_errno} — {$curl_error}";
+    $token_body = json_decode(wp_remote_retrieve_body($token_response), true);
+    $access_token = $token_body['access_token'] ?? '';
+
+    if (empty($access_token)) {
+        $err = 'MailUp: impossibile ottenere access_token. Risposta: ' . wp_remote_retrieve_body($token_response);
         error_log('[WP Barrio][MailUp] ' . $err);
-        return new WP_Error('mailup_curl', $err);
+        return new WP_Error('mailup_token', $err);
     }
 
-    // Errore HTTP
-    if ($http_code < 200 || $http_code >= 300) {
-        $err = "MailUp xmlSubscribe: risposta HTTP {$http_code} — " . wp_strip_all_tags($response);
-        error_log('[WP Barrio][MailUp] ' . $err);
-        return new WP_Error('mailup_http', $err);
+    // Step 2 — Iscrivi il contatto alla lista
+    // $extra_fields è un array di ['Id' => int, 'Value' => string] come richiesto dall'API MailUp
+    $recipient = [
+        'Email' => $email,
+        'Name' => $name,
+        'Fields' => array_values($extra_fields),
+    ];
+
+    $subscribe_response = wp_remote_post(
+        "https://services.mailup.com/API/v1.1/Rest/ConsoleService.svc/Console/List/{$list_id}/Recipient?ConfirmEmail=false",
+        [
+            'timeout' => 15,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $access_token,
+            ],
+            'body' => wp_json_encode($recipient),
+        ]
+    );
+
+    if (is_wp_error($subscribe_response)) {
+        error_log('[WP Barrio][MailUp] Subscribe error: ' . $subscribe_response->get_error_message());
+        return $subscribe_response;
     }
 
-    // La risposta XML di MailUp contiene un codice di esito; valori negativi = errore
-    // Esempio di risposta OK:  <xmlSubscribeResponse><Code>0</Code>...</xmlSubscribeResponse>
-    if (preg_match('/<Code>([-\d]+)<\/Code>/i', $response, $matches)) {
-        $code = intval($matches[1]);
-        if ($code < 0) {
-            // Estrai eventuale messaggio di errore
-            $detail = '';
-            if (preg_match('/<Message>([^<]*)<\/Message>/i', $response, $m)) {
-                $detail = $m[1];
-            }
-            $err = "MailUp xmlSubscribe: esito errore (Code={$code})" . ($detail ? " — {$detail}" : '');
-            error_log('[WP Barrio][MailUp] ' . $err);
-            return new WP_Error('mailup_subscribe', $err);
-        }
+    $http_code = wp_remote_retrieve_response_code($subscribe_response);
+    $body = wp_remote_retrieve_body($subscribe_response);
+
+    // MailUp restituisce l'ID del recipient (intero) in caso di successo
+    if ($http_code >= 200 && $http_code < 300) {
+        error_log("[WP Barrio][MailUp] Iscrizione OK — email={$email} list={$list_id} response={$body}");
+        return true;
     }
 
-    error_log("[WP Barrio][MailUp] Iscrizione OK — email={$email} list={$list_id} group={$group_id} http={$http_code} response=" . wp_strip_all_tags($response));
-    return true;
+    $err = "MailUp: iscrizione fallita HTTP {$http_code} — {$body}";
+    error_log('[WP Barrio][MailUp] ' . $err);
+    return new WP_Error('mailup_subscribe', $err);
 }
 
 /* ─────────────────────────────────────────
@@ -1546,11 +1550,38 @@ add_action('wp_ajax_wpb_forms_get_submissions', function () {
         return $entry;
     }, $subs_raw);
 
+    // Colonne visibili salvate
+    $saved_columns = get_option('wpb_forms_columns_' . $form_id, []);
+
     wp_send_json_success([
         'total' => $total,
         'fields' => $form_fields,
         'subs' => $subs,
+        'saved_columns' => is_array($saved_columns) ? $saved_columns : [],
     ]);
+});
+
+/* ─────────────────────────────────────────
+   AJAX ADMIN: salva colonne visibili per un form
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_forms_save_columns', function () {
+    check_ajax_referer('wpb_forms_nonce', 'nonce');
+    if (!current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    $form_id = intval($_POST['form_id'] ?? 0);
+    if (!$form_id)
+        wp_send_json_error('ID form non valido.');
+
+    $columns = json_decode(wp_unslash($_POST['columns'] ?? '[]'), true);
+    if (!is_array($columns))
+        $columns = [];
+
+    // Sanitize: solo stringhe alfanumeriche/underscore
+    $columns = array_values(array_filter(array_map('sanitize_key', $columns)));
+
+    update_option('wpb_forms_columns_' . $form_id, $columns, false);
+    wp_send_json_success();
 });
 
 /* ─────────────────────────────────────────
@@ -3090,6 +3121,16 @@ function wpb_forms_admin_page()
             flex-wrap: wrap;
             justify-content: space-between;
         }
+
+        /* Column selector (admin registrazioni) */
+        .wpb-col-selector { position: relative; display: inline-block; }
+        .wpb-col-selector-btn { display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;cursor:pointer;color:#1d2327;font-weight:500; }
+        .wpb-col-selector-btn:hover { border-color:#2271b1;color:#2271b1; }
+        .wpb-col-selector-dropdown { display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;min-width:220px;max-height:300px;overflow-y:auto;background:#fff;border:1px solid #c3c4c7;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.1);padding:8px 0; }
+        .wpb-col-selector-dropdown.open { display:block; }
+        .wpb-col-selector-dropdown label { display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap; }
+        .wpb-col-selector-dropdown label:hover { background:#f0f6fc; }
+        .wpb-col-selector-dropdown input[type="checkbox"] { margin:0; }
     </style>
 
     <div id="wpb-forms-wrap" class="wrap">
@@ -3179,6 +3220,7 @@ function wpb_forms_admin_page()
                 </div>
 
                 <!-- MailUp card -->
+                <?php $mu_opts = get_option('wpb_forms_mailup', []); ?>
                 <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;margin-bottom:20px;">
                     <h3
                         style="margin:0 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;display:flex;align-items:center;gap:8px;">
@@ -3190,22 +3232,31 @@ function wpb_forms_admin_page()
                         </svg>
                         MailUp
                     </h3>
-                    <p style="margin:0 0 16px;font-size:12px;color:#a7aaad;">Integrazione MailUp tramite xmlSubscribe. Nessuna
-                        credenziale richiesta.</p>
+                    <p style="margin:0 0 16px;font-size:12px;color:#a7aaad;">Credenziali OAuth2 dell'applicazione MailUp.
+                        Necessarie per iscrivere i contatti alle liste. <a
+                            href="https://help.mailup.com/display/MUG/Authorization+and+Authentication" target="_blank"
+                            rel="noopener">Dove trovo le credenziali?</a></p>
                     <table class="form-table" style="max-width:100%;">
                         <tbody>
                             <tr>
-                                <th><label for="">IP Corrente</label></th>
+                                <th style="width:220px;"><label for="wpb-global-mu-client-id">Client ID</label></th>
                                 <td>
-                                    <p>
-                                        <?php
-                                        $ip = file_get_contents('https://api4.ipify.org'); // forza IPv4
-                                        echo $ip;
-                                        ?>
-                                        <br>
-                                        <span style="margin:0 0 16px;font-size:12px;color:#a7aaad;">Inserisci questo indirizzo
-                                            IP su MailUp per limitare le richieste a questo sito.</span>
-                                    </p>
+                                    <input type="text" id="wpb-global-mu-client-id" class="large-text"
+                                        value="<?php echo esc_attr($mu_opts['client_id'] ?? ''); ?>"
+                                        placeholder="es. c1a2b3d4-..." autocomplete="off" spellcheck="false">
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><label for="wpb-global-mu-client-secret">Client Secret</label></th>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="password" id="wpb-global-mu-client-secret" class="large-text"
+                                            value="<?php echo esc_attr($mu_opts['client_secret'] ?? ''); ?>"
+                                            placeholder="es. s3cr3t..." autocomplete="new-password" spellcheck="false">
+                                        <button type="button"
+                                            style="background:none;border:1px solid #c3c4c7;border-radius:3px;padding:5px 9px;cursor:pointer;color:#646970;font-size:12px;white-space:nowrap;"
+                                            onclick="(function(){var i=document.getElementById('wpb-global-mu-client-secret');i.type=i.type==='password'?'text':'password';})();">Mostra</button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -3258,7 +3309,9 @@ function wpb_forms_admin_page()
                             action: 'wpb_forms_save_global_settings',
                             nonce: '<?php echo esc_js($nonce); ?>',
                             mailjet_api_key: document.getElementById('wpb-global-mj-api-key').value.trim(),
-                            mailjet_secret_key: document.getElementById('wpb-global-mj-secret-key').value.trim()
+                            mailjet_secret_key: document.getElementById('wpb-global-mj-secret-key').value.trim(),
+                            mailup_client_id: document.getElementById('wpb-global-mu-client-id').value.trim(),
+                            mailup_client_secret: document.getElementById('wpb-global-mu-client-secret').value.trim()
                         });
                         fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
                             method: 'POST',
@@ -3486,24 +3539,14 @@ function wpb_forms_admin_page()
                     <!-- Campi extra — visibili solo se abilitato -->
                     <div id="wpb-mailup-fields-wrap" style="display:none;border-top:1px solid #f0f0f0;padding-top:20px;">
 
-                        <!-- ID Lista + ID Gruppo: stessa riga -->
-                        <div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
-                            <div style="flex:1;min-width:120px;">
-                                <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
-                                    for="wpb-setting-mailup-list-id">ID Lista MailUp</label>
-                                <input type="number" id="wpb-setting-mailup-list-id" style="width:100px;" class="small-text"
-                                    value="1" min="1" placeholder="1">
-                                <p class="description" style="margin-top:4px;">Parametro <code>List</code> dell'URL
-                                    xmlSubscribe.</p>
-                            </div>
-                            <div style="flex:1;min-width:120px;">
-                                <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
-                                    for="wpb-setting-mailup-group-id">ID Gruppo MailUp</label>
-                                <input type="number" id="wpb-setting-mailup-group-id" style="width:100px;" class="small-text"
-                                    value="1" min="1" placeholder="1">
-                                <p class="description" style="margin-top:4px;">Parametro <code>Group</code> dell'URL
-                                    xmlSubscribe.</p>
-                            </div>
+                        <!-- ID Lista -->
+                        <div style="margin-bottom:20px;">
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
+                                for="wpb-setting-mailup-list-id">ID Lista MailUp</label>
+                            <input type="number" id="wpb-setting-mailup-list-id" style="width:100px;" class="small-text"
+                                value="1" min="1" placeholder="1">
+                            <p class="description" style="margin-top:4px;">L'ID numerico della lista su cui iscrivere il
+                                contatto. Trovalo in <strong>Liste e gruppi</strong> nel backend MailUp.</p>
                         </div>
 
                         <!-- Campo email -->
@@ -3513,6 +3556,16 @@ function wpb_forms_admin_page()
                             <input type="text" id="wpb-setting-mailup-email-field" class="regular-text" placeholder="email">
                             <p class="description" style="margin-top:4px;">Lo <strong>slug</strong> del campo email di questo
                                 form. Viene usato come indirizzo del contatto iscritto. Default: <code>email</code>.</p>
+                        </div>
+
+                        <!-- Campo nome -->
+                        <div style="margin-bottom:24px;">
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
+                                for="wpb-setting-mailup-name-field">Campo nome del form <span
+                                    style="font-weight:400;color:#a7aaad;">(opzionale)</span></label>
+                            <input type="text" id="wpb-setting-mailup-name-field" class="regular-text" placeholder="nome">
+                            <p class="description" style="margin-top:4px;">Lo slug del campo che contiene il nome del contatto.
+                                Lascia vuoto per non inviare il nome.</p>
                         </div>
 
                         <!-- Campo opt-in newsletter -->
@@ -3534,39 +3587,20 @@ function wpb_forms_admin_page()
                                 che funge da consenso newsletter (es. "Iscriviti alla newsletter").</p>
                         </div>
 
-                        <!-- Mapping campi form → parametri xmlSubscribe -->
+                        <!-- Mapping campi aggiuntivi → Fields MailUp -->
                         <div>
-                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;">
-                                Mappa campi del form su parametri MailUp
-                                <span style="font-weight:400;color:#a7aaad;">(opzionale)</span>
-                            </label>
-                            <p class="description" style="margin-bottom:12px;">
-                                Collega i campi di questo form ai parametri accettati dall'endpoint xmlSubscribe
-                                (es. <code>Nome</code>, <code>Cognome</code>, <code>Telefono</code>).
-                                A sinistra lo <strong>slug del campo del form</strong>, a destra il
-                                <strong>nome del parametro MailUp</strong> esatto (case-sensitive).
-                            </p>
-                            <!-- Header colonne -->
-                            <div style="display:flex;gap:8px;margin-bottom:6px;padding:0 32px 0 0;">
-                                <span
-                                    style="flex:1;font-size:11px;font-weight:600;color:#50575e;text-transform:uppercase;letter-spacing:.4px;">Slug
-                                    campo form</span>
-                                <span
-                                    style="flex:1;font-size:11px;font-weight:600;color:#50575e;text-transform:uppercase;letter-spacing:.4px;">Parametro
-                                    MailUp</span>
-                                <span style="width:28px;"></span>
-                            </div>
+                            <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;">Mappa altri campi su
+                                Fields MailUp <span style="font-weight:400;color:#a7aaad;">(opzionale)</span></label>
+                            <p class="description" style="margin-bottom:12px;">Collega i campi di questo form ai <strong>campi
+                                    personalizzati</strong> del profilo MailUp (es. telefono, città). Per ogni riga: inserisci
+                                lo slug del campo del form a sinistra e l'ID numerico del campo MailUp a destra.</p>
                             <div id="wpb-mailup-field-map-rows"></div>
                             <button type="button" id="wpb-mailup-add-map-row"
                                 style="margin-top:8px;background:none;border:1px dashed #c3c4c7;border-radius:3px;padding:6px 14px;cursor:pointer;font-size:12px;color:#646970;width:100%;text-align:center;">
                                 + Aggiungi mappatura campo
                             </button>
-                            <p class="description" style="margin-top:8px;">
-                                Esempi di parametri MailUp: <code>Nome</code>, <code>Cognome</code>, <code>Telefono</code>,
-                                <code>Azienda</code>.
-                                Controlla i nomi esatti in <em>MailUp → Impostazioni → Profilo iscritto → Campi
-                                    personalizzati</em>.
-                            </p>
+                            <p class="description" style="margin-top:8px;">Trovi gli ID dei campi personalizzati in MailUp:
+                                <em>Impostazioni → Profilo iscritto → Campi personalizzati</em>.</p>
                         </div>
 
                     </div><!-- #wpb-mailup-fields-wrap -->
@@ -3660,6 +3694,13 @@ function wpb_forms_admin_page()
 
                     <div class="wpb-reg-toolbar">
                         <span class="wpb-reg-count" id="wpb-reg-count"></span>
+                        <div class="wpb-col-selector">
+                            <button type="button" class="wpb-col-selector-btn" id="wpb-reg-col-selector-btn">
+                                <span class="dashicons dashicons-columns" style="font-size:14px;width:14px;height:14px;"></span>
+                                Colonne
+                            </button>
+                            <div class="wpb-col-selector-dropdown" id="wpb-reg-col-selector-dropdown"></div>
+                        </div>
                         <button class="wpb-btn-reg-delete-all button" id="wpb-btn-reg-delete-all"
                             style="color:#d63638;border-color:#d63638;display:none;">
                             Elimina tutte
@@ -3800,8 +3841,8 @@ function wpb_forms_admin_page()
                     toggleMailupFields(muEnabled.checked);
                 }
                 if (el('wpb-setting-mailup-list-id')) el('wpb-setting-mailup-list-id').value = s.mailup_list_id || '1';
-                if (el('wpb-setting-mailup-group-id')) el('wpb-setting-mailup-group-id').value = s.mailup_group_id || '1';
                 if (el('wpb-setting-mailup-email-field')) el('wpb-setting-mailup-email-field').value = s.mailup_email_field || '';
+                if (el('wpb-setting-mailup-name-field')) el('wpb-setting-mailup-name-field').value = s.mailup_name_field || '';
                 // Opt-in select: popola con i campi checkbox presenti nel form
                 const optinSel = el('wpb-setting-mailup-optin-field');
                 if (optinSel) {
@@ -3816,7 +3857,7 @@ function wpb_forms_admin_page()
                     optinSel.value = s.mailup_optin_field || '';
                 }
                 // Field mapping
-                mailupFieldMap = Array.isArray(s.mailup_field_map) ? s.mailup_field_map.map(r => ({ form_field: r.form_field || '', mailup_field_name: r.mailup_field_name || '' })) : [];
+                mailupFieldMap = Array.isArray(s.mailup_field_map) ? s.mailup_field_map.map(r => ({ ...r })) : [];
                 renderMailupMapRows();
             }
 
@@ -3843,7 +3884,7 @@ function wpb_forms_admin_page()
             if (muCb) muCb.addEventListener('change', () => toggleMailupFields(muCb.checked));
 
             // ── Field mapping rows ──────────────────────────────────────────
-            let mailupFieldMap = []; // [{form_field, mailup_field_name}]
+            let mailupFieldMap = []; // [{form_field, mailup_field_id}]
 
             function renderMailupMapRows() {
                 const container = document.getElementById('wpb-mailup-field-map-rows');
@@ -3854,16 +3895,16 @@ function wpb_forms_admin_page()
                     div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
                     div.innerHTML = `
                         <input type="text" placeholder="slug campo form (es. telefono)"
-                            value="${esc(row.form_field || '')}"
+                            value="${esc(row.form_field)}"
                             data-idx="${idx}" data-key="form_field"
                             style="flex:1;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
-                        <span style="color:#a7aaad;font-size:18px;line-height:1;flex-shrink:0;">→</span>
-                        <input type="text" placeholder="es. Nome"
-                            value="${esc(row.mailup_field_name || '')}"
-                            data-idx="${idx}" data-key="mailup_field_name"
-                            style="flex:1;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                        <span style="color:#a7aaad;font-size:13px;white-space:nowrap;">→ ID campo MailUp</span>
+                        <input type="number" placeholder="es. 3" min="1"
+                            value="${esc(String(row.mailup_field_id || ''))}"
+                            data-idx="${idx}" data-key="mailup_field_id"
+                            style="width:80px;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
                         <button type="button" data-idx="${idx}"
-                            style="background:none;border:none;color:#d63638;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;flex-shrink:0;"
+                            style="background:none;border:none;color:#d63638;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;"
                             title="Rimuovi">×</button>`;
                     // Input change handlers
                     div.querySelectorAll('input[data-key]').forEach(inp => {
@@ -3884,7 +3925,7 @@ function wpb_forms_admin_page()
 
             const addMapBtn = document.getElementById('wpb-mailup-add-map-row');
             if (addMapBtn) addMapBtn.addEventListener('click', () => {
-                mailupFieldMap.push({ form_field: '', mailup_field_name: '' });
+                mailupFieldMap.push({ form_field: '', mailup_field_id: '' });
                 renderMailupMapRows();
             });
 
@@ -3909,10 +3950,10 @@ function wpb_forms_admin_page()
                     // MailUp
                     mailup_enabled: el('wpb-setting-mailup-enabled') ? el('wpb-setting-mailup-enabled').checked : !!(settings.mailup_enabled),
                     mailup_list_id: el('wpb-setting-mailup-list-id') ? parseInt(el('wpb-setting-mailup-list-id').value, 10) || 1 : (settings.mailup_list_id || 1),
-                    mailup_group_id: el('wpb-setting-mailup-group-id') ? parseInt(el('wpb-setting-mailup-group-id').value, 10) || 1 : (settings.mailup_group_id || 1),
                     mailup_email_field: el('wpb-setting-mailup-email-field') ? el('wpb-setting-mailup-email-field').value.trim() : (settings.mailup_email_field || 'email'),
+                    mailup_name_field: el('wpb-setting-mailup-name-field') ? el('wpb-setting-mailup-name-field').value.trim() : (settings.mailup_name_field || ''),
                     mailup_optin_field: el('wpb-setting-mailup-optin-field') ? el('wpb-setting-mailup-optin-field').value : (settings.mailup_optin_field || ''),
-                    mailup_field_map: mailupFieldMap.filter(r => r.form_field && r.mailup_field_name),
+                    mailup_field_map: mailupFieldMap.filter(r => r.form_field && r.mailup_field_id),
                 };
             }
 
@@ -4440,13 +4481,13 @@ function wpb_forms_admin_page()
             }
 
             card.innerHTML = `
-                                                                                                                                                                                                                                                                                                                                            <div class="wpb-field-card-header">
-                                                                                                                                                                                                                                                                                                                                                <span class="wpb-drag-handle">⠿</span>
-                                                                                                                                                                                                                                                                                                                                                <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
-                                                                                                                                                                                                                                                                                                                                                <span class="wpb-field-card-type">${esc(f.type)}</span>
-                                                                                                                                                                                                                                                                                                                                                <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
-                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                            <div class="wpb-field-card-preview">${preview}</div>`;
+                                                                                                                                                                                                                                                                                        <div class="wpb-field-card-header">
+                                                                                                                                                                                                                                                                                            <span class="wpb-drag-handle">⠿</span>
+                                                                                                                                                                                                                                                                                            <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
+                                                                                                                                                                                                                                                                                            <span class="wpb-field-card-type">${esc(f.type)}</span>
+                                                                                                                                                                                                                                                                                            <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
+                                                                                                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                                                                                                        <div class="wpb-field-card-preview">${preview}</div>`;
 
             card.addEventListener('click', e => { if (!e.target.classList.contains('wpb-btn-remove-field')) selectField(f.id); });
             card.querySelector('.wpb-btn-remove-field').addEventListener('click', e => { e.stopPropagation(); removeField(f.id); });
@@ -4545,10 +4586,10 @@ function wpb_forms_admin_page()
 
             if (f.type === 'page_break') {
                 propsInner.innerHTML = `<div style="padding:12px 0;text-align:center;color:#646970;">
-                                                                                                                                                                                                                <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#2271b1;"></span>
-                                                                                                                                                                                                                <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
-                                                                                                                                                                                                                <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
-                                                                                                                                                                                                            </div>`;
+                                                                                                                                                            <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#2271b1;"></span>
+                                                                                                                                                            <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
+                                                                                                                                                            <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
+                                                                                                                                                        </div>`;
                 return;
             }
 
@@ -4560,16 +4601,16 @@ function wpb_forms_admin_page()
             const showPlaceholder = (!hasOpts || isSelect) && !isDatepicker && !isFile;
 
             propsInner.innerHTML = `
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label>Etichetta</label>
-                                                                                                                            <input type="text" id="prop-label" value="${esc(f.label)}">
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
-                                                                                                                            <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
-                                                                                                                        </div>
-                                                                                                                        ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
-                                                                                                                        ${isNumber ? `
+                                                                    <div class="wpb-prop-group">
+                                                                        <label>Etichetta</label>
+                                                                        <input type="text" id="prop-label" value="${esc(f.label)}">
+                                                                    </div>
+                                                                    <div class="wpb-prop-group">
+                                                                        <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
+                                                                        <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
+                                                                    </div>
+                                                                    ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
+                                                                    ${isNumber ? `
                 <div class="wpb-prop-group">
                     <label>Valore minimo</label>
                     <input type="number" id="prop-min" value="${esc(f.min ?? '')}">
@@ -4578,36 +4619,36 @@ function wpb_forms_admin_page()
                     <label>Valore massimo</label>
                     <input type="number" id="prop-max" value="${esc(f.max ?? '')}">
                 </div>` : ''}
-                                                                                                                        ${isDatepicker ? `
+                                                                    ${isDatepicker ? `
                 <div class="wpb-prop-group">
                     <label>Formato data</label>
                     <input type="text" id="prop-format" value="${esc(f.format || 'dd/MM/y')}" placeholder="dd/MM/y">
                     <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Es: dd/MM/y · MM/dd/yyyy · yyyy-MM-dd</p>
                 </div>` : ''}
-                                                                                                                        ${hasOpts ? `<div class="wpb-prop-group">
+                                                                    ${hasOpts ? `<div class="wpb-prop-group">
                     <label>Opzioni</label>
                     <div class="wpb-options-list" id="wpb-opts-list">
                     ${(f.options || []).map((o, i) => `<div class="wpb-option-row"><input type="text" class="wpb-opt-input" data-idx="${i}" value="${esc(o)}" placeholder="Opzione ${i + 1}"><button class="wpb-btn-rm-opt" data-idx="${i}">×</button></div>`).join('')}
                     </div>
                     <button class="wpb-btn-add-opt" id="wpb-btn-add-opt">+ Aggiungi opzione</button>
                 </div>` : ''}
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label>Messaggio di errore</label>
-                                                                                                                            <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
-                                                                                                                            <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
-                                                                                                                        </div>
-                                                                                                                        <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
-                                                                                                                            Tipo: <strong>${esc(f.type)}</strong>
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-cond-section">
-                                                                                                                            <div class="wpb-cond-section-title">
-                                                                                                                                <span>Logica condizionale</span>
-                                                                                                                            </div>
-                                                                                                                            ${renderCondLogicUI(f)}
-                                                                                                                        </div>`;
+                                                                    <div class="wpb-prop-group">
+                                                                        <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
+                                                                    </div>
+                                                                    <div class="wpb-prop-group">
+                                                                        <label>Messaggio di errore</label>
+                                                                        <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
+                                                                        <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
+                                                                    </div>
+                                                                    <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
+                                                                        Tipo: <strong>${esc(f.type)}</strong>
+                                                                    </div>
+                                                                    <div class="wpb-cond-section">
+                                                                        <div class="wpb-cond-section-title">
+                                                                            <span>Logica condizionale</span>
+                                                                        </div>
+                                                                        ${renderCondLogicUI(f)}
+                                                                    </div>`;
 
             const bi = (elId, key) => { const el = document.getElementById(elId); if (el) el.addEventListener('input', () => updateField(f.id, key, el.value)); };
 
@@ -4682,30 +4723,30 @@ function wpb_forms_admin_page()
                 : '';
 
             return `
-                                                                                <div class="wpb-cl-wrap">
-                                                                                    <label class="wpb-cl-enable-row" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
-                                                                                        <input type="checkbox" id="cl-enabled" ${enabled ? 'checked' : ''} style="margin:0;">
-                                                                                        <span style="font-size:12px;font-weight:600;color:#1d2327;">Abilita logica condizionale</span>
-                                                                                    </label>
-                                                                                    <div id="cl-body" style="display:${enabled ? 'block' : 'none'};">
-                                                                                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#1d2327;margin-bottom:10px;">
-                                                                                            <select id="cl-action" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                <option value="show" ${action === 'show' ? 'selected' : ''}>Mostra</option>
-                                                                                                <option value="hide" ${action === 'hide' ? 'selected' : ''}>Nascondi</option>
-                                                                                            </select>
-                                                                                            <span>questo campo se</span>
-                                                                                            <select id="cl-logic-type" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                <option value="all" ${logicType === 'all' ? 'selected' : ''}>tutte</option>
-                                                                                                <option value="any" ${logicType === 'any' ? 'selected' : ''}>almeno una</option>
-                                                                                            </select>
-                                                                                            <span>delle seguenti condizioni sono soddisfatte:</span>
-                                                                                        </div>
-                                                                                        <div class="wpb-cond-list" id="wpb-cond-list">
-                                                                                            ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
-                                                                                        </div>
-                                                                                        <button type="button" class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
-                                                                                    </div>
-                                                                                </div>`;
+                            <div class="wpb-cl-wrap">
+                                <label class="wpb-cl-enable-row" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+                                    <input type="checkbox" id="cl-enabled" ${enabled ? 'checked' : ''} style="margin:0;">
+                                    <span style="font-size:12px;font-weight:600;color:#1d2327;">Abilita logica condizionale</span>
+                                </label>
+                                <div id="cl-body" style="display:${enabled ? 'block' : 'none'};">
+                                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#1d2327;margin-bottom:10px;">
+                                        <select id="cl-action" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                            <option value="show" ${action === 'show' ? 'selected' : ''}>Mostra</option>
+                                            <option value="hide" ${action === 'hide' ? 'selected' : ''}>Nascondi</option>
+                                        </select>
+                                        <span>questo campo se</span>
+                                        <select id="cl-logic-type" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                            <option value="all" ${logicType === 'all' ? 'selected' : ''}>tutte</option>
+                                            <option value="any" ${logicType === 'any' ? 'selected' : ''}>almeno una</option>
+                                        </select>
+                                        <span>delle seguenti condizioni sono soddisfatte:</span>
+                                    </div>
+                                    <div class="wpb-cond-list" id="wpb-cond-list">
+                                        ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
+                                    </div>
+                                    <button type="button" class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
+                                </div>
+                            </div>`;
         }
 
         /**
@@ -4762,27 +4803,27 @@ function wpb_forms_admin_page()
                         `<option value="${esc(opt)}" ${(rule.value || '') === opt ? 'selected' : ''}>${esc(opt)}</option>`
                     ).join('');
                     valueEl = `<select class="cl-rule-val" data-ri="${ri}" style="flex:1;min-width:80px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                   <option value="" disabled ${!rule.value ? 'selected' : ''} hidden>Seleziona…</option>
-                                                                                                   ${valOpts}
-                                                                                               </select>`;
+                                               <option value="" disabled ${!rule.value ? 'selected' : ''} hidden>Seleziona…</option>
+                                               ${valOpts}
+                                           </select>`;
                 } else {
                     valueEl = `<input type="text" class="cl-rule-val" data-ri="${ri}"
-                                                                                                      value="${esc(rule.value || '')}" placeholder="Valore…"
-                                                                                                      style="flex:1;min-width:80px;padding:4px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
+                                                  value="${esc(rule.value || '')}" placeholder="Valore…"
+                                                  style="flex:1;min-width:80px;padding:4px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
                 }
             }
 
             return `<div class="wpb-cond-row" data-ri="${ri}" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-                                                                                        <select class="cl-rule-field" data-ri="${ri}" style="flex:1;min-width:110px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                            <option value="" disabled ${!rule.fieldName ? 'selected' : ''} hidden>Campo…</option>
-                                                                                            ${fieldOpts || '<option disabled>Nessun campo disponibile</option>'}
-                                                                                        </select>
-                                                                                        <select class="cl-rule-op" data-ri="${ri}" style="flex:0 0 auto;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                            ${opOpts}
-                                                                                        </select>
-                                                                                        ${valueEl}
-                                                                                        <button type="button" class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi regola" style="padding:2px 6px;font-size:14px;background:none;border:none;cursor:pointer;color:#d63638;flex-shrink:0;">×</button>
-                                                                                    </div>`;
+                                    <select class="cl-rule-field" data-ri="${ri}" style="flex:1;min-width:110px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                        <option value="" disabled ${!rule.fieldName ? 'selected' : ''} hidden>Campo…</option>
+                                        ${fieldOpts || '<option disabled>Nessun campo disponibile</option>'}
+                                    </select>
+                                    <select class="cl-rule-op" data-ri="${ri}" style="flex:0 0 auto;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                        ${opOpts}
+                                    </select>
+                                    ${valueEl}
+                                    <button type="button" class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi regola" style="padding:2px 6px;font-size:14px;background:none;border:none;cursor:pointer;color:#d63638;flex-shrink:0;">×</button>
+                                </div>`;
         }
 
         /* ── Logica condizionale: bind eventi ── */
@@ -4947,9 +4988,9 @@ function wpb_forms_admin_page()
                 const valHtml = checkHtml || (empty ? 'Non compilato' : esc(String(val)));
 
                 fieldsHtml += `<div class="wpb-sub-detail-row">
-                                                                                                                                            <div class="wpb-sub-detail-label">${esc(f.label || f.name)}</div>
-                                                                                                                                            <div class="wpb-sub-detail-value${empty ? ' wpb-empty' : ''}">${valHtml}</div>
-                                                                                                                                        </div>`;
+                                                                                        <div class="wpb-sub-detail-label">${esc(f.label || f.name)}</div>
+                                                                                        <div class="wpb-sub-detail-value${empty ? ' wpb-empty' : ''}">${valHtml}</div>
+                                                                                    </div>`;
             });
 
             // Sezione allegati (file caricati con prefisso _file_)
@@ -4964,9 +5005,9 @@ function wpb_forms_admin_page()
                         ? `<a href="${furl}" target="_blank" rel="noopener" style="font-weight:500;">${fname}</a>`
                         : `<span style="color:#a7aaad;">${fname} <em>(URL non disponibile)</em></span>`;
                     fieldsHtml += `<div class="wpb-sub-detail-row">
-                                                                                        <div class="wpb-sub-detail-label">${flabel}</div>
-                                                                                        <div class="wpb-sub-detail-value">${fileLink}</div>
-                                                                                    </div>`;
+                                    <div class="wpb-sub-detail-label">${flabel}</div>
+                                    <div class="wpb-sub-detail-value">${fileLink}</div>
+                                </div>`;
                 });
             }
 
@@ -4979,15 +5020,15 @@ function wpb_forms_admin_page()
                     const urlEsc = esc(String(pageUrl));
                     const urlLink = pageUrl ? `<a href="${urlEsc}" target="_blank" rel="noopener">${urlEsc}</a>` : '';
                     fieldsHtml += `<div class="wpb-sub-detail-row">
-                                                                                                                                                                                                                                                                        <div class="wpb-sub-detail-label">URL pagina</div>
-                                                                                                                                                                                                                                                                        <div class="wpb-sub-detail-value" style="word-break:break-all;">${urlLink}</div>
-                                                                                                                                                                                                                                                                    </div>`;
+                                                                                                                                                                                                                    <div class="wpb-sub-detail-label">URL pagina</div>
+                                                                                                                                                                                                                    <div class="wpb-sub-detail-value" style="word-break:break-all;">${urlLink}</div>
+                                                                                                                                                                                                                </div>`;
                 }
                 if (pageTitle) {
                     fieldsHtml += `<div class="wpb-sub-detail-row">
-                                                                                                                                                                                                                                                                        <div class="wpb-sub-detail-label">Titolo pagina</div>
-                                                                                                                                                                                                                                                                        <div class="wpb-sub-detail-value">${esc(String(pageTitle))}</div>
-                                                                                                                                                                                                                                                                    </div>`;
+                                                                                                                                                                                                                    <div class="wpb-sub-detail-label">Titolo pagina</div>
+                                                                                                                                                                                                                    <div class="wpb-sub-detail-value">${esc(String(pageTitle))}</div>
+                                                                                                                                                                                                                </div>`;
                 }
             }
 
@@ -5007,42 +5048,42 @@ function wpb_forms_admin_page()
                     optionsHtml += `<option value="${i}">${esc(label)}</option>`;
                 });
                 resendHtml = `
-                                                                                                                                                                                                                        <div class="wpb-resend-wrap">
-                                                                                                                                                                                                                            <div class="wpb-resend-header">
-                                                                                                                                                                                                                                <h4><span class="dashicons dashicons-email-alt" style="font-size:18px;width:18px;height:18px;color:#2271b1;"></span> Rinvia notifica</h4>
-                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                            <div class="wpb-resend-body">
-                                                                                                                                                                                                                                <div class="wpb-resend-field">
-                                                                                                                                                                                                                                    <label for="wpb-resend-template">Template di notifica <span style="color:#d63638;">*</span></label>
-                                                                                                                                                                                                                                    <select id="wpb-resend-template" required>${optionsHtml}</select>
-                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                <div class="wpb-resend-field">
-                                                                                                                                                                                                                                    <label for="wpb-resend-email">Email destinatario (override)</label>
-                                                                                                                                                                                                                                    <input type="email" id="wpb-resend-email" placeholder="Lascia vuoto per usare il destinatario configurato">
-                                                                                                                                                                                                                                    <p class="description">Se compilato, la notifica verrà inviata a questo indirizzo invece che al destinatario del template.</p>
-                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                <div class="wpb-resend-actions">
-                                                                                                                                                                                                                                    <button class="button button-primary" id="wpb-btn-resend">Invia notifica</button>
-                                                                                                                                                                                                                                    <span id="wpb-resend-result" class="wpb-resend-result"></span>
-                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                        </div>`;
+                                                                                                                                                                    <div class="wpb-resend-wrap">
+                                                                                                                                                                        <div class="wpb-resend-header">
+                                                                                                                                                                            <h4><span class="dashicons dashicons-email-alt" style="font-size:18px;width:18px;height:18px;color:#2271b1;"></span> Rinvia notifica</h4>
+                                                                                                                                                                        </div>
+                                                                                                                                                                        <div class="wpb-resend-body">
+                                                                                                                                                                            <div class="wpb-resend-field">
+                                                                                                                                                                                <label for="wpb-resend-template">Template di notifica <span style="color:#d63638;">*</span></label>
+                                                                                                                                                                                <select id="wpb-resend-template" required>${optionsHtml}</select>
+                                                                                                                                                                            </div>
+                                                                                                                                                                            <div class="wpb-resend-field">
+                                                                                                                                                                                <label for="wpb-resend-email">Email destinatario (override)</label>
+                                                                                                                                                                                <input type="email" id="wpb-resend-email" placeholder="Lascia vuoto per usare il destinatario configurato">
+                                                                                                                                                                                <p class="description">Se compilato, la notifica verrà inviata a questo indirizzo invece che al destinatario del template.</p>
+                                                                                                                                                                            </div>
+                                                                                                                                                                            <div class="wpb-resend-actions">
+                                                                                                                                                                                <button class="button button-primary" id="wpb-btn-resend">Invia notifica</button>
+                                                                                                                                                                                <span id="wpb-resend-result" class="wpb-resend-result"></span>
+                                                                                                                                                                            </div>
+                                                                                                                                                                        </div>
+                                                                                                                                                                    </div>`;
             }
 
             const content = document.getElementById('wpb-reg-content');
             content.innerHTML = `
-                                                                                                                                                                                                                                                                                        <div class="wpb-sub-detail-wrap" style="margin-top:14px;">
-                                                                                                                                                                                                                                                                                            <div class="wpb-sub-detail-header">
-                                                                                                                                                                                                                                                                                                <h3>Registrazione #${sub.id}</h3>
-                                                                                                                                                                                                                                                                                                <button class="button button-small wpb-btn-reg-del-detail"
-                                                                                                                                                                                                                                                                                                        style="color:#d63638;border-color:#d63638;"
-                                                                                                                                                                                                                                                                                                        data-id="${sub.id}">Elimina</button>
-                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                            <div class="wpb-sub-detail-meta">${metaHtml}</div>
-                                                                                                                                                                                                                                                                                            <div class="wpb-sub-detail-fields">${fieldsHtml}</div>
-                                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                        ${resendHtml}
-                                                                                                                                                                                                                                                                                        <button class="button" id="wpb-reg-back" style="margin-top: 30px;">\u2190 Torna alla lista</button>`;
+                                                                                                                                                                                                                                    <div class="wpb-sub-detail-wrap" style="margin-top:14px;">
+                                                                                                                                                                                                                                        <div class="wpb-sub-detail-header">
+                                                                                                                                                                                                                                            <h3>Registrazione #${sub.id}</h3>
+                                                                                                                                                                                                                                            <button class="button button-small wpb-btn-reg-del-detail"
+                                                                                                                                                                                                                                                    style="color:#d63638;border-color:#d63638;"
+                                                                                                                                                                                                                                                    data-id="${sub.id}">Elimina</button>
+                                                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                                                        <div class="wpb-sub-detail-meta">${metaHtml}</div>
+                                                                                                                                                                                                                                        <div class="wpb-sub-detail-fields">${fieldsHtml}</div>
+                                                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                                                    ${resendHtml}
+                                                                                                                                                                                                                                    <button class="button" id="wpb-reg-back" style="margin-top: 30px;">\u2190 Torna alla lista</button>`;
 
             document.getElementById('wpb-reg-back').addEventListener('click', () => {
                 regLoaded = false;
@@ -5110,6 +5151,146 @@ function wpb_forms_admin_page()
             }
         }
 
+        let regVisibleColumns = [];
+        let regFormFields = [];
+        let regSubsData = [];
+        let _regColSaveTimer = null;
+
+        function saveRegColumns() {
+            clearTimeout(_regColSaveTimer);
+            _regColSaveTimer = setTimeout(() => {
+                fetch(AJAX, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        action: 'wpb_forms_save_columns',
+                        nonce: NONCE,
+                        form_id: EDIT_ID,
+                        columns: JSON.stringify(regVisibleColumns)
+                    })
+                });
+            }, 500);
+        }
+
+        function renderRegColumnSelector() {
+            const dropdown = document.getElementById('wpb-reg-col-selector-dropdown');
+            if (!dropdown || !regFormFields.length) return;
+            dropdown.innerHTML = regFormFields.map(f => {
+                const name = f.name || '';
+                const checked = regVisibleColumns.includes(name) ? 'checked' : '';
+                return '<label><input type="checkbox" value="' + esc(name) + '" ' + checked + '> ' + esc(f.label || f.name || '\u2014') + '</label>';
+            }).join('');
+
+            dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    if (cb.checked) {
+                        if (!regVisibleColumns.includes(cb.value)) regVisibleColumns.push(cb.value);
+                    } else {
+                        regVisibleColumns = regVisibleColumns.filter(v => v !== cb.value);
+                    }
+                    renderRegTable();
+                    saveRegColumns();
+                });
+            });
+        }
+
+        // Toggle dropdown
+        const regColBtn = document.getElementById('wpb-reg-col-selector-btn');
+        if (regColBtn) {
+            regColBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.getElementById('wpb-reg-col-selector-dropdown').classList.toggle('open');
+            });
+            document.addEventListener('click', function(e) {
+                const dd = document.getElementById('wpb-reg-col-selector-dropdown');
+                if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+            });
+        }
+
+        function renderRegTable() {
+            const content = document.getElementById('wpb-reg-content');
+            const countEl = document.getElementById('wpb-reg-count');
+            const delAllEl = document.getElementById('wpb-btn-reg-delete-all');
+
+            if (!regSubsData.length) {
+                content.innerHTML = `<div class="wpb-reg-empty">
+                    <span class="dashicons dashicons-email-alt" style="font-size:36px;width:36px;height:36px;color:#c3c4c7;display:block;margin:0 auto 10px;"></span>
+                    Nessuna registrazione ancora.
+                </div>`;
+                return;
+            }
+
+            if (delAllEl) delAllEl.style.display = '';
+
+            const listFields = regFormFields.filter(f => regVisibleColumns.includes(f.name || ''));
+            let thead = '<tr><th>#</th>';
+            listFields.forEach(f => { thead += `<th>${esc(f.label || f.name)}</th>`; });
+            thead += '<th>Data</th><th></th></tr>';
+
+            let tbody = '';
+            regSubsData.forEach((sub, idx) => {
+                const d = sub.data || {};
+                tbody += `<tr data-sub-id="${sub.id}" data-idx="${idx}" class="wpb-btn-reg-detail"><td>${sub.id}</td>`;
+                listFields.forEach(f => {
+                    const key = f.name || '';
+                    const cell = d[key];
+                    let val = cell ? cell.value : null;
+                    if (Array.isArray(val)) val = val.join(', ');
+                    const empty = val === null || val === undefined || val === '';
+                    const summary = !empty ? formatCheckSummary(val) : null;
+                    tbody += empty
+                        ? `<td class="wpb-reg-cell-empty">\u2014</td>`
+                        : `<td title="${esc(String(val))}">${summary || esc(String(val))}</td>`;
+                });
+                tbody += `<td><span class="wpb-reg-date">${esc(sub.created_at)}</span></td>`;
+                tbody += `<td style="white-space:nowrap;"><button class="button button-small wpb-btn-reg-del" style="color:#d63638;border-color:#d63638;" data-id="${sub.id}" onclick="event.stopPropagation()">Elimina</button></td>`;
+                tbody += '</tr>';
+            });
+
+            content.innerHTML = `
+                <div class="wpb-reg-table-wrap">
+                    <table class="wpb-reg-table">
+                        <thead>${thead}</thead>
+                        <tbody>${tbody}</tbody>
+                    </table>
+                </div>`;
+
+            // Bind dettaglio: riga intera cliccabile
+            content.querySelectorAll('tr.wpb-btn-reg-detail').forEach(row => {
+                row.addEventListener('click', () => {
+                    const idx = parseInt(row.dataset.idx);
+                    showDetail(regSubsData[idx], regFormFields);
+                });
+            });
+
+            // Bind elimina singola
+            content.querySelectorAll('.wpb-btn-reg-del').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!confirm('Eliminare questa registrazione?')) return;
+                    btn.disabled = true;
+                    const res = await fetch(AJAX, { method: 'POST', body: new URLSearchParams({ action: 'wpb_forms_delete_submission', nonce: NONCE, submission_id: btn.dataset.id }) });
+                    const resp = await res.json();
+                    if (resp.success) {
+                        const row = btn.closest('tr');
+                        row.style.transition = 'opacity .25s';
+                        row.style.opacity = '0';
+                        setTimeout(() => {
+                            row.remove();
+                            regSubsData = regSubsData.filter(s => String(s.id) !== btn.dataset.id);
+                            const remaining = regSubsData.length;
+                            if (countEl) countEl.textContent = remaining + ' registrazion' + (remaining === 1 ? 'e' : 'i');
+                            if (!remaining) {
+                                if (delAllEl) delAllEl.style.display = 'none';
+                                content.innerHTML = `<div class="wpb-reg-empty">Nessuna registrazione ancora.</div>`;
+                            }
+                        }, 250);
+                    } else {
+                        toast(resp.data || 'Errore.', 'error');
+                        btn.disabled = false;
+                    }
+                });
+            });
+        }
+
         function loadRegistrazioni() {
             if (!EDIT_ID) return;
             regLoaded = true;
@@ -5130,89 +5311,24 @@ function wpb_forms_admin_page()
                     }
                     const { subs, fields: formFields, total } = data.data;
 
+                    regFormFields = (formFields || []).filter(f => f.type !== 'submit' && f.type !== 'page_break');
+                    regSubsData = subs || [];
+
                     if (countEl) countEl.textContent = total + ' registrazion' + (total === 1 ? 'e' : 'i');
 
-                    if (!subs || !subs.length) {
-                        content.innerHTML = `<div class="wpb-reg-empty">
-                                                                                                                                                                                                                                                                                                        <span class="dashicons dashicons-email-alt" style="font-size:36px;width:36px;height:36px;color:#c3c4c7;display:block;margin:0 auto 10px;"></span>
-                                                                                                                                                                                                                                                                                                        Nessuna registrazione ancora.
-                                                                                                                                                                                                                                                                                                    </div>`;
-                        return;
+                    // Usa colonne salvate dal server, altrimenti default prime 2
+                    const savedCols = data.data.saved_columns || [];
+                    if (!regVisibleColumns.length) {
+                        regVisibleColumns = savedCols.length
+                            ? savedCols.filter(c => regFormFields.some(f => f.name === c))
+                            : regFormFields.slice(0, 2).map(f => f.name || '');
                     }
 
-                    if (delAllEl) delAllEl.style.display = '';
-
-                    // Intestazioni: solo le prime 2 colonne + data
-                    const listFields = formFields.slice(0, 2);
-                    let thead = '<tr><th>#</th>';
-                    listFields.forEach(f => { thead += `<th>${esc(f.label || f.name)}</th>`; });
-                    thead += '<th>Data</th><th></th></tr>';
-
-                    // Righe: compatte, cliccabili per dettaglio
-                    let tbody = '';
-                    subs.forEach((sub, idx) => {
-                        const d = sub.data || {};
-                        tbody += `<tr data-sub-id="${sub.id}" data-idx="${idx}" class="wpb-btn-reg-detail"><td>${sub.id}</td>`;
-                        listFields.forEach(f => {
-                            const key = f.name || '';
-                            const cell = d[key];
-                            let val = cell ? cell.value : null;
-                            if (Array.isArray(val)) val = val.join(', ');
-                            const empty = val === null || val === undefined || val === '';
-                            const summary = !empty ? formatCheckSummary(val) : null;
-                            tbody += empty
-                                ? `<td class="wpb-reg-cell-empty">—</td>`
-                                : `<td title="${esc(String(val))}">${summary || esc(String(val))}</td>`;
-                        });
-                        tbody += `<td><span class="wpb-reg-date">${esc(sub.created_at)}</span></td>`;
-                        tbody += `<td style="white-space:nowrap;"><button class="button button-small wpb-btn-reg-del" style="color:#d63638;border-color:#d63638;" data-id="${sub.id}" onclick="event.stopPropagation()">Elimina</button></td>`;
-                        tbody += '</tr>';
-                    });
-
-                    content.innerHTML = `
-                                                                                                                                                                                                                                                                                                    <div class="wpb-reg-table-wrap">
-                                                                                                                                                                                                                                                                                                        <table class="wpb-reg-table">
-                                                                                                                                                                                                                                                                                                            <thead>${thead}</thead>
-                                                                                                                                                                                                                                                                                                            <tbody>${tbody}</tbody>
-                                                                                                                                                                                                                                                                                                        </table>
-                                                                                                                                                                                                                                                                                                    </div>`;
-
-                    // Bind dettaglio: riga intera cliccabile
-                    content.querySelectorAll('tr.wpb-btn-reg-detail').forEach(row => {
-                        row.addEventListener('click', () => {
-                            const idx = parseInt(row.dataset.idx);
-                            showDetail(subs[idx], formFields);
-                        });
-                    });
-
-                    // Bind elimina singola
-                    content.querySelectorAll('.wpb-btn-reg-del').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            if (!confirm('Eliminare questa registrazione?')) return;
-                            btn.disabled = true;
-                            const res = await fetch(AJAX, { method: 'POST', body: new URLSearchParams({ action: 'wpb_forms_delete_submission', nonce: NONCE, submission_id: btn.dataset.id }) });
-                            const resp = await res.json();
-                            if (resp.success) {
-                                const row = btn.closest('tr');
-                                row.style.transition = 'opacity .25s';
-                                row.style.opacity = '0';
-                                setTimeout(() => {
-                                    row.remove();
-                                    const remaining = content.querySelectorAll('.wpb-btn-reg-del').length;
-                                    if (countEl) countEl.textContent = remaining + ' registrazion' + (remaining === 1 ? 'e' : 'i');
-                                    if (!remaining) {
-                                        if (delAllEl) delAllEl.style.display = 'none';
-                                        content.innerHTML = `<div class="wpb-reg-empty">Nessuna registrazione ancora.</div>`;
-                                    }
-                                }, 250);
-                            } else {
-                                toast(resp.data || 'Errore.', 'error');
-                                btn.disabled = false;
-                            }
-                        });
-                    });
+                    renderRegColumnSelector();
+                    renderRegTable();
                 })
                 .catch(() => {
+                    const content = document.getElementById('wpb-reg-content');
                     content.innerHTML = `<div class="wpb-reg-empty">Errore di rete.</div>`;
                 });
         }
@@ -5513,6 +5629,16 @@ function wpb_forms_submissions_page()
         background: #f0f0f1;
         color: #646970
     }
+
+    /* Column selector */
+    .wpb-col-selector { position: relative; display: inline-block; }
+    .wpb-col-selector-btn { display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;cursor:pointer;color:#1d2327;font-weight:500; }
+    .wpb-col-selector-btn:hover { border-color:#2271b1;color:#2271b1; }
+    .wpb-col-selector-dropdown { display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;min-width:220px;max-height:300px;overflow-y:auto;background:#fff;border:1px solid #c3c4c7;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.1);padding:8px 0; }
+    .wpb-col-selector-dropdown.open { display:block; }
+    .wpb-col-selector-dropdown label { display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap; }
+    .wpb-col-selector-dropdown label:hover { background:#f0f6fc; }
+    .wpb-col-selector-dropdown input[type="checkbox"] { margin:0; }
 </style>
 
 <div class="wrap" id="wpb-subs-wrap">
@@ -5534,6 +5660,13 @@ function wpb_forms_submissions_page()
     </p>
     <div class="wpb-subs-toolbar">
         <span class="wpb-subs-reg-count" id="wpb-subs-count"></span>
+        <div class="wpb-col-selector">
+            <button type="button" class="wpb-col-selector-btn" id="wpb-col-selector-btn">
+                <span class="dashicons dashicons-columns" style="font-size:14px;width:14px;height:14px;"></span>
+                Colonne
+            </button>
+            <div class="wpb-col-selector-dropdown" id="wpb-col-selector-dropdown"></div>
+        </div>
     </div>
     <div id="wpb-subs-content"><span class="wpb-subs-spinner"></span> Caricamento…</div>
 
@@ -5544,6 +5677,23 @@ function wpb_forms_submissions_page()
             const FORM_ID = <?php echo intval($view_id); ?>;
 
             let subsData = [], formFields = [];
+            let visibleColumns = []; // nomi dei campi visibili in tabella
+            let _colSaveTimer = null;
+
+            function saveColumns() {
+                clearTimeout(_colSaveTimer);
+                _colSaveTimer = setTimeout(() => {
+                    fetch(AJAX, {
+                        method: 'POST',
+                        body: new URLSearchParams({
+                            action: 'wpb_forms_save_columns',
+                            nonce: NONCE,
+                            form_id: FORM_ID,
+                            columns: JSON.stringify(visibleColumns)
+                        })
+                    });
+                }, 500);
+            }
 
             function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
@@ -5579,17 +5729,57 @@ function wpb_forms_submissions_page()
                 }).then(r => r.json()).then(res => {
                     if (!res.success) { document.getElementById('wpb-subs-content').innerHTML = '<p>' + esc(res.data || 'Errore') + '</p>'; return; }
                     subsData = res.data.subs || [];
-                    formFields = (res.data.fields || []).filter(f => f.type !== 'submit');
+                    formFields = (res.data.fields || []).filter(f => f.type !== 'submit' && f.type !== 'page_break');
+                    // Usa colonne salvate dal server, altrimenti default prime 2
+                    const savedCols = res.data.saved_columns || [];
+                    if (!visibleColumns.length) {
+                        visibleColumns = savedCols.length
+                            ? savedCols.filter(c => formFields.some(f => f.name === c))
+                            : formFields.slice(0, 2).map(f => f.name || '');
+                    }
                     document.getElementById('wpb-subs-count').textContent = res.data.total + ' registrazion' + (res.data.total === 1 ? 'e' : 'i');
+                    renderColumnSelector();
                     renderList();
                 }).catch(() => { document.getElementById('wpb-subs-content').innerHTML = '<p>Errore di rete.</p>'; });
             }
+
+            function renderColumnSelector() {
+                const dropdown = document.getElementById('wpb-col-selector-dropdown');
+                if (!dropdown || !formFields.length) return;
+                dropdown.innerHTML = formFields.map(f => {
+                    const name = f.name || '';
+                    const checked = visibleColumns.includes(name) ? 'checked' : '';
+                    return '<label><input type="checkbox" value="' + esc(name) + '" ' + checked + '> ' + esc(f.label || f.name || '—') + '</label>';
+                }).join('');
+
+                dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        if (cb.checked) {
+                            if (!visibleColumns.includes(cb.value)) visibleColumns.push(cb.value);
+                        } else {
+                            visibleColumns = visibleColumns.filter(v => v !== cb.value);
+                        }
+                        renderList();
+                        saveColumns();
+                    });
+                });
+            }
+
+            // Toggle dropdown
+            document.getElementById('wpb-col-selector-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.getElementById('wpb-col-selector-dropdown').classList.toggle('open');
+            });
+            document.addEventListener('click', function(e) {
+                const dd = document.getElementById('wpb-col-selector-dropdown');
+                if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+            });
 
             function renderList() {
                 const content = document.getElementById('wpb-subs-content');
                 if (!subsData.length) { content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>'; return; }
 
-                const listFields = formFields.slice(0, 2);
+                const listFields = formFields.filter(f => visibleColumns.includes(f.name || ''));
                 let thead = '<tr><th>#</th>';
                 listFields.forEach(f => { thead += '<th>' + esc(f.label || f.name || '—') + '</th>'; });
                 thead += '<th>Data</th></tr>';
