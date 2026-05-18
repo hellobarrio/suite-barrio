@@ -11,44 +11,62 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_POPUPS_VERSION', '1.0.0');
-define('WPB_POPUPS_TABLE',   'wpb_popups');
+define('WPB_POPUPS_VERSION',      '1.1.0');
+define('WPB_POPUPS_TABLE',        'wpb_popups');
+define('WPB_POPUPS_TRANS_TABLE',  'wpb_popups_translations');
 
 /* ─────────────────────────────────────────
-   INSTALL: crea la tabella al primo avvio
+   INSTALL: crea le tabelle al primo avvio
    ───────────────────────────────────────── */
 function wpb_popups_install(): void
 {
     global $wpdb;
     $charset = $wpdb->get_charset_collate();
 
+    // Tabella principale popup
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_popups` (
-            id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            title      VARCHAR(255)    NOT NULL DEFAULT '',
-            content    LONGTEXT        NOT NULL DEFAULT '',
-            link       VARCHAR(2048)   NOT NULL DEFAULT '',
-            link_title VARCHAR(255)    NOT NULL DEFAULT '',
-            link_target VARCHAR(10)    NOT NULL DEFAULT '_self',
-            image_url  VARCHAR(2048)   NOT NULL DEFAULT '',
-            image_id   BIGINT UNSIGNED NOT NULL DEFAULT 0,
-            active     TINYINT(1)      NOT NULL DEFAULT 0,
-            created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            title       VARCHAR(255)    NOT NULL DEFAULT '',
+            content     LONGTEXT        NOT NULL DEFAULT '',
+            link        VARCHAR(2048)   NOT NULL DEFAULT '',
+            link_title  VARCHAR(255)    NOT NULL DEFAULT '',
+            link_target VARCHAR(10)     NOT NULL DEFAULT '_self',
+            image_url   VARCHAR(2048)   NOT NULL DEFAULT '',
+            image_id    BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            active      TINYINT(1)      NOT NULL DEFAULT 0,
+            created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
+        ) {$charset};"
+    );
+
+    // Tabella traduzioni popup (contenuti testuali per lingua aggiuntiva)
+    $wpdb->query(
+        "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_popups_translations` (
+            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            popup_id    BIGINT UNSIGNED NOT NULL,
+            lang        VARCHAR(10)     NOT NULL DEFAULT '',
+            title       VARCHAR(255)    NOT NULL DEFAULT '',
+            content     LONGTEXT        NOT NULL DEFAULT '',
+            link        VARCHAR(2048)   NOT NULL DEFAULT '',
+            link_title  VARCHAR(255)    NOT NULL DEFAULT '',
+            link_target VARCHAR(10)     NOT NULL DEFAULT '_self',
+            updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY popup_lang (popup_id, lang)
         ) {$charset};"
     );
 }
 
 register_activation_hook(WP_ALT_AI_PLUGIN_DIR . 'wp-barrio.php', 'wpb_popups_install');
-add_action('plugins_loaded', 'wpb_popups_install');
-add_action('admin_init', function () {
-    if (!get_option('wpb_popups_db_version')) {
-        wpb_popups_install();
-        update_option('wpb_popups_db_version', WPB_POPUPS_VERSION, false);
-    }
 
-    // Migrazione: aggiunge le colonne link_title e link_target se mancano
+add_action('plugins_loaded', function () {
+    wpb_popups_install();
+
+    $installed_version = get_option('wpb_popups_db_version', '0');
+
+    // Migrazione v1.0: aggiunge le colonne link_title e link_target se mancano
     global $wpdb;
     $table   = $wpdb->prefix . WPB_POPUPS_TABLE;
     $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$table}`", 0);
@@ -57,6 +75,12 @@ add_action('admin_init', function () {
     }
     if ($columns && !in_array('link_target', $columns, true)) {
         $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN `link_target` VARCHAR(10) NOT NULL DEFAULT '_self' AFTER `link_title`");
+    }
+
+    // Migrazione v1.1: crea la tabella traduzioni se non esiste ancora
+    if (version_compare($installed_version, '1.1.0', '<')) {
+        wpb_popups_install();
+        update_option('wpb_popups_db_version', WPB_POPUPS_VERSION, false);
     }
 });
 
@@ -85,6 +109,67 @@ function wpb_popups_get_active(): ?object
     return $wpdb->get_row(
         "SELECT * FROM {$wpdb->prefix}wpb_popups WHERE active = 1 LIMIT 1"
     ) ?: null;
+}
+
+/* ─────────────────────────────────────────
+   HELPER DB — TRADUZIONI
+   ───────────────────────────────────────── */
+
+/**
+ * Legge la traduzione di un popup per una lingua specifica.
+ * Restituisce null se non esiste.
+ */
+function wpb_popups_get_translation(int $popup_id, string $lang): ?object
+{
+    global $wpdb;
+    return $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}wpb_popups_translations
+         WHERE popup_id = %d AND lang = %s",
+        $popup_id, $lang
+    )) ?: null;
+}
+
+/**
+ * Upsert di una traduzione (inserisce o aggiorna).
+ */
+function wpb_popups_save_translation(int $popup_id, string $lang, array $data): bool
+{
+    global $wpdb;
+    $table = $wpdb->prefix . WPB_POPUPS_TRANS_TABLE;
+
+    $existing = wpb_popups_get_translation($popup_id, $lang);
+
+    $row    = [
+        'popup_id'    => $popup_id,
+        'lang'        => $lang,
+        'title'       => $data['title']       ?? '',
+        'content'     => $data['content']     ?? '',
+        'link'        => $data['link']        ?? '',
+        'link_title'  => $data['link_title']  ?? '',
+        'link_target' => $data['link_target'] ?? '_self',
+    ];
+    $format = ['%d', '%s', '%s', '%s', '%s', '%s', '%s'];
+
+    if ($existing) {
+        $ok = $wpdb->update($table, $row, ['id' => (int) $existing->id], $format, ['%d']);
+    } else {
+        $ok = $wpdb->insert($table, $row, $format);
+    }
+
+    return $ok !== false;
+}
+
+/**
+ * Elimina tutte le traduzioni di un popup (da chiamare prima di delete popup).
+ */
+function wpb_popups_delete_translations(int $popup_id): void
+{
+    global $wpdb;
+    $wpdb->delete(
+        $wpdb->prefix . WPB_POPUPS_TRANS_TABLE,
+        ['popup_id' => $popup_id],
+        ['%d']
+    );
 }
 
 /* ─────────────────────────────────────────
@@ -212,13 +297,130 @@ add_action('wp_ajax_wpb_popups_delete', function () {
     if (!$id)
         wp_send_json_error('ID non valido.');
 
+    // Elimina prima le traduzioni collegate
+    wpb_popups_delete_translations($id);
     $wpdb->delete($wpdb->prefix . WPB_POPUPS_TABLE, ['id' => $id], ['%d']);
+
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
     }
     wp_send_json_success('Popup eliminato.');
 });
 
+/* ─────────────────────────────────────────
+   AJAX: salva traduzione popup
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_popups_save_translation', function () {
+    check_ajax_referer('wpb_popups_nonce', 'nonce');
+    if (!current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    $popup_id = intval($_POST['popup_id'] ?? 0);
+    $lang     = sanitize_key($_POST['lang'] ?? '');
+
+    if (!$popup_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    // Verifica che il popup esista
+    if (!wpb_popups_get($popup_id))
+        wp_send_json_error('Popup non trovato.');
+
+    // Verifica che la lingua sia una lingua di traduzione configurata
+    $allowed_langs = wpb_multilang_translation_languages();
+    if (!in_array($lang, $allowed_langs, true))
+        wp_send_json_error('Lingua non consentita.');
+
+    $data = [
+        'title'       => sanitize_text_field(wp_unslash($_POST['title']       ?? '')),
+        'content'     => wp_kses_post(wp_unslash($_POST['content']     ?? '')),
+        'link'        => sanitize_url(wp_unslash($_POST['link']         ?? '')),
+        'link_title'  => sanitize_text_field(wp_unslash($_POST['link_title']  ?? '')),
+        'link_target' => in_array($_POST['link_target'] ?? '', ['_self', '_blank'], true)
+                         ? $_POST['link_target'] : '_self',
+    ];
+
+    if ($data['title'] === '')
+        wp_send_json_error('Il titolo è obbligatorio.');
+
+    $ok = wpb_popups_save_translation($popup_id, $lang, $data);
+
+    if (!$ok)
+        wp_send_json_error('Errore DB.');
+
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
+
+    wp_send_json_success(['message' => 'Traduzione salvata.']);
+});
+
+/* ─────────────────────────────────────────
+   AJAX: carica traduzione popup
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_popups_get_translation', function () {
+    check_ajax_referer('wpb_popups_nonce', 'nonce');
+    if (!current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    $popup_id = intval($_POST['popup_id'] ?? 0);
+    $lang     = sanitize_key($_POST['lang'] ?? '');
+
+    if (!$popup_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    $row = wpb_popups_get_translation($popup_id, $lang);
+
+    wp_send_json_success([
+        'exists'      => (bool) $row,
+        'title'       => $row->title       ?? '',
+        'content'     => $row->content     ?? '',
+        'link'        => $row->link        ?? '',
+        'link_title'  => $row->link_title  ?? '',
+        'link_target' => $row->link_target ?? '_self',
+    ]);
+});
+
+
+/* ─────────────────────────────────────────
+   AJAX: inizializza traduzione (crea record vuoto)
+   Chiamato quando l'utente clicca "+" nella lista.
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_popups_init_translation', function () {
+    check_ajax_referer('wpb_popups_nonce', 'nonce');
+    if (!current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    $popup_id = intval($_POST['popup_id'] ?? 0);
+    $lang     = sanitize_key($_POST['lang'] ?? '');
+
+    if (!$popup_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    if (!wpb_popups_get($popup_id))
+        wp_send_json_error('Popup non trovato.');
+
+    $allowed_langs = wpb_multilang_translation_languages();
+    if (!in_array($lang, $allowed_langs, true))
+        wp_send_json_error('Lingua non consentita.');
+
+    if (wpb_popups_get_translation($popup_id, $lang)) {
+        wp_send_json_success(['already_exists' => true]);
+    }
+
+    $source = wpb_popups_get($popup_id);
+    $ok = wpb_popups_save_translation($popup_id, $lang, [
+        'title'       => $source->title       ?? '',
+        'content'     => $source->content     ?? '',
+        'link'        => $source->link        ?? '',
+        'link_title'  => $source->link_title  ?? '',
+        'link_target' => $source->link_target ?? '_self',
+    ]);
+
+    if (!$ok)
+        wp_send_json_error('Errore DB.');
+
+    wp_send_json_success(['already_exists' => false]);
+});
 /* ─────────────────────────────────────────
    AJAX ADMIN: salva limite popup
    ───────────────────────────────────────── */
@@ -247,9 +449,18 @@ function wpb_popups_admin_page(): void
     $popup_limit = (int) get_option('wpb_popups_limit', 1);
     $list_tab    = isset($_GET['list_tab']) ? sanitize_key($_GET['list_tab']) : 'popups';
 
+    // Dati multilingua
+    $ml_enabled   = wpb_multilang_is_enabled();
+    $ml_primary   = wpb_multilang_primary_language();
+    $ml_trans     = wpb_multilang_translation_languages();
+    $ml_languages = wpb_multilang_languages(); // array code => label
+    $ml_active    = $ml_enabled && !empty($ml_trans); // mostra UI solo se attivo e con lingue di traduzione
+
     // Popup in modifica (dalla query string)
-    $edit_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
-    $editing = $edit_id ? wpb_popups_get($edit_id) : null;
+    $edit_id      = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
+    $editing      = $edit_id ? wpb_popups_get($edit_id) : null;
+    // Lingua preselezionata dalla query string (es. clic su pill traduzione nella lista)
+    $qs_lang      = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
     ?>
     <style>
         /* ── Toolbar ── */
@@ -426,6 +637,122 @@ function wpb_popups_admin_page(): void
             display: block;
             margin: 0 auto 12px;
         }
+
+        /* ── Select lingua nell'editor ── */
+        .wpb-lang-select-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f1;
+        }
+
+        .wpb-lang-select-wrap label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1d2327;
+            white-space: nowrap;
+            margin: 0;
+        }
+
+        #wpb-lang-select {
+            min-width: 180px;
+            padding: 4px 8px;
+            border: 1px solid #8c8f94;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        /* Avviso traduzione attiva */
+        .wpb-trans-notice {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #f0f6fc;
+            border: 1px solid #c6d9ef;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #0a4b78;
+            margin-bottom: 16px;
+        }
+
+        /* Campi disabilitati nella traduzione (immagine) */
+        .wpb-trans-field-disabled {
+            opacity: .45;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* ── Riga lingue nella lista popup ── */
+        .wpb-popup-langs {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px 10px;
+            border-top: 1px solid #f6f7f7;
+            background: #fafafa;
+        }
+
+        .wpb-popup-langs-label {
+            font-size: 11px;
+            color: #a7aaad;
+            margin-right: 4px;
+            flex-shrink: 0;
+        }
+
+        .wpb-lang-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 3px;
+            border: 1px solid;
+            cursor: default;
+            transition: background .15s, border-color .15s;
+        }
+
+        /* Lingua principale — sempre presente */
+        .wpb-lang-pill.primary {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        /* Traduzione inizializzata */
+        .wpb-lang-pill.translated {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        /* Traduzione non ancora inizializzata — cliccabile */
+        .wpb-lang-pill.missing {
+            background: #fff;
+            border-color: #c3c4c7;
+            color: #646970;
+            cursor: pointer;
+        }
+
+        .wpb-lang-pill.missing:hover {
+            background: #f0f6fc;
+            border-color: #72aee6;
+            color: #2271b1;
+        }
+
+        .wpb-lang-pill.missing .wpb-lang-add {
+            font-size: 14px;
+            line-height: 1;
+            font-weight: 400;
+        }
+
+        .wpb-lang-pill.loading {
+            opacity: .6;
+            cursor: wait;
+        }
     </style>
 
     <div id="wpb-popups-wrap" class="wrap">
@@ -469,7 +796,61 @@ function wpb_popups_admin_page(): void
             <div class="wpb-popups-editor">
                 <input type="hidden" id="wpb-popup-id" value="<?php echo $is_new ? 0 : intval($popup->id ?? 0); ?>">
 
-                <div style="display:grid;grid-template-columns:1fr 480px;gap:32px;align-items:start;">
+                <?php if ($ml_active && !$is_new):
+                    // Costruisce la lista delle lingue disponibili nell'editor:
+                    // lingua principale sempre presente + sole traduzioni già inizializzate
+                    $popup_id_int    = (int)($popup->id ?? 0);
+                    $editor_langs    = [ $ml_primary => ($ml_languages[$ml_primary] ?? $ml_primary) . ' (principale)' ];
+                    foreach ($ml_trans as $lc) {
+                        if (wpb_popups_get_translation($popup_id_int, $lc)) {
+                            $editor_langs[$lc] = $ml_languages[$lc] ?? strtoupper($lc);
+                        }
+                    }
+                    // Determina la lingua iniziale: da querystring se valida, altrimenti principale
+                    $initial_lang = (isset($editor_langs[$qs_lang])) ? $qs_lang : $ml_primary;
+                ?>
+                <!-- ── Select lingua ── -->
+                <div class="wpb-lang-select-wrap">
+                    <label for="wpb-lang-select">
+                        <span class="dashicons dashicons-translation" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:3px;color:#2271b1;"></span>
+                        Lingua:
+                    </label>
+                    <select id="wpb-lang-select">
+                        <?php foreach ($editor_langs as $lc => $label): ?>
+                            <option value="<?php echo esc_attr($lc); ?>"
+                                    data-is-primary="<?php echo $lc === $ml_primary ? '1' : '0'; ?>"
+                                    <?php selected($initial_lang, $lc); ?>>
+                                <?php echo esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Avviso lingua traduzione attiva (nascosto di default) -->
+                <div class="wpb-trans-notice" id="wpb-trans-notice"
+                     style="display:<?php echo $initial_lang !== $ml_primary ? 'flex' : 'none'; ?>;">
+                    <span class="dashicons dashicons-translation" style="font-size:16px;width:16px;height:16px;color:#2271b1;flex-shrink:0;"></span>
+                    <span>
+                        Stai modificando la versione in <strong id="wpb-trans-notice-lang"><?php echo esc_html($ml_languages[$initial_lang] ?? $initial_lang); ?></strong>.
+                        Immagine e stato attivo sono condivisi con la versione principale.
+                    </span>
+                </div>
+                <?php
+
+                // Se la lingua iniziale è una traduzione, precarica i dati in PHP
+                if ($initial_lang !== $ml_primary) {
+                    $trans_data = wpb_popups_get_translation($popup_id_int, $initial_lang);
+                    if ($trans_data) {
+                        $popup = $trans_data; // usa i campi della traduzione per pre-riempire i campi
+                        // conserva l'immagine dalla riga principale
+                        $popup->image_url = $editing->image_url ?? '';
+                        $popup->image_id  = $editing->image_id  ?? 0;
+                    }
+                }
+
+                endif; ?>
+
+                <div style="display:grid;grid-template-columns:1fr 480px;gap:32px;align-items:start;" id="wpb-editor-grid">
 
                 <!-- ── COLONNA SINISTRA: campi ── -->
                 <div>
@@ -531,7 +912,7 @@ function wpb_popups_admin_page(): void
                 </div>
 
                 <!-- Immagine -->
-                <div class="wpb-editor-field">
+                <div class="wpb-editor-field" id="wpb-image-field-wrap">
                     <label>Immagine <span style="font-weight:400;color:#a7aaad;">(opzionale)</span></label>
                     <input type="hidden" id="wpb-popup-image-id"
                         value="<?php echo intval($popup->image_id ?? 0); ?>">
@@ -765,15 +1146,16 @@ function wpb_popups_admin_page(): void
                 <div id="wpb-popups-list">
                     <?php foreach ($popups as $p):
                         $is_active = (int) $p->id === $active_id;
+                        $full      = wpb_popups_get($p->id);
                     ?>
-                        <div class="wpb-popup-row" data-id="<?php echo intval($p->id); ?>">
+                        <div class="wpb-popup-row" data-id="<?php echo intval($p->id); ?>" style="display:block;padding:0;overflow:hidden;">
+
+                            <!-- Riga principale -->
+                            <div style="display:grid;grid-template-columns:56px 1fr auto auto;align-items:center;gap:16px;padding:14px 18px;">
 
                             <!-- Thumb -->
                             <div class="wpb-popup-thumb">
-                                <?php
-                                $full = wpb_popups_get($p->id);
-                                if (!empty($full->image_url)):
-                                ?>
+                                <?php if (!empty($full->image_url)): ?>
                                     <img src="<?php echo esc_attr($full->image_url); ?>" alt="">
                                 <?php else: ?>
                                     <span class="dashicons dashicons-format-image"
@@ -825,7 +1207,49 @@ function wpb_popups_admin_page(): void
                                 </button>
                             </div>
 
-                        </div>
+                            </div><!-- fine riga principale -->
+
+                            <?php if ($ml_active): ?>
+                            <!-- Riga lingue -->
+                            <div class="wpb-popup-langs">
+                                <span class="wpb-popup-langs-label">Lingue:</span>
+
+                                <!-- Lingua principale — sempre presente con spunta -->
+                                <span class="wpb-lang-pill primary" title="Lingua principale">
+                                    <span class="dashicons dashicons-yes" style="font-size:12px;width:12px;height:12px;"></span>
+                                    <?php echo esc_html($ml_languages[$ml_primary] ?? strtoupper($ml_primary)); ?>
+                                </span>
+
+                                <!-- Lingue di traduzione -->
+                                <?php foreach ($ml_trans as $lang_code):
+                                    $lang_label  = $ml_languages[$lang_code] ?? strtoupper($lang_code);
+                                    $has_trans   = (bool) wpb_popups_get_translation((int) $p->id, $lang_code);
+                                ?>
+                                    <?php if ($has_trans): ?>
+                                        <!-- Traduzione inizializzata: spunta, click va all'editor in quella lingua -->
+                                        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-popups&edit_id=' . $p->id . '&lang=' . $lang_code)); ?>"
+                                           class="wpb-lang-pill translated"
+                                           title="Modifica traduzione in <?php echo esc_attr($lang_label); ?>">
+                                            <span class="dashicons dashicons-yes" style="font-size:12px;width:12px;height:12px;"></span>
+                                            <?php echo esc_html($lang_label); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <!-- Traduzione mancante: "+" per inizializzare -->
+                                        <button type="button"
+                                                class="wpb-lang-pill missing wpb-lang-init-btn"
+                                                data-popup-id="<?php echo intval($p->id); ?>"
+                                                data-lang="<?php echo esc_attr($lang_code); ?>"
+                                                data-lang-label="<?php echo esc_attr($lang_label); ?>"
+                                                title="Inizializza traduzione in <?php echo esc_attr($lang_label); ?>">
+                                            <span class="wpb-lang-add">+</span>
+                                            <?php echo esc_html($lang_label); ?>
+                                        </button>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
+
+                        </div><!-- .wpb-popup-row -->
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?> <!-- fine lista popup -->
@@ -861,6 +1285,221 @@ function wpb_popups_admin_page(): void
         var urlList    = <?php echo wp_json_encode(admin_url('admin.php?page=wp-barrio-popups')); ?>;
         var urlNew     = <?php echo wp_json_encode(admin_url('admin.php?page=wp-barrio-popups&edit_id=new')); ?>;
         var urlEditBase = <?php echo wp_json_encode(admin_url('admin.php?page=wp-barrio-popups&edit_id=')); ?>;
+
+        // Dati multilingua
+        var mlActive      = <?php echo wp_json_encode($ml_active); ?>;
+        var mlPrimary     = <?php echo wp_json_encode($ml_primary); ?>;
+        var mlLanguages   = <?php echo wp_json_encode($ml_languages); ?>;
+        var currentLang   = <?php echo wp_json_encode($initial_lang ?? $ml_primary); ?>;
+
+        /* ════════════════════════════════════════
+           MULTILINGUA — select lingua nell'editor
+           ════════════════════════════════════════ */
+        (function () {
+            if (!mlActive) return;
+
+            var langSelect = document.getElementById('wpb-lang-select');
+            var notice     = document.getElementById('wpb-trans-notice');
+            var noticeLang = document.getElementById('wpb-trans-notice-lang');
+            var imageWrap  = document.getElementById('wpb-image-field-wrap');
+            var saveBtn    = document.getElementById('wpb-popup-save-btn');
+
+            if (!langSelect) return;
+
+            /* ── Abilita/disabilita campo immagine ── */
+            function setImageFieldState(isPrimary) {
+                if (!imageWrap) return;
+                if (isPrimary) {
+                    imageWrap.classList.remove('wpb-trans-field-disabled');
+                    imageWrap.style.pointerEvents = '';
+                    imageWrap.style.opacity       = '';
+                } else {
+                    imageWrap.classList.add('wpb-trans-field-disabled');
+                    imageWrap.style.pointerEvents = 'none';
+                    imageWrap.style.opacity       = '0.45';
+                }
+            }
+
+            /* ── Cache valori della lingua principale ── */
+            function cachePrimaryValues() {
+                ['wpb-popup-title', 'wpb-popup-link', 'wpb-popup-link-title', 'wpb-popup-link-target'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.dataset.primary === undefined) el.dataset.primary = el.value;
+                });
+                var ta = document.getElementById('wpb-popup-content');
+                if (ta && ta.dataset.primary === undefined) {
+                    ta.dataset.primary = (typeof tinyMCE !== 'undefined' && tinyMCE.get('wpb-popup-content'))
+                        ? tinyMCE.get('wpb-popup-content').getContent()
+                        : ta.value;
+                }
+            }
+
+            /* ── Ricarica valori lingua principale ── */
+            function loadPrimaryFields() {
+                ['wpb-popup-title', 'wpb-popup-link', 'wpb-popup-link-title', 'wpb-popup-link-target'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) el.value = el.dataset.primary !== undefined ? el.dataset.primary : el.value;
+                });
+                var ta = document.getElementById('wpb-popup-content');
+                if (ta && ta.dataset.primary !== undefined) {
+                    if (typeof tinyMCE !== 'undefined' && tinyMCE.get('wpb-popup-content')) {
+                        tinyMCE.get('wpb-popup-content').setContent(ta.dataset.primary);
+                    } else {
+                        ta.value = ta.dataset.primary;
+                    }
+                }
+            }
+
+            /* ── Riempie i campi con i dati di una traduzione ── */
+            function fillTranslationFields(data) {
+                var title      = document.getElementById('wpb-popup-title');
+                var link       = document.getElementById('wpb-popup-link');
+                var linkTitle  = document.getElementById('wpb-popup-link-title');
+                var linkTarget = document.getElementById('wpb-popup-link-target');
+
+                if (title)      title.value      = data.title       || '';
+                if (link)       link.value       = data.link        || '';
+                if (linkTitle)  linkTitle.value  = data.link_title  || '';
+                if (linkTarget) linkTarget.value = data.link_target || '_self';
+
+                if (typeof tinyMCE !== 'undefined' && tinyMCE.get('wpb-popup-content')) {
+                    tinyMCE.get('wpb-popup-content').setContent(data.content || '');
+                } else {
+                    var ta = document.getElementById('wpb-popup-content');
+                    if (ta) ta.value = data.content || '';
+                }
+
+                // Aggiorna anteprima live
+                var ev = new Event('input', { bubbles: true });
+                if (title) title.dispatchEvent(ev);
+                updateLink();
+            }
+
+            /* ── Cambia lingua nella select ── */
+            function switchLang(lang, isPrimary) {
+                currentLang = lang;
+
+                if (saveBtn) saveBtn.textContent = isPrimary ? 'Salva popup' : 'Salva traduzione';
+
+                if (notice && noticeLang) {
+                    if (isPrimary) {
+                        notice.style.display = 'none';
+                    } else {
+                        noticeLang.textContent = mlLanguages[lang] || lang;
+                        notice.style.display   = 'flex';
+                    }
+                }
+
+                setImageFieldState(isPrimary);
+
+                if (isPrimary) {
+                    loadPrimaryFields();
+                    return;
+                }
+
+                // Carica traduzione via AJAX
+                var popupId = document.getElementById('wpb-popup-id').value;
+                if (!popupId || popupId === '0') return;
+
+                langSelect.disabled = true;
+                var fd = new URLSearchParams({
+                    action:   'wpb_popups_get_translation',
+                    nonce:    nonce,
+                    popup_id: popupId,
+                    lang:     lang,
+                });
+                fetch(ajaxUrl, { method: 'POST', body: fd })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) { if (res.success) fillTranslationFields(res.data); })
+                    .catch(function () {})
+                    .finally(function () { langSelect.disabled = false; });
+            }
+
+            // Bind cambio select
+            langSelect.addEventListener('change', function () {
+                var opt       = this.options[this.selectedIndex];
+                var isPrimary = opt.dataset.isPrimary === '1';
+                switchLang(this.value, isPrimary);
+            });
+
+            // Init: salva valori primari dopo che TinyMCE è pronto
+            // Se la lingua iniziale è già una traduzione, i campi sono già pre-riempiti dal PHP,
+            // ma la cache dei valori primari viene popolata dall'editing originale.
+            setTimeout(function () {
+                // Salva prima i valori primari dall'oggetto editing passato dal PHP
+                var primaryData = <?php echo wp_json_encode([
+                    'title'       => $editing->title       ?? '',
+                    'content'     => $editing->content     ?? '',
+                    'link'        => $editing->link        ?? '',
+                    'link_title'  => $editing->link_title  ?? '',
+                    'link_target' => $editing->link_target ?? '_self',
+                ]); ?>;
+
+                ['wpb-popup-title', 'wpb-popup-link', 'wpb-popup-link-title', 'wpb-popup-link-target'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) {
+                        var key = id.replace('wpb-popup-', '').replace(/-/g, '_');
+                        if (key === 'link_target') key = 'link_target';
+                        el.dataset.primary = primaryData[key] !== undefined ? primaryData[key] : el.value;
+                    }
+                });
+                var ta = document.getElementById('wpb-popup-content');
+                if (ta) ta.dataset.primary = primaryData.content || '';
+
+                // Applica stato iniziale se si è atterrati su una traduzione
+                var initialOpt = langSelect.options[langSelect.selectedIndex];
+                if (initialOpt && initialOpt.dataset.isPrimary === '0') {
+                    setImageFieldState(false);
+                    if (saveBtn) saveBtn.textContent = 'Salva traduzione';
+                }
+            }, 600);
+
+        })();
+
+        /* ════════════════════════════════════════
+           LISTA — inizializza traduzione dal "+"
+           ════════════════════════════════════════ */
+        document.querySelectorAll('.wpb-lang-init-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var popupId   = this.dataset.popupId;
+                var lang      = this.dataset.lang;
+                var langLabel = this.dataset.langLabel;
+                var pill      = this;
+
+                pill.classList.add('loading');
+                pill.disabled = true;
+
+                var fd = new URLSearchParams({
+                    action:   'wpb_popups_init_translation',
+                    nonce:    nonce,
+                    popup_id: popupId,
+                    lang:     lang,
+                });
+
+                fetch(ajaxUrl, { method: 'POST', body: fd })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        if (res.success) {
+                            // Sostituisce il pill "missing" con uno "translated" + link all'editor
+                            var link = document.createElement('a');
+                            link.href      = urlEditBase + popupId + '&lang=' + lang;
+                            link.className = 'wpb-lang-pill translated';
+                            link.title     = 'Modifica traduzione in ' + langLabel;
+                            link.innerHTML = '<span class="dashicons dashicons-yes" style="font-size:12px;width:12px;height:12px;"></span> ' + langLabel;
+                            pill.replaceWith(link);
+                        } else {
+                            alert(res.data || 'Errore.');
+                            pill.classList.remove('loading');
+                            pill.disabled = false;
+                        }
+                    })
+                    .catch(function () {
+                        alert('Errore di rete.');
+                        pill.classList.remove('loading');
+                        pill.disabled = false;
+                    });
+            });
+        });
 
         /* ════════════════════════════════════════
            IMPOSTAZIONI — salva limite popup
@@ -996,6 +1635,14 @@ function wpb_popups_admin_page(): void
             });
         });
 
+        // updateLink è usata anche dal codice multilingua, quindi vive nello scope esterno
+        var updateLink = function () {
+            var url   = (document.getElementById('wpb-popup-link')       || {}).value || '';
+            var label = (document.getElementById('wpb-popup-link-title') || {}).value || '';
+            document.querySelectorAll('.wpb-prev-link-wrap').forEach(function (el) { el.style.display = url ? 'block' : 'none'; });
+            document.querySelectorAll('.wpb-prev-link')     .forEach(function (el) { el.textContent = label || url; });
+        };
+
         /* ════════════════════════════════════════
            EDITOR — anteprima live
            Aggiorna tutte le card (.wpb-preview-card) tramite classi condivise
@@ -1027,12 +1674,6 @@ function wpb_popups_admin_page(): void
             }, 400);
 
             // Link
-            function updateLink() {
-                var url   = (document.getElementById('wpb-popup-link')       || {}).value || '';
-                var label = (document.getElementById('wpb-popup-link-title') || {}).value || '';
-                setAll('wpb-prev-link-wrap', function (el) { el.style.display = url ? 'block' : 'none'; });
-                setAll('wpb-prev-link',      function (el) { el.textContent = label || url; });
-            }
             ['wpb-popup-link', 'wpb-popup-link-title'].forEach(function (id) {
                 var el = document.getElementById(id);
                 if (el) el.addEventListener('input', updateLink);
@@ -1104,8 +1745,8 @@ function wpb_popups_admin_page(): void
         var saveBtn = document.getElementById('wpb-popup-save-btn');
         if (saveBtn) {
             saveBtn.addEventListener('click', function () {
-                var btn = this;
-                var msg = document.getElementById('wpb-popup-save-msg');
+                var btn   = this;
+                var msg   = document.getElementById('wpb-popup-save-msg');
                 var title = document.getElementById('wpb-popup-title').value.trim();
 
                 if (!title) {
@@ -1119,20 +1760,50 @@ function wpb_popups_admin_page(): void
                 btn.textContent = 'Salvataggio…';
                 msg.style.display = 'none';
 
-                var fd = new URLSearchParams({
-                    action:      'wpb_popups_save',
-                    nonce:       nonce,
-                    popup_id:    document.getElementById('wpb-popup-id').value,
-                    title:       title,
-                    content:     (typeof tinyMCE !== 'undefined' && tinyMCE.get('wpb-popup-content'))
-                                     ? tinyMCE.get('wpb-popup-content').getContent()
-                                     : (document.getElementById('wpb-popup-content') ? document.getElementById('wpb-popup-content').value : ''),
-                    link:        document.getElementById('wpb-popup-link').value.trim(),
-                    link_title:  document.getElementById('wpb-popup-link-title').value.trim(),
-                    link_target: document.getElementById('wpb-popup-link-target').value,
-                    image_url:   document.getElementById('wpb-popup-image-url').value,
-                    image_id:    document.getElementById('wpb-popup-image-id').value,
-                });
+                var content = (typeof tinyMCE !== 'undefined' && tinyMCE.get('wpb-popup-content'))
+                    ? tinyMCE.get('wpb-popup-content').getContent()
+                    : (document.getElementById('wpb-popup-content') ? document.getElementById('wpb-popup-content').value : '');
+
+                var popupId   = document.getElementById('wpb-popup-id').value;
+                var isPrimary = !mlActive || currentLang === mlPrimary;
+                var fd;
+
+                if (isPrimary) {
+                    // ── Salva popup principale ──
+                    fd = new URLSearchParams({
+                        action:      'wpb_popups_save',
+                        nonce:       nonce,
+                        popup_id:    popupId,
+                        title:       title,
+                        content:     content,
+                        link:        document.getElementById('wpb-popup-link').value.trim(),
+                        link_title:  document.getElementById('wpb-popup-link-title').value.trim(),
+                        link_target: document.getElementById('wpb-popup-link-target').value,
+                        image_url:   document.getElementById('wpb-popup-image-url').value,
+                        image_id:    document.getElementById('wpb-popup-image-id').value,
+                    });
+                } else {
+                    // ── Salva traduzione ──
+                    if (!popupId || popupId === '0') {
+                        msg.style.display = 'inline';
+                        msg.style.color   = '#d63638';
+                        msg.textContent   = '✗ Salva prima il popup in lingua principale.';
+                        btn.disabled    = false;
+                        btn.textContent = 'Salva traduzione';
+                        return;
+                    }
+                    fd = new URLSearchParams({
+                        action:      'wpb_popups_save_translation',
+                        nonce:       nonce,
+                        popup_id:    popupId,
+                        lang:        currentLang,
+                        title:       title,
+                        content:     content,
+                        link:        document.getElementById('wpb-popup-link').value.trim(),
+                        link_title:  document.getElementById('wpb-popup-link-title').value.trim(),
+                        link_target: document.getElementById('wpb-popup-link-target').value,
+                    });
+                }
 
                 fetch(ajaxUrl, { method: 'POST', body: fd })
                     .then(function (r) { return r.json(); })
@@ -1140,12 +1811,18 @@ function wpb_popups_admin_page(): void
                         if (res.success) {
                             msg.style.display = 'inline';
                             msg.style.color   = '#00a32a';
-                            msg.textContent   = '✓ Popup salvato.';
-                            // Se era nuovo, redirect all'editor con il nuovo ID
-                            if (document.getElementById('wpb-popup-id').value === '0') {
+                            msg.textContent   = isPrimary ? '✓ Popup salvato.' : '✓ Traduzione salvata.';
+
+                            // Se era nuovo popup principale, redirect con il nuovo ID
+                            if (isPrimary && popupId === '0') {
                                 setTimeout(function () {
                                     window.location.href = urlEditBase + res.data.id;
                                 }, 800);
+                            }
+
+                            // Aggiorna il pulsante salva dopo il primo salvataggio traduzione
+                            if (!isPrimary && mlActive) {
+                                // nulla da fare: la select è già corretta
                             }
                         } else {
                             msg.style.display = 'inline';
@@ -1160,7 +1837,7 @@ function wpb_popups_admin_page(): void
                     })
                     .finally(function () {
                         btn.disabled    = false;
-                        btn.textContent = 'Salva popup';
+                        btn.textContent = isPrimary ? 'Salva popup' : 'Salva traduzione';
                     });
             });
         }

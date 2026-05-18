@@ -410,40 +410,103 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
     $source = sanitize_key($_POST['source'] ?? '');
     $search = sanitize_text_field($_POST['search'] ?? '');
 
+    // Determina se WPML è attivo con lingue di traduzione
+    $wpml_active = defined('ICL_SITEPRESS_VERSION')
+                   && function_exists('wpb_multilang_is_enabled')
+                   && wpb_multilang_is_enabled();
+    $languages   = $wpml_active ? wpb_multilang_languages() : [null => null];
+    $primary     = $wpml_active && function_exists('wpb_multilang_primary_language')
+                   ? wpb_multilang_primary_language() : null;
+
+    $groups = []; // [ ['lang_code'=>, 'lang_label'=>, 'items'=>[...]] ]
+
     $pt_obj = get_post_type_object($source);
-    if ($pt_obj) {
-        // È un post type
-        $args = [
-            'post_type'      => $source,
-            'post_status'    => 'publish',
-            'posts_per_page' => 30,
-            'orderby'        => 'title',
-            'order'          => 'ASC',
+
+    foreach (array_keys($languages) as $lang_code) {
+
+        $lang_label = $wpml_active
+            ? ($languages[$lang_code] ?? strtoupper((string)$lang_code))
+            : null;
+
+        $items = [];
+
+        if ($pt_obj) {
+            // Post type
+            if ($wpml_active) {
+                global $wpdb;
+                $ids = $wpdb->get_col($wpdb->prepare(
+                    "SELECT element_id FROM {$wpdb->prefix}icl_translations
+                     WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
+                    'post_' . $source, $lang_code
+                ));
+                if (empty($ids)) { $groups[] = ['lang_code' => $lang_code, 'lang_label' => $lang_label, 'items' => []]; continue; }
+                $args = [
+                    'post_type'        => $source,
+                    'post_status'      => 'publish',
+                    'posts_per_page'   => 50,
+                    'orderby'          => 'title',
+                    'order'            => 'ASC',
+                    'post__in'         => $ids,
+                    'suppress_filters' => true,
+                ];
+                if ($search) $args['s'] = $search;
+                $posts = get_posts($args);
+            } else {
+                $args = [
+                    'post_type'      => $source,
+                    'post_status'    => 'publish',
+                    'posts_per_page' => 50,
+                    'orderby'        => 'title',
+                    'order'          => 'ASC',
+                ];
+                if ($search) $args['s'] = $search;
+                $posts = get_posts($args);
+            }
+            $items = array_map(fn($p) => [
+                'id'       => $p->ID,
+                'title'    => get_the_title($p),
+                'obj_type' => 'post',
+                'edit_url' => get_edit_post_link($p->ID, 'raw'),
+            ], $posts);
+
+        } else {
+            // Tassonomia
+            if ($wpml_active) {
+                global $wpdb;
+                $tt_ids = $wpdb->get_col($wpdb->prepare(
+                    "SELECT element_id FROM {$wpdb->prefix}icl_translations
+                     WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
+                    'tax_' . $source, $lang_code
+                ));
+                if (empty($tt_ids)) { $groups[] = ['lang_code' => $lang_code, 'lang_label' => $lang_label, 'items' => []]; continue; }
+                $term_args = ['taxonomy' => $source, 'hide_empty' => false, 'number' => 50,
+                              'orderby' => 'name', 'order' => 'ASC', 'term_taxonomy_id' => $tt_ids];
+                if ($search) $term_args['search'] = $search;
+                $terms = get_terms($term_args);
+            } else {
+                $term_args = ['taxonomy' => $source, 'hide_empty' => false, 'number' => 50,
+                              'orderby' => 'name', 'order' => 'ASC'];
+                if ($search) $term_args['search'] = $search;
+                $terms = get_terms($term_args);
+            }
+            if (is_wp_error($terms)) { $groups[] = ['lang_code' => $lang_code, 'lang_label' => $lang_label, 'items' => []]; continue; }
+            $items = array_map(fn($t) => [
+                'id'       => $t->term_id,
+                'title'    => $t->name,
+                'obj_type' => 'term',
+                'edit_url' => get_edit_term_link($t->term_id, $source, '', 'raw'),
+            ], $terms);
+        }
+
+        $groups[] = [
+            'lang_code'  => $lang_code,
+            'lang_label' => $lang_label,
+            'is_primary' => ($lang_code === $primary),
+            'items'      => $items,
         ];
-        if ($search) $args['s'] = $search;
-        $posts = get_posts($args);
-        $items = array_map(fn($p) => [
-            'id'       => $p->ID,
-            'title'    => get_the_title($p),
-            'obj_type' => 'post',
-            'edit_url' => get_edit_post_link($p->ID, 'raw'),
-        ], $posts);
-        wp_send_json_success($items);
-        return;
     }
 
-    // È una tassonomia
-    $args = ['taxonomy' => $source, 'hide_empty' => false, 'number' => 30, 'orderby' => 'name', 'order' => 'ASC'];
-    if ($search) $args['search'] = $search;
-    $terms = get_terms($args);
-    if (is_wp_error($terms)) { wp_send_json_error($terms->get_error_message()); return; }
-    $items = array_map(fn($t) => [
-        'id'       => $t->term_id,
-        'title'    => $t->name,
-        'obj_type' => 'term',
-        'edit_url' => get_edit_term_link($t->term_id, $source, '', 'raw'),
-    ], $terms);
-    wp_send_json_success($items);
+    wp_send_json_success(['groups' => $groups, 'wpml' => $wpml_active]);
 });
 
 /* ─────────────────────────────────────────
@@ -539,6 +602,37 @@ function wpb_advisor_admin_page()
             font-size: 10px; color: #a7aaad;
             background: #f0f0f1; padding: 1px 5px; border-radius: 2px;
             flex-shrink: 0; margin-left: 8px;
+        }
+
+        /* Separatore lingua nella lista contenuti */
+        .wpb-adv-lang-sep {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px 6px;
+            background: #f6f7f7;
+            border-bottom: 1px solid #f0f0f1;
+            font-size: 11px;
+            font-weight: 700;
+            color: #646970;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .wpb-adv-lang-sep .dashicons {
+            font-size: 13px; width: 13px; height: 13px; color: #2271b1;
+        }
+        .wpb-adv-lang-sep-primary-badge {
+            font-size: 9px;
+            background: #2271b1;
+            color: #fff;
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: 0;
         }
         .wpb-adv-empty {
             padding: 24px 16px; text-align: center;
@@ -1044,16 +1138,42 @@ function wpb_advisor_admin_page()
             fetch(ajaxUrl, { method:'POST', body:fd })
                 .then(function(r){ return r.json(); })
                 .then(function(res) {
-                    if (!res.success || !res.data.length) {
+                    if (!res.success) {
+                        itemsWrap.innerHTML = '<div class="wpb-adv-empty">Errore nel caricamento.</div>';
+                        return;
+                    }
+
+                    var data   = res.data;
+                    var groups = data.groups || [];
+                    var isWpml = data.wpml   || false;
+                    var html   = '';
+                    var hasAny = false;
+
+                    groups.forEach(function(group) {
+                        if (!group.items || !group.items.length) return;
+                        hasAny = true;
+
+                        // Separatore lingua (solo se WPML attivo)
+                        if (isWpml && group.lang_label) {
+                            html += '<div class="wpb-adv-lang-sep">' +
+                                '<span class="dashicons dashicons-translation"></span>' +
+                                esc(group.lang_label) +
+                                (group.is_primary ? ' <span class="wpb-adv-lang-sep-primary-badge">principale</span>' : '') +
+                                '</div>';
+                        }
+
+                        group.items.forEach(function(item) {
+                            html += '<div class="wpb-adv-item" data-id="'+item.id+'" data-type="'+item.obj_type+'" data-edit="'+esc(item.edit_url || '')+'">'+
+                                '<span class="wpb-adv-item-title">'+esc(item.title)+'</span>'+
+                                '</div>';
+                        });
+                    });
+
+                    if (!hasAny) {
                         itemsWrap.innerHTML = '<div class="wpb-adv-empty">Nessun contenuto trovato.</div>';
                         return;
                     }
-                    var html = '';
-                    res.data.forEach(function(item) {
-                        html += '<div class="wpb-adv-item" data-id="'+item.id+'" data-type="'+item.obj_type+'" data-edit="'+esc(item.edit_url || '')+'">'+
-                            '<span class="wpb-adv-item-title">'+esc(item.title)+'</span>'+
-                            '</div>';
-                    });
+
                     itemsWrap.innerHTML = html;
                     // Ripristina selezione corrente se presente
                     if (selectedObjId) {

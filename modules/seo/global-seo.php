@@ -1314,6 +1314,74 @@ add_action('save_post', function ($post_id) {
 });
 
 /* ─────────────────────────────────────────
+   WPML — copia meta di indicizzazione alla duplicazione
+   Quando WPML crea una traduzione, copia _wpb_seo_index,
+   _wpb_seo_follow e _wpb_seo_sitemap dall'originale.
+   Il post tradotto potrà poi modificarli indipendentemente.
+   ───────────────────────────────────────── */
+
+/**
+ * Copia i tre meta di indicizzazione dall'originale al tradotto.
+ * Scrive sempre '0' o '1' esplicitamente, in modo che il metabox
+ * non mostri "default" ma il valore reale dell'originale.
+ */
+function wpb_seo_copy_indexing_meta(int $original_id, int $new_id): void
+{
+    foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $key) {
+        $val = get_post_meta($original_id, $key, true);
+        // Se l'originale non ha valore esplicito (è su "default"), leggi il default
+        // del post type e scrivilo esplicitamente nella traduzione.
+        if ($val === '') {
+            $content  = get_option(WPB_META_CONTENT_OPTION, []);
+            $pt       = get_post_type($original_id);
+            $cfg      = $content['post_types'][$pt] ?? [];
+            if ($key === '_wpb_seo_sitemap') {
+                $sm_settings = get_option(defined('WPB_SITEMAP_OPTION') ? WPB_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
+                $val = isset($sm_settings['post_types'][$pt]) ? '1' : '0';
+            } else {
+                $field   = str_replace('_wpb_seo_', '', $key); // 'index' o 'follow'
+                $val     = isset($cfg[$field]) ? (string)(int)$cfg[$field] : '1';
+            }
+        }
+        update_post_meta($new_id, $key, $val);
+    }
+}
+
+// Hook principale: wpml_set_element_language_details è chiamato ogni volta
+// che WPML associa un post a una lingua — incluso alla creazione di una traduzione.
+add_action('wpml_set_element_language_details', function ($args) {
+    // $args: [ element_id, element_type, trid, language_code, source_language_code ]
+    if (empty($args['element_id']) || empty($args['source_language_code'])) return;
+
+    $new_id = (int) $args['element_id'];
+
+    // Trova il post originale (stessa trid, lingua sorgente)
+    if (empty($args['trid'])) return;
+
+    $original = apply_filters('wpml_object_id', $new_id, get_post_type($new_id) ?: 'post', false, $args['source_language_code']);
+    if (!$original || $original === $new_id) return;
+
+    // Copia solo se il post tradotto non ha ancora valori espliciti (appena creato)
+    $already_set = get_post_meta($new_id, '_wpb_seo_index', true);
+    if ($already_set !== '') return;
+
+    wpb_seo_copy_indexing_meta((int) $original, $new_id);
+});
+
+// Hook di copertura: wpml_after_save_post è fired dopo ogni salvataggio di traduzione
+add_action('wpml_after_save_post', function ($post_id, $post_array, $job) {
+    if (empty($job) || !is_object($job)) return;
+
+    $original_id = (int) ($job->original_doc_id ?? 0);
+    if (!$original_id || $original_id === $post_id) return;
+
+    // Copia solo se il tradotto non ha ancora valori propri
+    if (get_post_meta($post_id, '_wpb_seo_index', true) !== '') return;
+
+    wpb_seo_copy_indexing_meta($original_id, (int) $post_id);
+}, 10, 3);
+
+/* ─────────────────────────────────────────
    FORM SEO per le tassonomie
    ───────────────────────────────────────── */
 add_action('init', function () {
@@ -1888,6 +1956,54 @@ function wpb_meta_save_term_fields($term_id)
                 update_term_meta($term_id, '_wpb_seo_keywords', wp_json_encode($kws));
         }
     }
+}
+
+/* ─────────────────────────────────────────
+   WPML — copia meta di indicizzazione alla duplicazione dei termini
+   ───────────────────────────────────────── */
+
+function wpb_seo_copy_indexing_term_meta(int $original_term_id, int $new_term_id, string $taxonomy = ''): void
+{
+    $content     = get_option(WPB_META_CONTENT_OPTION, []);
+    $tax         = $taxonomy ?: get_term($original_term_id)->taxonomy ?? '';
+    $cfg         = $content['taxonomies'][$tax] ?? [];
+    $sm_settings = get_option(defined('WPB_SITEMAP_OPTION') ? WPB_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
+
+    foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $key) {
+        $val = get_term_meta($original_term_id, $key, true);
+        if ($val === '') {
+            if ($key === '_wpb_seo_sitemap') {
+                $val = isset($sm_settings['taxonomies'][$tax]) ? '1' : '0';
+            } else {
+                $field = str_replace('_wpb_seo_', '', $key);
+                $val   = isset($cfg[$field]) ? (string)(int)$cfg[$field] : '1';
+            }
+        }
+        update_term_meta($new_term_id, $key, $val);
+    }
+}
+
+// wpml_copy_term_metadata è il filtro corretto per la sincronizzazione dei termini
+foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $_wpb_dup_term_key) {
+    add_filter('wpml_copy_term_metadata', function ($value, $meta_key, $original_term_id) use ($_wpb_dup_term_key) {
+        if ($meta_key !== $_wpb_dup_term_key) return $value;
+        $original_val = get_term_meta((int) $original_term_id, $meta_key, true);
+        // Se l'originale non ha valore esplicito, risolvi il default della tassonomia
+        if ($original_val === '') {
+            $term        = get_term((int) $original_term_id);
+            $tax         = $term->taxonomy ?? '';
+            $content     = get_option(WPB_META_CONTENT_OPTION, []);
+            $cfg         = $content['taxonomies'][$tax] ?? [];
+            $sm_settings = get_option(defined('WPB_SITEMAP_OPTION') ? WPB_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
+            if ($meta_key === '_wpb_seo_sitemap') {
+                $original_val = isset($sm_settings['taxonomies'][$tax]) ? '1' : '0';
+            } else {
+                $field        = str_replace('_wpb_seo_', '', $meta_key);
+                $original_val = isset($cfg[$field]) ? (string)(int)$cfg[$field] : '1';
+            }
+        }
+        return $original_val;
+    }, 10, 3);
 }
 
 /* ─────────────────────────────────────────
