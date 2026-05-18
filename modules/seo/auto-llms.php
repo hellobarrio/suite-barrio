@@ -187,10 +187,12 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
         }
 
         // Intestazione di sezione per lingua (solo se multilingua attivo)
+        $lang_flag  = $wpml_active && function_exists('wpb_multilang_flag') ? wpb_multilang_flag((string)$lang_code) : '';
         $lang_label = $wpml_active ? ($languages[$lang_code] ?? strtoupper((string)$lang_code)) : null;
-        if ($lang_label) {
+        $lang_display = $lang_label ? trim($lang_flag . ' ' . $lang_label) : null;
+        if ($lang_display) {
             $is_primary = ($lang_code === $primary);
-            $md .= "\n---\n\n# Lingua: {$lang_label}" . ($is_primary ? ' (principale)' : '') . "\n";
+            $md .= "\n---\n\n# Lingua: {$lang_display}" . ($is_primary ? ' (principale)' : '') . "\n";
         }
 
         // ── Post type (inclusi CPT) ───────────────────────────────────────────
@@ -1490,11 +1492,11 @@ function wpb_llms_admin_page()
     </style>
 
     <div id="wpb-llms-wrap" class="wrap">
-        <h1>
+        <h1 class="wp-heading-inline">
             <span class="dashicons dashicons-text-page"
-                style="font-size:24px;width:24px;height:24px;vertical-align:middle;margin-right:6px;color:#e6600d;"></span>
+                style="font-size:26px;width:26px;height:26px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
             WP Barrio
-            <span style="font-size:15px;font-weight:400;color:#646970;margin-left:4px;">/ SEO / Auto LLMS</span>
+            <span style="font-size:15px;font-weight:400;color:#646970;margin-left:6px;">/ Auto LLMs</span>
         </h1>
         <hr class="wp-header-end" style="margin-bottom:20px;">
 

@@ -415,6 +415,7 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
                    && function_exists('wpb_multilang_is_enabled')
                    && wpb_multilang_is_enabled();
     $languages   = $wpml_active ? wpb_multilang_languages() : [null => null];
+    $lang_flags  = $wpml_active && function_exists('wpb_multilang_languages_with_flags') ? wpb_multilang_languages_with_flags() : [];
     $primary     = $wpml_active && function_exists('wpb_multilang_primary_language')
                    ? wpb_multilang_primary_language() : null;
 
@@ -425,7 +426,7 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
     foreach (array_keys($languages) as $lang_code) {
 
         $lang_label = $wpml_active
-            ? ($languages[$lang_code] ?? strtoupper((string)$lang_code))
+            ? ($lang_flags[$lang_code] ?? $languages[$lang_code] ?? strtoupper((string)$lang_code))
             : null;
 
         $items = [];

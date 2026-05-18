@@ -453,7 +453,7 @@ function wpb_popups_admin_page(): void
     $ml_enabled   = wpb_multilang_is_enabled();
     $ml_primary   = wpb_multilang_primary_language();
     $ml_trans     = wpb_multilang_translation_languages();
-    $ml_languages = wpb_multilang_languages(); // array code => label
+    $ml_languages = wpb_multilang_languages_with_flags(); // array code => label
     $ml_active    = $ml_enabled && !empty($ml_trans); // mostra UI solo se attivo e con lingue di traduzione
 
     // Popup in modifica (dalla query string)
