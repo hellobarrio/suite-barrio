@@ -398,7 +398,7 @@ function wpb_banners_admin_page(): void
     $ml_enabled   = wpb_multilang_is_enabled();
     $ml_primary   = wpb_multilang_primary_language();
     $ml_trans     = wpb_multilang_translation_languages();
-    $ml_languages = wpb_multilang_languages();
+    $ml_languages = wpb_multilang_languages_with_flags();
     $ml_active    = $ml_enabled && !empty($ml_trans);
     ?>
     <style>
@@ -725,10 +725,8 @@ function wpb_banners_admin_page(): void
                 <div class="wpb-trans-notice" id="wpb-trans-notice"
                      style="display:<?php echo $initial_lang !== $ml_primary ? 'flex' : 'none'; ?>;">
                     <span class="dashicons dashicons-translation" style="font-size:16px;width:16px;height:16px;color:#2271b1;flex-shrink:0;"></span>
-                    <span>
                     Stai modificando la versione in <strong id="wpb-trans-notice-lang"><?php echo esc_html($ml_languages[$initial_lang] ?? $initial_lang); ?></strong>.
                     Lo stato attivo è condiviso con la versione principale.
-                    </span>
                 </div>
 
                 <?php

@@ -295,7 +295,15 @@ function wpb_forms_shortcode($atts)
             <?php wp_nonce_field('wpb_form_submit_' . $form->id, 'wpb_nonce'); ?>
             <input type="hidden" name="action" value="wpb_forms_submit">
             <input type="hidden" name="form_id" value="<?php echo intval($form->id); ?>">
-            <input type="hidden" name="_lang" value="<?php echo esc_attr(apply_filters('wpml_current_language', '')); ?>">
+            <input type="hidden" name="_lang" value="<?php
+                $wpb_form_lang = '';
+                if (defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
+                    $wpb_form_lang = ICL_LANGUAGE_CODE;
+                } elseif (function_exists('apply_filters')) {
+                    $wpb_form_lang = apply_filters('wpml_current_language', '');
+                }
+                echo esc_attr($wpb_form_lang);
+            ?>">
             <?php if ($display_page_info): ?>
                 <input type="hidden" name="_page_url" id="<?php echo esc_attr($form_id_css); ?>-page-url">
                 <input type="hidden" name="_page_title" id="<?php echo esc_attr($form_id_css); ?>-page-title">
@@ -935,7 +943,16 @@ function wpb_forms_send_notifications(object $form, array $settings, array $subm
                 </tr>";
             }
             $content_html = "<table style=\"width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;\">{$rows}</table>";
-            $content_html .= "<p style=\"margin:16px 0 0;font-size:12px;color:#a7aaad;\">Inviato il " . current_time('d/m/Y \a\l\l\e H:i') . "</p>";
+            // Riga lingua (se presente)
+            if (!empty($submission_data['_lang']['value'])) {
+                $lang_val = esc_html($submission_data['_lang']['value']);
+                $content_html .= "<table style=\"width:100%;border-collapse:collapse;border:1px solid #dde;border-top:none;\">
+                    <tr>
+                        <td style=\"padding:7px 12px;font-size:12px;font-weight:600;color:#50575e;background:#f0f6fc;width:35%;\">&#127760; Lingua</td>
+                        <td style=\"padding:7px 12px;font-size:12px;color:#111;background:#f0f6fc;\">{$lang_val}</td>
+                    </tr></table>";
+            }
+            $content_html .= "<p style=\"margin:16px 0 0;font-size:12px;color:#a7aaad;\">Inviato il " . current_time('d/m/Y \\a\\l\\l\\e H:i') . "</p>";
 
             // ── Allegati: elenca i file caricati (non mostrati nella tabella) ─
             $file_entries = array_filter($submission_data, fn($d) => !empty($d['is_file']));
@@ -1297,12 +1314,29 @@ function wpb_forms_handle_submit()
         ];
     }
 
+    // Aggiunge la lingua di compilazione a submission_data
+    // — disponibile nell'email come {{_lang}} e inclusa nel riepilogo
+    $submission_lang = sanitize_key($_POST['_lang'] ?? '');
+    if (!$submission_lang && defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
+        $submission_lang = ICL_LANGUAGE_CODE;
+    }
+    if (!$submission_lang) {
+        $submission_lang = sanitize_key(apply_filters('wpml_current_language', ''));
+    }
+    if ($submission_lang) {
+        $lang_labels = function_exists('wpb_multilang_languages') ? wpb_multilang_languages() : [];
+        $submission_data['_lang'] = [
+            'label' => 'Lingua',
+            'value' => $lang_labels[$submission_lang] ?? strtoupper($submission_lang),
+        ];
+    }
+
     $wpdb->insert(
         $wpdb->prefix . WPB_FORMS_SUB_TABLE,
         [
             'form_id'    => $form_id,
             'data'       => wp_json_encode($submission_data),
-            'lang'       => sanitize_key($_POST['_lang'] ?? apply_filters('wpml_current_language', '')),
+            'lang'       => $submission_lang,
             'ip'         => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
             'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
         ],
@@ -1852,7 +1886,7 @@ add_action('wp_ajax_wpb_forms_delete_all_submissions', function () {
 });
 add_action('wp_ajax_wpb_forms_delete_submission', function () {
     check_ajax_referer('wpb_forms_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('manage_options') && !current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
     global $wpdb;
     $id = intval($_POST['submission_id'] ?? 0);
@@ -1860,6 +1894,31 @@ add_action('wp_ajax_wpb_forms_delete_submission', function () {
         wp_send_json_error('ID non valido.');
     $wpdb->delete($wpdb->prefix . WPB_FORMS_SUB_TABLE, ['id' => $id], ['%d']);
     wp_send_json_success('Risposta eliminata.');
+});
+
+/* ─────────────────────────────────────────
+   AJAX ADMIN: elimina più submissions (bulk delete)
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_forms_delete_submissions', function () {
+    check_ajax_referer('wpb_forms_nonce', 'nonce');
+    if (!current_user_can('manage_options') && !current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    global $wpdb;
+    $form_id = intval($_POST['form_id'] ?? 0);
+    $raw     = wp_unslash($_POST['ids'] ?? '[]');
+    $ids     = array_filter(array_map('intval', json_decode($raw, true) ?: []), fn($id) => $id > 0);
+
+    if (empty($ids)) wp_send_json_error('Nessun ID valido.');
+
+    $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+    $wpdb->query($wpdb->prepare(
+        "DELETE FROM `{$wpdb->prefix}wpb_form_submissions`
+         WHERE id IN ($placeholders)" . ($form_id ? ' AND form_id = %d' : ''),
+        ...($form_id ? [...$ids, $form_id] : $ids)
+    ));
+
+    wp_send_json_success(['deleted' => count($ids)]);
 });
 
 /* ─────────────────────────────────────────
@@ -1961,7 +2020,7 @@ function wpb_forms_admin_page()
     $ml_enabled   = wpb_multilang_is_enabled();
     $ml_primary   = wpb_multilang_primary_language();
     $ml_trans     = wpb_multilang_translation_languages();
-    $ml_languages = wpb_multilang_languages();
+    $ml_languages = wpb_multilang_languages_with_flags();
     $ml_active    = $ml_enabled && !empty($ml_trans);
 
     ?>
@@ -5656,417 +5715,460 @@ function wpb_forms_submissions_page()
         wp_die('Non hai i permessi per accedere a questa pagina.');
     }
 
-    $nonce = wp_create_nonce('wpb_forms_nonce');
-    $forms = wpb_forms_get_all();
+    $nonce   = wp_create_nonce('wpb_forms_nonce');
+    $forms   = wpb_forms_get_all();
     $view_id = isset($_GET['view_id']) ? intval($_GET['view_id']) : 0;
     $view_form = $view_id ? wpb_forms_get($view_id) : null;
+
+    $ml_active    = function_exists('wpb_multilang_is_enabled') && wpb_multilang_is_enabled();
+    $ml_languages = $ml_active && function_exists('wpb_multilang_languages_with_flags') ? wpb_multilang_languages_with_flags() : [];
     ?>
 <style>
-    #wpb-subs-wrap {
-        max-width: 1200px
-    }
-
-    .wpb-subs-table-wrap {
-        background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 3px;
-        overflow: hidden
-    }
-
-    .wpb-subs-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px
-    }
-
-    .wpb-subs-table th {
-        background: #f0f0f1;
-        padding: 9px 14px;
-        text-align: left;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: .4px;
-        color: #50575e;
-        border-bottom: 1px solid #c3c4c7
-    }
-
-    .wpb-subs-table td {
-        padding: 10px 14px;
-        border-bottom: 1px solid #f0f0f1;
-        vertical-align: middle
-    }
-
-    .wpb-subs-table tr:last-child td {
-        border-bottom: none
-    }
-
-    .wpb-subs-table tr:hover td {
-        background: #fafafa
-    }
-
-    .wpb-sub-count {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 10px;
-        font-size: 12px;
-        font-weight: 600;
-        background: #f0f0f1;
-        color: #646970
-    }
-
-    .wpb-sub-count.has-subs {
-        background: #e7f5e8;
-        color: #00a32a
-    }
-
-    /* Registrazioni inline */
-    .wpb-subs-reg-table-wrap {
-        overflow-x: auto;
-        margin-top: 10px
-    }
-
-    .wpb-subs-reg-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-        background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 3px
-    }
-
-    .wpb-subs-reg-table th {
-        background: #f0f0f1;
-        padding: 8px 12px;
-        text-align: left;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: .3px;
-        color: #50575e;
-        border-bottom: 1px solid #c3c4c7;
-        white-space: nowrap
-    }
-
-    .wpb-subs-reg-table td {
-        padding: 8px 12px;
-        border-bottom: 1px solid #f0f0f1;
-        max-width: 220px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap
-    }
-
-    .wpb-subs-reg-table tr:hover td {
-        background: #f6f7f7
-    }
-
-    .wpb-subs-reg-table tbody tr {
-        cursor: pointer
-    }
-
-    .wpb-subs-reg-cell-empty {
-        color: #a7aaad;
-        font-style: italic
-    }
-
-    .wpb-subs-reg-date {
-        font-size: 12px;
-        color: #646970
-    }
-
+    #wpb-subs-wrap { max-width:1200px }
+    .wpb-subs-toolbar { display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap }
+    .wpb-subs-reg-count { font-size:13px;color:#646970 }
+    .wpb-subs-spinner { display:inline-block;width:18px;height:18px;border:2px solid #c3c4c7;border-top-color:#2271b1;border-radius:50%;animation:wpb-spin .6s linear infinite }
+    @keyframes wpb-spin { to { transform:rotate(360deg) } }
+    .wpb-subs-reg-table-wrap { overflow-x:auto }
+    .wpb-subs-reg-table { width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #c3c4c7;border-radius:3px }
+    .wpb-subs-reg-table th { background:#f0f0f1;padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:#50575e;border-bottom:1px solid #c3c4c7;white-space:nowrap }
+    .wpb-subs-reg-table td { padding:8px 12px;border-bottom:1px solid #f0f0f1;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+    .wpb-subs-reg-table tr:last-child td { border-bottom:none }
+    .wpb-subs-reg-table tr:hover td { background:#f6f7f7 }
+    .wpb-subs-reg-table tbody tr { cursor:pointer }
+    .wpb-subs-reg-cell-empty { color:#a7aaad;font-style:italic }
+    .wpb-subs-reg-date { font-size:12px;color:#646970 }
+    .wpb-check-on { color:#00a32a;font-weight:600 }
+    .wpb-check-off { color:#a7aaad }
+    .wpb-check-summary { display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#f0f0f1;color:#646970 }
+    /* Colonne picker */
+    .wpb-col-picker { position:relative }
+    .wpb-col-picker-panel { display:none;position:absolute;top:100%;left:0;z-index:99;background:#fff;border:1px solid #c3c4c7;border-radius:3px;box-shadow:0 3px 10px rgba(0,0,0,.1);padding:10px 14px;min-width:200px }
+    .wpb-col-picker-panel.open { display:block }
+    .wpb-col-picker-panel label { display:flex;align-items:center;gap:7px;padding:4px 0;font-size:13px;cursor:pointer;white-space:nowrap }
+    /* Bulk */
+    .wpb-subs-reg-table th:first-child,
+    .wpb-subs-reg-table td:first-child { width:32px;padding-right:4px }
+    .wpb-bulk-bar { display:none;align-items:center;gap:10px;padding:8px 12px;background:#f0f6fc;border:1px solid #c6d9ef;border-radius:3px;margin-bottom:10px;font-size:13px }
+    .wpb-bulk-bar.visible { display:flex }
     /* Dettaglio */
-    .wpb-subs-detail-wrap {
-        background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 4px;
-        overflow: hidden
-    }
-
-    .wpb-subs-detail-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 20px;
-        border-bottom: 1px solid #f0f0f1;
-        background: #fafafa
-    }
-
-    .wpb-subs-detail-header h3 {
-        margin: 0;
-        font-size: 15px
-    }
-
-    .wpb-subs-detail-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
-        padding: 14px 20px;
-        font-size: 12px;
-        color: #646970;
-        border-bottom: 1px solid #f0f0f1;
-        background: #f9f9f9
-    }
-
-    .wpb-subs-detail-fields {
-        padding: 0
-    }
-
-    .wpb-subs-detail-row {
-        display: flex;
-        border-bottom: 1px solid #f0f0f1;
-        font-size: 13px
-    }
-
-    .wpb-subs-detail-row:last-child {
-        border-bottom: none
-    }
-
-    .wpb-subs-detail-label {
-        width: 200px;
-        min-width: 160px;
-        padding: 12px 20px;
-        background: #fafafa;
-        font-weight: 600;
-        color: #50575e;
-        border-right: 1px solid #f0f0f1
-    }
-
-    .wpb-subs-detail-value {
-        flex: 1;
-        padding: 12px 20px;
-        word-break: break-word
-    }
-
-    .wpb-subs-detail-empty {
-        color: #a7aaad;
-        font-style: italic
-    }
-
-    /* Toolbar */
-    .wpb-subs-toolbar {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 14px
-    }
-
-    .wpb-subs-reg-count {
-        font-size: 13px;
-        color: #646970
-    }
-
-    .wpb-subs-spinner {
-        display: inline-block;
-        width: 18px;
-        height: 18px;
-        border: 2px solid #c3c4c7;
-        border-top-color: #2271b1;
-        border-radius: 50%;
-        animation: wpb-subs-spin .6s linear infinite
-    }
-
-    @keyframes wpb-subs-spin {
-        to {
-            transform: rotate(360deg)
-        }
-    }
-
-    .wpb-check-on {
-        padding: 1px 0;
-        color: #00a32a;
-        font-weight: 600
-    }
-
-    .wpb-check-off {
-        padding: 1px 0;
-        color: #a7aaad
-    }
-
-    .wpb-check-summary {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 11px;
-        font-weight: 600;
-        background: #f0f0f1;
-        color: #646970
-    }
+    .wpb-subs-detail-wrap { background:#fff;border:1px solid #c3c4c7;border-radius:4px;overflow:hidden }
+    .wpb-subs-detail-header { display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f0f0f1;background:#fafafa }
+    .wpb-subs-detail-header h3 { margin:0;font-size:15px }
+    .wpb-subs-detail-meta { display:flex;flex-wrap:wrap;gap:16px;padding:14px 20px;font-size:12px;color:#646970;border-bottom:1px solid #f0f0f1;background:#f9f9f9 }
+    .wpb-subs-detail-fields { padding:0 }
+    .wpb-subs-detail-row { display:flex;border-bottom:1px solid #f0f0f1;font-size:13px }
+    .wpb-subs-detail-row:last-child { border-bottom:none }
+    .wpb-subs-detail-label { width:200px;min-width:160px;padding:12px 20px;background:#fafafa;font-weight:600;color:#50575e;border-right:1px solid #f0f0f1 }
+    .wpb-subs-detail-value { flex:1;padding:12px 20px;word-break:break-word }
+    .wpb-subs-detail-empty { color:#a7aaad;font-style:italic }
+    .wpb-sub-count { display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;background:#f0f0f1;color:#646970 }
+    .wpb-sub-count.has-subs { background:#e7f5e8;color:#00a32a }
+    .wpb-subs-table { width:100%;border-collapse:collapse;font-size:13px }
+    .wpb-subs-table th { background:#f0f0f1;padding:9px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;border-bottom:1px solid #c3c4c7 }
+    .wpb-subs-table td { padding:10px 14px;border-bottom:1px solid #f0f0f1;vertical-align:middle }
+    .wpb-subs-table tr:last-child td { border-bottom:none }
+    .wpb-subs-table tr:hover td { background:#fafafa }
+    .wpb-subs-table-wrap { background:#fff;border:1px solid #c3c4c7;border-radius:3px;overflow:hidden }
 </style>
 
 <div class="wrap" id="wpb-subs-wrap">
     <h1 class="wp-heading-inline">
-        <span class="dashicons dashicons-list-view"
-            style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
+        <span class="dashicons dashicons-list-view" style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
         Registrazioni Form
     </h1>
     <hr class="wp-header-end" style="margin-bottom:20px;">
 
     <?php if ($view_form): ?>
     <!-- ═══ REGISTRAZIONI DI UN FORM ═══ -->
-    <p style="margin-bottom:14px;">
-        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-submissions')); ?>" class="button">← Tutti i
-            form</a>
-        <span style="margin-left:10px;font-weight:600;font-size:14px;">
-            <?php echo esc_html($view_form->title); ?>
-        </span>
-    </p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms')); ?>" class="button">← Tutti i form</a>
+        <strong style="font-size:14px;"><?php echo esc_html($view_form->title); ?></strong>
+    </div>
+
+    <!-- Toolbar: count + filtro lingua + colonne + bulk bar -->
     <div class="wpb-subs-toolbar">
         <span class="wpb-subs-reg-count" id="wpb-subs-count"></span>
+
+        <?php if ($ml_active && !empty($ml_languages)): ?>
+        <select id="wpb-lang-filter" style="font-size:13px;">
+            <option value="">— Tutte le lingue —</option>
+            <?php foreach ($ml_languages as $lc => $ll): ?>
+            <option value="<?php echo esc_attr($lc); ?>"><?php echo esc_html($ll); ?></option>
+            <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
+
+        <div class="wpb-col-picker">
+            <button type="button" class="button" id="wpb-col-picker-btn">
+                <span class="dashicons dashicons-visibility" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;"></span>
+                Colonne
+            </button>
+            <div class="wpb-col-picker-panel" id="wpb-col-picker-panel">
+                <p style="font-size:11px;font-weight:700;text-transform:uppercase;color:#646970;margin:0 0 6px;">Colonne visibili</p>
+                <div id="wpb-col-options"><!-- popolato via JS --></div>
+            </div>
+        </div>
+
+        <button type="button" class="button button-small" id="wpb-select-all-btn" style="display:none;">
+            Seleziona tutto
+        </button>
     </div>
+
+    <div class="wpb-bulk-bar" id="wpb-bulk-bar">
+        <span id="wpb-bulk-count"></span>
+        <button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="wpb-bulk-delete-btn">
+            <span class="dashicons dashicons-trash" style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span>
+            Elimina selezionati
+        </button>
+        <button type="button" class="button" id="wpb-bulk-cancel-btn">Annulla</button>
+    </div>
+
     <div id="wpb-subs-content"><span class="wpb-subs-spinner"></span> Caricamento…</div>
 
     <script>
-        (function () {
-            const AJAX = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
-            const NONCE = '<?php echo esc_js($nonce); ?>';
-            const FORM_ID = <?php echo intval($view_id); ?>;
-            const ML_LANGUAGES = <?php echo wp_json_encode(function_exists('wpb_multilang_languages') ? wpb_multilang_languages() : []); ?>;
+    (function () {
+        const AJAX        = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
+        const NONCE       = '<?php echo esc_js($nonce); ?>';
+        const FORM_ID     = <?php echo intval($view_id); ?>;
+        const ML_LANGUAGES= <?php echo wp_json_encode($ml_languages); ?>;
+        const ML_ACTIVE   = <?php echo wp_json_encode($ml_active); ?>;
 
-            let subsData = [], formFields = [];
+        let subsData = [], formFields = [], filteredData = [];
+        let visibleCols = [];   // nomi campi visibili (oltre a #, lingua, data)
+        let selectedIds = new Set();
 
-            function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-            function formatCheckValEd(val) {
-                if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
-                return val.split('|').map(p => p.trim()).filter(Boolean).map(part => {
-                    const m = part.match(/^(.+?):\s*(true|false)$/);
-                    if (!m) return '';
-                    const label = m[1].trim();
-                    const checked = m[2] === 'true';
-                    const icon = checked ? '\u2714' : '\u2718';
-                    const cls = checked ? 'wpb-check-on' : 'wpb-check-off';
-                    return '<div class="' + cls + '">' + icon + ' ' + esc(label) + '</div>';
-                }).join('');
-            }
+        function formatCheckSummary(val) {
+            if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
+            const parts = val.split('|').map(p => p.trim()).filter(Boolean);
+            let total = 0, on = 0;
+            parts.forEach(p => { const m = p.match(/^(.+?):\s*(true|false)$/); if (m) { total++; if (m[2]==='true') on++; } });
+            return '<span class="wpb-check-summary">' + on + '/' + total + '</span>';
+        }
+        function formatCheckVal(val) {
+            if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
+            return val.split('|').map(p=>p.trim()).filter(Boolean).map(part => {
+                const m = part.match(/^(.+?):\s*(true|false)$/);
+                if (!m) return '';
+                const cls = m[2]==='true' ? 'wpb-check-on' : 'wpb-check-off';
+                const icon = m[2]==='true' ? '✔' : '✘';
+                return '<div class="' + cls + '">' + icon + ' ' + esc(m[1].trim()) + '</div>';
+            }).join('');
+        }
 
-            function formatCheckSummaryEd(val) {
-                if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
-                const parts = val.split('|').map(p => p.trim()).filter(Boolean);
-                let total = 0, on = 0;
-                parts.forEach(part => {
-                    const m = part.match(/^(.+?):\s*(true|false)$/);
-                    if (m) { total++; if (m[2] === 'true') on++; }
-                });
-                return '<span class="wpb-check-summary">' + on + '/' + total + '</span>';
-            }
+        // ── Carica submissions ──────────────────────────────────────────
+        function loadSubmissions() {
+            fetch(AJAX, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'wpb_forms_get_submissions', nonce: NONCE, form_id: FORM_ID })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) { document.getElementById('wpb-subs-content').innerHTML = '<p>' + esc(res.data || 'Errore') + '</p>'; return; }
+                subsData   = res.data.subs || [];
+                formFields = (res.data.fields || []).filter(f => f.type !== 'submit' && f.type !== 'page_break');
+                // Colonne default: primi 2 campi
+                visibleCols = formFields.slice(0, 2).map(f => f.name);
+                buildColPicker();
+                applyFilter();
+            })
+            .catch(() => { document.getElementById('wpb-subs-content').innerHTML = '<p>Errore di rete.</p>'; });
+        }
 
-            function loadSubmissions() {
-                fetch(AJAX, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ action: 'wpb_forms_get_submissions', nonce: NONCE, form_id: FORM_ID })
-                }).then(r => r.json()).then(res => {
-                    if (!res.success) { document.getElementById('wpb-subs-content').innerHTML = '<p>' + esc(res.data || 'Errore') + '</p>'; return; }
-                    subsData = res.data.subs || [];
-                    formFields = (res.data.fields || []).filter(f => f.type !== 'submit');
-                    document.getElementById('wpb-subs-count').textContent = res.data.total + ' registrazion' + (res.data.total === 1 ? 'e' : 'i');
+        // ── Col picker ──────────────────────────────────────────────────
+        function buildColPicker() {
+            const wrap = document.getElementById('wpb-col-options');
+            if (!wrap) return;
+            wrap.innerHTML = '';
+            formFields.forEach(f => {
+                const lbl = document.createElement('label');
+                const cb  = document.createElement('input');
+                cb.type   = 'checkbox';
+                cb.value  = f.name;
+                cb.checked = visibleCols.includes(f.name);
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        if (!visibleCols.includes(this.value)) visibleCols.push(this.value);
+                    } else {
+                        visibleCols = visibleCols.filter(v => v !== this.value);
+                    }
                     renderList();
-                }).catch(() => { document.getElementById('wpb-subs-content').innerHTML = '<p>Errore di rete.</p>'; });
+                });
+                lbl.appendChild(cb);
+                lbl.appendChild(document.createTextNode(' ' + (f.label || f.name)));
+                wrap.appendChild(lbl);
+            });
+        }
+
+        document.getElementById('wpb-col-picker-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('wpb-col-picker-panel').classList.toggle('open');
+        });
+        document.addEventListener('click', function() {
+            document.getElementById('wpb-col-picker-panel').classList.remove('open');
+        });
+        document.getElementById('wpb-col-picker-panel').addEventListener('click', function(e) { e.stopPropagation(); });
+
+        // ── Filtro lingua ───────────────────────────────────────────────
+        const langFilter = document.getElementById('wpb-lang-filter');
+        if (langFilter) {
+            langFilter.addEventListener('change', applyFilter);
+        }
+
+        function applyFilter() {
+            const lang = langFilter ? langFilter.value : '';
+            filteredData = lang ? subsData.filter(s => s.lang === lang) : subsData.slice();
+            selectedIds.clear();
+            updateBulkBar();
+            renderList();
+        }
+
+        // ── Render lista ────────────────────────────────────────────────
+        function renderList() {
+            const content = document.getElementById('wpb-subs-content');
+            const countEl = document.getElementById('wpb-subs-count');
+            if (countEl) countEl.textContent = filteredData.length + ' registrazion' + (filteredData.length === 1 ? 'e' : 'i');
+
+            const selectAllBtn = document.getElementById('wpb-select-all-btn');
+            if (selectAllBtn) selectAllBtn.style.display = filteredData.length ? '' : 'none';
+
+            if (!filteredData.length) {
+                content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>';
+                return;
             }
 
-            function renderList() {
-                const content = document.getElementById('wpb-subs-content');
-                if (!subsData.length) { content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>'; return; }
+            // Header
+            let thead = '<tr><th><input type="checkbox" id="wpb-check-all"></th><th>#</th>';
+            visibleCols.forEach(name => {
+                const f = formFields.find(f => f.name === name);
+                thead += '<th>' + esc(f ? (f.label || f.name) : name) + '</th>';
+            });
+            if (ML_ACTIVE) thead += '<th>Lingua</th>';
+            thead += '<th>Data</th><th></th></tr>';
 
-                const listFields = formFields.slice(0, 2);
-                let thead = '<tr><th>#</th>';
-                listFields.forEach(f => { thead += '<th>' + esc(f.label || f.name || '—') + '</th>'; });
-                thead += '<th>Lingua</th><th>Data</th></tr>';
+            // Rows
+            let tbody = '';
+            filteredData.forEach((sub) => {
+                const checked = selectedIds.has(sub.id);
+                tbody += '<tr data-id="' + sub.id + '">';
+                tbody += '<td onclick="event.stopPropagation()"><input type="checkbox" class="wpb-sub-check" value="' + sub.id + '"' + (checked ? ' checked' : '') + '></td>';
+                tbody += '<td>' + sub.id + '</td>';
 
-                let tbody = '';
-                subsData.forEach((sub, idx) => {
-                    const d = sub.data || {};
-                    tbody += '<tr data-idx="' + idx + '"><td>' + sub.id + '</td>';
-                    listFields.forEach(f => {
-                        const key = f.name || '';
-                        const cell = d[key];
-                        let val = cell ? cell.value : null;
-                        if (Array.isArray(val)) val = val.join(', ');
-                        const empty = val === null || val === undefined || val === '';
-                        const summary = !empty ? formatCheckSummaryEd(val) : null;
-                        tbody += empty ? '<td class="wpb-subs-reg-cell-empty">—</td>' : '<td title="' + esc(String(val)) + '">' + (summary || esc(String(val))) + '</td>';
-                    });
-                    // Colonna lingua
-                    const langCode = sub.lang || '';
-                    const langLabel = langCode ? (ML_LANGUAGES[langCode] || langCode.toUpperCase()) : '—';
-                    tbody += '<td><span style="font-size:11px;background:#f0f0f1;padding:1px 6px;border-radius:2px;font-weight:600;">' + esc(langLabel) + '</span></td>';
-                    tbody += '<td><span class="wpb-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
-                    tbody += '</tr>';
-                });
-
-                content.innerHTML = '<div class="wpb-subs-reg-table-wrap"><table class="wpb-subs-reg-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
-
-                content.querySelectorAll('.wpb-subs-reg-table tbody tr').forEach(row => {
-                    row.addEventListener('click', () => { showDetail(parseInt(row.dataset.idx, 10)); });
-                });
-            }
-
-            function showDetail(idx) {
-                const sub = subsData[idx]; if (!sub) return;
-
-                let fieldsHtml = '';
-                formFields.filter(f => f.type !== 'file').forEach(f => {
-                    const key = f.name || '';
-                    const cell = (sub.data || {})[key];
+                const d = sub.data || {};
+                visibleCols.forEach(name => {
+                    const cell = d[name];
                     let val = cell ? cell.value : null;
                     if (Array.isArray(val)) val = val.join(', ');
                     const empty = val === null || val === undefined || val === '';
-                    const checkHtml = !empty ? formatCheckValEd(val) : null;
-                    const valHtml = checkHtml || (empty ? '—' : esc(String(val)));
-
-                    fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">' + esc(f.label || f.name || '—') + '</div><div class="wpb-subs-detail-value' + (empty ? ' wpb-subs-detail-empty' : '') + '">' + valHtml + '</div></div>';
+                    const summary = !empty ? formatCheckSummary(String(val)) : null;
+                    tbody += empty
+                        ? '<td class="wpb-subs-reg-cell-empty">—</td>'
+                        : '<td title="' + esc(String(val)) + '">' + (summary || esc(String(val))) + '</td>';
                 });
 
-                // Sezione allegati (file caricati con prefisso _file_)
-                const fileEntriesEd = Object.entries(sub.data || {}).filter(([k, v]) => k.startsWith('_file_') && v && v.is_file);
-                if (fileEntriesEd.length) {
-                    fieldsHtml += '<div class="wpb-subs-detail-sep" style="padding:10px 20px;background:#f0f0f1;font-size:11px;font-weight:700;letter-spacing:.5px;color:#50575e;text-transform:uppercase;border-bottom:1px solid #e0e0e0;">📎 Allegati</div>';
-                    fileEntriesEd.forEach(([k, d]) => {
-                        const fname = esc(d.value || '');
-                        const furl = d.url ? esc(d.url) : '';
-                        const flabel = esc(d.label || fname);
-                        const fileLink = furl
-                            ? '<a href="' + furl + '" target="_blank" rel="noopener" style="font-weight:500;">' + fname + '</a>'
-                            : '<span style="color:#a7aaad;">' + fname + ' <em>(URL non disponibile)</em></span>';
-                        fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">' + flabel + '</div><div class="wpb-subs-detail-value">' + fileLink + '</div></div>';
-                    });
+                if (ML_ACTIVE) {
+                    const lc = sub.lang || '';
+                    const ll = lc ? (ML_LANGUAGES[lc] || lc.toUpperCase()) : '—';
+                    tbody += '<td><span style="font-size:11px;background:#f0f0f1;padding:1px 6px;border-radius:2px;font-weight:600;">' + esc(ll) + '</span></td>';
                 }
 
-                const metaHtml = [
-                    '<span>&#128197; Data: <strong>' + esc(sub.created_at_full || sub.created_at) + '</strong></span>',
-                    sub.lang ? '<span>&#127760; Lingua: <strong>' + esc(ML_LANGUAGES[sub.lang] || sub.lang.toUpperCase()) + '</strong></span>' : '',
-                ].filter(Boolean).join('');
+                tbody += '<td><span class="wpb-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
+                tbody += '<td onclick="event.stopPropagation()" style="width:32px;padding:4px 8px;">'
+                       + '<button type="button" class="button button-small wpb-del-single" data-id="' + sub.id + '" title="Elimina" style="color:#d63638;border-color:#d63638;padding:2px 6px;">'
+                       + '<span class="dashicons dashicons-trash" style="font-size:12px;width:12px;height:12px;"></span>'
+                       + '</button></td>';
+                tbody += '</tr>';
+            });
 
-                const content = document.getElementById('wpb-subs-content');
-                content.innerHTML = '<button class="button" id="wpb-subs-back">\u2190 Torna alla lista</button>'
-                    + '<div class="wpb-subs-detail-wrap" style="margin-top:14px;">'
-                    + '<div class="wpb-subs-detail-header"><h3>Registrazione #' + sub.id + '</h3></div>'
-                    + '<div class="wpb-subs-detail-meta">' + metaHtml + '</div>'
-                    + '<div class="wpb-subs-detail-fields">' + fieldsHtml + '</div>'
-                    + '</div>';
+            content.innerHTML = '<div class="wpb-subs-reg-table-wrap"><table class="wpb-subs-reg-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
 
-                document.getElementById('wpb-subs-back').addEventListener('click', () => { renderList(); });
+            // Check-all
+            const checkAll = document.getElementById('wpb-check-all');
+            if (checkAll) {
+                checkAll.addEventListener('change', function() {
+                    document.querySelectorAll('.wpb-sub-check').forEach(cb => {
+                        cb.checked = this.checked;
+                        const id = parseInt(cb.value);
+                        if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
+                    });
+                    updateBulkBar();
+                });
+                checkAll.checked = filteredData.length > 0 && filteredData.every(s => selectedIds.has(s.id));
             }
 
-            loadSubmissions();
-        })();
+            // Singole checkbox
+            document.querySelectorAll('.wpb-sub-check').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const id = parseInt(this.value);
+                    if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
+                    updateBulkBar();
+                    const allCb = document.getElementById('wpb-check-all');
+                    if (allCb) allCb.checked = filteredData.every(s => selectedIds.has(s.id));
+                });
+            });
+
+            // Click riga → dettaglio
+            content.querySelectorAll('.wpb-subs-reg-table tbody tr').forEach(row => {
+                row.addEventListener('click', () => {
+                    const id = parseInt(row.dataset.id);
+                    const idx = filteredData.findIndex(s => s.id === id);
+                    if (idx !== -1) showDetail(idx);
+                });
+            });
+
+            // Delete singolo
+            content.querySelectorAll('.wpb-del-single').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = parseInt(this.dataset.id);
+                    if (!confirm('Eliminare questa registrazione?')) return;
+                    deleteSubmissions([id], () => {
+                        subsData = subsData.filter(s => s.id !== id);
+                        applyFilter();
+                    });
+                });
+            });
+        }
+
+        // ── Bulk delete ─────────────────────────────────────────────────
+        function updateBulkBar() {
+            const bar = document.getElementById('wpb-bulk-bar');
+            const cnt = document.getElementById('wpb-bulk-count');
+            if (!bar) return;
+            if (selectedIds.size > 0) {
+                bar.classList.add('visible');
+                cnt.textContent = selectedIds.size + ' selezionat' + (selectedIds.size === 1 ? 'a' : 'e');
+            } else {
+                bar.classList.remove('visible');
+            }
+        }
+
+        document.getElementById('wpb-bulk-delete-btn').addEventListener('click', function() {
+            if (!selectedIds.size) return;
+            if (!confirm('Eliminare ' + selectedIds.size + ' registrazioni?')) return;
+            deleteSubmissions(Array.from(selectedIds), () => {
+                const ids = Array.from(selectedIds);
+                subsData = subsData.filter(s => !ids.includes(s.id));
+                selectedIds.clear();
+                updateBulkBar();
+                applyFilter();
+            });
+        });
+
+        document.getElementById('wpb-bulk-cancel-btn').addEventListener('click', function() {
+            selectedIds.clear();
+            updateBulkBar();
+            document.querySelectorAll('.wpb-sub-check').forEach(cb => cb.checked = false);
+            const allCb = document.getElementById('wpb-check-all');
+            if (allCb) allCb.checked = false;
+        });
+
+        // Seleziona tutto (anche filtrati)
+        const selAllBtn = document.getElementById('wpb-select-all-btn');
+        if (selAllBtn) {
+            selAllBtn.addEventListener('click', function() {
+                filteredData.forEach(s => selectedIds.add(s.id));
+                document.querySelectorAll('.wpb-sub-check').forEach(cb => cb.checked = true);
+                const allCb = document.getElementById('wpb-check-all');
+                if (allCb) allCb.checked = true;
+                updateBulkBar();
+            });
+        }
+
+        function deleteSubmissions(ids, onSuccess) {
+            fetch(AJAX, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action:  'wpb_forms_delete_submissions',
+                    nonce:   NONCE,
+                    form_id: FORM_ID,
+                    ids:     JSON.stringify(ids),
+                })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) onSuccess();
+                else alert(res.data || 'Errore durante l\'eliminazione.');
+            })
+            .catch(() => alert('Errore di rete.'));
+        }
+
+        // ── Dettaglio registrazione ─────────────────────────────────────
+        function showDetail(idx) {
+            const sub = filteredData[idx]; if (!sub) return;
+            const content = document.getElementById('wpb-subs-content');
+
+            let fieldsHtml = '';
+            formFields.filter(f => f.type !== 'file').forEach(f => {
+                const key = f.name || '';
+                const cell = (sub.data || {})[key];
+                let val = cell ? cell.value : null;
+                if (Array.isArray(val)) val = val.join(', ');
+                const empty = val === null || val === undefined || val === '';
+                const checkHtml = !empty ? formatCheckVal(String(val)) : null;
+                const valHtml = checkHtml || (empty ? '—' : esc(String(val)));
+                fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">' + esc(f.label || f.name || '—') + '</div><div class="wpb-subs-detail-value' + (empty ? ' wpb-subs-detail-empty' : '') + '">' + valHtml + '</div></div>';
+            });
+
+            // Allegati
+            const fileEntries = Object.entries(sub.data || {}).filter(([k, v]) => k.startsWith('_file_') && v && v.is_file);
+            if (fileEntries.length) {
+                fieldsHtml += '<div style="padding:10px 20px;background:#f0f0f1;font-size:11px;font-weight:700;letter-spacing:.5px;color:#50575e;text-transform:uppercase;border-bottom:1px solid #e0e0e0;">📎 Allegati</div>';
+                fileEntries.forEach(([k, d]) => {
+                    const fname = esc(d.value || '');
+                    const furl  = d.url ? '<a href="' + esc(d.url) + '" target="_blank" style="font-size:12px;margin-left:8px;">Scarica</a>' : '';
+                    fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">📎</div><div class="wpb-subs-detail-value">' + fname + furl + '</div></div>';
+                });
+            }
+
+            const langCode  = sub.lang || '';
+            const langLabel = langCode ? (ML_LANGUAGES[langCode] || langCode.toUpperCase()) : null;
+
+            const metaItems = [
+                '📅 Data: <strong>' + esc(sub.created_at_full || sub.created_at) + '</strong>',
+            ];
+            if (langLabel) metaItems.push('🌐 Lingua: <strong>' + esc(langLabel) + '</strong>');
+            if (sub.ip)    metaItems.push('🌍 IP: <strong>' + esc(sub.ip) + '</strong>');
+
+            content.innerHTML =
+                '<div class="wpb-subs-detail-wrap">' +
+                '<div class="wpb-subs-detail-header">' +
+                '<h3>Registrazione #' + sub.id + '</h3>' +
+                '<div style="display:flex;gap:8px;">' +
+                '<button type="button" class="button" id="wpb-detail-back">← Lista</button>' +
+                '<button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="wpb-detail-del">🗑 Elimina</button>' +
+                '</div></div>' +
+                '<div class="wpb-subs-detail-meta">' + metaItems.map(m => '<span>' + m + '</span>').join('') + '</div>' +
+                '<div class="wpb-subs-detail-fields">' + fieldsHtml + '</div>' +
+                '</div>';
+
+            document.getElementById('wpb-detail-back').addEventListener('click', renderList);
+            document.getElementById('wpb-detail-del').addEventListener('click', function() {
+                if (!confirm('Eliminare la registrazione #' + sub.id + '?')) return;
+                deleteSubmissions([sub.id], () => {
+                    subsData = subsData.filter(s => s.id !== sub.id);
+                    applyFilter();
+                });
+            });
+        }
+
+        loadSubmissions();
+    })();
     </script>
 
     <?php else: ?>
-    <!-- ═══ LISTA FORM ═══ -->
+    <!-- ═══ ELENCO FORM ═══ -->
     <div class="wpb-subs-table-wrap">
         <?php if (empty($forms)): ?>
-        <div style="padding:40px 20px;text-align:center;">
-            <span class="dashicons dashicons-list-view"
-                style="font-size:40px;width:40px;height:40px;color:#c3c4c7;"></span>
-            <p style="font-size:14px;margin:10px 0 0;color:#646970;">Nessun form disponibile.</p>
-        </div>
+        <p style="padding:24px;color:#646970;text-align:center;">Nessun form trovato.</p>
         <?php else: ?>
         <table class="wpb-subs-table">
             <thead>
                 <tr>
-                    <th style="width:40px">#</th>
+                    <th>#</th>
                     <th>Nome form</th>
                     <th>Registrazioni</th>
                     <th>Creato</th>
