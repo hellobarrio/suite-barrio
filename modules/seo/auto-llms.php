@@ -166,150 +166,220 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
     $lang      = get_bloginfo('language');
     $limit     = $include_full ? 500 : 10;
 
-    $md  = '';
+    // Determina le lingue da includere
+    $wpml_active = defined('ICL_SITEPRESS_VERSION')
+                   && function_exists('wpb_multilang_is_enabled')
+                   && wpb_multilang_is_enabled();
+    $languages   = $wpml_active ? wpb_multilang_languages() : [null => null];
+    $primary     = $wpml_active && function_exists('wpb_multilang_primary_language')
+                   ? wpb_multilang_primary_language()
+                   : null;
 
-    // ── Post type (inclusi CPT) ───────────────────────────────────────────
-    $all_pt = get_post_types(['public' => true], 'objects');
+    $md = '';
 
-    foreach ($all_pt as $pt) {
-        $slug  = $pt->name;
-        if ($slug === 'attachment') continue;
-        $label = $pt->labels->name ?? $slug;
-        $mode  = $pt_modes[$slug] ?? 'include';
-        if ($mode === 'exclude') continue;
+    foreach (array_keys($languages) as $lang_code) {
 
-        $posts = get_posts([
-            'post_type'      => $slug,
-            'post_status'    => 'publish',
-            'posts_per_page' => $limit,
-            'orderby'        => ($slug === 'page') ? 'menu_order' : 'date',
-            'order'          => ($slug === 'page') ? 'ASC' : 'DESC',
-        ]);
+        // Forza la lingua corrente per tutte le query WPML
+        if ($wpml_active) {
+            do_action('wpml_switch_language', $lang_code);
+            // Filtro aggiuntivo: assicura che WP_Query riceva il lang corretto
+            add_filter('wpml_current_language', function() use ($lang_code) { return $lang_code; }, 999);
+        }
 
-        if (empty($posts)) continue;
+        // Intestazione di sezione per lingua (solo se multilingua attivo)
+        $lang_label = $wpml_active ? ($languages[$lang_code] ?? strtoupper((string)$lang_code)) : null;
+        if ($lang_label) {
+            $is_primary = ($lang_code === $primary);
+            $md .= "\n---\n\n# Lingua: {$lang_label}" . ($is_primary ? ' (principale)' : '') . "\n";
+        }
 
-        $md .= "\n## {$label}\n\n";
+        // ── Post type (inclusi CPT) ───────────────────────────────────────────
+        $all_pt = get_post_types(['public' => true], 'objects');
 
-        foreach ($posts as $post) {
-            $permalink = get_permalink($post->ID);
+        foreach ($all_pt as $pt) {
+            $slug  = $pt->name;
+            if ($slug === 'attachment') continue;
+            $label = $pt->labels->name ?? $slug;
+            $mode  = $pt_modes[$slug] ?? 'include';
+            if ($mode === 'exclude') continue;
 
-            if ($mode === 'include_links') {
-                // Solo link
-                $md .= "- [{$post->post_title}]({$permalink})\n";
-                continue;
-            }
+            // Ottiene i post tradotti in questa lingua tramite WPML
+            if ($wpml_active) {
+                global $sitepress;
+                // Recupera gli ID dei post in questa lingua via tabella icl_translations
+                global $wpdb;
+                $post_ids_in_lang = $wpdb->get_col($wpdb->prepare(
+                    "SELECT element_id FROM {$wpdb->prefix}icl_translations
+                     WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
+                    'post_' . $slug,
+                    $lang_code
+                ));
 
-            // include: sezione con contenuto
-            if ($include_full) {
-                $md .= "### [{$post->post_title}]({$permalink})\n\n";
+                if (empty($post_ids_in_lang)) continue;
+
+                $posts = get_posts([
+                    'post_type'        => $slug,
+                    'post_status'      => 'publish',
+                    'posts_per_page'   => $limit,
+                    'post__in'         => $post_ids_in_lang,
+                    'orderby'          => ($slug === 'page') ? 'menu_order' : 'date',
+                    'order'            => ($slug === 'page') ? 'ASC' : 'DESC',
+                    'suppress_filters' => true,
+                ]);
             } else {
-                $md .= "### [{$post->post_title}]({$permalink})\n\n";
+                $posts = get_posts([
+                    'post_type'        => $slug,
+                    'post_status'      => 'publish',
+                    'posts_per_page'   => $limit,
+                    'orderby'          => ($slug === 'page') ? 'menu_order' : 'date',
+                    'order'            => ($slug === 'page') ? 'ASC' : 'DESC',
+                    'suppress_filters' => false,
+                ]);
             }
 
-            // Excerpt o inizio contenuto
-            if ($include_full) {
-                $text = wp_strip_all_tags(apply_filters('the_content', $post->post_content));
-                $text = preg_replace('/\s+/', ' ', trim($text));
-                if (!empty($text)) {
-                    $max_chars = ($slug === 'page') ? 3000 : 4000;
-                    $md .= mb_substr($text, 0, $max_chars) . "\n\n";
+            if (empty($posts)) continue;
+
+            $md .= "\n## {$label}\n\n";
+
+            foreach ($posts as $post) {
+                $permalink = get_permalink($post->ID);
+
+                if ($mode === 'include_links') {
+                    $md .= "- [{$post->post_title}]({$permalink})\n";
+                    continue;
                 }
-            } else {
-                // Per llms.txt: excerpt oppure prime 300 chars
-                $excerpt = get_the_excerpt($post->ID);
-                if (empty($excerpt)) {
+
+                $md .= "### [{$post->post_title}]({$permalink})\n\n";
+
+                if ($include_full) {
                     $text = wp_strip_all_tags(apply_filters('the_content', $post->post_content));
-                    $excerpt = mb_substr(preg_replace('/\s+/', ' ', trim($text)), 0, 300);
-                }
-                if (!empty($excerpt)) {
-                    $md .= $excerpt . "\n\n";
-                }
-            }
-
-            // Metadati: data per i post
-            if ($slug === 'post') {
-                $md .= "**Data:** " . get_the_date('Y-m-d', $post->ID) . "  \n";
-            }
-
-            // Tassonomie associate al post
-            $post_taxes = get_object_taxonomies($slug, 'objects');
-            foreach ($post_taxes as $tax_slug => $tax_obj) {
-                $tax_mode = $tax_modes[$tax_slug] ?? 'include';
-                if ($tax_mode === 'exclude') continue;
-                $terms = get_the_terms($post->ID, $tax_slug);
-                if (!empty($terms) && !is_wp_error($terms)) {
-                    $tax_label  = $tax_obj->labels->name ?? $tax_slug;
-                    if ($tax_mode === 'include_links') {
-                        $links = [];
-                        foreach ($terms as $term) {
-                            $turl = get_term_link($term);
-                            $links[] = is_wp_error($turl) ? $term->name : "[{$term->name}]({$turl})";
-                        }
-                        $md .= "**{$tax_label}:** " . implode(', ', $links) . "  \n";
-                    } else {
-                        $md .= "**{$tax_label}:** " . implode(', ', wp_list_pluck($terms, 'name')) . "  \n";
+                    $text = preg_replace('/\s+/', ' ', trim($text));
+                    if (!empty($text)) {
+                        $max_chars = ($slug === 'page') ? 3000 : 4000;
+                        $md .= mb_substr($text, 0, $max_chars) . "\n\n";
                     }
+                } else {
+                    $excerpt = get_the_excerpt($post->ID);
+                    if (empty($excerpt)) {
+                        $text = wp_strip_all_tags(apply_filters('the_content', $post->post_content));
+                        $excerpt = mb_substr(preg_replace('/\s+/', ' ', trim($text)), 0, 300);
+                    }
+                    if (!empty($excerpt)) {
+                        $md .= $excerpt . "\n\n";
+                    }
+                }
+
+                if ($slug === 'post') {
+                    $md .= "**Data:** " . get_the_date('Y-m-d', $post->ID) . "  \n";
+                }
+
+                $post_taxes = get_object_taxonomies($slug, 'objects');
+                foreach ($post_taxes as $tax_slug => $tax_obj) {
+                    $tax_mode = $tax_modes[$tax_slug] ?? 'include';
+                    if ($tax_mode === 'exclude') continue;
+                    $terms = get_the_terms($post->ID, $tax_slug);
+                    if (!empty($terms) && !is_wp_error($terms)) {
+                        $tax_label = $tax_obj->labels->name ?? $tax_slug;
+                        if ($tax_mode === 'include_links') {
+                            $links = [];
+                            foreach ($terms as $term) {
+                                $turl    = get_term_link($term);
+                                $links[] = is_wp_error($turl) ? $term->name : "[{$term->name}]({$turl})";
+                            }
+                            $md .= "**{$tax_label}:** " . implode(', ', $links) . "  \n";
+                        } else {
+                            $md .= "**{$tax_label}:** " . implode(', ', wp_list_pluck($terms, 'name')) . "  \n";
+                        }
+                    }
+                }
+
+                $md .= "\n";
+            }
+        }
+
+        // ── Tassonomie standalone ────────────────────────────────────────────
+        $all_tax = get_taxonomies(['public' => true], 'objects');
+
+        foreach ($all_tax as $tax_slug => $tax_obj) {
+            $mode = $tax_modes[$tax_slug] ?? 'include';
+            if ($mode === 'exclude') continue;
+
+            // Per WPML: recupera solo i term_taxonomy_id in questa lingua
+            if ($wpml_active) {
+                global $wpdb;
+                $term_ids_in_lang = $wpdb->get_col($wpdb->prepare(
+                    "SELECT element_id FROM {$wpdb->prefix}icl_translations
+                     WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
+                    'tax_' . $tax_slug,
+                    $lang_code
+                ));
+
+                if (empty($term_ids_in_lang)) continue;
+
+                $terms = get_terms([
+                    'taxonomy'         => $tax_slug,
+                    'hide_empty'       => true,
+                    'number'           => $include_full ? 0 : $limit,
+                    'term_taxonomy_id' => $term_ids_in_lang,
+                ]);
+            } else {
+                $terms = get_terms([
+                    'taxonomy'   => $tax_slug,
+                    'hide_empty' => true,
+                    'number'     => $include_full ? 0 : $limit,
+                ]);
+            }
+
+            if (empty($terms) || is_wp_error($terms)) continue;
+
+            $label = $tax_obj->labels->name ?? $tax_slug;
+            $md .= "\n## {$label}\n\n";
+
+            foreach ($terms as $term) {
+                $term_url = get_term_link($term);
+                $url_ok   = !is_wp_error($term_url);
+
+                if ($mode === 'include_links') {
+                    $md .= $url_ok ? "- [{$term->name}]({$term_url})\n" : "- {$term->name}\n";
+                } else {
+                    $title = $url_ok ? "[{$term->name}]({$term_url})" : $term->name;
+                    $md .= "- {$title}";
+                    if (!empty($term->description)) {
+                        $md .= " — " . wp_strip_all_tags($term->description);
+                    }
+                    $md .= "\n";
                 }
             }
 
             $md .= "\n";
         }
-    }
 
-    // ── Tassonomie standalone ────────────────────────────────────────────
-    $all_tax = get_taxonomies(['public' => true], 'objects');
-
-    foreach ($all_tax as $tax_slug => $tax_obj) {
-        $mode = $tax_modes[$tax_slug] ?? 'include';
-        if ($mode === 'exclude') continue;
-
-        $terms = get_terms([
-            'taxonomy'   => $tax_slug,
-            'hide_empty' => true,
-            'number'     => $include_full ? 0 : $limit,
-        ]);
-
-        if (empty($terms) || is_wp_error($terms)) continue;
-
-        $label = $tax_obj->labels->name ?? $tax_slug;
-        $md .= "\n## {$label}\n\n";
-
-        foreach ($terms as $term) {
-            $term_url = get_term_link($term);
-            $url_ok   = !is_wp_error($term_url);
-
-            if ($mode === 'include_links') {
-                $md .= $url_ok ? "- [{$term->name}]({$term_url})\n" : "- {$term->name}\n";
-            } else {
-                $title = $url_ok ? "[{$term->name}]({$term_url})" : $term->name;
-                $md .= "- {$title}";
-                if (!empty($term->description)) {
-                    $md .= " — " . wp_strip_all_tags($term->description);
+        // ── Menu (solo per la lingua principale per evitare duplicati) ───────
+        if (!$wpml_active || $lang_code === $primary) {
+            $menus = wp_get_nav_menus();
+            if (!empty($menus)) {
+                $md .= "\n## Navigazione\n\n";
+                foreach ($menus as $menu) {
+                    $items = wp_get_nav_menu_items($menu->term_id);
+                    if (empty($items)) continue;
+                    $md .= "**{$menu->name}:** ";
+                    $links = [];
+                    foreach ($items as $item) {
+                        if (!empty($item->url) && !empty($item->title)) {
+                            $links[] = "[{$item->title}]({$item->url})";
+                        }
+                    }
+                    $md .= implode(' · ', $links) . "\n";
                 }
                 $md .= "\n";
             }
         }
-
-        $md .= "\n";
     }
 
-    // ── Menu ────────────────────────────────────────────────────────────
-    $menus = wp_get_nav_menus();
-    if (!empty($menus)) {
-        $md .= "\n## Navigazione\n\n";
-        foreach ($menus as $menu) {
-            $items = wp_get_nav_menu_items($menu->term_id);
-            if (empty($items)) continue;
-            $md .= "**{$menu->name}:** ";
-            $links = [];
-            foreach ($items as $item) {
-                if (!empty($item->url) && !empty($item->title)) {
-                    $links[] = "[{$item->title}]({$item->url})";
-                }
-            }
-            $md .= implode(' · ', $links) . "\n";
-        }
-        $md .= "\n";
+    // Ripristina lingua WPML e rimuove il filtro temporaneo
+    if ($wpml_active) {
+        remove_all_filters('wpml_current_language', 999);
+        do_action('wpml_switch_language', null);
     }
 
     return [
@@ -317,7 +387,6 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
         'site_url'  => $site_url,
         'lang'      => $lang,
         'body'      => $md,
-        // Dati grezzi minimi per il prompt descrizione
         'raw_info'  => "Nome: {$site_name}\nURL: {$site_url}\nDescrizione WP: " . get_bloginfo('description') . "\n",
     ];
 }
@@ -1421,11 +1490,11 @@ function wpb_llms_admin_page()
     </style>
 
     <div id="wpb-llms-wrap" class="wrap">
-        <h1 class="wp-heading-inline">
+        <h1>
             <span class="dashicons dashicons-text-page"
-                style="font-size:26px;width:26px;height:26px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
+                style="font-size:24px;width:24px;height:24px;vertical-align:middle;margin-right:6px;color:#e6600d;"></span>
             WP Barrio
-            <span style="font-size:15px;font-weight:400;color:#646970;margin-left:6px;">/ Auto LLMs</span>
+            <span style="font-size:15px;font-weight:400;color:#646970;margin-left:4px;">/ SEO / Auto LLMS</span>
         </h1>
         <hr class="wp-header-end" style="margin-bottom:20px;">
 

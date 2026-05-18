@@ -117,77 +117,109 @@ function wpb_sitemap_build_entries()
     $settings = get_option(WPB_SITEMAP_OPTION, []);
     $content  = get_option(WPB_META_CONTENT_OPTION, []);
     $entries  = [];
+    $seen_locs = []; // Deduplication per URL
 
-    // Post types
-    $post_types = get_post_types(['public' => true], 'objects');
-    foreach ($post_types as $pt_obj) {
-        $slug = $pt_obj->name;
-        if ($slug === 'attachment') continue;
+    // Determina le lingue da iterare:
+    // se WPML è attivo usa tutte le lingue attive, altrimenti solo [null]
+    $wpml_active = defined('ICL_SITEPRESS_VERSION') && function_exists('wpb_multilang_is_enabled') && wpb_multilang_is_enabled();
+    $languages   = $wpml_active ? wpb_multilang_languages() : [null => null];
 
-        // Priorità: override sitemap.php → config meta-tags → default on
-        if (isset($settings['post_types'][$slug])) {
-            $include = (bool) $settings['post_types'][$slug];
-        } else {
-            $include = (bool) ($content['post_types'][$slug]['sitemap'] ?? 1);
+    foreach (array_keys($languages) as $lang_code) {
+
+        // Switcha contesto lingua WPML (no-op se WPML non è attivo)
+        if ($wpml_active) {
+            do_action('wpml_switch_language', $lang_code);
         }
-        if (!$include) continue;
 
-        $posts = get_posts([
-            'post_type'      => $slug,
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'fields'         => 'ids',
-        ]);
+        // ── Post types ────────────────────────────────────────────────────
+        $post_types = get_post_types(['public' => true], 'objects');
+        foreach ($post_types as $pt_obj) {
+            $slug = $pt_obj->name;
+            if ($slug === 'attachment') continue;
 
-        foreach ($posts as $post_id) {
-            // Rispetta override per-post di sitemap
-            $post_sitemap = get_post_meta($post_id, '_wpb_seo_sitemap', true);
-            if ($post_sitemap === '0') continue;
+            if (isset($settings['post_types'][$slug])) {
+                $include = (bool) $settings['post_types'][$slug];
+            } else {
+                $include = (bool) ($content['post_types'][$slug]['sitemap'] ?? 1);
+            }
+            if (!$include) continue;
 
-            $lastmod  = get_post_modified_time('c', true, $post_id);
-            $priority = wpb_sitemap_post_priority($post_id, $slug, $lastmod);
+            $posts = get_posts([
+                'post_type'      => $slug,
+                'post_status'    => 'publish',
+                'posts_per_page' => -1,
+                'fields'         => 'ids',
+                'suppress_filters' => false, // lascia che WPML filtri per lingua
+            ]);
 
-            $entries[] = [
-                'loc'      => wp_make_link_relative(get_permalink($post_id)),
-                'lastmod'  => $lastmod,
-                'type'     => 'post',
-                'subtype'  => $slug,
-                'id'       => $post_id,
-                'title'    => get_the_title($post_id),
-                'priority' => $priority,
-            ];
+            foreach ($posts as $post_id) {
+                $post_sitemap = get_post_meta($post_id, '_wpb_seo_sitemap', true);
+                if ($post_sitemap === '0') continue;
+
+                $loc = wp_make_link_relative(get_permalink($post_id));
+                if (isset($seen_locs[$loc])) continue;
+                $seen_locs[$loc] = true;
+
+                $lastmod  = get_post_modified_time('c', true, $post_id);
+                $priority = wpb_sitemap_post_priority($post_id, $slug, $lastmod);
+
+                $entries[] = [
+                    'loc'      => $loc,
+                    'lastmod'  => $lastmod,
+                    'type'     => 'post',
+                    'subtype'  => $slug,
+                    'id'       => $post_id,
+                    'title'    => get_the_title($post_id),
+                    'priority' => $priority,
+                    'lang'     => $lang_code,
+                ];
+            }
+        }
+
+        // ── Tassonomie ────────────────────────────────────────────────────
+        $taxonomies = array_filter(
+            get_taxonomies(['public' => true], 'objects'),
+            fn($t) => !in_array($t->name, ['post_format', 'nav_menu', 'link_category'], true)
+        );
+
+        foreach ($taxonomies as $tax_obj) {
+            $slug = $tax_obj->name;
+
+            if (isset($settings['taxonomies'][$slug])) {
+                $include = (bool) $settings['taxonomies'][$slug];
+            } else {
+                $include = (bool) ($content['taxonomies'][$slug]['sitemap'] ?? 1);
+            }
+            if (!$include) continue;
+
+            $terms = get_terms(['taxonomy' => $slug, 'hide_empty' => true]);
+            if (is_wp_error($terms)) continue;
+
+            foreach ($terms as $term) {
+                $term_link = get_term_link($term);
+                if (is_wp_error($term_link)) continue;
+
+                $loc = wp_make_link_relative($term_link);
+                if (isset($seen_locs[$loc])) continue;
+                $seen_locs[$loc] = true;
+
+                $entries[] = [
+                    'loc'      => $loc,
+                    'lastmod'  => null,
+                    'type'     => 'term',
+                    'subtype'  => $slug,
+                    'id'       => $term->term_id,
+                    'title'    => $term->name,
+                    'priority' => wpb_sitemap_term_priority($term->term_id, $slug),
+                    'lang'     => $lang_code,
+                ];
+            }
         }
     }
 
-    // Tassonomie
-    $taxonomies = array_filter(get_taxonomies(['public' => true], 'objects'), fn($t) => !in_array($t->name, ['post_format', 'nav_menu', 'link_category'], true));
-    foreach ($taxonomies as $tax_obj) {
-        $slug = $tax_obj->name;
-
-        if (isset($settings['taxonomies'][$slug])) {
-            $include = (bool) $settings['taxonomies'][$slug];
-        } else {
-            $include = (bool) ($content['taxonomies'][$slug]['sitemap'] ?? 1);
-        }
-        if (!$include) continue;
-
-        $terms = get_terms(['taxonomy' => $slug, 'hide_empty' => true]);
-        if (is_wp_error($terms)) continue;
-
-        foreach ($terms as $term) {
-            $term_link = get_term_link($term);
-            if (is_wp_error($term_link)) continue;
-
-            $entries[] = [
-                'loc'      => wp_make_link_relative($term_link),
-                'lastmod'  => null,
-                'type'     => 'term',
-                'subtype'  => $slug,
-                'id'       => $term->term_id,
-                'title'    => $term->name,
-                'priority' => wpb_sitemap_term_priority($term->term_id, $slug),
-            ];
-        }
+    // Ripristina la lingua corrente WPML
+    if ($wpml_active) {
+        do_action('wpml_switch_language', null);
     }
 
     // Ordina per priority decrescente, poi per tipo e titolo

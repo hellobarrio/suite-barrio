@@ -276,44 +276,89 @@ function wpb_graphql_register_schema(): void
 
     // ── 9a2. RootQuery: hbPopup ───────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbPopup', [
-        'type' => 'HBPopup',
-        'description' => 'Restituisce il popup attivo, o null se nessuno è attivo.',
-        'resolve' => function (): ?array {
-            if (!function_exists('wpb_popups_get_active'))
-                return null;
+        'type'        => 'HBPopup',
+        'description' => 'Restituisce il popup attivo, o null se nessuno è attivo. '
+                       . 'Il parametro opzionale `lang` (codice ISO, es. "en") restituisce '
+                       . 'i contenuti testuali nella lingua richiesta se la traduzione esiste; '
+                       . 'l\'immagine è sempre quella della versione principale.',
+        'args' => [
+            'lang' => [
+                'type'        => 'String',
+                'description' => 'Codice ISO della lingua richiesta (es. "it", "en", "fr"). '
+                               . 'Se omesso restituisce i contenuti nella lingua principale. '
+                               . 'Se la traduzione non esiste fa fallback ai contenuti originali.',
+            ],
+        ],
+        'resolve' => function ($root, array $args): ?array {
+            global $wpdb;
 
-            $popup = wpb_popups_get_active();
+            // Query diretta: non dipende da funzioni esterne, funziona in qualsiasi contesto
+            $popup = $wpdb->get_row(
+                "SELECT * FROM {$wpdb->prefix}wpb_popups WHERE active = 1 LIMIT 1"
+            );
+
             if (!$popup)
                 return null;
 
-            // Costruisce il wrapper image solo se c'è un attachment valido.
-            // Restituiamo l'ID del post: WPGraphQL risolve il MediaItem nativo
-            // a partire da esso, rendendo i fragment come MediaItemFragment compatibili.
-            $image = null;
+            // ── Wrapper immagine (sempre dalla riga principale) ──
+            $image    = null;
             $image_id = (int) ($popup->image_id ?? 0);
             if ($image_id > 0) {
-                $post = get_post($image_id);
-                if ($post && $post->post_type === 'attachment') {
-                    $image = [
-                        'node' => new \WPGraphQL\Model\Post($post),
-                    ];
+                try {
+                    $post = get_post($image_id);
+                    if ($post && $post->post_type === 'attachment') {
+                        $image = [
+                            'node' => new \WPGraphQL\Model\Post($post),
+                        ];
+                    }
+                } catch (\Throwable $e) {
+                    $image = null;
                 }
             }
 
+            // ── Campi testuali: di default dalla riga principale ──
+            $title   = (string) $popup->title;
+            $content = (string) $popup->content;
+            $link    = !empty($popup->link) ? [
+                'url'    => (string) $popup->link,
+                'title'  => (string) ($popup->link_title  ?? ''),
+                'target' => (string) ($popup->link_target ?? '_self'),
+            ] : null;
+
+            // ── Sovrascrittura con la traduzione se richiesta ──
+            $requested_lang = isset($args['lang']) ? sanitize_key((string) $args['lang']) : '';
+
+            if ($requested_lang !== '') {
+                // Query diretta sulla tabella traduzioni — autonoma, nessuna dipendenza esterna
+                $trans = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}wpb_popups_translations
+                     WHERE popup_id = %d AND lang = %s
+                     LIMIT 1",
+                    (int) $popup->id,
+                    $requested_lang
+                ));
+
+                if ($trans) {
+                    $title   = (string) $trans->title;
+                    $content = (string) $trans->content;
+                    $link    = !empty($trans->link) ? [
+                        'url'    => (string) $trans->link,
+                        'title'  => (string) ($trans->link_title  ?? ''),
+                        'target' => (string) ($trans->link_target ?? '_self'),
+                    ] : null;
+                }
+                // Traduzione assente → fallback silenzioso ai valori originali
+            }
+
             return [
-                'id' => (int) $popup->id,
-                'title' => (string) $popup->title,
-                'content' => (string) $popup->content,
-                'link' => !empty($popup->link) ? [
-                    'url' => (string) $popup->link,
-                    'title' => (string) ($popup->link_title ?? ''),
-                    'target' => (string) ($popup->link_target ?? '_self'),
-                ] : null,
-                'image' => $image,
+                'id'      => (int) $popup->id,
+                'title'   => $title,
+                'content' => $content,
+                'link'    => $link,
+                'image'   => $image,
             ];
         },
     ]);
-
     // ── 9b. HBOrariGiorno ─────────────────────────────────────────────────────
 
     // ── 9a3. HBBannerCta ──────────────────────────────────────────────────────
@@ -337,22 +382,59 @@ function wpb_graphql_register_schema(): void
 
     // ── 9a5. RootQuery: hbBanner ──────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbBanner', [
-        'type' => 'HBBanner',
-        'description' => 'Restituisce il banner attivo, o null se nessuno è attivo.',
-        'resolve' => function (): ?array {
-            if (!function_exists('wpb_banners_get_active'))
-                return null;
+        'type'        => 'HBBanner',
+        'description' => 'Restituisce il banner attivo, o null se nessuno è attivo. '
+                       . 'Il parametro opzionale `lang` (codice ISO, es. "en") restituisce '
+                       . 'i contenuti nella lingua richiesta se la traduzione esiste; '
+                       . 'fallback ai contenuti originali se la traduzione non esiste.',
+        'args' => [
+            'lang' => [
+                'type'        => 'String',
+                'description' => 'Codice ISO della lingua richiesta (es. "it", "en", "fr"). '
+                               . 'Se omesso restituisce i contenuti nella lingua principale.',
+            ],
+        ],
+        'resolve' => function ($root, array $args): ?array {
+            global $wpdb;
 
-            $banner = wpb_banners_get_active();
+            $banner = $wpdb->get_row(
+                "SELECT * FROM {$wpdb->prefix}wpb_banners WHERE active = 1 LIMIT 1"
+            );
+
             if (!$banner)
                 return null;
 
+            // Campi testuali: di default dalla riga principale
+            $title       = (string) $banner->title;
+            $link        = (string) $banner->link;
+            $link_target = (string) ($banner->link_target ?? '_self');
+
+            // Sovrascrittura con la traduzione se richiesta
+            $requested_lang = isset($args['lang']) ? sanitize_key((string) $args['lang']) : '';
+
+            if ($requested_lang !== '') {
+                $trans = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}wpb_banners_translations
+                     WHERE banner_id = %d AND lang = %s
+                     LIMIT 1",
+                    (int) $banner->id,
+                    $requested_lang
+                ));
+
+                if ($trans) {
+                    $title       = (string) $trans->title;
+                    $link        = (string) $trans->link;
+                    $link_target = (string) ($trans->link_target ?? '_self');
+                }
+                // Traduzione assente → fallback silenzioso ai valori originali
+            }
+
             return [
-                'id' => (int) $banner->id,
-                'title' => (string) $banner->title,
-                'link' => !empty($banner->link) ? [
-                    'url' => (string) $banner->link,
-                    'target' => (string) ($banner->link_target ?? '_self'),
+                'id'    => (int) $banner->id,
+                'title' => $title,
+                'link'  => !empty($link) ? [
+                    'url'    => $link,
+                    'target' => $link_target,
                 ] : null,
             ];
         },
@@ -484,17 +566,44 @@ function wpb_graphql_register_schema(): void
 
     // ── 10. RootQuery: hbForm ──────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbForm', [
-        'type' => 'HBForm',
-        'description' => 'Restituisce un form HB per ID.',
+        'type'        => 'HBForm',
+        'description' => 'Restituisce un form HB per ID. '
+                       . 'Il parametro opzionale `lang` restituisce label, placeholder, '
+                       . 'opzioni, messaggi di errore e impostazioni tradotte.',
         'args' => [
-            'id' => ['type' => 'Int', 'description' => 'ID numerico del form.'],
+            'id'   => ['type' => 'Int',    'description' => 'ID numerico del form.'],
+            'lang' => ['type' => 'String', 'description' => 'Codice ISO lingua (es. "en"). Fallback ai valori originali se la traduzione non esiste.'],
         ],
         'resolve' => function ($root, array $args): ?array {
             if (empty($args['id']))
                 return null;
+
             $form = wpb_forms_get(intval($args['id']));
             if (!$form)
                 return null;
+
+            // Applica traduzione se richiesta
+            $requested_lang = isset($args['lang']) ? sanitize_key((string)$args['lang']) : '';
+            if ($requested_lang !== '') {
+                global $wpdb;
+                $trans = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}wpb_forms_translations
+                     WHERE form_id = %d AND lang = %s LIMIT 1",
+                    (int)$form->id, $requested_lang
+                ));
+                if ($trans && function_exists('wpb_forms_apply_translation')) {
+                    $orig_fields   = json_decode($form->fields,   true) ?: [];
+                    $orig_settings = json_decode($form->settings, true) ?: [];
+                    [$merged_fields, $merged_settings] = wpb_forms_apply_translation(
+                        $orig_fields, $orig_settings, $trans
+                    );
+                    // Clona il form con i dati mergiati
+                    $form = clone $form;
+                    $form->fields   = wp_json_encode($merged_fields);
+                    $form->settings = wp_json_encode($merged_settings);
+                }
+            }
+
             return wpb_graphql_format_form($form);
         },
     ]);

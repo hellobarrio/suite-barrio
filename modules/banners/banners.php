@@ -11,11 +11,12 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_BANNERS_VERSION', '1.0.0');
-define('WPB_BANNERS_TABLE',   'wpb_banners');
+define('WPB_BANNERS_VERSION',      '1.1.0');
+define('WPB_BANNERS_TABLE',        'wpb_banners');
+define('WPB_BANNERS_TRANS_TABLE',  'wpb_banners_translations');
 
 /* ─────────────────────────────────────────
-   INSTALL: crea la tabella al primo avvio
+   INSTALL: crea le tabelle al primo avvio
    ───────────────────────────────────────── */
 function wpb_banners_install(): void
 {
@@ -34,12 +35,32 @@ function wpb_banners_install(): void
             PRIMARY KEY (id)
         ) {$charset};"
     );
+
+    // Tabella traduzioni banner (title, link, link_target per lingua aggiuntiva)
+    $wpdb->query(
+        "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_banners_translations` (
+            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            banner_id   BIGINT UNSIGNED NOT NULL,
+            lang        VARCHAR(10)     NOT NULL DEFAULT '',
+            title       VARCHAR(255)    NOT NULL DEFAULT '',
+            link        VARCHAR(2048)   NOT NULL DEFAULT '',
+            link_target VARCHAR(10)     NOT NULL DEFAULT '_self',
+            updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY banner_lang (banner_id, lang)
+        ) {$charset};"
+    );
 }
 
 register_activation_hook(WP_ALT_AI_PLUGIN_DIR . 'wp-barrio.php', 'wpb_banners_install');
-add_action('plugins_loaded', 'wpb_banners_install');
-add_action('admin_init', function () {
-    if (!get_option('wpb_banners_db_version')) {
+
+add_action('plugins_loaded', function () {
+    wpb_banners_install();
+
+    $installed_version = get_option('wpb_banners_db_version', '0');
+
+    // Migrazione v1.1: crea la tabella traduzioni se non esiste ancora
+    if (version_compare($installed_version, '1.1.0', '<')) {
         wpb_banners_install();
         update_option('wpb_banners_db_version', WPB_BANNERS_VERSION, false);
     }
@@ -70,6 +91,54 @@ function wpb_banners_get_active(): ?object
     return $wpdb->get_row(
         "SELECT * FROM {$wpdb->prefix}wpb_banners WHERE active = 1 LIMIT 1"
     ) ?: null;
+}
+
+/* ─────────────────────────────────────────
+   HELPER DB — TRADUZIONI
+   ───────────────────────────────────────── */
+
+function wpb_banners_get_translation(int $banner_id, string $lang): ?object
+{
+    global $wpdb;
+    return $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}wpb_banners_translations
+         WHERE banner_id = %d AND lang = %s",
+        $banner_id, $lang
+    )) ?: null;
+}
+
+function wpb_banners_save_translation(int $banner_id, string $lang, array $data): bool
+{
+    global $wpdb;
+    $table    = $wpdb->prefix . WPB_BANNERS_TRANS_TABLE;
+    $existing = wpb_banners_get_translation($banner_id, $lang);
+
+    $row    = [
+        'banner_id'   => $banner_id,
+        'lang'        => $lang,
+        'title'       => $data['title']       ?? '',
+        'link'        => $data['link']        ?? '',
+        'link_target' => $data['link_target'] ?? '_self',
+    ];
+    $format = ['%d', '%s', '%s', '%s', '%s'];
+
+    if ($existing) {
+        $ok = $wpdb->update($table, $row, ['id' => (int) $existing->id], $format, ['%d']);
+    } else {
+        $ok = $wpdb->insert($table, $row, $format);
+    }
+
+    return $ok !== false;
+}
+
+function wpb_banners_delete_translations(int $banner_id): void
+{
+    global $wpdb;
+    $wpdb->delete(
+        $wpdb->prefix . WPB_BANNERS_TRANS_TABLE,
+        ['banner_id' => $banner_id],
+        ['%d']
+    );
 }
 
 /* ─────────────────────────────────────────
@@ -181,11 +250,116 @@ add_action('wp_ajax_wpb_banners_delete', function () {
     if (!$id)
         wp_send_json_error('ID non valido.');
 
+    wpb_banners_delete_translations($id);
     $wpdb->delete($wpdb->prefix . WPB_BANNERS_TABLE, ['id' => $id], ['%d']);
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
     }
     wp_send_json_success('Banner eliminato.');
+});
+
+/* ─────────────────────────────────────────
+   AJAX: salva traduzione banner
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_banners_save_translation', function () {
+    check_ajax_referer('wpb_banners_nonce', 'nonce');
+    if (!current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    $banner_id = intval($_POST['banner_id'] ?? 0);
+    $lang      = sanitize_key($_POST['lang'] ?? '');
+
+    if (!$banner_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    if (!wpb_banners_get($banner_id))
+        wp_send_json_error('Banner non trovato.');
+
+    $allowed_langs = wpb_multilang_translation_languages();
+    if (!in_array($lang, $allowed_langs, true))
+        wp_send_json_error('Lingua non consentita.');
+
+    $data = [
+        'title'       => sanitize_text_field(wp_unslash($_POST['title']       ?? '')),
+        'link'        => sanitize_url(wp_unslash($_POST['link']               ?? '')),
+        'link_target' => in_array($_POST['link_target'] ?? '', ['_self', '_blank'], true)
+                         ? $_POST['link_target'] : '_self',
+    ];
+
+    if ($data['title'] === '')
+        wp_send_json_error('Il titolo è obbligatorio.');
+
+    $ok = wpb_banners_save_translation($banner_id, $lang, $data);
+
+    if (!$ok)
+        wp_send_json_error('Errore DB.');
+
+    if (function_exists('invalidate_vercel_cache')) {
+        invalidate_vercel_cache('wp:global');
+    }
+
+    wp_send_json_success(['message' => 'Traduzione salvata.']);
+});
+
+/* ─────────────────────────────────────────
+   AJAX: carica traduzione banner
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_banners_get_translation', function () {
+    check_ajax_referer('wpb_banners_nonce', 'nonce');
+    if (!current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    $banner_id = intval($_POST['banner_id'] ?? 0);
+    $lang      = sanitize_key($_POST['lang'] ?? '');
+
+    if (!$banner_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    $row = wpb_banners_get_translation($banner_id, $lang);
+
+    wp_send_json_success([
+        'exists'      => (bool) $row,
+        'title'       => $row->title       ?? '',
+        'link'        => $row->link        ?? '',
+        'link_target' => $row->link_target ?? '_self',
+    ]);
+});
+
+/* ─────────────────────────────────────────
+   AJAX: inizializza traduzione (copia dal principale)
+   ───────────────────────────────────────── */
+add_action('wp_ajax_wpb_banners_init_translation', function () {
+    check_ajax_referer('wpb_banners_nonce', 'nonce');
+    if (!current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    $banner_id = intval($_POST['banner_id'] ?? 0);
+    $lang      = sanitize_key($_POST['lang'] ?? '');
+
+    if (!$banner_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    $allowed_langs = wpb_multilang_translation_languages();
+    if (!in_array($lang, $allowed_langs, true))
+        wp_send_json_error('Lingua non consentita.');
+
+    if (wpb_banners_get_translation($banner_id, $lang))
+        wp_send_json_success(['already_exists' => true]);
+
+    $source = wpb_banners_get($banner_id);
+    if (!$source)
+        wp_send_json_error('Banner non trovato.');
+
+    $ok = wpb_banners_save_translation($banner_id, $lang, [
+        'title'       => $source->title       ?? '',
+        'link'        => $source->link        ?? '',
+        'link_target' => $source->link_target ?? '_self',
+    ]);
+
+    if (!$ok)
+        wp_send_json_error('Errore DB.');
+
+    wp_send_json_success(['already_exists' => false]);
 });
 
 /* ─────────────────────────────────────────
@@ -218,6 +392,14 @@ function wpb_banners_admin_page(): void
 
     $edit_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
     $editing = $edit_id ? wpb_banners_get($edit_id) : null;
+    $qs_lang = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
+
+    // Dati multilingua
+    $ml_enabled   = wpb_multilang_is_enabled();
+    $ml_primary   = wpb_multilang_primary_language();
+    $ml_trans     = wpb_multilang_translation_languages();
+    $ml_languages = wpb_multilang_languages();
+    $ml_active    = $ml_enabled && !empty($ml_trans);
     ?>
     <style>
         /* ── Toolbar ── */
@@ -402,6 +584,76 @@ function wpb_banners_admin_page(): void
             margin-top: 10px;
             text-align: center;
         }
+
+        /* ── Select lingua nell'editor ── */
+        .wpb-lang-select-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f1;
+        }
+        .wpb-lang-select-wrap label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1d2327;
+            white-space: nowrap;
+            margin: 0;
+        }
+        #wpb-lang-select {
+            min-width: 180px;
+            padding: 4px 8px;
+            border: 1px solid #8c8f94;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .wpb-trans-notice {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #f0f6fc;
+            border: 1px solid #c6d9ef;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #0a4b78;
+            margin-bottom: 16px;
+        }
+
+        /* ── Riga lingue nella lista banner ── */
+        .wpb-banner-langs {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px 10px;
+            border-top: 1px solid #f6f7f7;
+            background: #fafafa;
+        }
+        .wpb-banner-langs-label {
+            font-size: 11px;
+            color: #a7aaad;
+            margin-right: 4px;
+            flex-shrink: 0;
+        }
+        .wpb-lang-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 3px;
+            border: 1px solid;
+            cursor: default;
+            transition: background .15s, border-color .15s;
+        }
+        .wpb-lang-pill.primary   { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+        .wpb-lang-pill.translated { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+        .wpb-lang-pill.missing   { background: #fff; border-color: #c3c4c7; color: #646970; cursor: pointer; }
+        .wpb-lang-pill.missing:hover { background: #f0f6fc; border-color: #72aee6; color: #2271b1; }
+        .wpb-lang-pill.missing .wpb-lang-add { font-size: 14px; line-height: 1; font-weight: 400; }
+        .wpb-lang-pill.loading   { opacity: .6; cursor: wait; }
     </style>
 
     <div id="wpb-banners-wrap" class="wrap">
@@ -443,6 +695,50 @@ function wpb_banners_admin_page(): void
 
             <div class="wpb-banners-editor">
                 <input type="hidden" id="wpb-banner-id" value="<?php echo $is_new ? 0 : intval($banner->id ?? 0); ?>">
+
+                <?php if ($ml_active && !$is_new):
+                    $banner_id_int = (int)($banner->id ?? 0);
+                    $editor_langs  = [ $ml_primary => ($ml_languages[$ml_primary] ?? $ml_primary) . ' (principale)' ];
+                    foreach ($ml_trans as $lc) {
+                        if (wpb_banners_get_translation($banner_id_int, $lc)) {
+                            $editor_langs[$lc] = $ml_languages[$lc] ?? strtoupper($lc);
+                        }
+                    }
+                    $initial_lang = isset($editor_langs[$qs_lang]) ? $qs_lang : $ml_primary;
+                ?>
+                <div class="wpb-lang-select-wrap">
+                    <label for="wpb-lang-select">
+                        <span class="dashicons dashicons-translation" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:3px;color:#2271b1;"></span>
+                        Lingua:
+                    </label>
+                    <select id="wpb-lang-select">
+                        <?php foreach ($editor_langs as $lc => $label): ?>
+                            <option value="<?php echo esc_attr($lc); ?>"
+                                    data-is-primary="<?php echo $lc === $ml_primary ? '1' : '0'; ?>"
+                                    <?php selected($initial_lang, $lc); ?>>
+                                <?php echo esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="wpb-trans-notice" id="wpb-trans-notice"
+                     style="display:<?php echo $initial_lang !== $ml_primary ? 'flex' : 'none'; ?>;">
+                    <span class="dashicons dashicons-translation" style="font-size:16px;width:16px;height:16px;color:#2271b1;flex-shrink:0;"></span>
+                    <span>
+                    Stai modificando la versione in <strong id="wpb-trans-notice-lang"><?php echo esc_html($ml_languages[$initial_lang] ?? $initial_lang); ?></strong>.
+                    Lo stato attivo è condiviso con la versione principale.
+                    </span>
+                </div>
+
+                <?php
+                if ($initial_lang !== $ml_primary) {
+                    $trans_data = wpb_banners_get_translation($banner_id_int, $initial_lang);
+                    if ($trans_data) {
+                        $banner = $trans_data;
+                    }
+                }
+                endif; ?>
 
                 <div style="display:grid;grid-template-columns:1fr 480px;gap:32px;align-items:start;">
 
@@ -606,7 +902,11 @@ function wpb_banners_admin_page(): void
                     <?php foreach ($banners as $b):
                         $is_active = (int) $b->id === $active_id;
                     ?>
-                        <div class="wpb-banner-row" data-id="<?php echo intval($b->id); ?>">
+                        <div class="wpb-banner-row" data-id="<?php echo intval($b->id); ?>"
+                             style="display:block;padding:0;overflow:hidden;">
+
+                            <!-- Riga principale -->
+                            <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:16px;padding:14px 18px;">
 
                             <!-- Info -->
                             <div class="wpb-banner-info">
@@ -630,7 +930,6 @@ function wpb_banners_admin_page(): void
 
                             <!-- Azioni -->
                             <div class="wpb-banner-actions">
-                                <!-- Toggle attiva/disattiva -->
                                 <label class="wpb-toggle-active" title="<?php echo $is_active ? 'Disattiva' : 'Attiva'; ?>">
                                     <input type="checkbox" class="wpb-toggle-active-cb"
                                         data-id="<?php echo intval($b->id); ?>"
@@ -652,7 +951,44 @@ function wpb_banners_admin_page(): void
                                 </button>
                             </div>
 
-                        </div>
+                            </div><!-- fine riga principale -->
+
+                            <?php if ($ml_active): ?>
+                            <div class="wpb-banner-langs">
+                                <span class="wpb-banner-langs-label">Lingue:</span>
+
+                                <span class="wpb-lang-pill primary" title="Lingua principale">
+                                    <span class="dashicons dashicons-yes" style="font-size:12px;width:12px;height:12px;"></span>
+                                    <?php echo esc_html($ml_languages[$ml_primary] ?? strtoupper($ml_primary)); ?>
+                                </span>
+
+                                <?php foreach ($ml_trans as $lang_code):
+                                    $lang_label = $ml_languages[$lang_code] ?? strtoupper($lang_code);
+                                    $has_trans  = (bool) wpb_banners_get_translation((int) $b->id, $lang_code);
+                                ?>
+                                    <?php if ($has_trans): ?>
+                                        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-banners&edit_id=' . $b->id . '&lang=' . $lang_code)); ?>"
+                                           class="wpb-lang-pill translated"
+                                           title="Modifica traduzione in <?php echo esc_attr($lang_label); ?>">
+                                            <span class="dashicons dashicons-yes" style="font-size:12px;width:12px;height:12px;"></span>
+                                            <?php echo esc_html($lang_label); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <button type="button"
+                                                class="wpb-lang-pill missing wpb-lang-init-btn"
+                                                data-banner-id="<?php echo intval($b->id); ?>"
+                                                data-lang="<?php echo esc_attr($lang_code); ?>"
+                                                data-lang-label="<?php echo esc_attr($lang_label); ?>"
+                                                title="Inizializza traduzione in <?php echo esc_attr($lang_label); ?>">
+                                            <span class="wpb-lang-add">+</span>
+                                            <?php echo esc_html($lang_label); ?>
+                                        </button>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
+
+                        </div><!-- .wpb-banner-row -->
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
@@ -667,6 +1003,152 @@ function wpb_banners_admin_page(): void
         var nonce       = <?php echo wp_json_encode($nonce); ?>;
         var ajaxUrl     = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
         var urlEditBase = <?php echo wp_json_encode(admin_url('admin.php?page=wp-barrio-banners&edit_id=')); ?>;
+
+        // Dati multilingua
+        var mlActive    = <?php echo wp_json_encode($ml_active); ?>;
+        var mlPrimary   = <?php echo wp_json_encode($ml_primary); ?>;
+        var mlLanguages = <?php echo wp_json_encode($ml_languages); ?>;
+        var currentLang = <?php echo wp_json_encode($initial_lang ?? $ml_primary); ?>;
+
+        /* ════════════════════════════════════════
+           MULTILINGUA — select lingua nell'editor
+           ════════════════════════════════════════ */
+        (function () {
+            if (!mlActive) return;
+
+            var langSelect = document.getElementById('wpb-lang-select');
+            var notice     = document.getElementById('wpb-trans-notice');
+            var noticeLang = document.getElementById('wpb-trans-notice-lang');
+            var saveBtn    = document.getElementById('wpb-banner-save-btn');
+
+            if (!langSelect) return;
+
+            function cachePrimaryValues() {
+                ['wpb-banner-title', 'wpb-banner-link', 'wpb-banner-link-target'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.dataset.primary === undefined) el.dataset.primary = el.value;
+                });
+            }
+
+            function loadPrimaryFields() {
+                ['wpb-banner-title', 'wpb-banner-link', 'wpb-banner-link-target'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.dataset.primary !== undefined) el.value = el.dataset.primary;
+                });
+                refreshMarqueeFromFields();
+            }
+
+            function fillTranslationFields(data) {
+                var title      = document.getElementById('wpb-banner-title');
+                var link       = document.getElementById('wpb-banner-link');
+                var linkTarget = document.getElementById('wpb-banner-link-target');
+                if (title)      title.value      = data.title       || '';
+                if (link)       link.value       = data.link        || '';
+                if (linkTarget) linkTarget.value = data.link_target || '_self';
+                refreshMarqueeFromFields();
+            }
+
+            function switchLang(lang, isPrimary) {
+                currentLang = lang;
+                if (saveBtn) saveBtn.textContent = isPrimary ? 'Salva banner' : 'Salva traduzione';
+                if (notice && noticeLang) {
+                    if (isPrimary) {
+                        notice.style.display = 'none';
+                    } else {
+                        noticeLang.textContent = mlLanguages[lang] || lang;
+                        notice.style.display   = 'flex';
+                    }
+                }
+                if (isPrimary) { loadPrimaryFields(); return; }
+
+                var bannerId = document.getElementById('wpb-banner-id').value;
+                if (!bannerId || bannerId === '0') return;
+
+                langSelect.disabled = true;
+                fetch(ajaxUrl, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        action:    'wpb_banners_get_translation',
+                        nonce:     nonce,
+                        banner_id: bannerId,
+                        lang:      lang,
+                    })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (res) { if (res.success) fillTranslationFields(res.data); })
+                .catch(function () {})
+                .finally(function () { langSelect.disabled = false; });
+            }
+
+            langSelect.addEventListener('change', function () {
+                var opt = this.options[this.selectedIndex];
+                switchLang(this.value, opt.dataset.isPrimary === '1');
+            });
+
+            setTimeout(function () {
+                var primaryData = <?php echo wp_json_encode([
+                    'title'       => $editing->title       ?? '',
+                    'link'        => $editing->link        ?? '',
+                    'link_target' => $editing->link_target ?? '_self',
+                ]); ?>;
+                ['wpb-banner-title', 'wpb-banner-link', 'wpb-banner-link-target'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) {
+                        var key = id.replace('wpb-banner-', '').replace(/-/g, '_');
+                        el.dataset.primary = primaryData[key] !== undefined ? primaryData[key] : el.value;
+                    }
+                });
+                var initialOpt = langSelect.options[langSelect.selectedIndex];
+                if (initialOpt && initialOpt.dataset.isPrimary === '0') {
+                    if (saveBtn) saveBtn.textContent = 'Salva traduzione';
+                }
+            }, 300);
+        })();
+
+        /* ════════════════════════════════════════
+           LISTA — inizializza traduzione dal "+"
+           ════════════════════════════════════════ */
+        document.querySelectorAll('.wpb-lang-init-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var bannerId  = this.dataset.bannerId;
+                var lang      = this.dataset.lang;
+                var langLabel = this.dataset.langLabel;
+                var pill      = this;
+
+                pill.classList.add('loading');
+                pill.disabled = true;
+
+                fetch(ajaxUrl, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        action:    'wpb_banners_init_translation',
+                        nonce:     nonce,
+                        banner_id: bannerId,
+                        lang:      lang,
+                    })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res.success) {
+                        var link = document.createElement('a');
+                        link.href      = urlEditBase + bannerId + '&lang=' + lang;
+                        link.className = 'wpb-lang-pill translated';
+                        link.title     = 'Modifica traduzione in ' + langLabel;
+                        link.innerHTML = '<span class="dashicons dashicons-yes" style="font-size:12px;width:12px;height:12px;"></span> ' + langLabel;
+                        pill.replaceWith(link);
+                    } else {
+                        alert(res.data || 'Errore.');
+                        pill.classList.remove('loading');
+                        pill.disabled = false;
+                    }
+                })
+                .catch(function () {
+                    alert('Errore di rete.');
+                    pill.classList.remove('loading');
+                    pill.disabled = false;
+                });
+            });
+        });
 
         /* ════════════════════════════════════════
            IMPOSTAZIONI — salva limite banner
@@ -802,35 +1284,24 @@ function wpb_banners_admin_page(): void
         /* ════════════════════════════════════════
            EDITOR — anteprima live marquee
            ════════════════════════════════════════ */
+        function refreshMarqueeFromFields() {
+            var titleVal = (document.getElementById('wpb-banner-title') || {}).value || 'Titolo del banner';
+            var linkVal  = (document.getElementById('wpb-banner-link')  || {}).value || '';
+            document.querySelectorAll('#wpb-marquee-track .wpb-prev-title').forEach(function (el) {
+                el.textContent = titleVal.trim() || 'Titolo del banner';
+            });
+            document.querySelectorAll('#wpb-marquee-track .wpb-prev-link').forEach(function (el) {
+                if (linkVal.trim()) { el.style.display = ''; el.textContent = linkVal.trim(); }
+                else { el.style.display = 'none'; }
+            });
+        }
+
         (function () {
-            var titleInput  = document.getElementById('wpb-banner-title');
-            var linkInput   = document.getElementById('wpb-banner-link');
-
-            function refreshMarquee() {
-                var titleVal = titleInput ? titleInput.value.trim() || 'Titolo del banner' : '';
-                var linkVal  = linkInput  ? linkInput.value.trim()  : '';
-
-                // Aggiorna tutti i .wpb-prev-title nel marquee
-                document.querySelectorAll('#wpb-marquee-track .wpb-prev-title').forEach(function (el) {
-                    el.textContent = titleVal;
-                });
-
-                // Aggiorna / mostra / nasconde i link
-                document.querySelectorAll('#wpb-marquee-track .wpb-prev-link').forEach(function (el) {
-                    if (linkVal) {
-                        el.style.display = '';
-                        el.textContent = linkVal;
-                    } else {
-                        el.style.display = 'none';
-                    }
-                });
-            }
-
-            if (titleInput) titleInput.addEventListener('input', refreshMarquee);
-            if (linkInput)  linkInput.addEventListener('input', refreshMarquee);
-
-            // Inizializzazione
-            refreshMarquee();
+            var titleInput = document.getElementById('wpb-banner-title');
+            var linkInput  = document.getElementById('wpb-banner-link');
+            if (titleInput) titleInput.addEventListener('input', refreshMarqueeFromFields);
+            if (linkInput)  linkInput.addEventListener('input', refreshMarqueeFromFields);
+            refreshMarqueeFromFields();
         })();
 
         /* ════════════════════════════════════════
@@ -854,14 +1325,38 @@ function wpb_banners_admin_page(): void
                 btn.textContent = 'Salvataggio…';
                 msg.style.display = 'none';
 
-                var fd = new URLSearchParams({
-                    action:      'wpb_banners_save',
-                    nonce:       nonce,
-                    banner_id:   document.getElementById('wpb-banner-id').value,
-                    title:       title,
-                    link:        document.getElementById('wpb-banner-link').value.trim(),
-                    link_target: document.getElementById('wpb-banner-link-target').value,
-                });
+                var bannerId  = document.getElementById('wpb-banner-id').value;
+                var isPrimary = !mlActive || currentLang === mlPrimary;
+                var fd;
+
+                if (isPrimary) {
+                    fd = new URLSearchParams({
+                        action:      'wpb_banners_save',
+                        nonce:       nonce,
+                        banner_id:   bannerId,
+                        title:       title,
+                        link:        document.getElementById('wpb-banner-link').value.trim(),
+                        link_target: document.getElementById('wpb-banner-link-target').value,
+                    });
+                } else {
+                    if (!bannerId || bannerId === '0') {
+                        msg.style.display = 'inline';
+                        msg.style.color   = '#d63638';
+                        msg.textContent   = '✗ Salva prima il banner in lingua principale.';
+                        btn.disabled    = false;
+                        btn.textContent = 'Salva traduzione';
+                        return;
+                    }
+                    fd = new URLSearchParams({
+                        action:      'wpb_banners_save_translation',
+                        nonce:       nonce,
+                        banner_id:   bannerId,
+                        lang:        currentLang,
+                        title:       title,
+                        link:        document.getElementById('wpb-banner-link').value.trim(),
+                        link_target: document.getElementById('wpb-banner-link-target').value,
+                    });
+                }
 
                 fetch(ajaxUrl, { method: 'POST', body: fd })
                     .then(function (r) { return r.json(); })
@@ -869,8 +1364,8 @@ function wpb_banners_admin_page(): void
                         if (res.success) {
                             msg.style.display = 'inline';
                             msg.style.color   = '#00a32a';
-                            msg.textContent   = '✓ Banner salvato.';
-                            if (document.getElementById('wpb-banner-id').value === '0') {
+                            msg.textContent   = isPrimary ? '✓ Banner salvato.' : '✓ Traduzione salvata.';
+                            if (isPrimary && bannerId === '0') {
                                 setTimeout(function () {
                                     window.location.href = urlEditBase + res.data.id;
                                 }, 800);
@@ -888,7 +1383,7 @@ function wpb_banners_admin_page(): void
                     })
                     .finally(function () {
                         btn.disabled    = false;
-                        btn.textContent = 'Salva banner';
+                        btn.textContent = isPrimary ? 'Salva banner' : 'Salva traduzione';
                     });
             });
         }

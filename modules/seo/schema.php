@@ -162,139 +162,190 @@ function wpb_schema_build(): array
     $pt_list  = $content['post_types']  ?? [];
     $tax_list = $content['taxonomies']  ?? [];
 
-    // Post / CPT
-    foreach (get_post_types(['public' => true], 'objects') as $pt_obj) {
-        $slug = $pt_obj->name;
-        if ($slug === 'attachment') continue;
+    // Lingue da iterare: tutte le lingue WPML attive, oppure [null] se WPML non è attivo
+    $wpml_active = defined('ICL_SITEPRESS_VERSION')
+                   && function_exists('wpb_multilang_is_enabled')
+                   && wpb_multilang_is_enabled();
+    $languages   = $wpml_active ? wpb_multilang_languages() : [null => null];
 
-        $cfg = $pt_list[$slug] ?? ['index' => 1];
-        if (empty($cfg['index'])) continue;
+    // Mappa codice ISO WPML → BCP-47 per inLanguage schema.org (es. 'it' → 'it-IT')
+    $to_bcp47 = function(string $code): string {
+        $map = [
+            'it' => 'it-IT', 'en' => 'en-US', 'fr' => 'fr-FR',
+            'de' => 'de-DE', 'es' => 'es-ES', 'pt' => 'pt-PT',
+            'nl' => 'nl-NL', 'pl' => 'pl-PL', 'ru' => 'ru-RU',
+            'zh' => 'zh-CN', 'ja' => 'ja-JP', 'ar' => 'ar-SA',
+            'sv' => 'sv-SE', 'da' => 'da-DK', 'fi' => 'fi-FI',
+            'nb' => 'nb-NO', 'cs' => 'cs-CZ', 'hu' => 'hu-HU',
+            'ro' => 'ro-RO', 'tr' => 'tr-TR', 'el' => 'el-GR',
+        ];
+        return $map[$code] ?? $code;
+    };
 
-        $posts = get_posts([
-            'post_type'      => $slug,
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'fields'         => 'ids',
-        ]);
+    foreach (array_keys($languages) as $lang_code) {
 
-        foreach ($posts as $post_id) {
-            // Rispetta override per-post
-            $post_idx = get_post_meta($post_id, '_wpb_seo_index', true);
-            if ($post_idx === '0') continue;
+        // Lingua corrente per i nodi di questa iterazione
+        $node_lang = $wpml_active ? $to_bcp47($lang_code) : $lang;
 
-            $permalink    = get_permalink($post_id);
-            $frontend_url = $to_frontend($permalink);
-            $page_uri     = wp_make_link_relative($permalink);
-            $page_id      = $site_url . $page_uri . '#webpage';
+        // ── Post / CPT ────────────────────────────────────────────────────
+        foreach (get_post_types(['public' => true], 'objects') as $pt_obj) {
+            $slug = $pt_obj->name;
+            if ($slug === 'attachment') continue;
 
-            $seo_title = get_post_meta($post_id, '_wpb_seo_title', true) ?: get_the_title($post_id);
-            $seo_desc  = get_post_meta($post_id, '_wpb_seo_description', true)
-                ?: wp_strip_all_tags(get_the_excerpt($post_id))
-                ?: ($meta['default_desc'] ?? '');
+            $cfg = $pt_list[$slug] ?? ['index' => 1];
+            if (empty($cfg['index'])) continue;
 
-            // Keywords → keywords schema
-            $kw_raw = get_post_meta($post_id, '_wpb_seo_keywords', true);
-            $kws    = $kw_raw ? (array)json_decode($kw_raw, true) : [];
+            if ($wpml_active) {
+                global $wpdb;
+                $ids = $wpdb->get_col($wpdb->prepare(
+                    "SELECT element_id FROM {$wpdb->prefix}icl_translations
+                     WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
+                    'post_' . $slug, $lang_code
+                ));
+                if (empty($ids)) continue;
+                $posts = get_posts([
+                    'post_type'        => $slug,
+                    'post_status'      => 'publish',
+                    'posts_per_page'   => -1,
+                    'fields'           => 'ids',
+                    'post__in'         => $ids,
+                    'suppress_filters' => true,
+                ]);
+            } else {
+                $posts = get_posts([
+                    'post_type'      => $slug,
+                    'post_status'    => 'publish',
+                    'posts_per_page' => -1,
+                    'fields'         => 'ids',
+                ]);
+            }
 
-            // OG image
-            $og_img = '';
-            $custom_og = (int)get_post_meta($post_id, '_wpb_seo_og_image_id', true);
-            if ($custom_og) $og_img = wp_get_attachment_image_url($custom_og, 'full') ?: '';
-            if (!$og_img && has_post_thumbnail($post_id))
-                $og_img = get_the_post_thumbnail_url($post_id, 'full') ?: '';
-            if (!$og_img && !empty($meta['og_image_id']))
-                $og_img = wp_get_attachment_image_url((int)$meta['og_image_id'], 'full') ?: '';
+            foreach ($posts as $post_id) {
+                $post_idx = get_post_meta($post_id, '_wpb_seo_index', true);
+                if ($post_idx === '0') continue;
 
-            $page = [
-                '@type'      => 'WebPage',
-                '@id'        => $page_id,
-                'url'        => $frontend_url,
-                'name'       => $seo_title,
-                'inLanguage' => $lang,
-                'isPartOf'   => ['@id' => $web_id],
-                'about'      => ['@id' => $base_id],
-                'breadcrumb' => [
-                    '@type'           => 'BreadcrumbList',
-                    'itemListElement' => [[
-                        '@type'    => 'ListItem',
-                        'position' => 1,
-                        'name'     => $seo_title,
-                        'item'     => $frontend_url,
-                    ]],
-                ],
-            ];
+                $permalink    = get_permalink($post_id);
+                $frontend_url = $to_frontend($permalink);
+                $page_uri     = wp_make_link_relative($permalink);
+                $page_id      = $site_url . $page_uri . '#webpage';
 
-            if ($seo_desc)      $page['description'] = $seo_desc;
-            if (!empty($kws))   $page['keywords']    = implode(', ', $kws);
-            if ($og_img)        $page['image']       = $og_img;
+                $seo_title = get_post_meta($post_id, '_wpb_seo_title', true) ?: get_the_title($post_id);
+                $seo_desc  = get_post_meta($post_id, '_wpb_seo_description', true)
+                    ?: wp_strip_all_tags(get_the_excerpt($post_id))
+                    ?: ($meta['default_desc'] ?? '');
 
-            // Data modifica
-            $modified = get_post_modified_time('c', true, $post_id);
-            if ($modified) $page['dateModified'] = $modified;
-            $published = get_post_time('c', true, $post_id);
-            if ($published) $page['datePublished'] = $published;
+                $kw_raw = get_post_meta($post_id, '_wpb_seo_keywords', true);
+                $kws    = $kw_raw ? (array)json_decode($kw_raw, true) : [];
 
-            $graph[] = $page;
+                $og_img    = '';
+                $custom_og = (int)get_post_meta($post_id, '_wpb_seo_og_image_id', true);
+                if ($custom_og) $og_img = wp_get_attachment_image_url($custom_og, 'full') ?: '';
+                if (!$og_img && has_post_thumbnail($post_id))
+                    $og_img = get_the_post_thumbnail_url($post_id, 'full') ?: '';
+                if (!$og_img && !empty($meta['og_image_id']))
+                    $og_img = wp_get_attachment_image_url((int)$meta['og_image_id'], 'full') ?: '';
+
+                $page = [
+                    '@type'      => 'WebPage',
+                    '@id'        => $page_id,
+                    'url'        => $frontend_url,
+                    'name'       => $seo_title,
+                    'inLanguage' => $node_lang,
+                    'isPartOf'   => ['@id' => $web_id],
+                    'about'      => ['@id' => $base_id],
+                    'breadcrumb' => [
+                        '@type'           => 'BreadcrumbList',
+                        'itemListElement' => [[
+                            '@type'    => 'ListItem',
+                            'position' => 1,
+                            'name'     => $seo_title,
+                            'item'     => $frontend_url,
+                        ]],
+                    ],
+                ];
+
+                if ($seo_desc)      $page['description'] = $seo_desc;
+                if (!empty($kws))   $page['keywords']    = implode(', ', $kws);
+                if ($og_img)        $page['image']       = $og_img;
+
+                $modified = get_post_modified_time('c', true, $post_id);
+                if ($modified) $page['dateModified'] = $modified;
+                $published = get_post_time('c', true, $post_id);
+                if ($published) $page['datePublished'] = $published;
+
+                $graph[] = $page;
+            }
         }
-    }
 
-    // Tassonomie
-    foreach (array_diff(get_taxonomies(['public' => true], 'names'), $excluded_taxes) as $tax) {
-        $cfg = $tax_list[$tax] ?? ['index' => 1];
-        if (empty($cfg['index'])) continue;
+        // ── Tassonomie ────────────────────────────────────────────────────
+        foreach (array_diff(get_taxonomies(['public' => true], 'names'), $excluded_taxes) as $tax) {
+            $cfg = $tax_list[$tax] ?? ['index' => 1];
+            if (empty($cfg['index'])) continue;
 
-        $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => true]);
-        if (is_wp_error($terms)) continue;
+            if ($wpml_active) {
+                global $wpdb;
+                $tt_ids = $wpdb->get_col($wpdb->prepare(
+                    "SELECT element_id FROM {$wpdb->prefix}icl_translations
+                     WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
+                    'tax_' . $tax, $lang_code
+                ));
+                if (empty($tt_ids)) continue;
+                $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => true, 'term_taxonomy_id' => $tt_ids]);
+            } else {
+                $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => true]);
+            }
 
-        foreach ($terms as $term) {
-            // Rispetta override per-termine
-            $term_idx = get_term_meta($term->term_id, '_wpb_seo_index', true);
-            if ($term_idx === '0') continue;
+            if (is_wp_error($terms)) continue;
 
-            $link         = get_term_link($term, $tax);
-            if (is_wp_error($link)) continue;
-            $frontend_url = $to_frontend($link);
-            $page_uri     = wp_make_link_relative($link);
-            $page_id      = $site_url . $page_uri . '#webpage';
+            foreach ($terms as $term) {
+                $term_idx = get_term_meta($term->term_id, '_wpb_seo_index', true);
+                if ($term_idx === '0') continue;
 
-            $seo_title = get_term_meta($term->term_id, '_wpb_seo_title', true) ?: $term->name;
-            $seo_desc  = get_term_meta($term->term_id, '_wpb_seo_description', true)
-                ?: wp_strip_all_tags($term->description)
-                ?: ($meta['default_desc'] ?? '');
+                $link         = get_term_link($term, $tax);
+                if (is_wp_error($link)) continue;
+                $frontend_url = $to_frontend($link);
+                $page_uri     = wp_make_link_relative($link);
+                $page_id      = $site_url . $page_uri . '#webpage';
 
-            $kw_raw = get_term_meta($term->term_id, '_wpb_seo_keywords', true);
-            $kws    = $kw_raw ? (array)json_decode($kw_raw, true) : [];
+                $seo_title = get_term_meta($term->term_id, '_wpb_seo_title', true) ?: $term->name;
+                $seo_desc  = get_term_meta($term->term_id, '_wpb_seo_description', true)
+                    ?: wp_strip_all_tags($term->description)
+                    ?: ($meta['default_desc'] ?? '');
 
-            $og_img = '';
-            $custom_og = (int)get_term_meta($term->term_id, '_wpb_seo_og_image_id', true);
-            if ($custom_og) $og_img = wp_get_attachment_image_url($custom_og, 'full') ?: '';
-            if (!$og_img && !empty($meta['og_image_id']))
-                $og_img = wp_get_attachment_image_url((int)$meta['og_image_id'], 'full') ?: '';
+                $kw_raw    = get_term_meta($term->term_id, '_wpb_seo_keywords', true);
+                $kws       = $kw_raw ? (array)json_decode($kw_raw, true) : [];
 
-            $page = [
-                '@type'      => 'WebPage',
-                '@id'        => $page_id,
-                'url'        => $frontend_url,
-                'name'       => $seo_title,
-                'inLanguage' => $lang,
-                'isPartOf'   => ['@id' => $web_id],
-                'about'      => ['@id' => $base_id],
-                'breadcrumb' => [
-                    '@type'           => 'BreadcrumbList',
-                    'itemListElement' => [[
-                        '@type'    => 'ListItem',
-                        'position' => 1,
-                        'name'     => $seo_title,
-                        'item'     => $frontend_url,
-                    ]],
-                ],
-            ];
+                $og_img    = '';
+                $custom_og = (int)get_term_meta($term->term_id, '_wpb_seo_og_image_id', true);
+                if ($custom_og) $og_img = wp_get_attachment_image_url($custom_og, 'full') ?: '';
+                if (!$og_img && !empty($meta['og_image_id']))
+                    $og_img = wp_get_attachment_image_url((int)$meta['og_image_id'], 'full') ?: '';
 
-            if ($seo_desc)    $page['description'] = $seo_desc;
-            if (!empty($kws)) $page['keywords']    = implode(', ', $kws);
-            if ($og_img)      $page['image']       = $og_img;
+                $page = [
+                    '@type'      => 'WebPage',
+                    '@id'        => $page_id,
+                    'url'        => $frontend_url,
+                    'name'       => $seo_title,
+                    'inLanguage' => $node_lang,
+                    'isPartOf'   => ['@id' => $web_id],
+                    'about'      => ['@id' => $base_id],
+                    'breadcrumb' => [
+                        '@type'           => 'BreadcrumbList',
+                        'itemListElement' => [[
+                            '@type'    => 'ListItem',
+                            'position' => 1,
+                            'name'     => $seo_title,
+                            'item'     => $frontend_url,
+                        ]],
+                    ],
+                ];
 
-            $graph[] = $page;
+                if ($seo_desc)    $page['description'] = $seo_desc;
+                if (!empty($kws)) $page['keywords']    = implode(', ', $kws);
+                if ($og_img)      $page['image']       = $og_img;
+
+                $graph[] = $page;
+            }
         }
     }
 
@@ -540,9 +591,53 @@ function wpb_schema_admin_page()
                         </div>
                     </div>
                     <div class="wpb-sf-row">
-                        <div class="wpb-sf-label">Lingua<small>es. it-IT, en-US</small></div>
+                        <div class="wpb-sf-label">Lingua<small>Lingua principale del sito</small></div>
                         <div class="wpb-sf-input">
-                            <input type="text" name="language" value="<?php echo esc_attr($s['language'] ?? 'it-IT'); ?>" style="max-width:120px;">
+                            <?php
+                            $current_lang = $s['language'] ?? 'it-IT';
+                            $lang_options = [
+                                'it-IT' => '🇮🇹 Italiano',
+                                'en-US' => '🇺🇸 English (US)',
+                                'en-GB' => '🇬🇧 English (UK)',
+                                'fr-FR' => '🇫🇷 Français',
+                                'de-DE' => '🇩🇪 Deutsch',
+                                'es-ES' => '🇪🇸 Español',
+                                'pt-PT' => '🇵🇹 Português (PT)',
+                                'pt-BR' => '🇧🇷 Português (BR)',
+                                'nl-NL' => '🇳🇱 Nederlands',
+                                'pl-PL' => '🇵🇱 Polski',
+                                'ru-RU' => '🇷🇺 Русский',
+                                'zh-CN' => '🇨🇳 中文 (简体)',
+                                'zh-TW' => '🇹🇼 中文 (繁體)',
+                                'ja-JP' => '🇯🇵 日本語',
+                                'ar-SA' => '🇸🇦 العربية',
+                                'sv-SE' => '🇸🇪 Svenska',
+                                'da-DK' => '🇩🇰 Dansk',
+                                'fi-FI' => '🇫🇮 Suomi',
+                                'nb-NO' => '🇳🇴 Norsk',
+                                'cs-CZ' => '🇨🇿 Čeština',
+                                'hu-HU' => '🇭🇺 Magyar',
+                                'ro-RO' => '🇷🇴 Română',
+                                'tr-TR' => '🇹🇷 Türkçe',
+                                'el-GR' => '🇬🇷 Ελληνικά',
+                                'uk-UA' => '🇺🇦 Українська',
+                                'ca-ES' => '🏴󠁥󠁳󠁣󠁴󠁿 Català',
+                            ];
+                            ?>
+                            <select name="language" style="min-width:200px;">
+                                <?php foreach ($lang_options as $code => $label): ?>
+                                    <option value="<?php echo esc_attr($code); ?>" <?php selected($current_lang, $code); ?>>
+                                        <?php echo esc_html($label); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                                <?php
+                                // Se il valore salvato non è nella lista, mostralo come opzione aggiuntiva
+                                if ($current_lang && !isset($lang_options[$current_lang])): ?>
+                                    <option value="<?php echo esc_attr($current_lang); ?>" selected>
+                                        <?php echo esc_html($current_lang); ?>
+                                    </option>
+                                <?php endif; ?>
+                            </select>
                         </div>
                     </div>
                 </div>

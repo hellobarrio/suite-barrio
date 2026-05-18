@@ -59,7 +59,7 @@ function wpb_tools_modules_list()
         ],
         'seo'         => [
             'label' => 'SEO',
-            'desc'  => 'Strumenti per l\'ottimizzazione sui motori di ricerca.',
+            'desc'  => "Strumenti per l'ottimizzazione sui motori di ricerca.",
         ],
     ];
 }
@@ -73,6 +73,125 @@ function wpb_tools_module_enabled($key)
     // Default: tutti attivi se l'opzione non esiste ancora
     return isset($options[$key]) ? (bool) $options[$key] : true;
 }
+
+/* ─────────────────────────────────────────
+   HELPER MULTILINGUA — rilevamento automatico WPML
+
+   Queste funzioni sono l'unica interfaccia usata dagli altri
+   moduli per sapere se il sito è multilingua e quali lingue
+   sono attive. Non esiste nessuna impostazione manuale:
+   tutto viene letto direttamente da WPML.
+   ───────────────────────────────────────── */
+
+/**
+ * true se WPML è attivo e ha almeno una lingua di traduzione
+ * oltre alla principale.
+ */
+function wpb_multilang_is_enabled(): bool
+{
+    if (!defined('ICL_SITEPRESS_VERSION'))
+        return false;
+
+    global $sitepress;
+    if (!isset($sitepress) || !is_object($sitepress))
+        return false;
+
+    return count(wpb_multilang_translation_languages()) > 0;
+}
+
+/**
+ * Codice ISO della lingua principale configurata in WPML.
+ * Fallback "en" se WPML non è disponibile.
+ */
+function wpb_multilang_primary_language(): string
+{
+    if (!defined('ICL_SITEPRESS_VERSION'))
+        return 'en';
+
+    global $sitepress;
+    if (!isset($sitepress) || !is_object($sitepress))
+        return 'en';
+
+    return (string) $sitepress->get_default_language();
+}
+
+/**
+ * Array di codici ISO delle lingue di traduzione attive in WPML,
+ * esclusa la lingua principale.
+ * Esempio: ['en', 'fr', 'de']
+ * Restituisce [] se WPML non è disponibile o non ha traduzioni.
+ */
+function wpb_multilang_translation_languages(): array
+{
+    if (!defined('ICL_SITEPRESS_VERSION'))
+        return [];
+
+    global $sitepress;
+    if (!isset($sitepress) || !is_object($sitepress))
+        return [];
+
+    $primary    = (string) $sitepress->get_default_language();
+    $all_active = $sitepress->get_active_languages();
+
+    if (!is_array($all_active))
+        return [];
+
+    $translations = [];
+    foreach ($all_active as $code => $data) {
+        if ((string) $code !== $primary) {
+            $translations[] = (string) $code;
+        }
+    }
+
+    return $translations;
+}
+
+/**
+ * Array associativo code => nome nativo per tutte le lingue
+ * attive in WPML (principale + traduzioni).
+ * Esempio: ['it' => 'Italiano', 'en' => 'English']
+ * Restituisce [] se WPML non è disponibile.
+ */
+function wpb_multilang_languages(): array
+{
+    if (!defined('ICL_SITEPRESS_VERSION'))
+        return [];
+
+    global $sitepress;
+    if (!isset($sitepress) || !is_object($sitepress))
+        return [];
+
+    $all_active = $sitepress->get_active_languages();
+    if (!is_array($all_active))
+        return [];
+
+    $result = [];
+    foreach ($all_active as $code => $data) {
+        $label = $data['native_name'] ?? $data['display_name'] ?? strtoupper((string) $code);
+        $result[(string) $code] = (string) $label;
+    }
+
+    return $result;
+}
+
+/* ─────────────────────────────────────────
+   WPML: nasconde lo switch lingua nella admin bar
+   su tutte le pagine del plugin WP Barrio.
+   ───────────────────────────────────────── */
+add_action('admin_head', function () {
+    if (!wpb_multilang_is_enabled())
+        return;
+
+    $screen = get_current_screen();
+    if (!$screen)
+        return;
+
+    // Tutte le pagine WP Barrio hanno l'ID che contiene "wp-barrio"
+    if (strpos($screen->id, 'wp-barrio') === false)
+        return;
+
+    echo '<style>#wp-admin-bar-WPML_ALS { display: none !important; }</style>';
+});
 
 /* ─────────────────────────────────────────
    1. MENU — aggiunto dopo Auto LLMs (priority 20)
@@ -122,6 +241,13 @@ function wpb_tools_admin_page()
 
     $modules = wpb_tools_modules_list();
     $saved   = isset($_GET['saved']);
+
+    // Stato WPML (solo lettura, nessuna impostazione manuale)
+    $wpml_active  = defined('ICL_SITEPRESS_VERSION');
+    $ml_enabled   = wpb_multilang_is_enabled();
+    $ml_primary   = wpb_multilang_primary_language();
+    $ml_trans     = wpb_multilang_translation_languages();
+    $ml_languages = wpb_multilang_languages();
     ?>
     <style>
         #wpb-tools-wrap { max-width: 700px; }
@@ -193,13 +319,8 @@ function wpb_tools_admin_page()
             transition: transform .2s;
         }
 
-        .wpb-toggle input:checked + .wpb-toggle-slider {
-            background: #00a32a;
-        }
-
-        .wpb-toggle input:checked + .wpb-toggle-slider:before {
-            transform: translateX(18px);
-        }
+        .wpb-toggle input:checked + .wpb-toggle-slider { background: #00a32a; }
+        .wpb-toggle input:checked + .wpb-toggle-slider:before { transform: translateX(18px); }
     </style>
 
     <div id="wpb-tools-wrap" class="wrap">
@@ -249,6 +370,47 @@ function wpb_tools_admin_page()
 
             <?php submit_button('Salva impostazioni', 'primary', 'submit', false, ['style' => 'margin-top:16px;']); ?>
         </form>
+
+        <!-- ── Stato Multilingua (sola lettura) ── -->
+        <div style="margin-top:32px;">
+            <h2 style="font-size:14px;font-weight:600;color:#1d2327;margin:0 0 8px;">
+                <span class="dashicons dashicons-translation"
+                      style="font-size:16px;width:16px;height:16px;vertical-align:middle;margin-right:4px;color:#2271b1;"></span>
+                Multilingua
+            </h2>
+
+            <?php if (!$wpml_active): ?>
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;color:#646970;">
+                    <span class="dashicons dashicons-info-outline" style="color:#a7aaad;font-size:18px;width:18px;height:18px;flex-shrink:0;margin-top:1px;"></span>
+                    <span>WPML non rilevato. Il supporto multilingua negli strumenti di WP Barrio si attiva automaticamente quando WPML è installato e configurato.</span>
+                </div>
+
+            <?php elseif (!$ml_enabled): ?>
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:#fcf9e8;border:1px solid #dba617;border-radius:3px;font-size:13px;color:#6e4e00;">
+                    <span class="dashicons dashicons-warning" style="color:#dba617;font-size:18px;width:18px;height:18px;flex-shrink:0;margin-top:1px;"></span>
+                    <span>WPML è attivo ma non ha lingue di traduzione configurate. Aggiungi almeno una lingua in
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=wpml-language-switcher')); ?>">WPML → Lingue</a>
+                    per abilitare il supporto multilingua negli strumenti.</span>
+                </div>
+
+            <?php else: ?>
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:3px;font-size:13px;color:#166534;">
+                    <span class="dashicons dashicons-yes-alt" style="color:#00a32a;font-size:18px;width:18px;height:18px;flex-shrink:0;margin-top:1px;"></span>
+                    <div>
+                        <strong>Multilingua attivo</strong> tramite WPML <?php echo esc_html(ICL_SITEPRESS_VERSION); ?>.<br>
+                        <span style="display:inline-block;margin-top:5px;color:#166534;">
+                            Lingua principale: <strong><?php echo esc_html($ml_languages[$ml_primary] ?? $ml_primary); ?></strong>
+                            &nbsp;&middot;&nbsp;
+                            <?php
+                            $trans_labels = array_map(fn($c) => $ml_languages[$c] ?? $c, $ml_trans);
+                            echo 'Lingue di traduzione: <strong>' . esc_html(implode(', ', $trans_labels)) . '</strong>';
+                            ?>
+                        </span>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+
     </div>
     <?php
 }
