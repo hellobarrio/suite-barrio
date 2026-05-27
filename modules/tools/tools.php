@@ -174,6 +174,57 @@ function wpb_multilang_languages(): array
     return $result;
 }
 
+/**
+ * Restituisce la bandiera emoji per un codice lingua ISO 639-1.
+ * Le emoji bandiera sono composte da due Regional Indicator Symbols
+ * corrispondenti al codice paese ISO 3166-1 alpha-2.
+ * Per le lingue senza corrispondenza 1:1 usa la bandiera più comune.
+ */
+function wpb_multilang_flag(string $lang_code): string
+{
+    // Mappa codice lingua → codice paese ISO 3166-1 alpha-2
+    $map = [
+        'it' => 'IT', 'en' => 'GB', 'fr' => 'FR', 'de' => 'DE',
+        'es' => 'ES', 'pt' => 'PT', 'nl' => 'NL', 'pl' => 'PL',
+        'ru' => 'RU', 'zh' => 'CN', 'ja' => 'JP', 'ar' => 'SA',
+        'sv' => 'SE', 'da' => 'DK', 'fi' => 'FI', 'nb' => 'NO',
+        'no' => 'NO', 'cs' => 'CZ', 'hu' => 'HU', 'ro' => 'RO',
+        'tr' => 'TR', 'el' => 'GR', 'uk' => 'UA', 'ca' => 'ES',
+        'hr' => 'HR', 'sk' => 'SK', 'sl' => 'SI', 'bg' => 'BG',
+        'sr' => 'RS', 'he' => 'IL', 'ko' => 'KR', 'vi' => 'VN',
+        'th' => 'TH', 'id' => 'ID', 'ms' => 'MY', 'fa' => 'IR',
+        'hi' => 'IN', 'bn' => 'BD', 'lt' => 'LT', 'lv' => 'LV',
+        'et' => 'EE', 'en_us' => 'US', 'en_gb' => 'GB',
+        'pt_br' => 'BR', 'zh_tw' => 'TW',
+    ];
+
+    $code = strtolower(str_replace('-', '_', $lang_code));
+    // Prova prima il codice completo (es. en_us), poi solo le prime 2 lettere
+    $country = $map[$code] ?? $map[substr($code, 0, 2)] ?? null;
+    if (!$country) return '';
+
+    // Converti codice paese in emoji flag (Regional Indicator Symbols)
+    $flag = '';
+    foreach (str_split(strtoupper($country)) as $char) {
+        $flag .= mb_chr(0x1F1E6 + (ord($char) - ord('A')), 'UTF-8');
+    }
+    return $flag;
+}
+
+/**
+ * Restituisce le lingue attive con bandiera: ['it' => '🇮🇹 Italiano', ...]
+ */
+function wpb_multilang_languages_with_flags(): array
+{
+    $langs = wpb_multilang_languages();
+    $result = [];
+    foreach ($langs as $code => $label) {
+        $flag = wpb_multilang_flag($code);
+        $result[$code] = $flag ? $flag . ' ' . $label : $label;
+    }
+    return $result;
+}
+
 /* ─────────────────────────────────────────
    WPML: nasconde lo switch lingua nella admin bar
    su tutte le pagine del plugin WP Barrio.
@@ -247,7 +298,7 @@ function wpb_tools_admin_page()
     $ml_enabled   = wpb_multilang_is_enabled();
     $ml_primary   = wpb_multilang_primary_language();
     $ml_trans     = wpb_multilang_translation_languages();
-    $ml_languages = wpb_multilang_languages();
+    $ml_languages = wpb_multilang_languages_with_flags();
     ?>
     <style>
         #wpb-tools-wrap { max-width: 700px; }
