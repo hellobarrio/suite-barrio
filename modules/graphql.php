@@ -648,9 +648,10 @@ function wpb_graphql_register_schema(): void
                 'description' => 'Lista dei campi compilati.',
             ],
             // Informazioni pagina (opzionali — usate se displayPageInfo è attivo)
-            'pageUrl' => ['type' => 'String', 'description' => 'URL della pagina da cui è stato inviato il form.'],
-            'pageTitle' => ['type' => 'String', 'description' => 'Titolo della pagina corrente.'],
+            'pageUrl'      => ['type' => 'String', 'description' => 'URL della pagina da cui è stato inviato il form.'],
+            'pageTitle'    => ['type' => 'String', 'description' => 'Titolo della pagina corrente.'],
             'pageReferrer' => ['type' => 'String', 'description' => 'Referrer della pagina corrente.'],
+            'lang'         => ['type' => 'String', 'description' => 'Codice lingua WPML (es. "it", "en"). Se omesso usa ICL_LANGUAGE_CODE.'],
         ],
         'outputFields' => [
             'success' => ['type' => ['non_null' => 'Boolean'], 'description' => 'true se l\'invio è riuscito.'],
@@ -779,16 +780,33 @@ function wpb_graphql_register_schema(): void
                     ];
                 }
 
+                // ── Lingua compilazione ───────────────────────────────────────────
+                $submission_lang = sanitize_key($input['lang'] ?? '');
+                if (!$submission_lang && defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
+                    $submission_lang = ICL_LANGUAGE_CODE;
+                }
+                if (!$submission_lang) {
+                    $submission_lang = sanitize_key(apply_filters('wpml_current_language', ''));
+                }
+                if ($submission_lang) {
+                    $lang_labels = function_exists('wpb_multilang_languages') ? wpb_multilang_languages() : [];
+                    $submission_data['_lang'] = [
+                        'label' => 'Lingua',
+                        'value' => $lang_labels[$submission_lang] ?? strtoupper($submission_lang),
+                    ];
+                }
+
                 // ── Salva nel DB ──────────────────────────────────────────────────
                 $ok = $wpdb->insert(
                     $wpdb->prefix . WPB_FORMS_SUB_TABLE,
                     [
-                        'form_id' => $form_id,
-                        'data' => wp_json_encode($submission_data),
-                        'ip' => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
+                        'form_id'    => $form_id,
+                        'data'       => wp_json_encode($submission_data),
+                        'lang'       => $submission_lang,
+                        'ip'         => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
                         'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
                     ],
-                    ['%d', '%s', '%s', '%s']
+                    ['%d', '%s', '%s', '%s', '%s']
                 );
 
                 if ($ok === false) {
