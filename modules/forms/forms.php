@@ -9,10 +9,14 @@
 if (!defined('ABSPATH'))
     exit;
 
-if (!defined('WPB_FORMS_VERSION'))     define('WPB_FORMS_VERSION',     '1.1.0');
-if (!defined('WPB_FORMS_TABLE'))       define('WPB_FORMS_TABLE',       'wpb_forms');
-if (!defined('WPB_FORMS_SUB_TABLE'))   define('WPB_FORMS_SUB_TABLE',   'wpb_form_submissions');
-if (!defined('WPB_FORMS_TRANS_TABLE')) define('WPB_FORMS_TRANS_TABLE', 'wpb_forms_translations');
+if (!defined('WPB_FORMS_VERSION'))
+    define('WPB_FORMS_VERSION', '1.1.0');
+if (!defined('WPB_FORMS_TABLE'))
+    define('WPB_FORMS_TABLE', 'wpb_forms');
+if (!defined('WPB_FORMS_SUB_TABLE'))
+    define('WPB_FORMS_SUB_TABLE', 'wpb_form_submissions');
+if (!defined('WPB_FORMS_TRANS_TABLE'))
+    define('WPB_FORMS_TRANS_TABLE', 'wpb_forms_translations');
 
 /* ─────────────────────────────────────────
    INSTALL: crea le tabelle al primo avvio
@@ -156,7 +160,8 @@ function wpb_forms_get_translation(int $form_id, string $lang): ?object
     return $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}wpb_forms_translations
          WHERE form_id = %d AND lang = %s",
-        $form_id, $lang
+        $form_id,
+        $lang
     )) ?: null;
 }
 
@@ -166,19 +171,19 @@ function wpb_forms_get_translation(int $form_id, string $lang): ?object
 function wpb_forms_save_translation(int $form_id, string $lang, array $fields_i18n, array $settings_i18n): bool
 {
     global $wpdb;
-    $table    = $wpdb->prefix . WPB_FORMS_TRANS_TABLE;
+    $table = $wpdb->prefix . WPB_FORMS_TRANS_TABLE;
     $existing = wpb_forms_get_translation($form_id, $lang);
 
     $row = [
-        'form_id'       => $form_id,
-        'lang'          => $lang,
-        'fields_i18n'   => wp_json_encode($fields_i18n,   JSON_UNESCAPED_UNICODE),
+        'form_id' => $form_id,
+        'lang' => $lang,
+        'fields_i18n' => wp_json_encode($fields_i18n, JSON_UNESCAPED_UNICODE),
         'settings_i18n' => wp_json_encode($settings_i18n, JSON_UNESCAPED_UNICODE),
     ];
     $fmt = ['%d', '%s', '%s', '%s'];
 
     if ($existing) {
-        $ok = $wpdb->update($table, $row, ['id' => (int)$existing->id], $fmt, ['%d']);
+        $ok = $wpdb->update($table, $row, ['id' => (int) $existing->id], $fmt, ['%d']);
     } else {
         $ok = $wpdb->insert($table, $row, $fmt);
     }
@@ -200,15 +205,17 @@ function wpb_forms_delete_translations(int $form_id): void
  */
 function wpb_forms_apply_translation(array $fields, array $settings, object $trans): array
 {
-    $fi18n = json_decode($trans->fields_i18n,   true) ?: [];
+    $fi18n = json_decode($trans->fields_i18n, true) ?: [];
     $si18n = json_decode($trans->settings_i18n, true) ?: [];
 
     // Merge fields: per ogni campo, sovrascrive label, placeholder, options, error_message
     foreach ($fields as $i => &$field) {
-        if (!isset($fi18n[$i])) continue;
+        if (!isset($fi18n[$i]))
+            continue;
         $t = $fi18n[$i];
         foreach (['label', 'placeholder', 'error_message'] as $k) {
-            if (isset($t[$k]) && $t[$k] !== '') $field[$k] = $t[$k];
+            if (isset($t[$k]) && $t[$k] !== '')
+                $field[$k] = $t[$k];
         }
         if (!empty($t['options']) && is_array($t['options'])) {
             $field['options'] = $t['options'];
@@ -219,16 +226,19 @@ function wpb_forms_apply_translation(array $fields, array $settings, object $tra
     // Merge settings: sovrascrive solo i campi traducibili
     $translatable_settings = ['submit_label', 'redirect_url', 'success_message', 'mailup_list_id', 'mailup_group_id'];
     foreach ($translatable_settings as $k) {
-        if (isset($si18n[$k]) && $si18n[$k] !== '') $settings[$k] = $si18n[$k];
+        if (isset($si18n[$k]) && $si18n[$k] !== '')
+            $settings[$k] = $si18n[$k];
     }
     // Notifiche: merge array by index
     if (!empty($si18n['notifications']) && is_array($si18n['notifications'])) {
         $orig_notifs = $settings['notifications'] ?? [];
         foreach ($si18n['notifications'] as $ni => $nt) {
-            if (!isset($orig_notifs[$ni])) continue;
+            if (!isset($orig_notifs[$ni]))
+                continue;
             $translatable_notif = ['subject', 'body', 'reply_to', 'from_name', 'to'];
             foreach ($translatable_notif as $nk) {
-                if (isset($nt[$nk]) && $nt[$nk] !== '') $orig_notifs[$ni][$nk] = $nt[$nk];
+                if (isset($nt[$nk]) && $nt[$nk] !== '')
+                    $orig_notifs[$ni][$nk] = $nt[$nk];
             }
         }
         $settings['notifications'] = $orig_notifs;
@@ -296,13 +306,13 @@ function wpb_forms_shortcode($atts)
             <input type="hidden" name="action" value="wpb_forms_submit">
             <input type="hidden" name="form_id" value="<?php echo intval($form->id); ?>">
             <input type="hidden" name="_lang" value="<?php
-                $wpb_form_lang = '';
-                if (defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
-                    $wpb_form_lang = ICL_LANGUAGE_CODE;
-                } elseif (function_exists('apply_filters')) {
-                    $wpb_form_lang = apply_filters('wpml_current_language', '');
-                }
-                echo esc_attr($wpb_form_lang);
+            $wpb_form_lang = '';
+            if (defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
+                $wpb_form_lang = ICL_LANGUAGE_CODE;
+            } elseif (function_exists('apply_filters')) {
+                $wpb_form_lang = apply_filters('wpml_current_language', '');
+            }
+            echo esc_attr($wpb_form_lang);
             ?>">
             <?php if ($display_page_info): ?>
                 <input type="hidden" name="_page_url" id="<?php echo esc_attr($form_id_css); ?>-page-url">
@@ -1334,10 +1344,10 @@ function wpb_forms_handle_submit()
     $wpdb->insert(
         $wpdb->prefix . WPB_FORMS_SUB_TABLE,
         [
-            'form_id'    => $form_id,
-            'data'       => wp_json_encode($submission_data),
-            'lang'       => $submission_lang,
-            'ip'         => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
+            'form_id' => $form_id,
+            'data' => wp_json_encode($submission_data),
+            'lang' => $submission_lang,
+            'ip' => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
             'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
         ],
         ['%d', '%s', '%s', '%s', '%s']
@@ -1706,8 +1716,9 @@ add_action('wp_ajax_wpb_forms_init_translation', function () {
         wp_send_json_error('Permesso negato.');
 
     $form_id = intval($_POST['form_id'] ?? 0);
-    $lang    = sanitize_key($_POST['lang'] ?? '');
-    if (!$form_id || !$lang) wp_send_json_error('Parametri mancanti: form_id=' . $form_id . ' lang=' . $lang);
+    $lang = sanitize_key($_POST['lang'] ?? '');
+    if (!$form_id || !$lang)
+        wp_send_json_error('Parametri mancanti: form_id=' . $form_id . ' lang=' . $lang);
 
     // Verifica lingua solo se WPML è disponibile e operativo
     if (defined('ICL_SITEPRESS_VERSION')) {
@@ -1723,9 +1734,10 @@ add_action('wp_ajax_wpb_forms_init_translation', function () {
         wp_send_json_success(['already_exists' => true]);
 
     $form = wpb_forms_get($form_id);
-    if (!$form) wp_send_json_error('Form non trovato: id=' . $form_id);
+    if (!$form)
+        wp_send_json_error('Form non trovato: id=' . $form_id);
 
-    $fields   = json_decode($form->fields,   true) ?: [];
+    $fields = json_decode($form->fields, true) ?: [];
     $settings = json_decode($form->settings, true) ?: [];
     [$fi18n, $si18n] = wpb_forms_extract_translatable($fields, $settings);
 
@@ -1746,55 +1758,61 @@ add_action('wp_ajax_wpb_forms_save_translation', function () {
     if (!current_user_can('manage_options') && !current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
 
-    $form_id      = intval($_POST['form_id'] ?? 0);
-    $lang         = sanitize_key($_POST['lang'] ?? '');
-    $fields_i18n_raw   = wp_unslash($_POST['fields_i18n']   ?? '[]');
+    $form_id = intval($_POST['form_id'] ?? 0);
+    $lang = sanitize_key($_POST['lang'] ?? '');
+    $fields_i18n_raw = wp_unslash($_POST['fields_i18n'] ?? '[]');
     $settings_i18n_raw = wp_unslash($_POST['settings_i18n'] ?? '{}');
 
-    if (!$form_id || !$lang) wp_send_json_error('Parametri mancanti.');
+    if (!$form_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
 
     $allowed = wpb_multilang_translation_languages();
-    if (!in_array($lang, $allowed, true)) wp_send_json_error('Lingua non consentita.');
+    if (!in_array($lang, $allowed, true))
+        wp_send_json_error('Lingua non consentita.');
 
-    $fi18n = json_decode($fields_i18n_raw,   true);
+    $fi18n = json_decode($fields_i18n_raw, true);
     $si18n = json_decode($settings_i18n_raw, true);
-    if (!is_array($fi18n)) $fi18n = [];
-    if (!is_array($si18n)) $si18n = [];
+    if (!is_array($fi18n))
+        $fi18n = [];
+    if (!is_array($si18n))
+        $si18n = [];
 
     // Sanitize fields_i18n
     $fi18n_clean = [];
     foreach ($fi18n as $entry) {
         $fi18n_clean[] = [
-            'label'         => sanitize_text_field($entry['label']         ?? ''),
-            'placeholder'   => sanitize_text_field($entry['placeholder']   ?? ''),
+            'label' => sanitize_text_field($entry['label'] ?? ''),
+            'placeholder' => sanitize_text_field($entry['placeholder'] ?? ''),
             'error_message' => sanitize_text_field($entry['error_message'] ?? ''),
-            'options'       => array_map('sanitize_text_field', (array)($entry['options'] ?? [])),
+            'options' => array_map('sanitize_text_field', (array) ($entry['options'] ?? [])),
         ];
     }
 
     // Sanitize settings_i18n
     $si18n_clean = [
-        'submit_label'    => sanitize_text_field($si18n['submit_label']   ?? ''),
-        'redirect_url'    => sanitize_url($si18n['redirect_url']          ?? ''),
-        'success_message' => wp_kses_post($si18n['success_message']       ?? ''),
-        'mailup_list_id'  => sanitize_text_field($si18n['mailup_list_id'] ?? ''),
+        'submit_label' => sanitize_text_field($si18n['submit_label'] ?? ''),
+        'redirect_url' => sanitize_url($si18n['redirect_url'] ?? ''),
+        'success_message' => wp_kses_post($si18n['success_message'] ?? ''),
+        'mailup_list_id' => sanitize_text_field($si18n['mailup_list_id'] ?? ''),
         'mailup_group_id' => sanitize_text_field($si18n['mailup_group_id'] ?? ''),
-        'notifications'   => [],
+        'notifications' => [],
     ];
-    foreach ((array)($si18n['notifications'] ?? []) as $notif) {
+    foreach ((array) ($si18n['notifications'] ?? []) as $notif) {
         $si18n_clean['notifications'][] = [
-            'subject'    => sanitize_text_field($notif['subject']    ?? ''),
-            'body'       => wp_kses_post($notif['body']              ?? ''),
-            'reply_to'   => sanitize_email($notif['reply_to']        ?? ''),
-            'from_name'  => sanitize_text_field($notif['from_name']  ?? ''),
-            'to'         => sanitize_text_field($notif['to']         ?? ''),
+            'subject' => sanitize_text_field($notif['subject'] ?? ''),
+            'body' => wp_kses_post($notif['body'] ?? ''),
+            'reply_to' => sanitize_email($notif['reply_to'] ?? ''),
+            'from_name' => sanitize_text_field($notif['from_name'] ?? ''),
+            'to' => sanitize_text_field($notif['to'] ?? ''),
         ];
     }
 
     $ok = wpb_forms_save_translation($form_id, $lang, $fi18n_clean, $si18n_clean);
-    if (!$ok) wp_send_json_error('Errore DB.');
+    if (!$ok)
+        wp_send_json_error('Errore DB.');
 
-    if (function_exists('invalidate_vercel_cache')) invalidate_vercel_cache('wp:global');
+    if (function_exists('invalidate_vercel_cache'))
+        invalidate_vercel_cache('wp:global');
     wp_send_json_success(['message' => 'Traduzione salvata.']);
 });
 
@@ -1807,14 +1825,16 @@ add_action('wp_ajax_wpb_forms_get_translation', function () {
         wp_send_json_error('Permesso negato.');
 
     $form_id = intval($_POST['form_id'] ?? 0);
-    $lang    = sanitize_key($_POST['lang'] ?? '');
-    if (!$form_id || !$lang) wp_send_json_error('Parametri mancanti.');
+    $lang = sanitize_key($_POST['lang'] ?? '');
+    if (!$form_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
 
     $row = wpb_forms_get_translation($form_id, $lang);
-    if (!$row) wp_send_json_error('Traduzione non trovata.');
+    if (!$row)
+        wp_send_json_error('Traduzione non trovata.');
 
     wp_send_json_success([
-        'fields_i18n'   => json_decode($row->fields_i18n,   true) ?: [],
+        'fields_i18n' => json_decode($row->fields_i18n, true) ?: [],
         'settings_i18n' => json_decode($row->settings_i18n, true) ?: [],
     ]);
 });
@@ -1849,8 +1869,8 @@ add_action('wp_ajax_wpb_forms_get_submissions', function () {
     $subs = array_map(function ($s) use ($is_admin) {
         $entry = [
             'id' => (int) $s->id,
-            'data'            => json_decode($s->data, true) ?: [],
-            'lang'            => $s->lang ?? '',
+            'data' => json_decode($s->data, true) ?: [],
+            'lang' => $s->lang ?? '',
             'created_at' => date_i18n('d/m/Y H:i', strtotime($s->created_at)),
             'created_at_full' => date_i18n('d/m/Y \a\l\l\e H:i:s', strtotime($s->created_at)),
         ];
@@ -1906,10 +1926,11 @@ add_action('wp_ajax_wpb_forms_delete_submissions', function () {
 
     global $wpdb;
     $form_id = intval($_POST['form_id'] ?? 0);
-    $raw     = wp_unslash($_POST['ids'] ?? '[]');
-    $ids     = array_filter(array_map('intval', json_decode($raw, true) ?: []), fn($id) => $id > 0);
+    $raw = wp_unslash($_POST['ids'] ?? '[]');
+    $ids = array_filter(array_map('intval', json_decode($raw, true) ?: []), fn($id) => $id > 0);
 
-    if (empty($ids)) wp_send_json_error('Nessun ID valido.');
+    if (empty($ids))
+        wp_send_json_error('Nessun ID valido.');
 
     $placeholders = implode(',', array_fill(0, count($ids), '%d'));
     $wpdb->query($wpdb->prepare(
@@ -2017,11 +2038,11 @@ function wpb_forms_admin_page()
     $saved_settings = ($edit_form) ? $edit_form->settings : '{}';
 
     // Dati multilingua
-    $ml_enabled   = wpb_multilang_is_enabled();
-    $ml_primary   = wpb_multilang_primary_language();
-    $ml_trans     = wpb_multilang_translation_languages();
+    $ml_enabled = wpb_multilang_is_enabled();
+    $ml_primary = wpb_multilang_primary_language();
+    $ml_trans = wpb_multilang_translation_languages();
     $ml_languages = wpb_multilang_languages_with_flags();
-    $ml_active    = $ml_enabled && !empty($ml_trans);
+    $ml_active = $ml_enabled && !empty($ml_trans);
 
     ?>
     <style>
@@ -2074,17 +2095,20 @@ function wpb_forms_admin_page()
             padding: 6px 14px 8px !important;
             border-top: none !important;
         }
+
         .wpb-form-langs {
             display: flex;
             align-items: center;
             gap: 5px;
             flex-wrap: wrap;
         }
+
         .wpb-form-langs-label {
             font-size: 11px;
             color: #a7aaad;
             margin-right: 3px;
         }
+
         .wpb-lang-pill {
             display: inline-flex;
             align-items: center;
@@ -2095,15 +2119,48 @@ function wpb_forms_admin_page()
             border-radius: 3px;
             border: 1px solid;
         }
-        .wpb-lang-pill.primary   { background:#f0fdf4;border-color:#bbf7d0;color:#166534; }
-        .wpb-lang-pill.translated { background:#f0fdf4;border-color:#bbf7d0;color:#166534;cursor:pointer;text-decoration:none; }
-        .wpb-lang-pill.missing   { background:#fff;border-color:#c3c4c7;color:#646970;cursor:pointer; }
-        .wpb-lang-pill.missing:hover { background:#f0f6fc;border-color:#72aee6;color:#2271b1; }
-        .wpb-lang-pill.missing .wpb-lang-add { font-size:13px;font-weight:400;line-height:1; }
-        .wpb-lang-pill.loading   { opacity:.6;cursor:wait; }
-            text-align: center;
-            padding: 48px 20px;
+
+        .wpb-lang-pill.primary {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        .wpb-lang-pill.translated {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .wpb-lang-pill.missing {
+            background: #fff;
+            border-color: #c3c4c7;
             color: #646970;
+            cursor: pointer;
+        }
+
+        .wpb-lang-pill.missing:hover {
+            background: #f0f6fc;
+            border-color: #72aee6;
+            color: #2271b1;
+        }
+
+        .wpb-lang-pill.missing .wpb-lang-add {
+            font-size: 13px;
+            font-weight: 400;
+            line-height: 1;
+        }
+
+        .wpb-lang-pill.loading {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        text-align: center;
+        padding: 48px 20px;
+        color: #646970;
         }
 
         .wpb-forms-empty .dashicons {
@@ -2670,32 +2727,99 @@ function wpb_forms_admin_page()
         /* ══ Translation mode ══════════════════════════════════════════ */
 
         /* Canvas: no drag handle, no delete button */
-        .wpb-translation-mode .wpb-drag-handle         { display:none !important; }
-        .wpb-translation-mode .wpb-btn-remove-field    { display:none !important; }
-        .wpb-translation-mode .wpb-field-card          { cursor:pointer !important; }
+        .wpb-translation-mode .wpb-drag-handle {
+            display: none !important;
+        }
+
+        .wpb-translation-mode .wpb-btn-remove-field {
+            display: none !important;
+        }
+
+        .wpb-translation-mode .wpb-field-card {
+            cursor: pointer !important;
+        }
 
         /* Props panel: blocca tutto tranne label, placeholder, opzioni, errore */
-        .wpb-translation-mode #prop-name      { pointer-events:none !important; opacity:.35 !important; user-select:none; }
-        .wpb-translation-mode #prop-required  { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #prop-min       { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #prop-max       { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #prop-format    { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode .wpb-cond-section { pointer-events:none !important; opacity:.35 !important; user-select:none; }
+        .wpb-translation-mode #prop-name {
+            pointer-events: none !important;
+            opacity: .35 !important;
+            user-select: none;
+        }
+
+        .wpb-translation-mode #prop-required {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #prop-min {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #prop-max {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #prop-format {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode .wpb-cond-section {
+            pointer-events: none !important;
+            opacity: .35 !important;
+            user-select: none;
+        }
+
         /* Blocca anche i label wrapper dei campi non traducibili */
-        .wpb-translation-mode .wpb-prop-check { pointer-events:none !important; opacity:.35 !important; }
+        .wpb-translation-mode .wpb-prop-check {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
 
         /* Impostazioni — blocca tutto tranne: submit-text, success-msg, redirect-url, mailup-list-id */
-        .wpb-translation-mode .wpb-after-submit-toggle           { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #wpb-setting-display-page-info     { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #wpb-setting-mailup-enabled        { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #wpb-setting-mailup-email-field    { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #wpb-setting-mailup-optin-field    { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #wpb-mailup-add-map-row            { pointer-events:none !important; opacity:.35 !important; }
-        .wpb-translation-mode #wpb-mailup-field-map-rows         { pointer-events:none !important; opacity:.35 !important; }
-        /* Blocca il toggle abilitazione MailUp (il suo label wrapper) */
-        .wpb-translation-mode #wpb-setting-mailup-enabled ~ span { pointer-events:none !important; }
+        .wpb-translation-mode .wpb-after-submit-toggle {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
 
-                .wpb-builder-tabs {
+        .wpb-translation-mode #wpb-setting-display-page-info {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #wpb-setting-mailup-enabled {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #wpb-setting-mailup-email-field {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #wpb-setting-mailup-optin-field {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #wpb-mailup-add-map-row {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        .wpb-translation-mode #wpb-mailup-field-map-rows {
+            pointer-events: none !important;
+            opacity: .35 !important;
+        }
+
+        /* Blocca il toggle abilitazione MailUp (il suo label wrapper) */
+        .wpb-translation-mode #wpb-setting-mailup-enabled~span {
+            pointer-events: none !important;
+        }
+
+        .wpb-builder-tabs {
             display: flex;
             border-bottom: 1px solid #c3c4c7;
             margin-bottom: 16px;
@@ -3741,41 +3865,40 @@ function wpb_forms_admin_page()
                                     </td>
                                 </tr>
                                 <?php if ($ml_active): ?>
-                                <tr class="wpb-form-langs-row">
-                                    <td colspan="5">
-                                        <div class="wpb-form-langs">
-                                            <span class="wpb-form-langs-label">Lingue:</span>
-                                            <span class="wpb-lang-pill primary">
-                                                <span class="dashicons dashicons-yes" style="font-size:11px;width:11px;height:11px;"></span>
-                                                <?php echo esc_html($ml_languages[$ml_primary] ?? strtoupper($ml_primary)); ?>
-                                            </span>
-                                            <?php foreach ($ml_trans as $lc):
-                                                $ll       = $ml_languages[$lc] ?? strtoupper($lc);
-                                                $has_t    = (bool) wpb_forms_get_translation((int)$f->id, $lc);
-                                                $edit_trl = admin_url('admin.php?page=wp-barrio-forms&tab=builder&edit_id=' . $f->id . '&lang=' . $lc);
-                                            ?>
-                                                <?php if ($has_t): ?>
-                                                    <a href="<?php echo esc_url($edit_trl); ?>"
-                                                       class="wpb-lang-pill translated"
-                                                       title="Modifica traduzione in <?php echo esc_attr($ll); ?>">
-                                                        <span class="dashicons dashicons-yes" style="font-size:11px;width:11px;height:11px;"></span>
-                                                        <?php echo esc_html($ll); ?>
-                                                    </a>
-                                                <?php else: ?>
-                                                    <button type="button"
-                                                            class="wpb-lang-pill missing wpb-form-lang-init-btn"
-                                                            data-form-id="<?php echo intval($f->id); ?>"
-                                                            data-lang="<?php echo esc_attr($lc); ?>"
+                                    <tr class="wpb-form-langs-row">
+                                        <td colspan="5">
+                                            <div class="wpb-form-langs">
+                                                <span class="wpb-form-langs-label">Lingue:</span>
+                                                <span class="wpb-lang-pill primary">
+                                                    <span class="dashicons dashicons-yes"
+                                                        style="font-size:11px;width:11px;height:11px;"></span>
+                                                    <?php echo esc_html($ml_languages[$ml_primary] ?? strtoupper($ml_primary)); ?>
+                                                </span>
+                                                <?php foreach ($ml_trans as $lc):
+                                                    $ll = $ml_languages[$lc] ?? strtoupper($lc);
+                                                    $has_t = (bool) wpb_forms_get_translation((int) $f->id, $lc);
+                                                    $edit_trl = admin_url('admin.php?page=wp-barrio-forms&tab=builder&edit_id=' . $f->id . '&lang=' . $lc);
+                                                    ?>
+                                                    <?php if ($has_t): ?>
+                                                        <a href="<?php echo esc_url($edit_trl); ?>" class="wpb-lang-pill translated"
+                                                            title="Modifica traduzione in <?php echo esc_attr($ll); ?>">
+                                                            <span class="dashicons dashicons-yes"
+                                                                style="font-size:11px;width:11px;height:11px;"></span>
+                                                            <?php echo esc_html($ll); ?>
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <button type="button" class="wpb-lang-pill missing wpb-form-lang-init-btn"
+                                                            data-form-id="<?php echo intval($f->id); ?>" data-lang="<?php echo esc_attr($lc); ?>"
                                                             data-lang-label="<?php echo esc_attr($ll); ?>"
                                                             title="Inizializza traduzione in <?php echo esc_attr($ll); ?>">
-                                                        <span class="wpb-lang-add">+</span>
-                                                        <?php echo esc_html($ll); ?>
-                                                    </button>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </td>
-                                </tr>
+                                                            <span class="wpb-lang-add">+</span>
+                                                            <?php echo esc_html($ll); ?>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </tbody>
@@ -3784,72 +3907,72 @@ function wpb_forms_admin_page()
             </div>
 
             <?php if ($ml_active): ?>
-            <script>
-            (function () {
-                const NONCE = '<?php echo esc_js($nonce); ?>';
-                const AJAX  = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
-                const URL_EDIT_BASE = '<?php echo esc_js(admin_url('admin.php?page=wp-barrio-forms&tab=builder&edit_id=')); ?>';
+                <script>
+                    (function () {
+                        const NONCE = '<?php echo esc_js($nonce); ?>';
+                        const AJAX = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
+                        const URL_EDIT_BASE = '<?php echo esc_js(admin_url('admin.php?page=wp-barrio-forms&tab=builder&edit_id=')); ?>';
 
-                document.querySelectorAll('.wpb-form-lang-init-btn').forEach(function (btn) {
-                    btn.addEventListener('click', function () {
-                        var formId    = this.dataset.formId;
-                        var lang      = this.dataset.lang;
-                        var langLabel = this.dataset.langLabel;
-                        var pill      = this;
+                        document.querySelectorAll('.wpb-form-lang-init-btn').forEach(function (btn) {
+                            btn.addEventListener('click', function () {
+                                var formId = this.dataset.formId;
+                                var lang = this.dataset.lang;
+                                var langLabel = this.dataset.langLabel;
+                                var pill = this;
 
-                        console.log('[WPB] init click', { formId: formId, lang: lang, nonce: NONCE, ajax: AJAX });
+                                console.log('[WPB] init click', { formId: formId, lang: lang, nonce: NONCE, ajax: AJAX });
 
-                        pill.classList.add('loading');
-                        pill.disabled = true;
+                                pill.classList.add('loading');
+                                pill.disabled = true;
 
-                        var params = new URLSearchParams({
-                            action:  'wpb_forms_init_translation',
-                            nonce:   NONCE,
-                            form_id: formId,
-                            lang:    lang,
+                                var params = new URLSearchParams({
+                                    action: 'wpb_forms_init_translation',
+                                    nonce: NONCE,
+                                    form_id: formId,
+                                    lang: lang,
+                                });
+
+                                fetch(AJAX, { method: 'POST', body: params })
+                                    .then(function (r) {
+                                        console.log('[WPB] HTTP status:', r.status);
+                                        return r.text();
+                                    })
+                                    .then(function (text) {
+                                        console.log('[WPB] raw response:', text);
+                                        var res;
+                                        try { res = JSON.parse(text); } catch (e) {
+                                            alert('Risposta non JSON (status potrebbe essere 400): ' + text.substring(0, 300));
+                                            pill.classList.remove('loading'); pill.disabled = false; return;
+                                        }
+                                        if (res.success) {
+                                            var link = document.createElement('a');
+                                            link.href = URL_EDIT_BASE + formId + '&lang=' + lang;
+                                            link.className = 'wpb-lang-pill translated';
+                                            link.title = 'Modifica traduzione in ' + langLabel;
+                                            link.innerHTML = '<span class="dashicons dashicons-yes" style="font-size:11px;width:11px;height:11px;"></span> ' + langLabel;
+                                            pill.replaceWith(link);
+                                        } else {
+                                            alert(res.data || 'Errore sconosciuto');
+                                            pill.classList.remove('loading'); pill.disabled = false;
+                                        }
+                                    })
+                                    .catch(function (err) {
+                                        console.error('[WPB] fetch error:', err);
+                                        alert('Fetch error: ' + err.message);
+                                        pill.classList.remove('loading'); pill.disabled = false;
+                                    });
+                            });
                         });
-
-                        fetch(AJAX, { method: 'POST', body: params })
-                        .then(function (r) {
-                            console.log('[WPB] HTTP status:', r.status);
-                            return r.text();
-                        })
-                        .then(function (text) {
-                            console.log('[WPB] raw response:', text);
-                            var res;
-                            try { res = JSON.parse(text); } catch(e) {
-                                alert('Risposta non JSON (status potrebbe essere 400): ' + text.substring(0, 300));
-                                pill.classList.remove('loading'); pill.disabled = false; return;
-                            }
-                            if (res.success) {
-                                var link = document.createElement('a');
-                                link.href      = URL_EDIT_BASE + formId + '&lang=' + lang;
-                                link.className = 'wpb-lang-pill translated';
-                                link.title     = 'Modifica traduzione in ' + langLabel;
-                                link.innerHTML = '<span class="dashicons dashicons-yes" style="font-size:11px;width:11px;height:11px;"></span> ' + langLabel;
-                                pill.replaceWith(link);
-                            } else {
-                                alert(res.data || 'Errore sconosciuto');
-                                pill.classList.remove('loading'); pill.disabled = false;
-                            }
-                        })
-                        .catch(function (err) {
-                            console.error('[WPB] fetch error:', err);
-                            alert('Fetch error: ' + err.message);
-                            pill.classList.remove('loading'); pill.disabled = false;
-                        });
-                    });
-                });
-            })();
-            </script>
+                    })();
+                </script>
             <?php endif; ?>
 
         <?php /* ══════ BUILDER ══════ */ elseif ($tab === 'builder'): ?>
 
             <?php
             // Lingua selezionata nell'editor (da querystring, se valida e traduzione esistente)
-            $qs_lang      = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
-            $editor_lang  = $ml_primary; // default: lingua principale
+            $qs_lang = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
+            $editor_lang = $ml_primary; // default: lingua principale
             $is_translation_mode = false;
 
             if ($ml_active && $edit_id && $qs_lang && $qs_lang !== $ml_primary) {
@@ -3857,7 +3980,7 @@ function wpb_forms_admin_page()
                     in_array($qs_lang, $ml_trans, true) &&
                     wpb_forms_get_translation($edit_id, $qs_lang)
                 ) {
-                    $editor_lang         = $qs_lang;
+                    $editor_lang = $qs_lang;
                     $is_translation_mode = true;
                 }
             }
@@ -3867,42 +3990,44 @@ function wpb_forms_admin_page()
                 <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms')); ?>" class="button">← Tutti i
                     form</a>
                 <input type="text" id="wpb-form-title" class="wpb-builder-title-input"
-                    value="<?php echo esc_attr($edit_form ? $edit_form->title : ''); ?>" placeholder="Nome del form…"
-                    <?php echo $is_translation_mode ? 'disabled style="opacity:.5;"' : ''; ?>>
+                    value="<?php echo esc_attr($edit_form ? $edit_form->title : ''); ?>" placeholder="Nome del form…" <?php echo $is_translation_mode ? 'disabled style="opacity:.5;"' : ''; ?>>
                 <button class="button button-primary" id="wpb-btn-save-form">
                     <?php echo $is_translation_mode ? 'Salva traduzione' : 'Salva form'; ?>
                 </button>
             </div>
 
             <?php if ($ml_active && $edit_id): ?>
-            <?php
-            // Costruisce la lista lingue disponibili (principale + traduzioni inizializzate)
-            $editor_langs = [ $ml_primary => ($ml_languages[$ml_primary] ?? $ml_primary) . ' (principale)' ];
-            foreach ($ml_trans as $lc) {
-                if (wpb_forms_get_translation($edit_id, $lc)) {
-                    $editor_langs[$lc] = $ml_languages[$lc] ?? strtoupper($lc);
+                <?php
+                // Costruisce la lista lingue disponibili (principale + traduzioni inizializzate)
+                $editor_langs = [$ml_primary => ($ml_languages[$ml_primary] ?? $ml_primary) . ' (principale)'];
+                foreach ($ml_trans as $lc) {
+                    if (wpb_forms_get_translation($edit_id, $lc)) {
+                        $editor_langs[$lc] = $ml_languages[$lc] ?? strtoupper($lc);
+                    }
                 }
-            }
-            ?>
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid #c3c4c7;border-radius:3px;">
-                <span class="dashicons dashicons-translation" style="font-size:16px;width:16px;height:16px;color:#2271b1;flex-shrink:0;"></span>
-                <label for="wpb-form-lang-select" style="font-size:13px;font-weight:600;color:#1d2327;margin:0;">Lingua:</label>
-                <select id="wpb-form-lang-select" style="min-width:180px;font-size:13px;">
-                    <?php foreach ($editor_langs as $lc => $label): ?>
-                        <option value="<?php echo esc_attr($lc); ?>"
-                                data-is-primary="<?php echo $lc === $ml_primary ? '1' : '0'; ?>"
-                                <?php selected($editor_lang, $lc); ?>>
-                            <?php echo esc_html($label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if ($is_translation_mode): ?>
-                <span style="font-size:12px;color:#0a4b78;background:#f0f6fc;padding:4px 10px;border-radius:3px;border:1px solid #c6d9ef;">
-                    Stai modificando la traduzione in <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>.
-                    Struttura, logica e impostazioni ereditate dall'originale.
-                </span>
-                <?php endif; ?>
-            </div>
+                ?>
+                <div
+                    style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid #c3c4c7;border-radius:3px;">
+                    <span class="dashicons dashicons-translation"
+                        style="font-size:16px;width:16px;height:16px;color:#2271b1;flex-shrink:0;"></span>
+                    <label for="wpb-form-lang-select" style="font-size:13px;font-weight:600;color:#1d2327;margin:0;">Lingua:</label>
+                    <select id="wpb-form-lang-select" style="min-width:180px;font-size:13px;">
+                        <?php foreach ($editor_langs as $lc => $label): ?>
+                            <option value="<?php echo esc_attr($lc); ?>"
+                                data-is-primary="<?php echo $lc === $ml_primary ? '1' : '0'; ?>" <?php selected($editor_lang, $lc); ?>>
+                                <?php echo esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($is_translation_mode): ?>
+                        <span
+                            style="font-size:12px;color:#0a4b78;background:#f0f6fc;padding:4px 10px;border-radius:3px;border:1px solid #c6d9ef;">
+                            Stai modificando la traduzione in
+                            <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>.
+                            Struttura, logica e impostazioni ereditate dall'originale.
+                        </span>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
 
             <div class="wpb-builder-tabs">
@@ -3920,53 +4045,56 @@ function wpb_forms_admin_page()
 
                     <!-- Sx: tipi campo / disclaimer traduzione -->
                     <?php if ($is_translation_mode): ?>
-                    <div class="wpb-panel-fields" style="background:#f0f6fc;border:1px solid #c6d9ef;border-radius:3px;padding:20px 16px;display:flex;flex-direction:column;gap:0;">
-                        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">
-                            <span class="dashicons dashicons-translation" style="font-size:20px;width:20px;height:20px;color:#2271b1;flex-shrink:0;margin-top:2px;"></span>
-                            <strong style="font-size:13px;color:#1d2327;">Modalità traduzione</strong>
+                        <div class="wpb-panel-fields"
+                            style="background:#f0f6fc;border:1px solid #c6d9ef;border-radius:3px;padding:20px 16px;display:flex;flex-direction:column;gap:0;">
+                            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">
+                                <span class="dashicons dashicons-translation"
+                                    style="font-size:20px;width:20px;height:20px;color:#2271b1;flex-shrink:0;margin-top:2px;"></span>
+                                <strong style="font-size:13px;color:#1d2327;">Modalità traduzione</strong>
+                            </div>
+                            <p style="font-size:12px;color:#0a4b78;margin:0 0 10px;line-height:1.6;">
+                                Stai modificando la versione in
+                                <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>.
+                            </p>
+                            <p style="font-size:12px;color:#0a4b78;margin:0 0 6px;font-weight:600;">Puoi modificare:</p>
+                            <ul style="font-size:12px;color:#0a4b78;margin:0 0 12px;padding-left:16px;line-height:1.8;">
+                                <li>Etichetta (label)</li>
+                                <li>Testo segnaposto (placeholder)</li>
+                                <li>Opzioni di select, radio, checkbox</li>
+                                <li>Messaggio di errore</li>
+                            </ul>
+                            <p style="font-size:12px;color:#646970;margin:0 0 6px;font-weight:600;">Non puoi modificare:</p>
+                            <ul style="font-size:12px;color:#646970;margin:0;padding-left:16px;line-height:1.8;">
+                                <li>Struttura e ordine dei campi</li>
+                                <li>Tipo e nome (slug)</li>
+                                <li>Obbligatorietà e logica condizionale</li>
+                                <li>Validazione (min/max/formato)</li>
+                            </ul>
                         </div>
-                        <p style="font-size:12px;color:#0a4b78;margin:0 0 10px;line-height:1.6;">
-                            Stai modificando la versione in <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>.
-                        </p>
-                        <p style="font-size:12px;color:#0a4b78;margin:0 0 6px;font-weight:600;">Puoi modificare:</p>
-                        <ul style="font-size:12px;color:#0a4b78;margin:0 0 12px;padding-left:16px;line-height:1.8;">
-                            <li>Etichetta (label)</li>
-                            <li>Testo segnaposto (placeholder)</li>
-                            <li>Opzioni di select, radio, checkbox</li>
-                            <li>Messaggio di errore</li>
-                        </ul>
-                        <p style="font-size:12px;color:#646970;margin:0 0 6px;font-weight:600;">Non puoi modificare:</p>
-                        <ul style="font-size:12px;color:#646970;margin:0;padding-left:16px;line-height:1.8;">
-                            <li>Struttura e ordine dei campi</li>
-                            <li>Tipo e nome (slug)</li>
-                            <li>Obbligatorietà e logica condizionale</li>
-                            <li>Validazione (min/max/formato)</li>
-                        </ul>
-                    </div>
                     <?php else: ?>
-                    <div class="wpb-panel-fields">
-                        <h3>Aggiungi campo</h3>
-                        <?php
-                        $field_types = [
-                            'text'       => ['icon' => '𝐓', 'label' => 'Testo'],
-                            'email'      => ['icon' => '✉', 'label' => 'Email'],
-                            'textarea'   => ['icon' => '≡', 'label' => 'Area di testo'],
-                            'tel'        => ['icon' => '☎', 'label' => 'Telefono'],
-                            'number'     => ['icon' => '#', 'label' => 'Numero'],
-                            'datepicker' => ['icon' => '📅', 'label' => 'Data'],
-                            'select'     => ['icon' => '▼', 'label' => 'Menù a tendina'],
-                            'radio'      => ['icon' => '◉', 'label' => 'Scelta singola'],
-                            'checkbox'   => ['icon' => '☑', 'label' => 'Scelte multiple'],
-                            'file'       => ['icon' => '📎', 'label' => 'File'],
-                            'page_break' => ['icon' => '⏎', 'label' => 'Interruzione pagina'],
-                        ];
-                        foreach ($field_types as $type => $data): ?>
-                            <button class="wpb-field-type-btn" data-type="<?php echo esc_attr($type); ?>">
-                                <span class="wpb-ft-icon"><?php echo $data['icon']; ?></span>
-                                <?php echo esc_html($data['label']); ?>
-                            </button>
-                        <?php endforeach; ?>
-                    </div>
+                        <div class="wpb-panel-fields">
+                            <h3>Aggiungi campo</h3>
+                            <?php
+                            $field_types = [
+                                'text' => ['icon' => '𝐓', 'label' => 'Testo'],
+                                'email' => ['icon' => '✉', 'label' => 'Email'],
+                                'textarea' => ['icon' => '≡', 'label' => 'Area di testo'],
+                                'tel' => ['icon' => '☎', 'label' => 'Telefono'],
+                                'number' => ['icon' => '#', 'label' => 'Numero'],
+                                'datepicker' => ['icon' => '📅', 'label' => 'Data'],
+                                'select' => ['icon' => '▼', 'label' => 'Menù a tendina'],
+                                'radio' => ['icon' => '◉', 'label' => 'Scelta singola'],
+                                'checkbox' => ['icon' => '☑', 'label' => 'Scelte multiple'],
+                                'file' => ['icon' => '📎', 'label' => 'File'],
+                                'page_break' => ['icon' => '⏎', 'label' => 'Interruzione pagina'],
+                            ];
+                            foreach ($field_types as $type => $data): ?>
+                                <button class="wpb-field-type-btn" data-type="<?php echo esc_attr($type); ?>">
+                                    <span class="wpb-ft-icon"><?php echo $data['icon']; ?></span>
+                                    <?php echo esc_html($data['label']); ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
                     <?php endif; ?>
 
                     <!-- Centro: canvas -->
@@ -4261,8 +4389,10 @@ function wpb_forms_admin_page()
     <?php
     // Variabili usate nel blocco <script> — definite qui con default
     // per evitare errori quando il tab non è 'builder'
-    if (!isset($editor_lang))        $editor_lang        = $ml_primary;
-    if (!isset($is_translation_mode)) $is_translation_mode = false;
+    if (!isset($editor_lang))
+        $editor_lang = $ml_primary;
+    if (!isset($is_translation_mode))
+        $is_translation_mode = false;
     ?>
     <script>
         (function () {
@@ -4271,18 +4401,18 @@ function wpb_forms_admin_page()
             const EDIT_ID = <?php echo intval($builder_form_id); ?>;
 
             // Dati multilingua
-            const ML_ACTIVE      = <?php echo wp_json_encode($ml_active); ?>;
-            const ML_PRIMARY     = <?php echo wp_json_encode($ml_primary); ?>;
-            const ML_LANGUAGES   = <?php echo wp_json_encode($ml_languages); ?>;
-            const URL_EDIT_BASE  = <?php echo wp_json_encode(admin_url('admin.php?page=wp-barrio-forms&tab=builder&edit_id=')); ?>;
-            let   currentEditorLang = <?php echo wp_json_encode($editor_lang ?? $ml_primary); ?>;
+            const ML_ACTIVE = <?php echo wp_json_encode($ml_active); ?>;
+            const ML_PRIMARY = <?php echo wp_json_encode($ml_primary); ?>;
+            const ML_LANGUAGES = <?php echo wp_json_encode($ml_languages); ?>;
+            const URL_EDIT_BASE = <?php echo wp_json_encode(admin_url('admin.php?page=wp-barrio-forms&tab=builder&edit_id=')); ?>;
+            let currentEditorLang = <?php echo wp_json_encode($editor_lang ?? $ml_primary); ?>;
             const IS_TRANSLATION = <?php echo wp_json_encode($is_translation_mode ?? false); ?>;
 
             /* ── Select lingua nel builder: naviga alla versione tradotta ── */
             const langSelect = document.getElementById('wpb-form-lang-select');
             if (langSelect && ML_ACTIVE && EDIT_ID) {
                 langSelect.addEventListener('change', function () {
-                    const lang      = this.value;
+                    const lang = this.value;
                     const isPrimary = this.options[this.selectedIndex].dataset.isPrimary === '1';
                     if (isPrimary) {
                         window.location.href = URL_EDIT_BASE + EDIT_ID;
@@ -4354,39 +4484,39 @@ function wpb_forms_admin_page()
                 if ($trans_row):
                     $fi18n_data = json_decode($trans_row->fields_i18n, true) ?: [];
                     $si18n_data = json_decode($trans_row->settings_i18n, true) ?: [];
-            ?>
-            (function() {
-                const fi18n = <?php echo wp_json_encode($fi18n_data); ?>;
-                const si18n = <?php echo wp_json_encode($si18n_data); ?>;
-                // Merge fields: sovrascrive solo label, placeholder, options, error_message
-                fields = fields.map((f, i) => {
-                    if (!fi18n[i]) return f;
-                    const t = fi18n[i];
-                    const merged = { ...f };
-                    if (t.label         !== undefined && t.label         !== '') merged.label         = t.label;
-                    if (t.placeholder   !== undefined && t.placeholder   !== '') merged.placeholder   = t.placeholder;
-                    if (t.error_message !== undefined && t.error_message !== '') merged.error_message = t.error_message;
-                    if (t.options && Array.isArray(t.options) && t.options.length) merged.options = t.options;
-                    return merged;
-                });
-                // Merge settings: sovrascrive solo i campi traducibili
-                ['submit_label','redirect_url','success_message','mailup_list_id','mailup_group_id'].forEach(k => {
-                    if (si18n[k] !== undefined && si18n[k] !== '') settings[k] = si18n[k];
-                });
-                if (si18n.notifications && Array.isArray(si18n.notifications)) {
-                    const origNotifs = settings.notifications || [];
-                    settings.notifications = origNotifs.map((n, ni) => {
-                        const nt = si18n.notifications[ni];
-                        if (!nt) return n;
-                        const merged = { ...n };
-                        ['subject','body','reply_to','from_name','to'].forEach(k => {
-                            if (nt[k] !== undefined && nt[k] !== '') merged[k] = nt[k];
-                        });
-                        return merged;
-                    });
-                }
-            })();
-            <?php endif; endif; ?>
+                    ?>
+                        (function () {
+                            const fi18n = <?php echo wp_json_encode($fi18n_data); ?>;
+                            const si18n = <?php echo wp_json_encode($si18n_data); ?>;
+                            // Merge fields: sovrascrive solo label, placeholder, options, error_message
+                            fields = fields.map((f, i) => {
+                                if (!fi18n[i]) return f;
+                                const t = fi18n[i];
+                                const merged = { ...f };
+                                if (t.label !== undefined && t.label !== '') merged.label = t.label;
+                                if (t.placeholder !== undefined && t.placeholder !== '') merged.placeholder = t.placeholder;
+                                if (t.error_message !== undefined && t.error_message !== '') merged.error_message = t.error_message;
+                                if (t.options && Array.isArray(t.options) && t.options.length) merged.options = t.options;
+                                return merged;
+                            });
+                            // Merge settings: sovrascrive solo i campi traducibili
+                            ['submit_label', 'redirect_url', 'success_message', 'mailup_list_id', 'mailup_group_id'].forEach(k => {
+                                if (si18n[k] !== undefined && si18n[k] !== '') settings[k] = si18n[k];
+                            });
+                            if (si18n.notifications && Array.isArray(si18n.notifications)) {
+                                const origNotifs = settings.notifications || [];
+                                settings.notifications = origNotifs.map((n, ni) => {
+                                    const nt = si18n.notifications[ni];
+                                    if (!nt) return n;
+                                    const merged = { ...n };
+                                    ['subject', 'body', 'reply_to', 'from_name', 'to'].forEach(k => {
+                                        if (nt[k] !== undefined && nt[k] !== '') merged[k] = nt[k];
+                                    });
+                                    return merged;
+                                });
+                            }
+                        })();
+                <?php endif; endif; ?>
 
             // I campi salvati non hanno id interno — lo generiamo in memoria dal name
             fields = fields.map(f => ({ ...f, id: f.id || ('_' + (f.name || Math.random().toString(36).slice(2))) }));
@@ -5056,13 +5186,13 @@ function wpb_forms_admin_page()
             }
 
             card.innerHTML = `
-                                                                                                                                                                                                                                                                                                                                            <div class="wpb-field-card-header">
-                                                                                                                                                                                                                                                                                                                                                <span class="wpb-drag-handle">⠿</span>
-                                                                                                                                                                                                                                                                                                                                                <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
-                                                                                                                                                                                                                                                                                                                                                <span class="wpb-field-card-type">${esc(f.type)}</span>
-                                                                                                                                                                                                                                                                                                                                                <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
-                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                            <div class="wpb-field-card-preview">${preview}</div>`;
+                                                                                                                                                                                                                                                                                                                                                                                                                    <div class="wpb-field-card-header">
+                                                                                                                                                                                                                                                                                                                                                                                                                        <span class="wpb-drag-handle">⠿</span>
+                                                                                                                                                                                                                                                                                                                                                                                                                        <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
+                                                                                                                                                                                                                                                                                                                                                                                                                        <span class="wpb-field-card-type">${esc(f.type)}</span>
+                                                                                                                                                                                                                                                                                                                                                                                                                        <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
+                                                                                                                                                                                                                                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                                                                                                                                                                                                                                    <div class="wpb-field-card-preview">${preview}</div>`;
 
             card.addEventListener('click', e => { if (!e.target.classList.contains('wpb-btn-remove-field')) selectField(f.id); });
             card.querySelector('.wpb-btn-remove-field').addEventListener('click', e => { e.stopPropagation(); removeField(f.id); });
@@ -5161,10 +5291,10 @@ function wpb_forms_admin_page()
 
             if (f.type === 'page_break') {
                 propsInner.innerHTML = `<div style="padding:12px 0;text-align:center;color:#646970;">
-                                                                                                                                                                                                                <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#2271b1;"></span>
-                                                                                                                                                                                                                <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
-                                                                                                                                                                                                                <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
-                                                                                                                                                                                                            </div>`;
+                                                                                                                                                                                                                                                                                        <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#2271b1;"></span>
+                                                                                                                                                                                                                                                                                        <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
+                                                                                                                                                                                                                                                                                        <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
+                                                                                                                                                                                                                                                                                    </div>`;
                 return;
             }
 
@@ -5176,16 +5306,16 @@ function wpb_forms_admin_page()
             const showPlaceholder = (!hasOpts || isSelect) && !isDatepicker && !isFile;
 
             propsInner.innerHTML = `
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label>Etichetta</label>
-                                                                                                                            <input type="text" id="prop-label" value="${esc(f.label)}">
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
-                                                                                                                            <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
-                                                                                                                        </div>
-                                                                                                                        ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
-                                                                                                                        ${isNumber ? `
+                                                                                                                                                                                                <div class="wpb-prop-group">
+                                                                                                                                                                                                    <label>Etichetta</label>
+                                                                                                                                                                                                    <input type="text" id="prop-label" value="${esc(f.label)}">
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                <div class="wpb-prop-group">
+                                                                                                                                                                                                    <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
+                                                                                                                                                                                                    <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
+                                                                                                                                                                                                ${isNumber ? `
                 <div class="wpb-prop-group">
                     <label>Valore minimo</label>
                     <input type="number" id="prop-min" value="${esc(f.min ?? '')}">
@@ -5194,36 +5324,36 @@ function wpb_forms_admin_page()
                     <label>Valore massimo</label>
                     <input type="number" id="prop-max" value="${esc(f.max ?? '')}">
                 </div>` : ''}
-                                                                                                                        ${isDatepicker ? `
+                                                                                                                                                                                                ${isDatepicker ? `
                 <div class="wpb-prop-group">
                     <label>Formato data</label>
                     <input type="text" id="prop-format" value="${esc(f.format || 'dd/MM/y')}" placeholder="dd/MM/y">
                     <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Es: dd/MM/y · MM/dd/yyyy · yyyy-MM-dd</p>
                 </div>` : ''}
-                                                                                                                        ${hasOpts ? `<div class="wpb-prop-group">
+                                                                                                                                                                                                ${hasOpts ? `<div class="wpb-prop-group">
                     <label>Opzioni</label>
                     <div class="wpb-options-list" id="wpb-opts-list">
                     ${(f.options || []).map((o, i) => `<div class="wpb-option-row"><input type="text" class="wpb-opt-input" data-idx="${i}" value="${esc(o)}" placeholder="Opzione ${i + 1}"><button class="wpb-btn-rm-opt" data-idx="${i}">×</button></div>`).join('')}
                     </div>
                     <button class="wpb-btn-add-opt" id="wpb-btn-add-opt">+ Aggiungi opzione</button>
                 </div>` : ''}
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-prop-group">
-                                                                                                                            <label>Messaggio di errore</label>
-                                                                                                                            <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
-                                                                                                                            <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
-                                                                                                                        </div>
-                                                                                                                        <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
-                                                                                                                            Tipo: <strong>${esc(f.type)}</strong>
-                                                                                                                        </div>
-                                                                                                                        <div class="wpb-cond-section">
-                                                                                                                            <div class="wpb-cond-section-title">
-                                                                                                                                <span>Logica condizionale</span>
-                                                                                                                            </div>
-                                                                                                                            ${renderCondLogicUI(f)}
-                                                                                                                        </div>`;
+                                                                                                                                                                                                <div class="wpb-prop-group">
+                                                                                                                                                                                                    <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                <div class="wpb-prop-group">
+                                                                                                                                                                                                    <label>Messaggio di errore</label>
+                                                                                                                                                                                                    <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
+                                                                                                                                                                                                    <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
+                                                                                                                                                                                                    Tipo: <strong>${esc(f.type)}</strong>
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                <div class="wpb-cond-section">
+                                                                                                                                                                                                    <div class="wpb-cond-section-title">
+                                                                                                                                                                                                        <span>Logica condizionale</span>
+                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                    ${renderCondLogicUI(f)}
+                                                                                                                                                                                                </div>`;
 
             const bi = (elId, key) => { const el = document.getElementById(elId); if (el) el.addEventListener('input', () => updateField(f.id, key, el.value)); };
 
@@ -5300,30 +5430,30 @@ function wpb_forms_admin_page()
                 : '';
 
             return `
-                                                                                <div class="wpb-cl-wrap">
-                                                                                    <label class="wpb-cl-enable-row" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
-                                                                                        <input type="checkbox" id="cl-enabled" ${enabled ? 'checked' : ''} style="margin:0;">
-                                                                                        <span style="font-size:12px;font-weight:600;color:#1d2327;">Abilita logica condizionale</span>
-                                                                                    </label>
-                                                                                    <div id="cl-body" style="display:${enabled ? 'block' : 'none'};">
-                                                                                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#1d2327;margin-bottom:10px;">
-                                                                                            <select id="cl-action" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                <option value="show" ${action === 'show' ? 'selected' : ''}>Mostra</option>
-                                                                                                <option value="hide" ${action === 'hide' ? 'selected' : ''}>Nascondi</option>
-                                                                                            </select>
-                                                                                            <span>questo campo se</span>
-                                                                                            <select id="cl-logic-type" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                <option value="all" ${logicType === 'all' ? 'selected' : ''}>tutte</option>
-                                                                                                <option value="any" ${logicType === 'any' ? 'selected' : ''}>almeno una</option>
-                                                                                            </select>
-                                                                                            <span>delle seguenti condizioni sono soddisfatte:</span>
-                                                                                        </div>
-                                                                                        <div class="wpb-cond-list" id="wpb-cond-list">
-                                                                                            ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
-                                                                                        </div>
-                                                                                        <button type="button" class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
-                                                                                    </div>
-                                                                                </div>`;
+                                                                                                                                                        <div class="wpb-cl-wrap">
+                                                                                                                                                            <label class="wpb-cl-enable-row" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+                                                                                                                                                                <input type="checkbox" id="cl-enabled" ${enabled ? 'checked' : ''} style="margin:0;">
+                                                                                                                                                                <span style="font-size:12px;font-weight:600;color:#1d2327;">Abilita logica condizionale</span>
+                                                                                                                                                            </label>
+                                                                                                                                                            <div id="cl-body" style="display:${enabled ? 'block' : 'none'};">
+                                                                                                                                                                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#1d2327;margin-bottom:10px;">
+                                                                                                                                                                    <select id="cl-action" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                                                                                                                                                        <option value="show" ${action === 'show' ? 'selected' : ''}>Mostra</option>
+                                                                                                                                                                        <option value="hide" ${action === 'hide' ? 'selected' : ''}>Nascondi</option>
+                                                                                                                                                                    </select>
+                                                                                                                                                                    <span>questo campo se</span>
+                                                                                                                                                                    <select id="cl-logic-type" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                                                                                                                                                        <option value="all" ${logicType === 'all' ? 'selected' : ''}>tutte</option>
+                                                                                                                                                                        <option value="any" ${logicType === 'any' ? 'selected' : ''}>almeno una</option>
+                                                                                                                                                                    </select>
+                                                                                                                                                                    <span>delle seguenti condizioni sono soddisfatte:</span>
+                                                                                                                                                                </div>
+                                                                                                                                                                <div class="wpb-cond-list" id="wpb-cond-list">
+                                                                                                                                                                    ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
+                                                                                                                                                                </div>
+                                                                                                                                                                <button type="button" class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
+                                                                                                                                                            </div>
+                                                                                                                                                        </div>`;
         }
 
         /**
@@ -5380,27 +5510,27 @@ function wpb_forms_admin_page()
                         `<option value="${esc(opt)}" ${(rule.value || '') === opt ? 'selected' : ''}>${esc(opt)}</option>`
                     ).join('');
                     valueEl = `<select class="cl-rule-val" data-ri="${ri}" style="flex:1;min-width:80px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                   <option value="" disabled ${!rule.value ? 'selected' : ''} hidden>Seleziona…</option>
-                                                                                                   ${valOpts}
-                                                                                               </select>`;
+                                                                                                                                                                           <option value="" disabled ${!rule.value ? 'selected' : ''} hidden>Seleziona…</option>
+                                                                                                                                                                           ${valOpts}
+                                                                                                                                                                       </select>`;
                 } else {
                     valueEl = `<input type="text" class="cl-rule-val" data-ri="${ri}"
-                                                                                                      value="${esc(rule.value || '')}" placeholder="Valore…"
-                                                                                                      style="flex:1;min-width:80px;padding:4px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
+                                                                                                                                                                              value="${esc(rule.value || '')}" placeholder="Valore…"
+                                                                                                                                                                              style="flex:1;min-width:80px;padding:4px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
                 }
             }
 
             return `<div class="wpb-cond-row" data-ri="${ri}" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-                                                                                        <select class="cl-rule-field" data-ri="${ri}" style="flex:1;min-width:110px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                            <option value="" disabled ${!rule.fieldName ? 'selected' : ''} hidden>Campo…</option>
-                                                                                            ${fieldOpts || '<option disabled>Nessun campo disponibile</option>'}
-                                                                                        </select>
-                                                                                        <select class="cl-rule-op" data-ri="${ri}" style="flex:0 0 auto;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                            ${opOpts}
-                                                                                        </select>
-                                                                                        ${valueEl}
-                                                                                        <button type="button" class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi regola" style="padding:2px 6px;font-size:14px;background:none;border:none;cursor:pointer;color:#d63638;flex-shrink:0;">×</button>
-                                                                                    </div>`;
+                                                                                                                                                                <select class="cl-rule-field" data-ri="${ri}" style="flex:1;min-width:110px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                                                                                                                                                    <option value="" disabled ${!rule.fieldName ? 'selected' : ''} hidden>Campo…</option>
+                                                                                                                                                                    ${fieldOpts || '<option disabled>Nessun campo disponibile</option>'}
+                                                                                                                                                                </select>
+                                                                                                                                                                <select class="cl-rule-op" data-ri="${ri}" style="flex:0 0 auto;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
+                                                                                                                                                                    ${opOpts}
+                                                                                                                                                                </select>
+                                                                                                                                                                ${valueEl}
+                                                                                                                                                                <button type="button" class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi regola" style="padding:2px 6px;font-size:14px;background:none;border:none;cursor:pointer;color:#d63638;flex-shrink:0;">×</button>
+                                                                                                                                                            </div>`;
         }
 
         /* ── Logica condizionale: bind eventi ── */
@@ -5515,39 +5645,39 @@ function wpb_forms_admin_page()
 
                     // Raccoglie solo i campi traducibili dai campi attuali
                     const fieldsI18n = fields.map(f => ({
-                        label:         f.label         || '',
-                        placeholder:   f.placeholder   || '',
+                        label: f.label || '',
+                        placeholder: f.placeholder || '',
                         error_message: f.error_message || '',
-                        options:       Array.isArray(f.options) ? f.options : [],
+                        options: Array.isArray(f.options) ? f.options : [],
                     }));
 
                     const s = readSettings();
                     const settingsI18n = {
-                        submit_label:    s.submit_label    || '',
-                        redirect_url:    s.redirect_url    || '',
+                        submit_label: s.submit_label || '',
+                        redirect_url: s.redirect_url || '',
                         success_message: s.success_message || '',
-                        mailup_list_id:  s.mailup_list_id  || '',
+                        mailup_list_id: s.mailup_list_id || '',
                         mailup_group_id: s.mailup_group_id || '',
-                        notifications:   (s.notifications || []).map(n => ({
-                            subject:   n.subject   || '',
-                            body:      n.body      || '',
-                            reply_to:  n.reply_to  || '',
+                        notifications: (s.notifications || []).map(n => ({
+                            subject: n.subject || '',
+                            body: n.body || '',
+                            reply_to: n.reply_to || '',
                             from_name: n.from_name || '',
-                            to:        n.to        || '',
+                            to: n.to || '',
                         })),
                     };
 
                     const body = new URLSearchParams({
-                        action:        'wpb_forms_save_translation',
-                        nonce:         NONCE,
-                        form_id:       String(EDIT_ID),
-                        lang:          currentEditorLang,
-                        fields_i18n:   JSON.stringify(fieldsI18n),
+                        action: 'wpb_forms_save_translation',
+                        nonce: NONCE,
+                        form_id: String(EDIT_ID),
+                        lang: currentEditorLang,
+                        fields_i18n: JSON.stringify(fieldsI18n),
                         settings_i18n: JSON.stringify(settingsI18n),
                     });
 
                     try {
-                        const res  = await fetch(AJAX, { method: 'POST', body });
+                        const res = await fetch(AJAX, { method: 'POST', body });
                         const data = await res.json();
                         if (data.success) {
                             toast('✓ Traduzione salvata!');
@@ -5610,7 +5740,7 @@ function wpb_forms_admin_page()
 
             // Funzione che rimuove draggable da tutte le card presenti nel canvas
             function lockCardDrag() {
-                document.querySelectorAll('#wpb-drop-zone .wpb-field-card').forEach(function(c) {
+                document.querySelectorAll('#wpb-drop-zone .wpb-field-card').forEach(function (c) {
                     c.draggable = false;
                     c.removeAttribute('draggable');
                 });
@@ -5618,7 +5748,7 @@ function wpb_forms_admin_page()
 
             // 1. Disabilita drag: sovrascrivi renderCanvas E applica subito dopo il primo render
             var _origRenderCanvas = renderCanvas;
-            renderCanvas = function() {
+            renderCanvas = function () {
                 _origRenderCanvas.apply(this, arguments);
                 lockCardDrag();
             };
@@ -5627,15 +5757,15 @@ function wpb_forms_admin_page()
             // Observer sul drop-zone per bloccare qualsiasi card aggiunta dinamicamente
             new MutationObserver(lockCardDrag)
                 .observe(document.getElementById('wpb-drop-zone') || document.body,
-                         { childList: true });
+                    { childList: true });
 
             // 2. MutationObserver su wpb-props-inner: quando il pannello proprietà
             //    viene riscritto (click su card), disabilita i campi non traducibili
             var _propsInner = document.getElementById('wpb-props-inner');
             if (_propsInner) {
-                new MutationObserver(function() {
+                new MutationObserver(function () {
                     // Disabilita via JS (oltre al CSS) per sicurezza
-                    ['prop-name','prop-min','prop-max','prop-format'].forEach(function(id) {
+                    ['prop-name', 'prop-min', 'prop-max', 'prop-format'].forEach(function (id) {
                         var el = document.getElementById(id);
                         if (el) { el.disabled = true; el.style.pointerEvents = 'none'; }
                     });
@@ -5643,20 +5773,20 @@ function wpb_forms_admin_page()
                     if (req) { req.disabled = true; }
                     // Disabilita tutti gli input/select/button nella sezione logica condizionale
                     var cond = _propsInner.querySelector('.wpb-cond-section');
-                    if (cond) cond.querySelectorAll('input,select,button,textarea').forEach(function(el){ el.disabled = true; });
+                    if (cond) cond.querySelectorAll('input,select,button,textarea').forEach(function (el) { el.disabled = true; });
                 }).observe(_propsInner, { childList: true });
             }
 
             // 3. Disabilita pulsanti impostazioni non traducibili (via JS oltre al CSS)
-            document.querySelectorAll('.wpb-ast-btn').forEach(function(btn) { btn.disabled = true; });
+            document.querySelectorAll('.wpb-ast-btn').forEach(function (btn) { btn.disabled = true; });
             ['wpb-setting-display-page-info',
-             'wpb-setting-mailup-enabled',
-             'wpb-setting-mailup-email-field',
-             'wpb-setting-mailup-optin-field',
-             'wpb-mailup-add-map-row'].forEach(function(id) {
-                var el = document.getElementById(id);
-                if (el) el.disabled = true;
-            });
+                'wpb-setting-mailup-enabled',
+                'wpb-setting-mailup-email-field',
+                'wpb-setting-mailup-optin-field',
+                'wpb-mailup-add-map-row'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) el.disabled = true;
+                });
         }
 
     })();
@@ -5703,7 +5833,9 @@ add_action('admin_menu', function () {
 
 // Nasconde la voce dal menu laterale per gli admin (è accessibile solo via link)
 add_action('admin_head', function () {
-    echo '<style>#adminmenu a[href="admin.php?page=wp-barrio-submissions"]{display:none!important}</style>';
+    if (current_user_can("manage_options")) {
+        echo '<style>#adminmenu a[href="admin.php?page=wp-barrio-submissions"]{display:none!important}</style>';
+    }
 });
 
 /* ─────────────────────────────────────────
@@ -5715,66 +5847,307 @@ function wpb_forms_submissions_page()
         wp_die('Non hai i permessi per accedere a questa pagina.');
     }
 
-    $nonce   = wp_create_nonce('wpb_forms_nonce');
-    $forms   = wpb_forms_get_all();
+    $nonce = wp_create_nonce('wpb_forms_nonce');
+    $forms = wpb_forms_get_all();
     $view_id = isset($_GET['view_id']) ? intval($_GET['view_id']) : 0;
     $view_form = $view_id ? wpb_forms_get($view_id) : null;
 
-    $ml_active    = function_exists('wpb_multilang_is_enabled') && wpb_multilang_is_enabled();
+    $ml_active = function_exists('wpb_multilang_is_enabled') && wpb_multilang_is_enabled();
     $ml_languages = $ml_active && function_exists('wpb_multilang_languages_with_flags') ? wpb_multilang_languages_with_flags() : [];
     ?>
 <style>
-    #wpb-subs-wrap { max-width:1200px }
-    .wpb-subs-toolbar { display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap }
-    .wpb-subs-reg-count { font-size:13px;color:#646970 }
-    .wpb-subs-spinner { display:inline-block;width:18px;height:18px;border:2px solid #c3c4c7;border-top-color:#2271b1;border-radius:50%;animation:wpb-spin .6s linear infinite }
-    @keyframes wpb-spin { to { transform:rotate(360deg) } }
-    .wpb-subs-reg-table-wrap { overflow-x:auto }
-    .wpb-subs-reg-table { width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #c3c4c7;border-radius:3px }
-    .wpb-subs-reg-table th { background:#f0f0f1;padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:#50575e;border-bottom:1px solid #c3c4c7;white-space:nowrap }
-    .wpb-subs-reg-table td { padding:8px 12px;border-bottom:1px solid #f0f0f1;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
-    .wpb-subs-reg-table tr:last-child td { border-bottom:none }
-    .wpb-subs-reg-table tr:hover td { background:#f6f7f7 }
-    .wpb-subs-reg-table tbody tr { cursor:pointer }
-    .wpb-subs-reg-cell-empty { color:#a7aaad;font-style:italic }
-    .wpb-subs-reg-date { font-size:12px;color:#646970 }
-    .wpb-check-on { color:#00a32a;font-weight:600 }
-    .wpb-check-off { color:#a7aaad }
-    .wpb-check-summary { display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#f0f0f1;color:#646970 }
+    #wpb-subs-wrap {
+        max-width: 1200px
+    }
+
+    .wpb-subs-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap
+    }
+
+    .wpb-subs-reg-count {
+        font-size: 13px;
+        color: #646970
+    }
+
+    .wpb-subs-spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #c3c4c7;
+        border-top-color: #2271b1;
+        border-radius: 50%;
+        animation: wpb-spin .6s linear infinite
+    }
+
+    @keyframes wpb-spin {
+        to {
+            transform: rotate(360deg)
+        }
+    }
+
+    .wpb-subs-reg-table-wrap {
+        overflow-x: auto
+    }
+
+    .wpb-subs-reg-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 3px
+    }
+
+    .wpb-subs-reg-table th {
+        background: #f0f0f1;
+        padding: 8px 12px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        color: #50575e;
+        border-bottom: 1px solid #c3c4c7;
+        white-space: nowrap
+    }
+
+    .wpb-subs-reg-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f0f0f1;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap
+    }
+
+    .wpb-subs-reg-table tr:last-child td {
+        border-bottom: none
+    }
+
+    .wpb-subs-reg-table tr:hover td {
+        background: #f6f7f7
+    }
+
+    .wpb-subs-reg-table tbody tr {
+        cursor: pointer
+    }
+
+    .wpb-subs-reg-cell-empty {
+        color: #a7aaad;
+        font-style: italic
+    }
+
+    .wpb-subs-reg-date {
+        font-size: 12px;
+        color: #646970
+    }
+
+    .wpb-check-on {
+        color: #00a32a;
+        font-weight: 600
+    }
+
+    .wpb-check-off {
+        color: #a7aaad
+    }
+
+    .wpb-check-summary {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #f0f0f1;
+        color: #646970
+    }
+
     /* Colonne picker */
-    .wpb-col-picker { position:relative }
-    .wpb-col-picker-panel { display:none;position:absolute;top:100%;left:0;z-index:99;background:#fff;border:1px solid #c3c4c7;border-radius:3px;box-shadow:0 3px 10px rgba(0,0,0,.1);padding:10px 14px;min-width:200px }
-    .wpb-col-picker-panel.open { display:block }
-    .wpb-col-picker-panel label { display:flex;align-items:center;gap:7px;padding:4px 0;font-size:13px;cursor:pointer;white-space:nowrap }
+    .wpb-col-picker {
+        position: relative
+    }
+
+    .wpb-col-picker-panel {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 99;
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 3px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, .1);
+        padding: 10px 14px;
+        min-width: 200px
+    }
+
+    .wpb-col-picker-panel.open {
+        display: block
+    }
+
+    .wpb-col-picker-panel label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 0;
+        font-size: 13px;
+        cursor: pointer;
+        white-space: nowrap
+    }
+
     /* Bulk */
     .wpb-subs-reg-table th:first-child,
-    .wpb-subs-reg-table td:first-child { width:32px;padding-right:4px }
-    .wpb-bulk-bar { display:none;align-items:center;gap:10px;padding:8px 12px;background:#f0f6fc;border:1px solid #c6d9ef;border-radius:3px;margin-bottom:10px;font-size:13px }
-    .wpb-bulk-bar.visible { display:flex }
+    .wpb-subs-reg-table td:first-child {
+        width: 32px;
+        padding-right: 4px
+    }
+
+    .wpb-bulk-bar {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: #f0f6fc;
+        border: 1px solid #c6d9ef;
+        border-radius: 3px;
+        margin-bottom: 10px;
+        font-size: 13px
+    }
+
+    .wpb-bulk-bar.visible {
+        display: flex
+    }
+
     /* Dettaglio */
-    .wpb-subs-detail-wrap { background:#fff;border:1px solid #c3c4c7;border-radius:4px;overflow:hidden }
-    .wpb-subs-detail-header { display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f0f0f1;background:#fafafa }
-    .wpb-subs-detail-header h3 { margin:0;font-size:15px }
-    .wpb-subs-detail-meta { display:flex;flex-wrap:wrap;gap:16px;padding:14px 20px;font-size:12px;color:#646970;border-bottom:1px solid #f0f0f1;background:#f9f9f9 }
-    .wpb-subs-detail-fields { padding:0 }
-    .wpb-subs-detail-row { display:flex;border-bottom:1px solid #f0f0f1;font-size:13px }
-    .wpb-subs-detail-row:last-child { border-bottom:none }
-    .wpb-subs-detail-label { width:200px;min-width:160px;padding:12px 20px;background:#fafafa;font-weight:600;color:#50575e;border-right:1px solid #f0f0f1 }
-    .wpb-subs-detail-value { flex:1;padding:12px 20px;word-break:break-word }
-    .wpb-subs-detail-empty { color:#a7aaad;font-style:italic }
-    .wpb-sub-count { display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;background:#f0f0f1;color:#646970 }
-    .wpb-sub-count.has-subs { background:#e7f5e8;color:#00a32a }
-    .wpb-subs-table { width:100%;border-collapse:collapse;font-size:13px }
-    .wpb-subs-table th { background:#f0f0f1;padding:9px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;border-bottom:1px solid #c3c4c7 }
-    .wpb-subs-table td { padding:10px 14px;border-bottom:1px solid #f0f0f1;vertical-align:middle }
-    .wpb-subs-table tr:last-child td { border-bottom:none }
-    .wpb-subs-table tr:hover td { background:#fafafa }
-    .wpb-subs-table-wrap { background:#fff;border:1px solid #c3c4c7;border-radius:3px;overflow:hidden }
+    .wpb-subs-detail-wrap {
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 4px;
+        overflow: hidden
+    }
+
+    .wpb-subs-detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #f0f0f1;
+        background: #fafafa
+    }
+
+    .wpb-subs-detail-header h3 {
+        margin: 0;
+        font-size: 15px
+    }
+
+    .wpb-subs-detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 14px 20px;
+        font-size: 12px;
+        color: #646970;
+        border-bottom: 1px solid #f0f0f1;
+        background: #f9f9f9
+    }
+
+    .wpb-subs-detail-fields {
+        padding: 0
+    }
+
+    .wpb-subs-detail-row {
+        display: flex;
+        border-bottom: 1px solid #f0f0f1;
+        font-size: 13px
+    }
+
+    .wpb-subs-detail-row:last-child {
+        border-bottom: none
+    }
+
+    .wpb-subs-detail-label {
+        width: 200px;
+        min-width: 160px;
+        padding: 12px 20px;
+        background: #fafafa;
+        font-weight: 600;
+        color: #50575e;
+        border-right: 1px solid #f0f0f1
+    }
+
+    .wpb-subs-detail-value {
+        flex: 1;
+        padding: 12px 20px;
+        word-break: break-word
+    }
+
+    .wpb-subs-detail-empty {
+        color: #a7aaad;
+        font-style: italic
+    }
+
+    .wpb-sub-count {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f0f0f1;
+        color: #646970
+    }
+
+    .wpb-sub-count.has-subs {
+        background: #e7f5e8;
+        color: #00a32a
+    }
+
+    .wpb-subs-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px
+    }
+
+    .wpb-subs-table th {
+        background: #f0f0f1;
+        padding: 9px 14px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        color: #50575e;
+        border-bottom: 1px solid #c3c4c7
+    }
+
+    .wpb-subs-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f0f0f1;
+        vertical-align: middle
+    }
+
+    .wpb-subs-table tr:last-child td {
+        border-bottom: none
+    }
+
+    .wpb-subs-table tr:hover td {
+        background: #fafafa
+    }
+
+    .wpb-subs-table-wrap {
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 3px;
+        overflow: hidden
+    }
 </style>
 
 <div class="wrap" id="wpb-subs-wrap">
     <h1 class="wp-heading-inline">
-        <span class="dashicons dashicons-list-view" style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
+        <span class="dashicons dashicons-list-view"
+            style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
         Registrazioni Form
     </h1>
     <hr class="wp-header-end" style="margin-bottom:20px;">
@@ -5801,11 +6174,13 @@ function wpb_forms_submissions_page()
 
         <div class="wpb-col-picker">
             <button type="button" class="button" id="wpb-col-picker-btn">
-                <span class="dashicons dashicons-visibility" style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;"></span>
+                <span class="dashicons dashicons-visibility"
+                    style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;"></span>
                 Colonne
             </button>
             <div class="wpb-col-picker-panel" id="wpb-col-picker-panel">
-                <p style="font-size:11px;font-weight:700;text-transform:uppercase;color:#646970;margin:0 0 6px;">Colonne visibili</p>
+                <p style="font-size:11px;font-weight:700;text-transform:uppercase;color:#646970;margin:0 0 6px;">Colonne
+                    visibili</p>
                 <div id="wpb-col-options"><!-- popolato via JS --></div>
             </div>
         </div>
@@ -5818,7 +6193,8 @@ function wpb_forms_submissions_page()
     <div class="wpb-bulk-bar" id="wpb-bulk-bar">
         <span id="wpb-bulk-count"></span>
         <button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="wpb-bulk-delete-btn">
-            <span class="dashicons dashicons-trash" style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span>
+            <span class="dashicons dashicons-trash"
+                style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span>
             Elimina selezionati
         </button>
         <button type="button" class="button" id="wpb-bulk-cancel-btn">Annulla</button>
@@ -5827,336 +6203,336 @@ function wpb_forms_submissions_page()
     <div id="wpb-subs-content"><span class="wpb-subs-spinner"></span> Caricamento…</div>
 
     <script>
-    (function () {
-        const AJAX        = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
-        const NONCE       = '<?php echo esc_js($nonce); ?>';
-        const FORM_ID     = <?php echo intval($view_id); ?>;
-        const ML_LANGUAGES= <?php echo wp_json_encode($ml_languages); ?>;
-        const ML_ACTIVE   = <?php echo wp_json_encode($ml_active); ?>;
+        (function () {
+            const AJAX = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
+            const NONCE = '<?php echo esc_js($nonce); ?>';
+            const FORM_ID = <?php echo intval($view_id); ?>;
+            const ML_LANGUAGES = <?php echo wp_json_encode($ml_languages); ?>;
+            const ML_ACTIVE = <?php echo wp_json_encode($ml_active); ?>;
 
-        let subsData = [], formFields = [], filteredData = [];
-        let visibleCols = [];   // nomi campi visibili (oltre a #, lingua, data)
-        let selectedIds = new Set();
+            let subsData = [], formFields = [], filteredData = [];
+            let visibleCols = [];   // nomi campi visibili (oltre a #, lingua, data)
+            let selectedIds = new Set();
 
-        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+            function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-        function formatCheckSummary(val) {
-            if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
-            const parts = val.split('|').map(p => p.trim()).filter(Boolean);
-            let total = 0, on = 0;
-            parts.forEach(p => { const m = p.match(/^(.+?):\s*(true|false)$/); if (m) { total++; if (m[2]==='true') on++; } });
-            return '<span class="wpb-check-summary">' + on + '/' + total + '</span>';
-        }
-        function formatCheckVal(val) {
-            if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
-            return val.split('|').map(p=>p.trim()).filter(Boolean).map(part => {
-                const m = part.match(/^(.+?):\s*(true|false)$/);
-                if (!m) return '';
-                const cls = m[2]==='true' ? 'wpb-check-on' : 'wpb-check-off';
-                const icon = m[2]==='true' ? '✔' : '✘';
-                return '<div class="' + cls + '">' + icon + ' ' + esc(m[1].trim()) + '</div>';
-            }).join('');
-        }
-
-        // ── Carica submissions ──────────────────────────────────────────
-        function loadSubmissions() {
-            fetch(AJAX, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ action: 'wpb_forms_get_submissions', nonce: NONCE, form_id: FORM_ID })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (!res.success) { document.getElementById('wpb-subs-content').innerHTML = '<p>' + esc(res.data || 'Errore') + '</p>'; return; }
-                subsData   = res.data.subs || [];
-                formFields = (res.data.fields || []).filter(f => f.type !== 'submit' && f.type !== 'page_break');
-                // Colonne default: primi 2 campi
-                visibleCols = formFields.slice(0, 2).map(f => f.name);
-                buildColPicker();
-                applyFilter();
-            })
-            .catch(() => { document.getElementById('wpb-subs-content').innerHTML = '<p>Errore di rete.</p>'; });
-        }
-
-        // ── Col picker ──────────────────────────────────────────────────
-        function buildColPicker() {
-            const wrap = document.getElementById('wpb-col-options');
-            if (!wrap) return;
-            wrap.innerHTML = '';
-            formFields.forEach(f => {
-                const lbl = document.createElement('label');
-                const cb  = document.createElement('input');
-                cb.type   = 'checkbox';
-                cb.value  = f.name;
-                cb.checked = visibleCols.includes(f.name);
-                cb.addEventListener('change', function() {
-                    if (this.checked) {
-                        if (!visibleCols.includes(this.value)) visibleCols.push(this.value);
-                    } else {
-                        visibleCols = visibleCols.filter(v => v !== this.value);
-                    }
-                    renderList();
-                });
-                lbl.appendChild(cb);
-                lbl.appendChild(document.createTextNode(' ' + (f.label || f.name)));
-                wrap.appendChild(lbl);
-            });
-        }
-
-        document.getElementById('wpb-col-picker-btn').addEventListener('click', function(e) {
-            e.stopPropagation();
-            document.getElementById('wpb-col-picker-panel').classList.toggle('open');
-        });
-        document.addEventListener('click', function() {
-            document.getElementById('wpb-col-picker-panel').classList.remove('open');
-        });
-        document.getElementById('wpb-col-picker-panel').addEventListener('click', function(e) { e.stopPropagation(); });
-
-        // ── Filtro lingua ───────────────────────────────────────────────
-        const langFilter = document.getElementById('wpb-lang-filter');
-        if (langFilter) {
-            langFilter.addEventListener('change', applyFilter);
-        }
-
-        function applyFilter() {
-            const lang = langFilter ? langFilter.value : '';
-            filteredData = lang ? subsData.filter(s => s.lang === lang) : subsData.slice();
-            selectedIds.clear();
-            updateBulkBar();
-            renderList();
-        }
-
-        // ── Render lista ────────────────────────────────────────────────
-        function renderList() {
-            const content = document.getElementById('wpb-subs-content');
-            const countEl = document.getElementById('wpb-subs-count');
-            if (countEl) countEl.textContent = filteredData.length + ' registrazion' + (filteredData.length === 1 ? 'e' : 'i');
-
-            const selectAllBtn = document.getElementById('wpb-select-all-btn');
-            if (selectAllBtn) selectAllBtn.style.display = filteredData.length ? '' : 'none';
-
-            if (!filteredData.length) {
-                content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>';
-                return;
+            function formatCheckSummary(val) {
+                if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
+                const parts = val.split('|').map(p => p.trim()).filter(Boolean);
+                let total = 0, on = 0;
+                parts.forEach(p => { const m = p.match(/^(.+?):\s*(true|false)$/); if (m) { total++; if (m[2] === 'true') on++; } });
+                return '<span class="wpb-check-summary">' + on + '/' + total + '</span>';
+            }
+            function formatCheckVal(val) {
+                if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
+                return val.split('|').map(p => p.trim()).filter(Boolean).map(part => {
+                    const m = part.match(/^(.+?):\s*(true|false)$/);
+                    if (!m) return '';
+                    const cls = m[2] === 'true' ? 'wpb-check-on' : 'wpb-check-off';
+                    const icon = m[2] === 'true' ? '✔' : '✘';
+                    return '<div class="' + cls + '">' + icon + ' ' + esc(m[1].trim()) + '</div>';
+                }).join('');
             }
 
-            // Header
-            let thead = '<tr><th><input type="checkbox" id="wpb-check-all"></th><th>#</th>';
-            visibleCols.forEach(name => {
-                const f = formFields.find(f => f.name === name);
-                thead += '<th>' + esc(f ? (f.label || f.name) : name) + '</th>';
-            });
-            if (ML_ACTIVE) thead += '<th>Lingua</th>';
-            thead += '<th>Data</th><th></th></tr>';
-
-            // Rows
-            let tbody = '';
-            filteredData.forEach((sub) => {
-                const checked = selectedIds.has(sub.id);
-                tbody += '<tr data-id="' + sub.id + '">';
-                tbody += '<td onclick="event.stopPropagation()"><input type="checkbox" class="wpb-sub-check" value="' + sub.id + '"' + (checked ? ' checked' : '') + '></td>';
-                tbody += '<td>' + sub.id + '</td>';
-
-                const d = sub.data || {};
-                visibleCols.forEach(name => {
-                    const cell = d[name];
-                    let val = cell ? cell.value : null;
-                    if (Array.isArray(val)) val = val.join(', ');
-                    const empty = val === null || val === undefined || val === '';
-                    const summary = !empty ? formatCheckSummary(String(val)) : null;
-                    tbody += empty
-                        ? '<td class="wpb-subs-reg-cell-empty">—</td>'
-                        : '<td title="' + esc(String(val)) + '">' + (summary || esc(String(val))) + '</td>';
-                });
-
-                if (ML_ACTIVE) {
-                    const lc = sub.lang || '';
-                    const ll = lc ? (ML_LANGUAGES[lc] || lc.toUpperCase()) : '—';
-                    tbody += '<td><span style="font-size:11px;background:#f0f0f1;padding:1px 6px;border-radius:2px;font-weight:600;">' + esc(ll) + '</span></td>';
-                }
-
-                tbody += '<td><span class="wpb-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
-                tbody += '<td onclick="event.stopPropagation()" style="width:32px;padding:4px 8px;">'
-                       + '<button type="button" class="button button-small wpb-del-single" data-id="' + sub.id + '" title="Elimina" style="color:#d63638;border-color:#d63638;padding:2px 6px;">'
-                       + '<span class="dashicons dashicons-trash" style="font-size:12px;width:12px;height:12px;"></span>'
-                       + '</button></td>';
-                tbody += '</tr>';
-            });
-
-            content.innerHTML = '<div class="wpb-subs-reg-table-wrap"><table class="wpb-subs-reg-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
-
-            // Check-all
-            const checkAll = document.getElementById('wpb-check-all');
-            if (checkAll) {
-                checkAll.addEventListener('change', function() {
-                    document.querySelectorAll('.wpb-sub-check').forEach(cb => {
-                        cb.checked = this.checked;
-                        const id = parseInt(cb.value);
-                        if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
-                    });
-                    updateBulkBar();
-                });
-                checkAll.checked = filteredData.length > 0 && filteredData.every(s => selectedIds.has(s.id));
-            }
-
-            // Singole checkbox
-            document.querySelectorAll('.wpb-sub-check').forEach(cb => {
-                cb.addEventListener('change', function() {
-                    const id = parseInt(this.value);
-                    if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
-                    updateBulkBar();
-                    const allCb = document.getElementById('wpb-check-all');
-                    if (allCb) allCb.checked = filteredData.every(s => selectedIds.has(s.id));
-                });
-            });
-
-            // Click riga → dettaglio
-            content.querySelectorAll('.wpb-subs-reg-table tbody tr').forEach(row => {
-                row.addEventListener('click', () => {
-                    const id = parseInt(row.dataset.id);
-                    const idx = filteredData.findIndex(s => s.id === id);
-                    if (idx !== -1) showDetail(idx);
-                });
-            });
-
-            // Delete singolo
-            content.querySelectorAll('.wpb-del-single').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = parseInt(this.dataset.id);
-                    if (!confirm('Eliminare questa registrazione?')) return;
-                    deleteSubmissions([id], () => {
-                        subsData = subsData.filter(s => s.id !== id);
+            // ── Carica submissions ──────────────────────────────────────────
+            function loadSubmissions() {
+                fetch(AJAX, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ action: 'wpb_forms_get_submissions', nonce: NONCE, form_id: FORM_ID })
+                })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (!res.success) { document.getElementById('wpb-subs-content').innerHTML = '<p>' + esc(res.data || 'Errore') + '</p>'; return; }
+                        subsData = res.data.subs || [];
+                        formFields = (res.data.fields || []).filter(f => f.type !== 'submit' && f.type !== 'page_break');
+                        // Colonne default: primi 2 campi
+                        visibleCols = formFields.slice(0, 2).map(f => f.name);
+                        buildColPicker();
                         applyFilter();
-                    });
-                });
-            });
-        }
-
-        // ── Bulk delete ─────────────────────────────────────────────────
-        function updateBulkBar() {
-            const bar = document.getElementById('wpb-bulk-bar');
-            const cnt = document.getElementById('wpb-bulk-count');
-            if (!bar) return;
-            if (selectedIds.size > 0) {
-                bar.classList.add('visible');
-                cnt.textContent = selectedIds.size + ' selezionat' + (selectedIds.size === 1 ? 'a' : 'e');
-            } else {
-                bar.classList.remove('visible');
+                    })
+                    .catch(() => { document.getElementById('wpb-subs-content').innerHTML = '<p>Errore di rete.</p>'; });
             }
-        }
 
-        document.getElementById('wpb-bulk-delete-btn').addEventListener('click', function() {
-            if (!selectedIds.size) return;
-            if (!confirm('Eliminare ' + selectedIds.size + ' registrazioni?')) return;
-            deleteSubmissions(Array.from(selectedIds), () => {
-                const ids = Array.from(selectedIds);
-                subsData = subsData.filter(s => !ids.includes(s.id));
+            // ── Col picker ──────────────────────────────────────────────────
+            function buildColPicker() {
+                const wrap = document.getElementById('wpb-col-options');
+                if (!wrap) return;
+                wrap.innerHTML = '';
+                formFields.forEach(f => {
+                    const lbl = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = f.name;
+                    cb.checked = visibleCols.includes(f.name);
+                    cb.addEventListener('change', function () {
+                        if (this.checked) {
+                            if (!visibleCols.includes(this.value)) visibleCols.push(this.value);
+                        } else {
+                            visibleCols = visibleCols.filter(v => v !== this.value);
+                        }
+                        renderList();
+                    });
+                    lbl.appendChild(cb);
+                    lbl.appendChild(document.createTextNode(' ' + (f.label || f.name)));
+                    wrap.appendChild(lbl);
+                });
+            }
+
+            document.getElementById('wpb-col-picker-btn').addEventListener('click', function (e) {
+                e.stopPropagation();
+                document.getElementById('wpb-col-picker-panel').classList.toggle('open');
+            });
+            document.addEventListener('click', function () {
+                document.getElementById('wpb-col-picker-panel').classList.remove('open');
+            });
+            document.getElementById('wpb-col-picker-panel').addEventListener('click', function (e) { e.stopPropagation(); });
+
+            // ── Filtro lingua ───────────────────────────────────────────────
+            const langFilter = document.getElementById('wpb-lang-filter');
+            if (langFilter) {
+                langFilter.addEventListener('change', applyFilter);
+            }
+
+            function applyFilter() {
+                const lang = langFilter ? langFilter.value : '';
+                filteredData = lang ? subsData.filter(s => s.lang === lang) : subsData.slice();
                 selectedIds.clear();
                 updateBulkBar();
-                applyFilter();
-            });
-        });
+                renderList();
+            }
 
-        document.getElementById('wpb-bulk-cancel-btn').addEventListener('click', function() {
-            selectedIds.clear();
-            updateBulkBar();
-            document.querySelectorAll('.wpb-sub-check').forEach(cb => cb.checked = false);
-            const allCb = document.getElementById('wpb-check-all');
-            if (allCb) allCb.checked = false;
-        });
+            // ── Render lista ────────────────────────────────────────────────
+            function renderList() {
+                const content = document.getElementById('wpb-subs-content');
+                const countEl = document.getElementById('wpb-subs-count');
+                if (countEl) countEl.textContent = filteredData.length + ' registrazion' + (filteredData.length === 1 ? 'e' : 'i');
 
-        // Seleziona tutto (anche filtrati)
-        const selAllBtn = document.getElementById('wpb-select-all-btn');
-        if (selAllBtn) {
-            selAllBtn.addEventListener('click', function() {
-                filteredData.forEach(s => selectedIds.add(s.id));
-                document.querySelectorAll('.wpb-sub-check').forEach(cb => cb.checked = true);
-                const allCb = document.getElementById('wpb-check-all');
-                if (allCb) allCb.checked = true;
-                updateBulkBar();
-            });
-        }
+                const selectAllBtn = document.getElementById('wpb-select-all-btn');
+                if (selectAllBtn) selectAllBtn.style.display = filteredData.length ? '' : 'none';
 
-        function deleteSubmissions(ids, onSuccess) {
-            fetch(AJAX, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action:  'wpb_forms_delete_submissions',
-                    nonce:   NONCE,
-                    form_id: FORM_ID,
-                    ids:     JSON.stringify(ids),
-                })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) onSuccess();
-                else alert(res.data || 'Errore durante l\'eliminazione.');
-            })
-            .catch(() => alert('Errore di rete.'));
-        }
+                if (!filteredData.length) {
+                    content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>';
+                    return;
+                }
 
-        // ── Dettaglio registrazione ─────────────────────────────────────
-        function showDetail(idx) {
-            const sub = filteredData[idx]; if (!sub) return;
-            const content = document.getElementById('wpb-subs-content');
+                // Header
+                let thead = '<tr><th><input type="checkbox" id="wpb-check-all"></th><th>#</th>';
+                visibleCols.forEach(name => {
+                    const f = formFields.find(f => f.name === name);
+                    thead += '<th>' + esc(f ? (f.label || f.name) : name) + '</th>';
+                });
+                if (ML_ACTIVE) thead += '<th>Lingua</th>';
+                thead += '<th>Data</th><th></th></tr>';
 
-            let fieldsHtml = '';
-            formFields.filter(f => f.type !== 'file').forEach(f => {
-                const key = f.name || '';
-                const cell = (sub.data || {})[key];
-                let val = cell ? cell.value : null;
-                if (Array.isArray(val)) val = val.join(', ');
-                const empty = val === null || val === undefined || val === '';
-                const checkHtml = !empty ? formatCheckVal(String(val)) : null;
-                const valHtml = checkHtml || (empty ? '—' : esc(String(val)));
-                fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">' + esc(f.label || f.name || '—') + '</div><div class="wpb-subs-detail-value' + (empty ? ' wpb-subs-detail-empty' : '') + '">' + valHtml + '</div></div>';
-            });
+                // Rows
+                let tbody = '';
+                filteredData.forEach((sub) => {
+                    const checked = selectedIds.has(sub.id);
+                    tbody += '<tr data-id="' + sub.id + '">';
+                    tbody += '<td onclick="event.stopPropagation()"><input type="checkbox" class="wpb-sub-check" value="' + sub.id + '"' + (checked ? ' checked' : '') + '></td>';
+                    tbody += '<td>' + sub.id + '</td>';
 
-            // Allegati
-            const fileEntries = Object.entries(sub.data || {}).filter(([k, v]) => k.startsWith('_file_') && v && v.is_file);
-            if (fileEntries.length) {
-                fieldsHtml += '<div style="padding:10px 20px;background:#f0f0f1;font-size:11px;font-weight:700;letter-spacing:.5px;color:#50575e;text-transform:uppercase;border-bottom:1px solid #e0e0e0;">📎 Allegati</div>';
-                fileEntries.forEach(([k, d]) => {
-                    const fname = esc(d.value || '');
-                    const furl  = d.url ? '<a href="' + esc(d.url) + '" target="_blank" style="font-size:12px;margin-left:8px;">Scarica</a>' : '';
-                    fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">📎</div><div class="wpb-subs-detail-value">' + fname + furl + '</div></div>';
+                    const d = sub.data || {};
+                    visibleCols.forEach(name => {
+                        const cell = d[name];
+                        let val = cell ? cell.value : null;
+                        if (Array.isArray(val)) val = val.join(', ');
+                        const empty = val === null || val === undefined || val === '';
+                        const summary = !empty ? formatCheckSummary(String(val)) : null;
+                        tbody += empty
+                            ? '<td class="wpb-subs-reg-cell-empty">—</td>'
+                            : '<td title="' + esc(String(val)) + '">' + (summary || esc(String(val))) + '</td>';
+                    });
+
+                    if (ML_ACTIVE) {
+                        const lc = sub.lang || '';
+                        const ll = lc ? (ML_LANGUAGES[lc] || lc.toUpperCase()) : '—';
+                        tbody += '<td><span style="font-size:11px;background:#f0f0f1;padding:1px 6px;border-radius:2px;font-weight:600;">' + esc(ll) + '</span></td>';
+                    }
+
+                    tbody += '<td><span class="wpb-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
+                    tbody += '<td onclick="event.stopPropagation()" style="width:32px;padding:4px 8px;">'
+                        + '<button type="button" class="button button-small wpb-del-single" data-id="' + sub.id + '" title="Elimina" style="color:#d63638;border-color:#d63638;padding:2px 6px;">'
+                        + '<span class="dashicons dashicons-trash" style="font-size:12px;width:12px;height:12px;"></span>'
+                        + '</button></td>';
+                    tbody += '</tr>';
+                });
+
+                content.innerHTML = '<div class="wpb-subs-reg-table-wrap"><table class="wpb-subs-reg-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+
+                // Check-all
+                const checkAll = document.getElementById('wpb-check-all');
+                if (checkAll) {
+                    checkAll.addEventListener('change', function () {
+                        document.querySelectorAll('.wpb-sub-check').forEach(cb => {
+                            cb.checked = this.checked;
+                            const id = parseInt(cb.value);
+                            if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
+                        });
+                        updateBulkBar();
+                    });
+                    checkAll.checked = filteredData.length > 0 && filteredData.every(s => selectedIds.has(s.id));
+                }
+
+                // Singole checkbox
+                document.querySelectorAll('.wpb-sub-check').forEach(cb => {
+                    cb.addEventListener('change', function () {
+                        const id = parseInt(this.value);
+                        if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
+                        updateBulkBar();
+                        const allCb = document.getElementById('wpb-check-all');
+                        if (allCb) allCb.checked = filteredData.every(s => selectedIds.has(s.id));
+                    });
+                });
+
+                // Click riga → dettaglio
+                content.querySelectorAll('.wpb-subs-reg-table tbody tr').forEach(row => {
+                    row.addEventListener('click', () => {
+                        const id = parseInt(row.dataset.id);
+                        const idx = filteredData.findIndex(s => s.id === id);
+                        if (idx !== -1) showDetail(idx);
+                    });
+                });
+
+                // Delete singolo
+                content.querySelectorAll('.wpb-del-single').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const id = parseInt(this.dataset.id);
+                        if (!confirm('Eliminare questa registrazione?')) return;
+                        deleteSubmissions([id], () => {
+                            subsData = subsData.filter(s => s.id !== id);
+                            applyFilter();
+                        });
+                    });
                 });
             }
 
-            const langCode  = sub.lang || '';
-            const langLabel = langCode ? (ML_LANGUAGES[langCode] || langCode.toUpperCase()) : null;
+            // ── Bulk delete ─────────────────────────────────────────────────
+            function updateBulkBar() {
+                const bar = document.getElementById('wpb-bulk-bar');
+                const cnt = document.getElementById('wpb-bulk-count');
+                if (!bar) return;
+                if (selectedIds.size > 0) {
+                    bar.classList.add('visible');
+                    cnt.textContent = selectedIds.size + ' selezionat' + (selectedIds.size === 1 ? 'a' : 'e');
+                } else {
+                    bar.classList.remove('visible');
+                }
+            }
 
-            const metaItems = [
-                '📅 Data: <strong>' + esc(sub.created_at_full || sub.created_at) + '</strong>',
-            ];
-            if (langLabel) metaItems.push('🌐 Lingua: <strong>' + esc(langLabel) + '</strong>');
-            if (sub.ip)    metaItems.push('🌍 IP: <strong>' + esc(sub.ip) + '</strong>');
-
-            content.innerHTML =
-                '<div class="wpb-subs-detail-wrap">' +
-                '<div class="wpb-subs-detail-header">' +
-                '<h3>Registrazione #' + sub.id + '</h3>' +
-                '<div style="display:flex;gap:8px;">' +
-                '<button type="button" class="button" id="wpb-detail-back">← Lista</button>' +
-                '<button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="wpb-detail-del">🗑 Elimina</button>' +
-                '</div></div>' +
-                '<div class="wpb-subs-detail-meta">' + metaItems.map(m => '<span>' + m + '</span>').join('') + '</div>' +
-                '<div class="wpb-subs-detail-fields">' + fieldsHtml + '</div>' +
-                '</div>';
-
-            document.getElementById('wpb-detail-back').addEventListener('click', renderList);
-            document.getElementById('wpb-detail-del').addEventListener('click', function() {
-                if (!confirm('Eliminare la registrazione #' + sub.id + '?')) return;
-                deleteSubmissions([sub.id], () => {
-                    subsData = subsData.filter(s => s.id !== sub.id);
+            document.getElementById('wpb-bulk-delete-btn').addEventListener('click', function () {
+                if (!selectedIds.size) return;
+                if (!confirm('Eliminare ' + selectedIds.size + ' registrazioni?')) return;
+                deleteSubmissions(Array.from(selectedIds), () => {
+                    const ids = Array.from(selectedIds);
+                    subsData = subsData.filter(s => !ids.includes(s.id));
+                    selectedIds.clear();
+                    updateBulkBar();
                     applyFilter();
                 });
             });
-        }
 
-        loadSubmissions();
-    })();
+            document.getElementById('wpb-bulk-cancel-btn').addEventListener('click', function () {
+                selectedIds.clear();
+                updateBulkBar();
+                document.querySelectorAll('.wpb-sub-check').forEach(cb => cb.checked = false);
+                const allCb = document.getElementById('wpb-check-all');
+                if (allCb) allCb.checked = false;
+            });
+
+            // Seleziona tutto (anche filtrati)
+            const selAllBtn = document.getElementById('wpb-select-all-btn');
+            if (selAllBtn) {
+                selAllBtn.addEventListener('click', function () {
+                    filteredData.forEach(s => selectedIds.add(s.id));
+                    document.querySelectorAll('.wpb-sub-check').forEach(cb => cb.checked = true);
+                    const allCb = document.getElementById('wpb-check-all');
+                    if (allCb) allCb.checked = true;
+                    updateBulkBar();
+                });
+            }
+
+            function deleteSubmissions(ids, onSuccess) {
+                fetch(AJAX, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        action: 'wpb_forms_delete_submissions',
+                        nonce: NONCE,
+                        form_id: FORM_ID,
+                        ids: JSON.stringify(ids),
+                    })
+                })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) onSuccess();
+                        else alert(res.data || 'Errore durante l\'eliminazione.');
+                    })
+                    .catch(() => alert('Errore di rete.'));
+            }
+
+            // ── Dettaglio registrazione ─────────────────────────────────────
+            function showDetail(idx) {
+                const sub = filteredData[idx]; if (!sub) return;
+                const content = document.getElementById('wpb-subs-content');
+
+                let fieldsHtml = '';
+                formFields.filter(f => f.type !== 'file').forEach(f => {
+                    const key = f.name || '';
+                    const cell = (sub.data || {})[key];
+                    let val = cell ? cell.value : null;
+                    if (Array.isArray(val)) val = val.join(', ');
+                    const empty = val === null || val === undefined || val === '';
+                    const checkHtml = !empty ? formatCheckVal(String(val)) : null;
+                    const valHtml = checkHtml || (empty ? '—' : esc(String(val)));
+                    fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">' + esc(f.label || f.name || '—') + '</div><div class="wpb-subs-detail-value' + (empty ? ' wpb-subs-detail-empty' : '') + '">' + valHtml + '</div></div>';
+                });
+
+                // Allegati
+                const fileEntries = Object.entries(sub.data || {}).filter(([k, v]) => k.startsWith('_file_') && v && v.is_file);
+                if (fileEntries.length) {
+                    fieldsHtml += '<div style="padding:10px 20px;background:#f0f0f1;font-size:11px;font-weight:700;letter-spacing:.5px;color:#50575e;text-transform:uppercase;border-bottom:1px solid #e0e0e0;">📎 Allegati</div>';
+                    fileEntries.forEach(([k, d]) => {
+                        const fname = esc(d.value || '');
+                        const furl = d.url ? '<a href="' + esc(d.url) + '" target="_blank" style="font-size:12px;margin-left:8px;">Scarica</a>' : '';
+                        fieldsHtml += '<div class="wpb-subs-detail-row"><div class="wpb-subs-detail-label">📎</div><div class="wpb-subs-detail-value">' + fname + furl + '</div></div>';
+                    });
+                }
+
+                const langCode = sub.lang || '';
+                const langLabel = langCode ? (ML_LANGUAGES[langCode] || langCode.toUpperCase()) : null;
+
+                const metaItems = [
+                    '📅 Data: <strong>' + esc(sub.created_at_full || sub.created_at) + '</strong>',
+                ];
+                if (langLabel) metaItems.push('🌐 Lingua: <strong>' + esc(langLabel) + '</strong>');
+                if (sub.ip) metaItems.push('🌍 IP: <strong>' + esc(sub.ip) + '</strong>');
+
+                content.innerHTML =
+                    '<div class="wpb-subs-detail-wrap">' +
+                    '<div class="wpb-subs-detail-header">' +
+                    '<h3>Registrazione #' + sub.id + '</h3>' +
+                    '<div style="display:flex;gap:8px;">' +
+                    '<button type="button" class="button" id="wpb-detail-back">← Lista</button>' +
+                    '<button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="wpb-detail-del">🗑 Elimina</button>' +
+                    '</div></div>' +
+                    '<div class="wpb-subs-detail-meta">' + metaItems.map(m => '<span>' + m + '</span>').join('') + '</div>' +
+                    '<div class="wpb-subs-detail-fields">' + fieldsHtml + '</div>' +
+                    '</div>';
+
+                document.getElementById('wpb-detail-back').addEventListener('click', renderList);
+                document.getElementById('wpb-detail-del').addEventListener('click', function () {
+                    if (!confirm('Eliminare la registrazione #' + sub.id + '?')) return;
+                    deleteSubmissions([sub.id], () => {
+                        subsData = subsData.filter(s => s.id !== sub.id);
+                        applyFilter();
+                    });
+                });
+            }
+
+            loadSubmissions();
+        })();
     </script>
 
     <?php else: ?>
