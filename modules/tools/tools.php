@@ -57,6 +57,14 @@ function wpb_tools_modules_list()
             'label' => 'Banners',
             'desc'  => 'Crea e gestisci banner a scorrimento (marquee) per il frontend. Un solo banner attivo alla volta.',
         ],
+        'orders'      => [
+            'label' => 'Orders',
+            'desc'  => 'Riordina a piacimento post type e termini di tassonomia tramite drag & drop.',
+        ],
+        'duplicate'   => [
+            'label' => 'Duplicate',
+            'desc'  => 'Duplica post e termini di tassonomia direttamente dalla lista, con un click.',
+        ],
         'seo'         => [
             'label' => 'SEO',
             'desc'  => "Strumenti per l'ottimizzazione sui motori di ricerca.",

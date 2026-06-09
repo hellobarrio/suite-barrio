@@ -80,6 +80,21 @@ function wp_barrio_dashboard_page()
         $banners_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_banners");
         $banner_active = function_exists('wpb_banners_get_active') ? wpb_banners_get_active() : null;
     }
+    if (wpb_tools_module_enabled('orders')) {
+        $orders_settings  = get_option(WPB_ORDERS_OPTION, []);
+        $orders_pt_count  = count($orders_settings['ordered_post_types'] ?? []);
+        $orders_tax_count = count($orders_settings['ordered_taxonomies'] ?? []);
+    }
+    if (wpb_tools_module_enabled('duplicate')) {
+        $dup_settings  = get_option(WPB_DUPLICATE_OPTION, []);
+        $dup_pt_count  = count($dup_settings['enabled_post_types'] ?? []);
+        $dup_tax_count = count($dup_settings['enabled_taxonomies'] ?? []);
+    }
+    if (wpb_tools_module_enabled('stats')) {
+        $stats_s       = wpb_stats_settings();
+        $stats_url     = trim($stats_s['report_url'] ?? '');
+        $stats_replace = !empty($stats_s['replace_dashboard']);
+    }
     if (wpb_tools_module_enabled('orari')) {
         $orari_data = get_option(WPB_ORARI_DATA_OPTION, []);
         $orari_settings = get_option(WPB_ORARI_OPTION, []);
@@ -385,6 +400,124 @@ function wp_barrio_dashboard_page()
                                 + Nuovo
                             </a>
                         </div>
+                    </div>
+                </div>
+
+            <?php endif; ?>
+
+            <?php if (wpb_tools_module_enabled('orders')): ?>
+                <!-- Card Orders -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                    <div style="background:#7c3aed;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                        <span class="dashicons dashicons-sort"
+                            style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#fff;">Orders</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Riordino drag & drop di post e tassonomie</div>
+                        </div>
+                    </div>
+                    <div style="padding:16px 20px;">
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                            <tr>
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Post type ordinati</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo $orders_pt_count > 0
+                                        ? '<span style="color:#00a32a;">&#x2713; ' . $orders_pt_count . '</span>'
+                                        : '<span style="color:#a7aaad;">Nessuno</span>'; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Tassonomie ordinate</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo $orders_tax_count > 0
+                                        ? '<span style="color:#00a32a;">&#x2713; ' . $orders_tax_count . '</span>'
+                                        : '<span style="color:#a7aaad;">Nessuna</span>'; ?>
+                                </td>
+                            </tr>
+                        </table>
+                        <a href="?page=wp-barrio-orders" class="button button-primary" style="width:100%;text-align:center;box-sizing:border-box;">
+                            Gestisci ordini
+                        </a>
+                    </div>
+                </div>
+
+            <?php endif; ?>
+
+            <?php if (wpb_tools_module_enabled('duplicate')): ?>
+                <!-- Card Duplicate -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                    <div style="background:#0d9488;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                        <span class="dashicons dashicons-admin-page"
+                            style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#fff;">Duplicate</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Duplicazione rapida di post e termini</div>
+                        </div>
+                    </div>
+                    <div style="padding:16px 20px;">
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                            <tr>
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Post type abilitati</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo $dup_pt_count > 0
+                                        ? '<span style="color:#00a32a;">&#x2713; ' . $dup_pt_count . '</span>'
+                                        : '<span style="color:#a7aaad;">Nessuno</span>'; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Tassonomie abilitate</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php echo $dup_tax_count > 0
+                                        ? '<span style="color:#00a32a;">&#x2713; ' . $dup_tax_count . '</span>'
+                                        : '<span style="color:#a7aaad;">Nessuna</span>'; ?>
+                                </td>
+                            </tr>
+                        </table>
+                        <a href="?page=wp-barrio-duplicate" class="button button-primary" style="width:100%;text-align:center;box-sizing:border-box;">
+                            Configura duplicazione
+                        </a>
+                    </div>
+                </div>
+
+            <?php endif; ?>
+
+            <?php if (wpb_tools_module_enabled('stats')): ?>
+                <!-- Card Statistiche -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                    <div style="background:#1967d2;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                        <span class="dashicons dashicons-chart-area"
+                            style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#fff;">Statistiche</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Google Analytics 4</div>
+                        </div>
+                    </div>
+                    <div style="padding:16px 20px;">
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                            <tr>
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Report</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($stats_url): ?>
+                                        <span style="color:#00a32a;">&#x2713; Collegato</span>
+                                    <?php else: ?>
+                                        <span style="color:#a7aaad;">Non configurato</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Bacheca</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($stats_replace && $stats_url): ?>
+                                        <span style="color:#00a32a;">&#x2713; Sostituita</span>
+                                    <?php else: ?>
+                                        <span style="color:#a7aaad;">Predefinita</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        </table>
+                        <a href="?page=wp-barrio-stats" class="button button-primary" style="width:100%;text-align:center;box-sizing:border-box;">
+                            Configura
+                        </a>
                     </div>
                 </div>
 

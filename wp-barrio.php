@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  WP Barrio
  * Description:  WP Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      5.0.0
+ * Version:      6.0.0
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('WP_ALT_AI_VERSION', '5.0.0');
+define('WP_ALT_AI_VERSION', '6.0.0');
 define('WP_ALT_AI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_ALT_AI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WP_ALT_AI_LOG_OPTION', 'wp_alt_ai_log');
@@ -50,6 +50,15 @@ if (wpb_tools_module_enabled('popups'))
 
 if (wpb_tools_module_enabled('banners'))
    require_once WP_ALT_AI_PLUGIN_DIR . 'modules/banners/banners.php';
+
+if (wpb_tools_module_enabled('orders'))
+   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/orders/orders.php';
+
+if (wpb_tools_module_enabled('duplicate'))
+   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/duplicate/duplicate.php';
+
+if (wpb_tools_module_enabled('stats'))
+   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/stats/stats.php';
 
 /* ─────────────────────────────────────────
    GRAPHQL — caricato sempre.
