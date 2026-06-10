@@ -81,18 +81,18 @@ function wp_barrio_dashboard_page()
         $banner_active = function_exists('wpb_banners_get_active') ? wpb_banners_get_active() : null;
     }
     if (wpb_tools_module_enabled('orders')) {
-        $orders_settings  = get_option(WPB_ORDERS_OPTION, []);
-        $orders_pt_count  = count($orders_settings['ordered_post_types'] ?? []);
+        $orders_settings = get_option(WPB_ORDERS_OPTION, []);
+        $orders_pt_count = count($orders_settings['ordered_post_types'] ?? []);
         $orders_tax_count = count($orders_settings['ordered_taxonomies'] ?? []);
     }
     if (wpb_tools_module_enabled('duplicate')) {
-        $dup_settings  = get_option(WPB_DUPLICATE_OPTION, []);
-        $dup_pt_count  = count($dup_settings['enabled_post_types'] ?? []);
+        $dup_settings = get_option(WPB_DUPLICATE_OPTION, []);
+        $dup_pt_count = count($dup_settings['enabled_post_types'] ?? []);
         $dup_tax_count = count($dup_settings['enabled_taxonomies'] ?? []);
     }
     if (wpb_tools_module_enabled('stats')) {
-        $stats_s       = wpb_stats_settings();
-        $stats_url     = trim($stats_s['report_url'] ?? '');
+        $stats_s = wpb_stats_settings();
+        $stats_url = trim($stats_s['report_url'] ?? '');
         $stats_replace = !empty($stats_s['replace_dashboard']);
     }
     if (wpb_tools_module_enabled('orari')) {
@@ -413,7 +413,8 @@ function wp_barrio_dashboard_page()
                             style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                         <div>
                             <div style="font-size:16px;font-weight:600;color:#fff;">Orders</div>
-                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Riordino drag & drop di post e tassonomie</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Riordino drag & drop di post
+                                e tassonomie</div>
                         </div>
                     </div>
                     <div style="padding:16px 20px;">
@@ -435,7 +436,8 @@ function wp_barrio_dashboard_page()
                                 </td>
                             </tr>
                         </table>
-                        <a href="?page=wp-barrio-orders" class="button button-primary" style="width:100%;text-align:center;box-sizing:border-box;">
+                        <a href="?page=wp-barrio-orders" class="button button-primary"
+                            style="width:100%;text-align:center;box-sizing:border-box;">
                             Gestisci ordini
                         </a>
                     </div>
@@ -451,7 +453,8 @@ function wp_barrio_dashboard_page()
                             style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
                         <div>
                             <div style="font-size:16px;font-weight:600;color:#fff;">Duplicate</div>
-                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Duplicazione rapida di post e termini</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Duplicazione rapida di post
+                                e termini</div>
                         </div>
                     </div>
                     <div style="padding:16px 20px;">
@@ -473,7 +476,8 @@ function wp_barrio_dashboard_page()
                                 </td>
                             </tr>
                         </table>
-                        <a href="?page=wp-barrio-duplicate" class="button button-primary" style="width:100%;text-align:center;box-sizing:border-box;">
+                        <a href="?page=wp-barrio-duplicate" class="button button-primary"
+                            style="width:100%;text-align:center;box-sizing:border-box;">
                             Configura duplicazione
                         </a>
                     </div>
@@ -515,7 +519,8 @@ function wp_barrio_dashboard_page()
                                 </td>
                             </tr>
                         </table>
-                        <a href="?page=wp-barrio-stats" class="button button-primary" style="width:100%;text-align:center;box-sizing:border-box;">
+                        <a href="?page=wp-barrio-stats" class="button button-primary"
+                            style="width:100%;text-align:center;box-sizing:border-box;">
                             Configura
                         </a>
                     </div>
@@ -524,51 +529,53 @@ function wp_barrio_dashboard_page()
             <?php endif; ?>
 
             <?php if (wpb_tools_module_enabled('seo')): ?>
-            <!-- Card SEO -->
-            <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
-                <div style="background:#e6600d;padding:16px 20px;display:flex;align-items:center;gap:12px;">
-                    <span class="dashicons dashicons-search"
-                        style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
-                    <div>
-                        <div style="font-size:16px;font-weight:600;color:#fff;">SEO</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Strumenti per l'ottimizzazione sui motori di ricerca</div>
+                <!-- Card SEO -->
+                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:0;width:360px;overflow:hidden;">
+                    <div style="background:#e6600d;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                        <span class="dashicons dashicons-search"
+                            style="font-size:28px;width:28px;height:28px;color:#fff;flex-shrink:0;"></span>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#fff;">SEO</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">Strumenti per
+                                l'ottimizzazione sui motori di ricerca</div>
+                        </div>
+                    </div>
+                    <div style="padding:16px 20px;">
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                            <tr>
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">Sotto-strumenti</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php
+                                    $seo_sub_keys = ['global_seo', 'sitemap', 'schema', 'redirects', 'seo_advisor', 'auto-llms'];
+                                    $seo_active_count = 0;
+                                    foreach ($seo_sub_keys as $k) {
+                                        if (wpb_tools_module_enabled($k))
+                                            $seo_active_count++;
+                                    }
+                                    echo $seo_active_count > 0
+                                        ? '<span style="color:#00a32a;">&#x2713; ' . $seo_active_count . ' attiv' . ($seo_active_count === 1 ? 'o' : 'i') . '</span>'
+                                        : '<span style="color:#646970;">In sviluppo</span>';
+                                    ?>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1px solid #f0f0f1;">
+                                <td style="padding:6px 0;font-size:13px;color:#646970;">GraphQL</td>
+                                <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
+                                    <?php if ($graphql_active): ?>
+                                        <span style="color:#00a32a;">&#x2713; Attivo</span>
+                                    <?php else: ?>
+                                        <span style="color:#646970;">WPGraphQL non attivo</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        </table>
+                        <div style="display:flex;gap:8px;">
+                            <a href="?page=wp-barrio-seo" class="button button-primary" style="flex:1;text-align:center;">
+                                Vai a SEO
+                            </a>
+                        </div>
                     </div>
                 </div>
-                <div style="padding:16px 20px;">
-                    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
-                        <tr>
-                            <td style="padding:6px 0;font-size:13px;color:#646970;">Sotto-strumenti</td>
-                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
-                                <?php
-                        $seo_sub_keys = ['global_seo', 'sitemap', 'schema', 'redirects', 'seo_advisor', 'auto-llms'];
-                                $seo_active_count = 0;
-                                foreach ($seo_sub_keys as $k) {
-                                    if (wpb_tools_module_enabled($k)) $seo_active_count++;
-                                }
-                                echo $seo_active_count > 0
-                                    ? '<span style="color:#00a32a;">&#x2713; ' . $seo_active_count . ' attiv' . ($seo_active_count === 1 ? 'o' : 'i') . '</span>'
-                                    : '<span style="color:#646970;">In sviluppo</span>';
-                                ?>
-                            </td>
-                        </tr>
-                        <tr style="border-top:1px solid #f0f0f1;">
-                            <td style="padding:6px 0;font-size:13px;color:#646970;">GraphQL</td>
-                            <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;">
-                                <?php if ($graphql_active): ?>
-                                    <span style="color:#00a32a;">&#x2713; Attivo</span>
-                                <?php else: ?>
-                                    <span style="color:#646970;">WPGraphQL non attivo</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    </table>
-                    <div style="display:flex;gap:8px;">
-                        <a href="?page=wp-barrio-seo" class="button button-primary" style="flex:1;text-align:center;">
-                            Vai a SEO
-                        </a>
-                    </div>
-                </div>
-            </div>
             <?php endif; // seo ?>
 
             <?php if (wpb_tools_module_enabled('orari')): ?>
