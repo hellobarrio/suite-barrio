@@ -261,6 +261,36 @@ function wpb_stats_get_dashboard_data(bool $force = false): array|false
     if ($res_daily === false) $any_error = true;
     $data['daily'] = $res_daily['rows'] ?? [];
 
+    // ── 5. Dispositivi (30gg) ─────────────────────────────────────────────
+    $res_devices = wpb_stats_run_report($property_id,
+        [['name' => 'deviceCategory']],
+        [['name' => 'sessions'], ['name' => 'activeUsers']],
+        '30daysAgo', 'today', 5
+    );
+    if ($res_devices === false) $any_error = true;
+    $data['devices'] = $res_devices['rows'] ?? [];
+
+    // ── 6. Tempo medio sulla pagina (30gg) ───────────────────────────────
+    $res_time = wpb_stats_run_report($property_id,
+        [],
+        [['name' => 'averageSessionDuration'], ['name' => 'bounceRate']],
+        '30daysAgo', 'today', 1
+    );
+    if ($res_time === false) $any_error = true;
+    $tv_time = $res_time['totals'][0]['metricValues'] ?? $res_time['rows'][0]['metricValues'] ?? [];
+    $data['avg_session_duration'] = round((float)($tv_time[0]['value'] ?? 0));
+    $data['bounce_rate']          = round((float)($tv_time[1]['value'] ?? 0) * 100, 1);
+
+    // ── 7. Dati demografici: età (30gg) ──────────────────────────────────
+    // ── 7. Paesi di provenienza (30gg) ───────────────────────
+    $res_countries = wpb_stats_run_report($property_id,
+        [['name' => 'country']],
+        [['name' => 'activeUsers'], ['name' => 'sessions']],
+        '30daysAgo', 'today', 10
+    );
+    if ($res_countries === false) $any_error = true;
+    $data['countries'] = $res_countries['rows'] ?? [];
+
     $data['fetched_at'] = time();
     $data['has_error']  = $any_error;
 
@@ -539,6 +569,33 @@ add_action('wp_ajax_wpb_stats_fetch_period', function () {
         $start, $end, 8
     );
     $result['sources'] = $res_src['rows'] ?? [];
+
+    // Dispositivi
+    $res_devices = wpb_stats_run_report($property_id,
+        [['name' => 'deviceCategory']],
+        [['name' => 'sessions'], ['name' => 'activeUsers']],
+        $start, $end, 5
+    );
+    $result['devices'] = $res_devices['rows'] ?? [];
+
+    // Tempo medio sulla pagina + bounce rate
+    $res_time = wpb_stats_run_report($property_id,
+        [],
+        [['name' => 'averageSessionDuration'], ['name' => 'bounceRate']],
+        $start, $end, 1
+    );
+    $tv_time = $res_time['totals'][0]['metricValues'] ?? $res_time['rows'][0]['metricValues'] ?? [];
+    $result['avg_session_duration'] = round((float)($tv_time[0]['value'] ?? 0));
+    $result['bounce_rate']          = round((float)($tv_time[1]['value'] ?? 0) * 100, 1);
+
+    // Paesi di provenienza
+    $res_countries = wpb_stats_run_report($property_id,
+        [['name' => 'country']],
+        [['name' => 'activeUsers'], ['name' => 'sessions']],
+        $start, $end, 10
+    );
+    $result['countries'] = $res_countries['rows'] ?? [];
+
     $result['label']   = $label;
     $result['period']  = $period;
 
@@ -674,10 +731,13 @@ function wpb_stats_dashboard_widget()
             $init_kpi = wpb_stats_run_report(
                 $s['property_id'],
                 [],
-                [['name'=>'activeUsers'],['name'=>'screenPageViews'],['name'=>'sessions']],
+                [['name'=>'activeUsers'],['name'=>'screenPageViews'],['name'=>'sessions'],['name'=>'averageSessionDuration'],['name'=>'bounceRate']],
                 '30daysAgo', 'today', 1
             );
             $itv = $init_kpi['totals'][0]['metricValues'] ?? $init_kpi['rows'][0]['metricValues'] ?? [];
+            $init_avg_sec   = round((float)($itv[3]['value'] ?? 0));
+            $init_bounce    = round((float)($itv[4]['value'] ?? 0) * 100, 1);
+            $init_avg_fmt   = sprintf('%d:%02d', intdiv($init_avg_sec, 60), $init_avg_sec % 60);
             ?>
             <div class="wpb-kpi-card">
                 <div class="wpb-kpi-label">Utenti attivi</div>
@@ -692,6 +752,16 @@ function wpb_stats_dashboard_widget()
             <div class="wpb-kpi-card">
                 <div class="wpb-kpi-label">Sessioni</div>
                 <div class="wpb-kpi-value" id="wpb-kpi-sessions"><?php echo esc_html(number_format((int)($itv[2]['value'] ?? 0))); ?></div>
+                <div class="wpb-kpi-sub">30 giorni</div>
+            </div>
+            <div class="wpb-kpi-card">
+                <div class="wpb-kpi-label">Durata media</div>
+                <div class="wpb-kpi-value" id="wpb-kpi-avg-duration"><?php echo esc_html($init_avg_fmt); ?></div>
+                <div class="wpb-kpi-sub">min:sec · 30 giorni</div>
+            </div>
+            <div class="wpb-kpi-card">
+                <div class="wpb-kpi-label">Frequenza di rimbalzo</div>
+                <div class="wpb-kpi-value" id="wpb-kpi-bounce"><?php echo esc_html($init_bounce); ?>%</div>
                 <div class="wpb-kpi-sub">30 giorni</div>
             </div>
         </div>
@@ -772,6 +842,59 @@ function wpb_stats_dashboard_widget()
                         </div>
                         <div class="wpb-stats-source-pct"><?php echo esc_html($pct); ?>%</div>
                         <div class="wpb-stats-source-num"><?php echo esc_html(number_format($sess)); ?></div>
+                    </div>
+                <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Dispositivi -->
+            <div class="wpb-stats-panel">
+                <div class="wpb-stats-panel-title" id="wpb-devices-title">Dispositivi — 30 giorni</div>
+                <div class="wpb-stats-sources" id="wpb-devices">
+                <?php
+                $dev_colors = ['desktop'=>'#2271b1','mobile'=>'#00a32a','tablet'=>'#dba617'];
+                $total_dev  = array_sum(array_map(fn($r) => (int)($r['metricValues'][0]['value'] ?? 0), $data['devices']));
+                foreach ($data['devices'] as $row):
+                    $dev  = $row['dimensionValues'][0]['value'] ?? 'other';
+                    $sess = (int)($row['metricValues'][0]['value'] ?? 0);
+                    $usr  = (int)($row['metricValues'][1]['value'] ?? 0);
+                    $pct  = $total_dev > 0 ? round($sess / $total_dev * 100) : 0;
+                    $col  = $dev_colors[strtolower($dev)] ?? '#646970';
+                    $label_dev = match(strtolower($dev)) { 'desktop'=>'Desktop','mobile'=>'Mobile','tablet'=>'Tablet', default=>ucfirst($dev) };
+                ?>
+                    <div class="wpb-stats-source-row">
+                        <div class="wpb-stats-source-label"><?php echo esc_html($label_dev); ?></div>
+                        <div class="wpb-stats-source-bar-wrap">
+                            <div class="wpb-stats-source-bar" style="width:<?php echo esc_attr($pct); ?>%;background:<?php echo esc_attr($col); ?>;"></div>
+                        </div>
+                        <div class="wpb-stats-source-pct"><?php echo esc_html($pct); ?>%</div>
+                        <div class="wpb-stats-source-num"><?php echo esc_html(number_format($usr)); ?> utenti</div>
+                    </div>
+                <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Paesi di provenienza -->
+            <div class="wpb-stats-panel wpb-stats-panel--wide">
+                <div class="wpb-stats-panel-title" id="wpb-countries-title">Paesi di provenienza &mdash; 30 giorni</div>
+                <div class="wpb-stats-sources" id="wpb-countries">
+                <?php
+                $total_ctry = array_sum(array_map(fn($r) => (int)($r['metricValues'][0]['value'] ?? 0), $data['countries']));
+                $ctry_colors = ['#2271b1','#00a32a','#dba617','#d63638','#9b59b6','#8c5a0b','#0891b2','#a7aaad','#646970','#3d6b50'];
+                foreach ($data['countries'] as $i => $row):
+                    $ctry = $row['dimensionValues'][0]['value'] ?? '(unknown)';
+                    $usr  = (int)($row['metricValues'][0]['value'] ?? 0);
+                    $sess = (int)($row['metricValues'][1]['value'] ?? 0);
+                    $pct  = $total_ctry > 0 ? round($usr / $total_ctry * 100) : 0;
+                    $col  = $ctry_colors[$i % count($ctry_colors)];
+                ?>
+                    <div class="wpb-stats-source-row wpb-stats-source-row--country">
+                        <div class="wpb-stats-source-label"><?php echo esc_html($ctry); ?></div>
+                        <div class="wpb-stats-source-bar-wrap">
+                            <div class="wpb-stats-source-bar" style="width:<?php echo esc_attr($pct); ?>%;background:<?php echo esc_attr($col); ?>;"></div>
+                        </div>
+                        <div class="wpb-stats-source-pct"><?php echo esc_html($pct); ?>%</div>
+                        <div class="wpb-stats-source-num"><?php echo esc_html(number_format($usr)); ?> utenti</div>
                     </div>
                 <?php endforeach; ?>
                 </div>
@@ -935,6 +1058,11 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById("wpb-kpi-users").textContent     = fmt(d.kpi.users);
             document.getElementById("wpb-kpi-pageviews").textContent  = fmt(d.kpi.pageviews);
             document.getElementById("wpb-kpi-sessions").textContent   = fmt(d.kpi.sessions);
+            // Durata media (secondi → mm:ss)
+            var avgSec = parseInt(d.avg_session_duration || 0);
+            document.getElementById("wpb-kpi-avg-duration").textContent = Math.floor(avgSec/60) + ":" + String(avgSec%60).padStart(2,"0");
+            // Bounce rate
+            document.getElementById("wpb-kpi-bounce").textContent = (d.bounce_rate || 0) + "%";
             document.querySelectorAll(".wpb-kpi-sub").forEach(function(el){ el.textContent = lbl; });
 
             // Grafico — usa i punti già aggregati e ordinati dal PHP
@@ -975,6 +1103,51 @@ document.addEventListener("DOMContentLoaded", function () {
                     "<div class=\"wpb-stats-source-bar-wrap\"><div class=\"wpb-stats-source-bar\" style=\"width:" + pct + "%;background:" + col + ";\"></div></div>" +
                     "<div class=\"wpb-stats-source-pct\">" + pct + "%</div>" +
                     "<div class=\"wpb-stats-source-num\">" + fmt(sess) + "</div>" +
+                    "</div>";
+            });
+
+            // Dispositivi
+            document.getElementById("wpb-devices-title").textContent = "Dispositivi — " + lbl;
+            var devColors = { desktop:"#2271b1", mobile:"#00a32a", tablet:"#dba617" };
+            var devLabels = { desktop:"Desktop", mobile:"Mobile", tablet:"Tablet" };
+            var totDev = (d.devices || []).reduce(function(s,r){ return s + parseInt(r.metricValues[0].value); }, 0);
+            var devWrap = document.getElementById("wpb-devices");
+            devWrap.innerHTML = "";
+            (d.devices || []).forEach(function(row) {
+                var dev  = (row.dimensionValues[0].value || "other").toLowerCase();
+                var sess = parseInt(row.metricValues[0].value);
+                var usr  = parseInt(row.metricValues[1].value);
+                var pct  = totDev > 0 ? Math.round(sess / totDev * 100) : 0;
+                var col  = devColors[dev] || "#646970";
+                var lbl2 = devLabels[dev] || (dev.charAt(0).toUpperCase() + dev.slice(1));
+                devWrap.innerHTML +=
+                    "<div class=\"wpb-stats-source-row\">" +
+                    "<div class=\"wpb-stats-source-label\">" + lbl2 + "</div>" +
+                    "<div class=\"wpb-stats-source-bar-wrap\"><div class=\"wpb-stats-source-bar\" style=\"width:" + pct + "%;background:" + col + ";\"></div></div>" +
+                    "<div class=\"wpb-stats-source-pct\">" + pct + "%</div>" +
+                    "<div class=\"wpb-stats-source-num\">" + fmt(usr) + " utenti</div>" +
+                    "</div>";
+            });
+
+            // Dati demografici: età
+            // Paesi di provenienza
+            document.getElementById("wpb-countries-title").textContent = "Paesi di provenienza — " + lbl;
+            var ctryColors = ["#2271b1","#00a32a","#dba617","#d63638","#9b59b6","#8c5a0b","#0891b2","#a7aaad","#646970","#3d6b50"];
+            var totCtry = (d.countries || []).reduce(function(s,r){ return s + parseInt(r.metricValues[0].value); }, 0);
+            var ctryWrap = document.getElementById("wpb-countries");
+            ctryWrap.innerHTML = "";
+            (d.countries || []).forEach(function(row, i) {
+                var ctry = row.dimensionValues[0].value || "(unknown)";
+                var usr  = parseInt(row.metricValues[0].value);
+                var sess = parseInt(row.metricValues[1].value);
+                var pct  = totCtry > 0 ? Math.round(usr / totCtry * 100) : 0;
+                var col  = ctryColors[i % ctryColors.length];
+                ctryWrap.innerHTML +=
+                    "<div class=\"wpb-stats-source-row wpb-stats-source-row--country\">" +
+                    "<div class=\"wpb-stats-source-label\">" + ctry + "</div>" +
+                    "<div class=\"wpb-stats-source-bar-wrap\"><div class=\"wpb-stats-source-bar\" style=\"width:" + pct + "%;background:" + col + ";\"></div></div>" +
+                    "<div class=\"wpb-stats-source-pct\">" + pct + "%</div>" +
+                    "<div class=\"wpb-stats-source-num\">" + fmt(usr) + " utenti</div>" +
                     "</div>";
             });
         })
