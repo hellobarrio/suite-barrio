@@ -721,7 +721,6 @@ function wp_alt_ai_admin_page()
     $paged = max(1, intval($_GET['paged'] ?? 1));
     $offset = ($paged - 1) * $per_page;
 
-    // Immagini incomplete: senza alt OPPURE senza title
     $total_items = wp_alt_ai_count_incomplete();
     $total_pages = $per_page > 0 ? (int) ceil($total_items / $per_page) : 1;
     $att_ids = wp_alt_ai_get_incomplete_ids($per_page, $offset);
@@ -733,7 +732,6 @@ function wp_alt_ai_admin_page()
     ]) : [];
     $total_images = array_sum((array) wp_count_attachments());
 
-    // LOG
     $log_entries = get_option(WP_ALT_AI_LOG_OPTION, []);
     $log_page = max(1, intval($_GET['log_page'] ?? 1));
     $log_per_page = 25;
@@ -742,247 +740,426 @@ function wp_alt_ai_admin_page()
     $log_slice = array_slice($log_entries, ($log_page - 1) * $log_per_page, $log_per_page);
     $log_success = count(array_filter($log_entries, fn($e) => $e['status'] === 'success'));
     $log_errors = count(array_filter($log_entries, fn($e) => $e['status'] === 'error'));
-    $log_manual = count(array_filter($log_entries, fn($e) => $e['status'] === 'manual'));
     ?>
     <style>
-        /* WP Barrio — stile che estende l'admin WordPress nativo */
-        #wpbarrio-wrap {
+        /* ── WP Barrio Auto Alt v7 — design system identico a dashboard/tools ── */
+        #wpb-autoalt-wrap {
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
             max-width: 1100px;
         }
 
-        /* Stats bar sotto il titolo */
-        .wpb-stats-bar {
+        /* ── Header ── */
+        .wpb-header {
             display: flex;
-            gap: 0;
-            margin: 0 0 20px;
-            border: 1px solid #c3c4c7;
-            border-radius: 4px;
-            overflow: hidden;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 8px;
+        }
+
+        .wpb-header-icon {
+            width: 40px;
+            height: 40px;
+            background: #111827;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .wpb-header-icon .dashicons {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+            color: #fff;
+        }
+
+        .wpb-header h1 {
+            font-size: 22px !important;
+            font-weight: 700 !important;
+            color: #111827 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
+        }
+
+        .wpb-header-breadcrumb {
+            font-size: 14px;
+            font-weight: 400;
+            color: #9ca3af;
+            margin-left: 4px;
+        }
+
+        .wpb-header-sub {
+            font-size: 13px;
+            color: #6b7280;
+            margin: 2px 0 0;
+        }
+
+        .wpb-divider {
+            border: none;
+            border-top: 1px solid #f3f4f6;
+            margin: 14px 0 24px;
+        }
+
+        /* ── Badge "Auto ON" ── */
+        .wpb-badge-on {
+            display: inline-flex;
+            align-items: center;
+            background: #111827;
+            color: #fff;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .3px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        /* ── KPI bar ── */
+        .wpb-kpi-bar {
+            display: flex;
             background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
         }
 
-        .wpb-stat {
+        .wpb-kpi-item {
             flex: 1;
-            padding: 12px 20px;
-            border-right: 1px solid #c3c4c7;
+            padding: 16px 22px;
             text-align: center;
+            border-right: 1px solid #f3f4f6;
         }
 
-        .wpb-stat:last-child {
+        .wpb-kpi-item:last-child {
             border-right: none;
         }
 
-        .wpb-stat .wpb-stat-num {
+        .wpb-kpi-num {
             font-size: 28px;
-            font-weight: 600;
+            font-weight: 700;
             line-height: 1;
-            color: #1d2327;
+            color: #111827;
         }
 
-        .wpb-stat .wpb-stat-num.red {
-            color: #d63638;
-        }
-
-        .wpb-stat .wpb-stat-num.green {
-            color: #00a32a;
-        }
-
-        .wpb-stat .wpb-stat-lbl {
+        .wpb-kpi-lbl {
             font-size: 11px;
-            color: #646970;
-            margin-top: 3px;
+            font-weight: 600;
+            color: #9ca3af;
+            margin-top: 4px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: .5px;
         }
 
-        /* Nav tabs WP-style */
-        .wpb-nav-tab-wrapper {
-            border-bottom: 1px solid #c3c4c7;
+        /* ── Tabs ── */
+        .wpb-tabs {
+            display: flex;
+            gap: 2px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 24px;
+        }
+
+        .wpb-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #6b7280;
+            text-decoration: none !important;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            border-radius: 6px 6px 0 0;
+            transition: color .15s, background .15s;
+        }
+
+        .wpb-tab:hover {
+            color: #111827;
+            background: #f9fafb;
+        }
+
+        .wpb-tab.active {
+            color: #111827;
+            border-bottom-color: #111827;
+        }
+
+        .wpb-tab .dashicons {
+            font-size: 15px;
+            width: 15px;
+            height: 15px;
+        }
+
+        /* ── Notices ── */
+        .wpb-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 13px;
+            line-height: 1.5;
             margin-bottom: 20px;
         }
 
-        .wpb-nav-tab-wrapper .nav-tab {
-            margin-bottom: -1px;
+        .wpb-notice .dashicons {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
         }
 
-        /* Notice personalizzato */
-        .wpb-notice-api {
-            margin-bottom: 16px;
+        .wpb-notice-warning {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
         }
 
-        /* Card griglia immagini */
-        .wpb-grid {
+        .wpb-notice-warning .dashicons {
+            color: #d97706;
+        }
+
+        .wpb-notice-warning a {
+            color: #b45309;
+        }
+
+        .wpb-notice-success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+
+        .wpb-notice-success .dashicons {
+            color: #059669;
+        }
+
+        /* ── Bulk bar ── */
+        .wpb-bulk {
+            background: #111827;
+            color: #fff;
+            padding: 14px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        .wpb-bulk strong {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .wpb-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 14px;
+            font-size: 12.5px;
+            font-weight: 600;
+            border-radius: 7px;
+            text-decoration: none !important;
+            cursor: pointer;
+            border: none;
+            transition: opacity .15s;
+            line-height: 1.4;
+            font-family: inherit;
+        }
+
+        .wpb-btn:hover {
+            opacity: .85;
+        }
+
+        .wpb-btn-primary {
+            background: #111827;
+            color: #fff !important;
+        }
+
+        .wpb-btn-ghost {
+            background: #f3f4f6;
+            color: #374151 !important;
+            border: 1px solid #e5e7eb;
+        }
+
+        .wpb-btn-danger {
+            background: #dc2626;
+            color: #fff !important;
+        }
+
+        .wpb-btn-sm {
+            padding: 5px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        /* Progress bar (bulk job) */
+        .wpb-progress-wrap {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .wpb-progress-bar {
+            height: 5px;
+            background: #111827;
+            width: 0%;
+            transition: width .4s;
+        }
+
+        .wpb-progress-text {
+            font-size: 12px;
+            color: #6b7280;
+            padding: 7px 14px 9px;
+        }
+
+        /* ── Image grid ── */
+        .wpb-img-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
         }
 
-        .wpb-card {
+        .wpb-img-card {
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
             overflow: hidden;
-            transition: box-shadow .15s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+            transition: box-shadow .18s, transform .18s;
         }
 
-        .wpb-card:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+        .wpb-img-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .09);
+            transform: translateY(-1px);
         }
 
-        .wpb-card.is-saving {
-            opacity: .6;
-            pointer-events: none;
+        .wpb-img-card.is-saved {
+            border-color: #059669;
         }
 
-        .wpb-card.is-saved {
-            border-color: #00a32a;
-        }
-
-        .wpb-card__thumb {
+        .wpb-img-thumb {
             position: relative;
             width: 100%;
             aspect-ratio: 16/9;
-            background: #f0f0f1;
+            background: #f3f4f6;
             overflow: hidden;
         }
 
-        .wpb-card__thumb img {
+        .wpb-img-thumb img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
         }
 
-        .wpb-card__ai-badge {
+        .wpb-ai-badge {
             position: absolute;
             top: 8px;
             right: 8px;
-            background: rgba(0, 0, 0, .65);
+            background: rgba(17, 24, 39, .75);
             color: #fff;
             font-size: 10px;
-            font-weight: 600;
-            padding: 2px 7px;
-            border-radius: 2px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
             opacity: 0;
             transition: opacity .2s;
         }
 
-        .wpb-card.ai-generated .wpb-card__ai-badge {
+        .wpb-img-card.ai-generated .wpb-ai-badge {
             opacity: 1;
         }
 
-        .wpb-card__body {
-            padding: 12px;
+        .wpb-img-body {
+            padding: 14px;
         }
 
-        .wpb-card__filename {
+        .wpb-img-filename {
             font-size: 11px;
-            color: #646970;
-            margin-bottom: 10px;
+            color: #9ca3af;
+            margin-bottom: 12px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        .wpb-field {
-            margin-bottom: 8px;
+        /* Field dentro la card */
+        .wpb-img-field {
+            margin-bottom: 10px;
         }
 
-        .wpb-field label {
+        .wpb-img-field label {
             display: block;
             font-size: 11px;
-            font-weight: 600;
-            color: #50575e;
+            font-weight: 700;
+            color: #374151;
             margin-bottom: 4px;
             text-transform: uppercase;
             letter-spacing: .4px;
         }
 
-        .wpb-field input[type=text] {
+        .wpb-img-field input[type=text] {
             width: 100%;
-            padding: 5px 8px;
-            border: 1px solid #8c8f94;
-            border-radius: 3px;
+            padding: 6px 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 7px;
             font-size: 12px;
-            color: #1d2327;
+            color: #111827;
             background: #fff;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, .07);
-            transition: border-color .1s;
+            transition: border-color .15s;
         }
 
-        .wpb-field input[type=text]:focus {
+        .wpb-img-field input[type=text]:focus {
             outline: none;
-            border-color: #2271b1;
-            box-shadow: 0 0 0 1px #2271b1;
+            border-color: #111827;
         }
 
-        .wpb-field input.ai-filled {
-            background: #f0fff4;
-            border-color: #00a32a;
+        .wpb-img-field input.ai-filled {
+            background: #f0fdf4;
+            border-color: #059669;
         }
 
-        .wpb-card__actions {
+        .wpb-img-actions {
             display: flex;
-            gap: 6px;
-            margin-top: 10px;
+            gap: 8px;
+            margin-top: 12px;
         }
 
-        .wpb-btn-gen {
+        .wpb-img-btn-gen {
             flex: 1;
-            padding: 5px 0;
-            font-size: 12px;
+            padding: 7px 0;
+            font-size: 12.5px;
             font-weight: 600;
             font-family: inherit;
-            background: #2271b1;
+            background: #111827;
             color: #fff;
-            border: 1px solid #2271b1;
-            border-radius: 3px;
+            border: none;
+            border-radius: 7px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 5px;
-            transition: background .1s;
+            transition: opacity .15s;
         }
 
-        .wpb-btn-gen:hover:not(:disabled) {
-            background: #135e96;
-            border-color: #135e96;
+        .wpb-img-btn-gen:hover:not(:disabled) {
+            opacity: .85;
         }
 
-        .wpb-btn-gen:disabled {
-            background: #a7aaad;
-            border-color: #a7aaad;
+        .wpb-img-btn-gen:disabled {
+            background: #9ca3af;
             cursor: not-allowed;
-        }
-
-        .wpb-btn-save {
-            flex: 1;
-            padding: 5px 0;
-            font-size: 12px;
-            font-weight: 600;
-            font-family: inherit;
-            background: #fff;
-            color: #1d2327;
-            border: 1px solid #8c8f94;
-            border-radius: 3px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: border-color .1s;
-        }
-
-        .wpb-btn-save:hover {
-            border-color: #1d2327;
-        }
-
-        .wpb-btn-save.saved {
-            background: #f0fff4;
-            border-color: #00a32a;
-            color: #00a32a;
         }
 
         /* Spinner */
@@ -999,153 +1176,73 @@ function wp_alt_ai_admin_page()
             border-top-color: #fff;
             border-radius: 50%;
             animation: wpb-spin .7s linear infinite;
-        }
-
-        .wpb-btn-save .wpb-spinner {
-            border-color: rgba(0, 0, 0, .15);
-            border-top-color: #1d2327;
-        }
-
-        /* Bulk action bar */
-        .wpb-bulk {
-            background: #1d2327;
-            color: #fff;
-            padding: 10px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-            border-radius: 3px;
-            font-size: 13px;
-        }
-
-        .wpb-bulk strong {
-            flex: 1;
-        }
-
-        .wpb-btn-bulk {
-            padding: 5px 14px;
-            font-size: 12px;
-            font-weight: 600;
-            font-family: inherit;
-            background: #fff;
-            color: #1d2327;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-
-        .wpb-btn-bulk:hover {
-            background: #f0f0f1;
-        }
-
-        .wpb-btn-bulk:disabled {
-            background: #50575e;
-            color: #a7aaad;
-            cursor: not-allowed;
-        }
-
-        .wpb-btn-bulk-save {
-            background: #00a32a;
-            color: #fff;
-        }
-
-        .wpb-btn-bulk-save:hover {
-            background: #008a20;
-        }
-
-        /* Progress bar */
-        .wpb-progress {
-            display: none;
-            margin-bottom: 16px;
-            background: #f0f0f1;
-            border-radius: 3px;
-            overflow: hidden;
-            border: 1px solid #c3c4c7;
-        }
-
-        .wpb-progress.active {
-            display: block;
-        }
-
-        .wpb-progress-bar {
-            height: 4px;
-            background: #2271b1;
-            width: 0%;
-            transition: width .3s;
-        }
-
-        .wpb-progress-text {
-            font-size: 11px;
-            color: #646970;
-            padding: 5px 10px 7px;
-        }
-
-        /* Paginazione WP-style */
-        .wpb-pagination {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .wpb-pagination .pagination-links {
-            display: inline-flex;
-            gap: 4px;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .wpb-pagination a.page-numbers,
-        .wpb-pagination span.page-numbers {
             display: inline-block;
-            padding: 5px 12px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+        }
+
+        /* ── Pagination ── */
+        .wpb-pagination {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .wpb-pagination a,
+        .wpb-pagination span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            padding: 6px 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 7px;
             font-size: 13px;
-            color: #1d2327;
+            color: #374151;
             text-decoration: none;
             background: #fff;
-            line-height: 1.4;
         }
 
-        .wpb-pagination span.page-numbers.current {
-            background: #2271b1;
-            color: #fff;
-            border-color: #2271b1;
+        .wpb-pagination a:hover {
+            border-color: #9ca3af;
+            color: #111827;
+        }
+
+        .wpb-pagination span.current {
+            background: #111827;
+            color: #fff !important;
+            border-color: #111827;
             font-weight: 600;
         }
 
-        .wpb-pagination a.page-numbers:hover {
-            border-color: #2271b1;
-            color: #2271b1;
-        }
-
-        .wpb-pagination .page-numbers.dots {
+        .wpb-pagination .dots {
             border: none;
             background: none;
-            color: #646970;
-            padding: 5px 4px;
+            color: #9ca3af;
         }
 
-        /* Empty state */
+        /* ── Empty state ── */
         .wpb-empty {
             text-align: center;
-            padding: 48px 20px;
-            color: #646970;
+            padding: 56px 20px;
+            color: #6b7280;
         }
 
         .wpb-empty .dashicons {
-            font-size: 48px;
-            width: 48px;
-            height: 48px;
-            color: #c3c4c7;
-            margin-bottom: 12px;
+            font-size: 52px;
+            width: 52px;
+            height: 52px;
+            color: #d1d5db;
+            margin-bottom: 14px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .wpb-empty h3 {
-            font-size: 15px;
-            color: #1d2327;
-            margin: 0 0 6px;
+            font-size: 16px;
+            color: #111827;
+            margin: 0 0 8px;
         }
 
         .wpb-empty p {
@@ -1153,183 +1250,187 @@ function wp_alt_ai_admin_page()
             margin: 0;
         }
 
-        /* Log */
-        .wpb-log-stats {
+        /* ── Log KPI bar ── */
+        .wpb-log-kpi {
             display: flex;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
-        .wpb-log-stat {
-            background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
-            padding: 12px 20px;
+        .wpb-log-kpi-item {
             flex: 1;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 14px 20px;
             text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
         }
 
-        .wpb-log-stat .n {
+        .wpb-log-kpi-num {
             font-size: 26px;
-            font-weight: 600;
+            font-weight: 700;
             line-height: 1;
-            color: #1d2327;
+            color: #111827;
         }
 
-        .wpb-log-stat .n.green {
-            color: #00a32a;
-        }
-
-        .wpb-log-stat .n.red {
-            color: #d63638;
-        }
-
-        .wpb-log-stat .l {
+        .wpb-log-kpi-lbl {
             font-size: 11px;
-            color: #646970;
-            margin-top: 3px;
+            font-weight: 600;
+            color: #9ca3af;
+            margin-top: 4px;
             text-transform: uppercase;
             letter-spacing: .5px;
         }
 
+        /* ── Log toolbar ── */
         .wpb-log-toolbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             gap: 10px;
             flex-wrap: wrap;
         }
 
-        .wpb-log-filters {
+        .wpb-log-chips {
             display: flex;
             gap: 4px;
         }
 
-        .wpb-log-filter {
-            padding: 4px 12px;
+        .wpb-chip {
+            padding: 5px 13px;
             font-size: 12px;
-            font-family: inherit;
+            font-weight: 600;
+            border-radius: 20px;
             cursor: pointer;
-            background: #fff;
-            color: #646970;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            font-family: inherit;
+            transition: background .15s;
         }
 
-        .wpb-log-filter.active {
-            background: #1d2327;
+        .wpb-chip:hover {
+            background: #e5e7eb;
+        }
+
+        .wpb-chip.active {
+            background: #111827;
             color: #fff;
-            border-color: #1d2327;
+            border-color: #111827;
         }
 
-        .wpb-log-filter:hover:not(.active) {
-            border-color: #1d2327;
-            color: #1d2327;
-        }
-
-        .wpb-btn-clear {
-            padding: 4px 12px;
+        .wpb-btn-clear-log {
+            padding: 5px 13px;
             font-size: 12px;
+            font-weight: 600;
             font-family: inherit;
             cursor: pointer;
             background: #fff;
-            color: #d63638;
-            border: 1px solid #d63638;
-            border-radius: 3px;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+            border-radius: 7px;
+            transition: background .15s;
         }
 
-        .wpb-btn-clear:hover {
-            background: #fcf0f1;
+        .wpb-btn-clear-log:hover {
+            background: #fee2e2;
         }
 
-        .wpb-log-table-wrap {
-            border: 1px solid #c3c4c7;
+        /* ── Log table ── */
+        .wpb-table-wrap {
             background: #fff;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
             overflow: hidden;
-            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
         }
 
-        .wpb-log-table {
+        .wpb-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
             min-width: 600px;
+            overflow-x: auto;
         }
 
-        .wpb-log-table th {
-            background: #f0f0f1;
-            padding: 8px 12px;
+        .wpb-table thead th {
+            background: #f9fafb;
+            padding: 10px 14px;
             text-align: left;
-            font-weight: 600;
             font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: .4px;
-            color: #50575e;
-            border-bottom: 1px solid #c3c4c7;
+            letter-spacing: .5px;
+            color: #6b7280;
+            border-bottom: 1px solid #e5e7eb;
         }
 
-        .wpb-log-table td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #f0f0f1;
+        .wpb-table tbody td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f3f4f6;
             vertical-align: middle;
         }
 
-        .wpb-log-table tr:last-child td {
+        .wpb-table tbody tr:last-child td {
             border-bottom: none;
         }
 
-        .wpb-log-table tr:hover td {
-            background: #f6f7f7;
+        .wpb-table tbody tr:hover td {
+            background: #f9fafb;
         }
 
         tr[data-status="error"] td {
-            background: #fcf0f1 !important;
+            background: #fff5f5 !important;
         }
 
         tr[data-status="error"]:hover td {
-            background: #fce8e9 !important;
+            background: #fee2e2 !important;
         }
 
-        .wpb-log-status {
+        .wpb-status-pill {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 8px;
-            border-radius: 3px;
+            padding: 3px 9px;
+            border-radius: 20px;
             font-size: 11px;
-            font-weight: 600;
-            white-space: nowrap;
+            font-weight: 700;
         }
 
-        .wpb-log-status.success {
-            background: #edfaef;
-            color: #00a32a;
+        .wpb-status-pill.success {
+            background: #dcfce7;
+            color: #166534;
         }
 
-        .wpb-log-status.error {
-            background: #fcf0f1;
-            color: #d63638;
+        .wpb-status-pill.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .wpb-status-pill.manual {
+            background: #f3f4f6;
+            color: #374151;
         }
 
         .wpb-log-thumb {
             width: 34px;
             height: 34px;
             object-fit: cover;
-            border-radius: 2px;
-            border: 1px solid #c3c4c7;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
         }
 
         .wpb-log-filename {
-            font-family: Consolas, monospace;
+            font-family: ui-monospace, Consolas, monospace;
             font-size: 11px;
-            color: #50575e;
+            color: #374151;
         }
 
         .wpb-log-id {
             font-size: 10px;
-            color: #a7aaad;
+            color: #9ca3af;
         }
 
         .wpb-log-alt {
@@ -1337,74 +1438,92 @@ function wp_alt_ai_admin_page()
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            color: #1d2327;
+            color: #111827;
         }
 
         .wpb-log-note {
             font-size: 11px;
-            color: #646970;
-            white-space: pre-wrap;
-            word-break: break-word;
+            color: #6b7280;
             line-height: 1.5;
         }
 
-        .wpb-log-note-error {
+        .wpb-log-note-err {
             font-size: 11px;
-            color: #d63638;
+            color: #dc2626;
             font-weight: 500;
-            white-space: pre-wrap;
-            word-break: break-all;
             line-height: 1.5;
+            word-break: break-all;
         }
 
         .wpb-log-time {
             font-size: 11px;
-            color: #a7aaad;
+            color: #9ca3af;
             white-space: nowrap;
         }
 
         .wpb-log-empty {
             text-align: center;
-            padding: 40px 20px;
-            color: #646970;
+            padding: 40px;
+            color: #6b7280;
             font-size: 13px;
         }
 
-        /* Settings */
-        .wpb-settings-table {
-            max-width: 640px;
+        /* ── Settings: section box ── */
+        .wpb-section-box {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
         }
 
-        .wpb-settings-table th {
-            width: 200px;
-            vertical-align: top;
-            padding-top: 14px;
+        .wpb-section-head {
+            padding: 14px 22px;
+            border-bottom: 1px solid #f3f4f6;
+            background: #f9fafb;
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .wpb-provider-block {
-            margin-bottom: 8px;
+        .wpb-section-head .dashicons {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            color: #9ca3af;
         }
 
+        .wpb-section-body {
+            padding: 22px;
+        }
+
+        /* Provider card */
         .wpb-provider-card {
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
-            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 14px 16px;
             cursor: pointer;
             display: flex;
             align-items: flex-start;
             gap: 12px;
             background: #fff;
-            transition: border-color .1s, background .1s;
+            transition: border-color .15s, background .15s;
+            margin-bottom: 8px;
         }
 
         .wpb-provider-card.selected {
-            border-color: #2271b1;
-            background: #f0f6fc;
+            border-color: #111827;
+            background: #f9fafb;
         }
 
         .wpb-provider-card input[type=radio] {
             margin-top: 3px;
             flex-shrink: 0;
+            accent-color: #111827;
         }
 
         .wpb-pc-logo {
@@ -1417,22 +1536,24 @@ function wp_alt_ai_admin_page()
         .wpb-pc-name {
             font-size: 13px;
             font-weight: 600;
+            color: #111827;
             margin-bottom: 2px;
-            color: #1d2327;
         }
 
         .wpb-pc-desc {
             font-size: 12px;
-            color: #646970;
+            color: #6b7280;
         }
 
+        /* Provider keys panel */
         .wpb-provider-keys {
             display: none;
-            padding: 12px 16px 8px;
-            border: 1px solid #c3c4c7;
+            padding: 16px 18px 8px;
+            border: 1px solid #e5e7eb;
             border-top: none;
-            border-radius: 0 0 3px 3px;
+            border-radius: 0 0 10px 10px;
             background: #fafafa;
+            margin-bottom: 8px;
         }
 
         .wpb-provider-keys.visible {
@@ -1440,45 +1561,46 @@ function wp_alt_ai_admin_page()
         }
 
         .wpb-key-group {
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .wpb-key-group>label {
             display: block;
             font-size: 11px;
-            font-weight: 600;
-            color: #50575e;
-            margin-bottom: 4px;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: .4px;
         }
 
         .wpb-key-group input[type=password] {
             width: 100%;
-            max-width: 400px;
-            padding: 5px 8px;
-            border: 1px solid #8c8f94;
-            border-radius: 3px;
+            max-width: 420px;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 7px;
             font-size: 13px;
-            font-family: Consolas, monospace;
+            font-family: ui-monospace, Consolas, monospace;
             background: #fff;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, .07);
         }
 
         .wpb-key-group input[type=password]:focus {
             outline: none;
-            border-color: #2271b1;
-            box-shadow: 0 0 0 1px #2271b1;
+            border-color: #111827;
         }
 
         .wpb-key-hint {
             font-size: 12px;
-            color: #646970;
+            color: #9ca3af;
             margin-top: 4px;
         }
 
         .wpb-key-hint a {
-            color: #2271b1;
+            color: #374151;
         }
 
+        /* Model radio */
         .wpb-model-group {
             display: flex;
             flex-direction: column;
@@ -1489,40 +1611,42 @@ function wp_alt_ai_admin_page()
             display: flex;
             align-items: flex-start;
             gap: 10px;
-            padding: 8px 12px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            padding: 10px 13px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             cursor: pointer;
             background: #fff;
-            transition: border-color .1s, background .1s;
+            transition: border-color .15s, background .15s;
         }
 
         .wpb-model-label.selected {
-            border-color: #2271b1;
-            background: #f0f6fc;
+            border-color: #111827;
+            background: #f9fafb;
         }
 
         .wpb-model-label input[type=radio] {
             margin-top: 2px;
             flex-shrink: 0;
+            accent-color: #111827;
         }
 
         .wpb-model-name {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
-            color: #1d2327;
+            color: #111827;
             margin-bottom: 1px;
         }
 
         .wpb-model-desc {
             font-size: 11px;
-            color: #646970;
+            color: #6b7280;
         }
 
         .wpb-model-id {
             font-size: 10px;
-            color: #a7aaad;
-            font-family: Consolas, monospace;
+            color: #9ca3af;
+            font-family: ui-monospace, Consolas, monospace;
+            margin-top: 1px;
         }
 
         .wpb-model-bar {
@@ -1534,33 +1658,34 @@ function wp_alt_ai_admin_page()
 
         .wpb-model-status {
             font-size: 11px;
-            color: #646970;
+            color: #9ca3af;
             flex: 1;
         }
 
         .wpb-model-status.ok {
-            color: #00a32a;
+            color: #059669;
         }
 
         .wpb-model-status.err {
-            color: #d63638;
+            color: #dc2626;
         }
 
-        /* Toggle switch */
+        /* Toggle row */
         .wpb-toggle-row {
             display: flex;
             align-items: flex-start;
-            gap: 12px;
-            padding: 12px 16px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            gap: 14px;
+            padding: 14px 18px;
             background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            margin-bottom: 10px;
         }
 
         .wpb-toggle {
             position: relative;
-            width: 40px;
-            height: 22px;
+            width: 44px;
+            height: 24px;
             flex-shrink: 0;
             margin-top: 1px;
         }
@@ -1569,52 +1694,111 @@ function wp_alt_ai_admin_page()
             opacity: 0;
             width: 0;
             height: 0;
+            position: absolute;
         }
 
-        .wpb-toggle-slider {
+        .wpb-toggle-track {
             position: absolute;
             inset: 0;
-            background: #a7aaad;
-            border-radius: 22px;
+            background: #d1d5db;
+            border-radius: 24px;
             cursor: pointer;
             transition: background .2s;
         }
 
-        .wpb-toggle-slider:before {
+        .wpb-toggle-track::before {
             content: '';
             position: absolute;
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             left: 3px;
             top: 3px;
             background: #fff;
             border-radius: 50%;
             transition: transform .2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
         }
 
-        .wpb-toggle input:checked+.wpb-toggle-slider {
-            background: #00a32a;
+        .wpb-toggle input:checked+.wpb-toggle-track {
+            background: #111827;
         }
 
-        .wpb-toggle input:checked+.wpb-toggle-slider:before {
-            transform: translateX(18px);
+        .wpb-toggle input:checked+.wpb-toggle-track::before {
+            transform: translateX(20px);
         }
 
         .wpb-toggle-info {
             flex: 1;
         }
 
-        .wpb-toggle-title {
-            font-size: 13px;
+        .wpb-toggle-label {
+            font-size: 13.5px;
             font-weight: 600;
-            color: #1d2327;
+            color: #111827;
             margin-bottom: 3px;
         }
 
         .wpb-toggle-desc {
             font-size: 12px;
-            color: #646970;
+            color: #9ca3af;
             line-height: 1.5;
+        }
+
+        /* Settings form fields */
+        .wpb-field-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        .wpb-field-desc {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .wpb-select,
+        .wpb-input {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 7px;
+            font-size: 13px;
+            color: #111827;
+            background: #fff;
+            font-family: inherit;
+        }
+
+        .wpb-select:focus,
+        .wpb-input:focus {
+            outline: none;
+            border-color: #111827;
+        }
+
+        .wpb-save-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            padding: 9px 20px;
+            background: #111827;
+            color: #fff !important;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            text-decoration: none;
+            transition: opacity .15s;
+        }
+
+        .wpb-save-btn:hover {
+            opacity: .85;
         }
 
         /* Toast */
@@ -1622,18 +1806,19 @@ function wp_alt_ai_admin_page()
             position: fixed;
             bottom: 24px;
             right: 24px;
-            background: #1d2327;
+            background: #111827;
             color: #fff;
-            padding: 10px 18px;
-            border-radius: 3px;
+            padding: 11px 18px;
+            border-radius: 9px;
             font-size: 13px;
             font-weight: 500;
-            z-index: 9999;
+            z-index: 99999;
             opacity: 0;
-            transform: translateY(6px);
-            transition: all .2s;
+            transform: translateY(8px);
+            transition: all .22s;
             pointer-events: none;
-            border-left: 4px solid #00a32a;
+            border-left: 4px solid #059669;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .18);
         }
 
         #wpb-toast.show {
@@ -1642,67 +1827,66 @@ function wp_alt_ai_admin_page()
         }
 
         #wpb-toast.error {
-            border-left-color: #d63638;
+            border-left-color: #dc2626;
         }
     </style>
 
-    <div id="wpbarrio-wrap" class="wrap">
-        <h1 class="wp-heading-inline">
-            <span class="dashicons dashicons-format-image"
-                style="font-size:26px;width:26px;height:26px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
-            WP Barrio
-            <span style="font-size:15px;font-weight:400;color:#646970;margin-left:6px;">/ Auto Alt</span>
-            <?php if ($auto_upload): ?>
-                <span
-                    style="display:inline-block;background:#00a32a;color:#fff;font-size:11px;font-weight:600;padding:2px 10px;border-radius:3px;vertical-align:middle;margin-left:8px;line-height:1.6;">&#x2713;
-                    Auto ON</span>
-            <?php endif; ?>
-        </h1>
-        <hr class="wp-header-end" style="margin-bottom:20px;">
+    <div id="wpb-autoalt-wrap" class="wrap">
 
-        <!-- Stats -->
-        <div class="wpb-stats-bar">
-            <div class="wpb-stat">
-                <div class="wpb-stat-num">
-                    <?php echo number_format($total_images); ?>
-                </div>
-                <div class="wpb-stat-lbl">Totale immagini</div>
+        <!-- Header -->
+        <div class="wpb-header">
+            <div class="wpb-header-icon"><span class="dashicons dashicons-format-image"></span></div>
+            <div>
+                <h1>WP Barrio <span class="wpb-header-breadcrumb">/ Auto Alt</span><?php if ($auto_upload): ?>
+                        <span class="wpb-badge-on">&#x2713; Auto ON</span><?php endif; ?>
+                </h1>
+                <p class="wpb-header-sub">Generazione automatica alt text &amp; title delle immagini</p>
             </div>
-            <div class="wpb-stat">
-                <div class="wpb-stat-num red">
-                    <?php echo number_format($total_items); ?>
-                </div>
-                <div class="wpb-stat-lbl">Senza alt text</div>
+        </div>
+        <hr class="wpb-divider">
+
+        <!-- KPI bar -->
+        <div class="wpb-kpi-bar">
+            <div class="wpb-kpi-item">
+                <div class="wpb-kpi-num"><?php echo number_format($total_images); ?></div>
+                <div class="wpb-kpi-lbl">Totale immagini</div>
             </div>
-            <div class="wpb-stat">
-                <div class="wpb-stat-num green">
-                    <?php echo number_format($total_images - $total_items); ?>
+            <div class="wpb-kpi-item">
+                <div class="wpb-kpi-num" style="color:#dc2626;"><?php echo number_format($total_items); ?></div>
+                <div class="wpb-kpi-lbl">Da completare</div>
+            </div>
+            <div class="wpb-kpi-item">
+                <div class="wpb-kpi-num" style="color:#059669;">
+                    <?php echo number_format(max(0, $total_images - $total_items)); ?>
                 </div>
-                <div class="wpb-stat-lbl">Completate</div>
+                <div class="wpb-kpi-lbl">Completate</div>
             </div>
         </div>
 
-        <!-- Nav tabs -->
-        <nav class="nav-tab-wrapper wpb-nav-tab-wrapper">
+        <!-- Tabs -->
+        <div class="wpb-tabs">
             <a href="?page=wp-barrio-auto-alt&tab=review"
-                class="nav-tab <?php echo $tab === 'review' ? 'nav-tab-active' : ''; ?>">Revisione</a>
-            <a href="?page=wp-barrio-auto-alt&tab=log"
-                class="nav-tab <?php echo $tab === 'log' ? 'nav-tab-active' : ''; ?>">Log</a>
+                class="wpb-tab <?php echo $tab === 'review' ? 'active' : ''; ?>"><span
+                    class="dashicons dashicons-visibility"></span> Revisione</a>
+            <a href="?page=wp-barrio-auto-alt&tab=log" class="wpb-tab <?php echo $tab === 'log' ? 'active' : ''; ?>"><span
+                    class="dashicons dashicons-list-view"></span> Log</a>
             <a href="?page=wp-barrio-auto-alt&tab=settings"
-                class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>">Impostazioni</a>
-        </nav>
-
+                class="wpb-tab <?php echo $tab === 'settings' ? 'active' : ''; ?>"><span
+                    class="dashicons dashicons-admin-settings"></span> Impostazioni</a>
+        </div>
 
         <?php
 
-        /* ══════════════════════════════════════
+        /* ════════════════════════════════════════
            TAB: REVISIONE
-           ══════════════════════════════════════ */
+           ════════════════════════════════════════ */
         if ($tab === 'review'):
 
             if (empty($api_key)): ?>
-                <div class="notice notice-warning inline wpb-notice-api">
-                    ⚠️ Chiave API non configurata. <a href="?page=wp-barrio-auto-alt&tab=settings">Vai alle impostazioni →</a>
+                <div class="wpb-notice wpb-notice-warning">
+                    <span class="dashicons dashicons-warning"></span>
+                    <div>Chiave API non configurata. <a href="?page=wp-barrio-auto-alt&tab=settings">Vai alle impostazioni
+                            &rarr;</a></div>
                 </div>
             <?php endif;
 
@@ -1710,67 +1894,52 @@ function wp_alt_ai_admin_page()
             $job_running = $job && $job['status'] === 'running';
             $job_done = $job && $job['status'] === 'done';
             ?>
+
             <?php if (!empty($attachments) || $job_running): ?>
                 <div class="wpb-bulk">
                     <?php if ($job_running): ?>
                         <strong id="bulk-status-text">
-                            Elaborazione in corso:
-                            <?php echo ($job['done'] + $job['errors']); ?> /
-                            <?php echo $job['total']; ?>
+                            Elaborazione in corso: <?php echo ($job['done'] + $job['errors']); ?> / <?php echo $job['total']; ?>
                             immagini
                         </strong>
-                        <button class="wpb-btn-bulk" id="bulk-stop-btn" style="background:#d63638;color:#fff;">
-                            ✕ Interrompi
-                        </button>
+                        <button class="wpb-btn wpb-btn-danger" id="bulk-stop-btn">&#x2715; Interrompi</button>
                     <?php else: ?>
-                        <strong>
-                            <?php echo $total_items; ?> immagini senza alt o title
-                        </strong>
-                        <button class="wpb-btn-bulk" id="bulk-generate-btn" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
-                            ✦ Genera e salva tutte in background (
-                            <?php echo $total_items; ?>)
+                        <strong><?php echo $total_items; ?> immagini senza alt o title</strong>
+                        <button class="wpb-btn wpb-btn-ghost" id="bulk-generate-btn" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
+                            ✦ Genera tutte in background (<?php echo $total_items; ?>)
                         </button>
                     <?php endif; ?>
                 </div>
-                <div id="bulk-progress-wrap"
-                    style="margin-bottom:16px;background:#f0f0f1;border:1px solid #c3c4c7;border-radius:3px;overflow:hidden;<?php echo $job_running || $job_done ? '' : 'display:none;'; ?>">
-                    <?php
-                    $pct = 0;
-                    if ($job && $job['total'] > 0) {
-                        $pct = min(100, round((($job['done'] + $job['errors']) / $job['total']) * 100));
-                    }
-                    ?>
-                    <div id="bulk-progress-bar"
-                        style="height:5px;background:<?php echo $job_done ? '#00a32a' : '#2271b1'; ?>;width:<?php echo $pct; ?>%;transition:width .4s;">
-                    </div>
-                    <div id="bulk-progress-text" style="font-size:12px;color:#646970;padding:6px 12px 8px;">
+
+                <?php
+                $pct = 0;
+                if ($job && $job['total'] > 0) {
+                    $pct = min(100, round((($job['done'] + $job['errors']) / $job['total']) * 100));
+                }
+                ?>
+                <div id="bulk-progress-wrap" class="wpb-progress-wrap"
+                    style="<?php echo ($job_running || $job_done) ? '' : 'display:none;'; ?>">
+                    <div id="bulk-progress-bar" class="wpb-progress-bar"
+                        style="width:<?php echo $pct; ?>%;background:<?php echo $job_done ? '#059669' : '#111827'; ?>;"></div>
+                    <div id="bulk-progress-text" class="wpb-progress-text">
                         <?php if ($job_running): ?>
-                            <?php echo ($job['done'] + $job['errors']); ?> /
-                            <?php echo $job['total']; ?> elaborate —
-                            <?php echo $job['done']; ?> ✓
-                            <?php echo $job['errors'] > 0 ? '  ' . $job['errors'] . ' ✗' : ''; ?>
+                            <?php echo ($job['done'] + $job['errors']); ?> / <?php echo $job['total']; ?> elaborate —
+                            <?php echo $job['done']; ?> ✓<?php echo $job['errors'] > 0 ? '  ' . $job['errors'] . ' ✗' : ''; ?>
                         <?php elseif ($job_done): ?>
-                            ✓ Completato —
-                            <?php echo $job['done']; ?>
-                            salvate
-                            <?php echo $job['errors'] > 0 ? ', ' . $job['errors'] . ' errori (vedi Log)' : ''; ?>
+                            ✓ Completato — <?php echo $job['done']; ?>
+                            salvate<?php echo $job['errors'] > 0 ? ', ' . $job['errors'] . ' errori (vedi Log)' : ''; ?>
                         <?php endif; ?>
                     </div>
                 </div>
             <?php endif;
 
             if (empty($attachments)): ?>
-                <div class="notice notice-success inline"
-                    style="margin:0;padding:12px 16px;display:flex;align-items:center;gap:12px;">
-                    <span class="dashicons dashicons-yes-alt"
-                        style="font-size:22px;width:22px;height:22px;color:#00a32a;flex-shrink:0;margin-top:1px;"></span>
-                    <div>
-                        <strong>Tutto a posto!</strong>
-                        Tutte le immagini nella libreria media hanno già alt text e titolo. Nessuna azione richiesta.
-                    </div>
+                <div class="wpb-notice wpb-notice-success">
+                    <span class="dashicons dashicons-yes-alt"></span>
+                    <div><strong>Tutto a posto!</strong> Tutte le immagini hanno già alt text e titolo.</div>
                 </div>
             <?php else: ?>
-                <div class="wpb-grid" id="altai-grid">
+                <div class="wpb-img-grid" id="altai-grid">
                     <?php foreach ($attachments as $att):
                         $thumb = wp_get_attachment_image_url($att->ID, 'medium');
                         $full = wp_get_attachment_url($att->ID);
@@ -1778,31 +1947,30 @@ function wp_alt_ai_admin_page()
                         $title = $att->post_title;
                         $fname = basename(get_attached_file($att->ID));
                         ?>
-                        <div class="wpb-card" data-id="<?php echo $att->ID; ?>" data-url="<?php echo esc_attr($full); ?>">
-                            <div class="wpb-card__thumb">
+                        <div class="wpb-img-card" data-id="<?php echo $att->ID; ?>" data-url="<?php echo esc_attr($full); ?>">
+                            <div class="wpb-img-thumb">
                                 <?php if ($thumb): ?>
                                     <img src="<?php echo esc_url($thumb); ?>" alt="" loading="lazy">
                                 <?php else: ?>
-                                    <div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:32px">🖼️</div>
+                                    <div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:32px;">🖼️
+                                    </div>
                                 <?php endif; ?>
-                                <span class="wpb-card__ai-badge">AI</span>
+                                <span class="wpb-ai-badge">AI</span>
                             </div>
-                            <div class="wpb-card__body">
-                                <div class="wpb-card__filename">
-                                    <?php echo esc_html($fname); ?>
-                                </div>
-                                <div class="wpb-field">
-                                    <label>Alt Text</label>
+                            <div class="wpb-img-body">
+                                <div class="wpb-img-filename"><?php echo esc_html($fname); ?></div>
+                                <div class="wpb-img-field">
+                                    <label>Alt text</label>
                                     <input type="text" class="alt-input" value="<?php echo esc_attr($alt); ?>"
                                         placeholder="Descrizione immagine…">
                                 </div>
-                                <div class="wpb-field">
+                                <div class="wpb-img-field">
                                     <label>Title</label>
                                     <input type="text" class="title-input" value="<?php echo esc_attr($title); ?>"
                                         placeholder="Titolo immagine…">
                                 </div>
-                                <div class="wpb-card__actions">
-                                    <button class="wpb-btn-gen" <?php echo empty($api_key) ? 'disabled' : ''; ?>>✦ Genera e
+                                <div class="wpb-img-actions">
+                                    <button class="wpb-img-btn-gen" <?php echo empty($api_key) ? 'disabled' : ''; ?>>✦ Genera e
                                         salva</button>
                                 </div>
                             </div>
@@ -1812,87 +1980,80 @@ function wp_alt_ai_admin_page()
 
                 <?php if ($total_pages > 1): ?>
                     <div class="wpb-pagination">
-                        <div class="pagination-links">
-                            <?php echo paginate_links([
-                                'base' => add_query_arg('paged', '%#%'),
-                                'format' => '',
-                                'current' => $paged,
-                                'total' => $total_pages,
-                                'prev_text' => '&laquo;',
-                                'next_text' => '&raquo;',
-                                'type' => 'plain',
-                            ]); ?>
-                        </div>
+                        <?php echo paginate_links([
+                            'base' => add_query_arg('paged', '%#%'),
+                            'format' => '',
+                            'current' => $paged,
+                            'total' => $total_pages,
+                            'prev_text' => '&laquo;',
+                            'next_text' => '&raquo;',
+                            'type' => 'plain',
+                        ]); ?>
                     </div>
                 <?php endif;
             endif;
 
-            /* ══════════════════════════════════════
+            /* ════════════════════════════════════════
                TAB: LOG
-               ══════════════════════════════════════ */
+               ════════════════════════════════════════ */
         elseif ($tab === 'log'):
 
             if (!get_option('wp_alt_ai_log_enabled', 1)): ?>
-                <div class="notice notice-warning inline">
-                    <p>
-                        <strong>Registrazione log disabilitata.</strong>
-                        Le operazioni non vengono registrate. Per riattivare i log vai alle
-                        <a href="?page=wp-barrio-auto-alt&tab=settings">Impostazioni</a>.
-                    </p>
+                <div class="wpb-notice wpb-notice-warning">
+                    <span class="dashicons dashicons-warning"></span>
+                    <div><strong>Registrazione log disabilitata.</strong> <a href="?page=wp-barrio-auto-alt&tab=settings">Riattiva
+                            nelle impostazioni &rarr;</a></div>
                 </div>
             <?php else:
 
                 if (isset($_POST['clear_log']) && check_admin_referer('wp_alt_ai_clear_log')) {
                     delete_option(WP_ALT_AI_LOG_OPTION);
                     $log_entries = $log_slice = [];
-                    $log_total = $log_success = $log_errors = $log_manual = 0;
-                    echo '<div class="notice notice-success inline">✓ Log svuotato con successo.</div>';
+                    $log_total = $log_success = $log_errors = 0;
+                    echo '<div class="wpb-notice wpb-notice-success" style="margin-bottom:16px;"><span class="dashicons dashicons-yes-alt"></span><div>Log svuotato.</div></div>';
                 }
                 ?>
 
-                <div class="wpb-log-stats">
-                    <div class="wpb-log-stat">
-                        <div class="n">
-                            <?php echo $log_total; ?>
-                        </div>
-                        <div class="l">Totale operazioni</div>
+                <!-- Log KPI -->
+                <div class="wpb-log-kpi">
+                    <div class="wpb-log-kpi-item">
+                        <div class="wpb-log-kpi-num"><?php echo $log_total; ?></div>
+                        <div class="wpb-log-kpi-lbl">Totale operazioni</div>
                     </div>
-                    <div class="wpb-log-stat">
-                        <div class="n green">
-                            <?php echo $log_success; ?>
-                        </div>
-                        <div class="l">Completate</div>
+                    <div class="wpb-log-kpi-item">
+                        <div class="wpb-log-kpi-num" style="color:#059669;"><?php echo $log_success; ?></div>
+                        <div class="wpb-log-kpi-lbl">Completate</div>
                     </div>
-                    <div class="wpb-log-stat">
-                        <div class="n red">
-                            <?php echo $log_errors; ?>
-                        </div>
-                        <div class="l">Errori</div>
+                    <div class="wpb-log-kpi-item">
+                        <div class="wpb-log-kpi-num" style="color:#dc2626;"><?php echo $log_errors; ?></div>
+                        <div class="wpb-log-kpi-lbl">Errori</div>
                     </div>
-
                 </div>
 
+                <!-- Toolbar -->
                 <div class="wpb-log-toolbar">
-                    <div class="wpb-log-filters">
-                        <button class="wpb-log-filter active" data-filter="all">Tutti</button>
-                        <button class="wpb-log-filter" data-filter="success">Successi</button>
-                        <button class="wpb-log-filter" data-filter="error">Errori</button>
+                    <div class="wpb-log-chips">
+                        <button class="wpb-chip active" data-filter="all">Tutti</button>
+                        <button class="wpb-chip" data-filter="success">Successi</button>
+                        <button class="wpb-chip" data-filter="error">Errori</button>
                     </div>
                     <form method="post" onsubmit="return confirm('Svuotare tutto il log? L\'operazione è irreversibile.');"
-                        style="display:inline">
+                        style="display:inline;">
                         <?php wp_nonce_field('wp_alt_ai_clear_log'); ?>
-                        <button type="submit" name="clear_log" class="wpb-btn-clear">🗑 Svuota log</button>
+                        <button type="submit" name="clear_log" class="wpb-btn-clear-log">🗑 Svuota log</button>
                     </form>
                 </div>
 
                 <?php if (empty($log_entries)): ?>
-                    <div class="wpb-log-empty">Nessuna operazione registrata ancora.</div>
+                    <div class="wpb-table-wrap">
+                        <div class="wpb-log-empty">Nessuna operazione registrata ancora.</div>
+                    </div>
                 <?php else: ?>
-                    <div class="wpb-log-table-wrap">
-                        <table class="wpb-log-table" id="log-table">
+                    <div class="wpb-table-wrap" style="overflow-x:auto;">
+                        <table class="wpb-table" id="log-table">
                             <thead>
                                 <tr>
-                                    <th style="width:44px"></th>
+                                    <th style="width:44px;"></th>
                                     <th>File</th>
                                     <th>Stato</th>
                                     <th>Alt generato</th>
@@ -1901,12 +2062,10 @@ function wp_alt_ai_admin_page()
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php $loop_i = 0;
-                                foreach ($log_slice as $entry):
-                                    $loop_i++;
+                                <?php foreach ($log_slice as $entry):
                                     $thumb_url = wp_get_attachment_image_url($entry['id'], 'thumbnail');
                                     $edit_link = get_edit_post_link($entry['id']);
-                                    $label_map = ['success' => '✓ Successo', 'error' => '✗ Errore', 'manual' => '✎ Manuale'];
+                                    $label_map = ['success' => '&#x2713; Successo', 'error' => '&#x2715; Errore', 'manual' => '&#x270E; Manuale'];
                                     $is_err = ($entry['status'] === 'error');
                                     ?>
                                     <tr data-status="<?php echo esc_attr($entry['status']); ?>">
@@ -1914,629 +2073,358 @@ function wp_alt_ai_admin_page()
                                             <?php if ($thumb_url): ?>
                                                 <img src="<?php echo esc_url($thumb_url); ?>" class="wpb-log-thumb" alt="">
                                             <?php else: ?>
-                                                <span style="font-size:22px">🖼️</span>
+                                                <span style="font-size:22px;">🖼️</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php if ($edit_link): ?>
-                                                <a href="<?php echo esc_url($edit_link); ?>" class="wpb-log-filename" target="_blank"
-                                                    onclick="event.stopPropagation()">
-                                                    <?php echo esc_html($entry['file']); ?>
-                                                </a>
+                                                <a href="<?php echo esc_url($edit_link); ?>" class="wpb-log-filename"
+                                                    target="_blank"><?php echo esc_html($entry['file']); ?></a>
                                             <?php else: ?>
-                                                <span class="wpb-log-filename">
-                                                    <?php echo esc_html($entry['file'] ?: '—'); ?>
-                                                </span>
+                                                <span class="wpb-log-filename"><?php echo esc_html($entry['file'] ?: '—'); ?></span>
                                             <?php endif; ?>
-                                            <div class="wpb-log-id">ID
-                                                <?php echo intval($entry['id']); ?>
-                                            </div>
+                                            <div class="wpb-log-id">ID <?php echo intval($entry['id']); ?></div>
                                         </td>
                                         <td>
-                                            <span class="wpb-log-status <?php echo esc_attr($entry['status']); ?>">
+                                            <span class="wpb-status-pill <?php echo esc_attr($entry['status']); ?>">
                                                 <?php echo $label_map[$entry['status']] ?? esc_html($entry['status']); ?>
                                             </span>
-
                                         </td>
                                         <td>
                                             <div class="wpb-log-alt" title="<?php echo esc_attr($entry['alt']); ?>">
                                                 <?php echo esc_html($entry['alt'] ?: '—'); ?>
                                             </div>
                                         </td>
-                                        <td class="log-note-cell">
-                                            <?php if ($is_err): ?>
-                                                <div class="wpb-log-note wpb-log-note-error">
-                                                    <?php echo esc_html($entry['note'] ?: '—'); ?>
-                                                </div>
-                                            <?php else: ?>
-                                                <div class="wpb-log-note">
-                                                    <?php echo esc_html($entry['note'] ?: '—'); ?>
-                                                </div>
-                                            <?php endif; ?>
+                                        <td>
+                                            <div class="<?php echo $is_err ? 'wpb-log-note-err' : 'wpb-log-note'; ?>">
+                                                <?php echo esc_html($entry['note'] ?: '—'); ?>
+                                            </div>
                                         </td>
-                                        <td><span class="wpb-log-time">
-                                                <?php echo date_i18n('d/m/Y H:i', $entry['ts']); ?>
-                                            </span></td>
+                                        <td><span class="wpb-log-time"><?php echo date_i18n('d/m/Y H:i', $entry['ts']); ?></span></td>
                                     </tr>
-
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
 
                     <?php if ($log_total_pages > 1): ?>
-                        <div class="wpb-pagination" style="margin-top:20px">
+                        <div class="wpb-pagination" style="margin-top:20px;">
                             <?php for ($i = 1; $i <= $log_total_pages; $i++):
                                 $url = add_query_arg(['page' => 'wp-barrio-auto-alt', 'tab' => 'log', 'log_page' => $i]);
-                                if ($i === $log_page): ?><span class="current">
-                                        <?php echo $i; ?>
-                                    </span>
-                                <?php else: ?><a href="<?php echo esc_url($url); ?>">
-                                        <?php echo $i; ?>
-                                    </a>
-                                <?php endif; endfor; ?>
+                                if ($i === $log_page): ?>
+                                    <span class="current"><?php echo $i; ?></span>
+                                <?php else: ?>
+                                    <a href="<?php echo esc_url($url); ?>"><?php echo $i; ?></a>
+                                <?php endif;
+                            endfor; ?>
                         </div>
                     <?php endif;
-                endif; // log entries
-            endif; // log_enabled
+                endif; // log_enabled
     
-            /* ══════════════════════════════════════
-               TAB: IMPOSTAZIONI
-               ══════════════════════════════════════ */
-        elseif ($tab === 'settings'): ?>
+            endif;
 
-            <style>
-                .provider-card {
-                    border: 1.5px solid #e8e8e8;
-                    border-radius: 10px;
-                    padding: 16px 18px;
-                    cursor: pointer;
-                    transition: border-color .15s, background .15s;
-                    background: #fff;
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 14px;
-                    margin: 0;
-                }
+        elseif ($tab === 'settings'):
+            $provider = get_option('wp_alt_ai_provider', 'anthropic');
+            $model = get_option('wp_alt_ai_model', 'claude-opus-4-6');
+            $key_anthropic = get_option('wp_alt_ai_api_key', '');
+            $key_gemini = get_option('wp_alt_ai_gemini_key', '');
 
-                .provider-card.selected {
-                    border-color: #1a1a1a;
-                    background: #fafafa;
-                }
-
-                .provider-card input[type=radio] {
-                    margin-top: 3px;
-                    accent-color: #1a1a1a;
-                    flex-shrink: 0;
-                }
-
-                .pc-logo {
-                    font-size: 22px;
-                    flex-shrink: 0;
-                    width: 28px;
-                    text-align: center;
-                }
-
-                .pc-name {
-                    font-size: 13px;
-                    font-weight: 600;
-                    margin-bottom: 2px;
-                }
-
-                .pc-desc {
-                    font-size: 12px;
-                    color: #888;
-                }
-
-                .provider-keys {
-                    display: none;
-                    padding: 16px 18px 4px;
-                    border: 1.5px solid #e8e8e8;
-                    border-top: none;
-                    border-radius: 0 0 10px 10px;
-                    background: #fdfdfd;
-                    margin-bottom: 0;
-                }
-
-                .provider-keys.visible {
-                    display: block;
-                }
-
-                .key-group {
-                    margin-bottom: 14px;
-                }
-
-                .key-group>label {
-                    display: block;
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: #555;
-                    margin-bottom: 5px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.4px;
-                }
-
-                .key-group input[type=password] {
-                    width: 100%;
-                    padding: 8px 12px;
-                    border: 1px solid #e0e0e0;
-                    border-radius: 7px;
-                    font-size: 13px;
-                    font-family: monospace;
-                    background: #fafafa;
-                }
-
-                .key-group input[type=password]:focus {
-                    outline: none;
-                    border-color: #1a1a1a;
-                    background: #fff;
-                }
-
-                .key-group .hint {
-                    font-size: 11px;
-                    color: #aaa;
-                    margin-top: 4px;
-                }
-
-                .key-group .hint a {
-                    color: #888;
-                }
-
-                .model-radio-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-
-                .model-radio-label {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
-                    padding: 10px 13px;
-                    border: 1.5px solid #e8e8e8;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    background: #fff;
-                    transition: border-color .15s, background .15s;
-                    margin: 0;
-                }
-
-                .model-radio-label.selected {
-                    border-color: #1a1a1a;
-                    background: #fafafa;
-                }
-
-                .model-radio-label input[type=radio] {
-                    margin-top: 2px;
-                    accent-color: #1a1a1a;
-                    flex-shrink: 0;
-                }
-
-                .mr-name {
-                    font-size: 13px;
-                    font-weight: 600;
-                    margin-bottom: 2px;
-                }
-
-                .mr-desc {
-                    font-size: 12px;
-                    color: #888;
-                }
-
-                .mr-id {
-                    font-size: 10px;
-                    color: #bbb;
-                    margin-top: 2px;
-                    font-family: monospace;
-                }
-
-                .provider-block {
-                    margin-bottom: 10px;
-                }
-
-                .provider-block:last-child {
-                    margin-bottom: 0;
-                }
-
-                .altai-settings-form {
-                    max-width: 620px;
-                }
-            </style>
-
-            <form method="post" action="options.php">
+            $providers = [
+                'anthropic' => [
+                    'logo' => '🟣',
+                    'name' => 'Anthropic — Claude',
+                    'desc' => 'Claude Opus, Sonnet, Haiku — eccellente per descrizioni contestuali',
+                    'key_field' => 'wp_alt_ai_api_key',
+                    'key_val' => $key_anthropic,
+                    'key_ph' => 'sk-ant-api03-…',
+                    'key_url' => 'https://console.anthropic.com/',
+                    'key_label' => 'Chiave API Anthropic',
+                    'models' => [
+                        'claude-opus-4-6' => ['name' => 'Claude Opus 4.6', 'desc' => 'Massima qualità, descrizioni dettagliate'],
+                        'claude-sonnet-4-6' => ['name' => 'Claude Sonnet 4.6', 'desc' => 'Equilibrio ottimale qualità/velocità'],
+                        'claude-haiku-4-5-20251001' => ['name' => 'Claude Haiku 4.5', 'desc' => 'Veloce ed economico, grandi volumi'],
+                    ],
+                    'default_model' => 'claude-opus-4-6',
+                ],
+                'gemini' => [
+                    'logo' => '🔵',
+                    'name' => 'Google — Gemini',
+                    'desc' => 'Gemini 2.0 / 2.5 Flash & Pro — ottimo rapporto qualità/costo',
+                    'key_field' => 'wp_alt_ai_gemini_key',
+                    'key_val' => $key_gemini,
+                    'key_ph' => 'AIza…',
+                    'key_url' => 'https://aistudio.google.com/app/apikey',
+                    'key_label' => 'Chiave API Google AI Studio',
+                    'models' => [
+                        'gemini-2.5-pro' => ['name' => 'Gemini 2.5 Pro', 'desc' => 'Massima qualità, ragionamento avanzato'],
+                        'gemini-2.5-flash' => ['name' => 'Gemini 2.5 Flash', 'desc' => 'Ottimo equilibrio qualità/velocità'],
+                        'gemini-2.0-flash' => ['name' => 'Gemini 2.0 Flash', 'desc' => 'Veloce ed economico, uso generale'],
+                        'gemini-2.0-flash-lite' => ['name' => 'Gemini 2.0 Flash-Lite', 'desc' => 'Ultraveloce, alta frequenza'],
+                    ],
+                    'default_model' => 'gemini-2.5-flash',
+                ],
+            ];
+            ?>
+            <form method="post" action="options.php" style="max-width:640px;">
                 <?php settings_fields('wp_alt_ai_settings'); ?>
-                <?php
-                $provider = get_option('wp_alt_ai_provider', 'anthropic');
-                $model = get_option('wp_alt_ai_model', 'claude-opus-4-6');
-                $key_anthropic = get_option('wp_alt_ai_api_key', '');
-                $key_gemini = get_option('wp_alt_ai_gemini_key', '');
 
-                $providers = [
-                    'anthropic' => [
-                        'logo' => '🟣',
-                        'name' => 'Anthropic — Claude',
-                        'desc' => 'Claude Opus, Sonnet, Haiku — eccellente per descrizioni contestuali',
-                        'key_field' => 'wp_alt_ai_api_key',
-                        'key_val' => $key_anthropic,
-                        'key_ph' => 'sk-ant-api03-...',
-                        'key_url' => 'https://console.anthropic.com/',
-                        'key_label' => 'Chiave API Anthropic',
-                        'models' => [
-                            'claude-opus-4-6' => ['name' => 'Claude Opus 4.6', 'desc' => 'Massima qualità, descrizioni dettagliate'],
-                            'claude-sonnet-4-6' => ['name' => 'Claude Sonnet 4.6', 'desc' => 'Equilibrio ottimale qualità/velocità'],
-                            'claude-haiku-4-5-20251001' => ['name' => 'Claude Haiku 4.5', 'desc' => 'Veloce ed economico, grandi volumi'],
-                        ],
-                        'default_model' => 'claude-opus-4-6',
-                    ],
-                    'gemini' => [
-                        'logo' => '🔵',
-                        'name' => 'Google — Gemini',
-                        'desc' => 'Gemini 1.5 / 2.0 Flash & Pro — ottimo rapporto qualità/costo',
-                        'key_field' => 'wp_alt_ai_gemini_key',
-                        'key_val' => $key_gemini,
-                        'key_ph' => 'AIza...',
-                        'key_url' => 'https://aistudio.google.com/app/apikey',
-                        'key_label' => 'Chiave API Google AI Studio',
-                        'models' => [
-                            'gemini-2.5-pro' => ['name' => 'Gemini 2.5 Pro', 'desc' => 'Massima qualità, ragionamento avanzato'],
-                            'gemini-2.5-flash' => ['name' => 'Gemini 2.5 Flash', 'desc' => 'Ottimo equilibrio qualità/velocità'],
-                            'gemini-2.0-flash' => ['name' => 'Gemini 2.0 Flash', 'desc' => 'Veloce ed economico, uso generale'],
-                            'gemini-2.0-flash-lite' => ['name' => 'Gemini 2.0 Flash-Lite', 'desc' => 'Ultraveloce, alta frequenza'],
-                        ],
-                        'default_model' => 'gemini-2.5-flash',
-                    ],
-                ];
-                ?>
-
-                <!-- ── PROVIDER + MODELLO ── -->
-                <table class="form-table" role="presentation">
-                    <tbody>
-                        <tr>
-                            <th scope="row" style="width:200px;">Provider e modello AI</th>
-                            <td>
-                                <div id="provider-list">
-                                    <?php foreach ($providers as $pval => $pdata):
-                                        $is_sel = ($provider === $pval);
-                                        $p_models = $pdata['models'];
-                                        // quale modello è attivo per questo provider?
-                                        $active_model = ($is_sel && in_array($model, array_keys($p_models))) ? $model : $pdata['default_model'];
-                                        ?>
-                                        <div class="wpb-provider-block">
-                                            <label class="wpb-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
-                                                data-provider="<?php echo esc_attr($pval); ?>">
-                                                <input type="radio" name="wp_alt_ai_provider" value="<?php echo esc_attr($pval); ?>"
-                                                    <?php checked($provider, $pval); ?>>
-                                                <span class="wpb-pc-logo">
-                                                    <?php echo $pdata['logo']; ?>
-                                                </span>
+                <!-- Provider & modello -->
+                <div class="wpb-section-box">
+                    <div class="wpb-section-head"><span class="dashicons dashicons-superhero-alt"></span> Provider e modello AI
+                    </div>
+                    <div class="wpb-section-body">
+                        <?php foreach ($providers as $pval => $pdata):
+                            $is_sel = ($provider === $pval);
+                            $active_model = ($is_sel && in_array($model, array_keys($pdata['models']))) ? $model : $pdata['default_model'];
+                            ?>
+                            <label class="wpb-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
+                                data-provider="<?php echo esc_attr($pval); ?>">
+                                <input type="radio" name="wp_alt_ai_provider" value="<?php echo esc_attr($pval); ?>" <?php checked($provider, $pval); ?>>
+                                <span class="wpb-pc-logo"><?php echo $pdata['logo']; ?></span>
+                                <div>
+                                    <div class="wpb-pc-name"><?php echo esc_html($pdata['name']); ?></div>
+                                    <div class="wpb-pc-desc"><?php echo esc_html($pdata['desc']); ?></div>
+                                </div>
+                            </label>
+                            <div class="wpb-provider-keys <?php echo $is_sel ? 'visible' : ''; ?>"
+                                id="keys-<?php echo esc_attr($pval); ?>">
+                                <div class="wpb-key-group">
+                                    <label><?php echo esc_html($pdata['key_label']); ?></label>
+                                    <input type="password" name="<?php echo esc_attr($pdata['key_field']); ?>"
+                                        value="<?php echo esc_attr($pdata['key_val']); ?>"
+                                        placeholder="<?php echo esc_attr($pdata['key_ph']); ?>" autocomplete="off">
+                                    <div class="wpb-key-hint">Ottieni la chiave su <a
+                                            href="<?php echo esc_url($pdata['key_url']); ?>"
+                                            target="_blank"><?php echo esc_html($pdata['key_url']); ?></a></div>
+                                </div>
+                                <div class="wpb-key-group">
+                                    <label>Modello</label>
+                                    <div class="wpb-model-bar">
+                                        <span class="wpb-model-status" id="model-status-<?php echo esc_attr($pval); ?>"></span>
+                                        <button type="button" class="wpb-btn wpb-btn-ghost wpb-btn-sm btn-refresh-models"
+                                            style="font-size:11px;">↻ Aggiorna</button>
+                                    </div>
+                                    <div class="wpb-model-group">
+                                        <?php foreach ($pdata['models'] as $mval => $mdata):
+                                            $m_checked = ($active_model === $mval);
+                                            ?>
+                                            <label class="wpb-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
+                                                <input type="radio" name="wp_alt_ai_model" value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
                                                 <div>
-                                                    <div class="wpb-pc-name">
-                                                        <?php echo esc_html($pdata['name']); ?>
-                                                    </div>
-                                                    <div class="wpb-pc-desc">
-                                                        <?php echo esc_html($pdata['desc']); ?>
-                                                    </div>
+                                                    <div class="wpb-model-name"><?php echo esc_html($mdata['name']); ?></div>
+                                                    <div class="wpb-model-desc"><?php echo esc_html($mdata['desc']); ?></div>
+                                                    <div class="wpb-model-id"><?php echo esc_html($mval); ?></div>
                                                 </div>
                                             </label>
-                                            <div class="wpb-provider-keys <?php echo $is_sel ? 'visible' : ''; ?>"
-                                                id="keys-<?php echo esc_attr($pval); ?>">
-                                                <div class="wpb-key-group">
-                                                    <label>
-                                                        <?php echo esc_html($pdata['key_label']); ?>
-                                                    </label>
-                                                    <input type="password" name="<?php echo esc_attr($pdata['key_field']); ?>"
-                                                        value="<?php echo esc_attr($pdata['key_val']); ?>"
-                                                        placeholder="<?php echo esc_attr($pdata['key_ph']); ?>" autocomplete="off">
-                                                    <div class="wpb-key-hint">Ottieni la chiave su <a
-                                                            href="<?php echo esc_url($pdata['key_url']); ?>" target="_blank">
-                                                            <?php echo esc_url($pdata['key_url']); ?>
-                                                        </a></div>
-                                                </div>
-                                                <div class="wpb-key-group">
-                                                    <label>Modello</label>
-                                                    <div class="wpb-model-group">
-                                                        <?php foreach ($p_models as $mval => $mdata):
-                                                            $m_checked = ($active_model === $mval);
-                                                            ?>
-                                                            <label class="wpb-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
-                                                                <input type="radio" name="wp_alt_ai_model"
-                                                                    value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
-                                                                <div>
-                                                                    <div class="wpb-model-name">
-                                                                        <?php echo esc_html($mdata['name']); ?>
-                                                                    </div>
-                                                                    <div class="wpb-model-desc">
-                                                                        <?php echo esc_html($mdata['desc']); ?>
-                                                                    </div>
-                                                                    <div class="wpb-model-id">
-                                                                        <?php echo esc_html($mval); ?>
-                                                                    </div>
-                                                                </div>
-                                                            </label>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    </div>
                                 </div>
-        </div>
-
-        <!-- ── LINGUA ── -->
-        <div class="form-group">
-            <label class="wpb-field-label">Lingua dell'output</label>
-            <?php $lang = get_option('wp_alt_ai_language', 'it'); ?>
-            <select name="wp_alt_ai_language">
-                <option value="it" <?php selected($lang, 'it'); ?>>🇮🇹 Italiano</option>
-                <option value="en" <?php selected($lang, 'en'); ?>>🇬🇧 English</option>
-                <option value="es" <?php selected($lang, 'es'); ?>>🇪🇸 Español</option>
-                <option value="fr" <?php selected($lang, 'fr'); ?>>🇫🇷 Français</option>
-                <option value="de" <?php selected($lang, 'de'); ?>>🇩🇪 Deutsch</option>
-            </select></td>
-            </tr>
-
-            <!-- ── AUTO UPLOAD ── -->
-            <tr>
-                <th scope="row">Generazione automatica su upload</th>
-                <td>
-                    <div class="wpb-toggle-row">
-                        <label class="wpb-toggle">
-                            <input type="checkbox" name="wp_alt_ai_auto_upload" value="1" <?php checked($auto_upload, 1); ?>>
-                            <span class="wpb-toggle-slider"></span>
-                        </label>
-                        <div class="wpb-toggle-info">
-                            <div class="wpb-toggle-title">
-                                <?php echo $auto_upload ? '✓ Attiva — ogni nuova immagine viene elaborata automaticamente' : 'Disattiva — elabora le immagini manualmente dalla scheda Revisione'; ?>
                             </div>
-                            <div class="wpb-toggle-desc">
-                                Quando attivo, il provider selezionato analizza ogni nuova immagine caricata
-                                nella Libreria Media e genera automaticamente alt text e title in background.
-                                Ogni operazione viene registrata nel Log.
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- Lingua -->
+                <div class="wpb-section-box">
+                    <div class="wpb-section-head"><span class="dashicons dashicons-translation"></span> Lingua output</div>
+                    <div class="wpb-section-body">
+                        <?php $lang = get_option('wp_alt_ai_language', 'it'); ?>
+                        <label class="wpb-field-label">Lingua dei testi generati</label>
+                        <select name="wp_alt_ai_language" class="wpb-select">
+                            <option value="it" <?php selected($lang, 'it'); ?>>🇮🇹 Italiano</option>
+                            <option value="en" <?php selected($lang, 'en'); ?>>🇬🇧 English</option>
+                            <option value="es" <?php selected($lang, 'es'); ?>>🇪🇸 Español</option>
+                            <option value="fr" <?php selected($lang, 'fr'); ?>>🇫🇷 Français</option>
+                            <option value="de" <?php selected($lang, 'de'); ?>>🇩🇪 Deutsch</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Auto upload + Log -->
+                <div class="wpb-section-box">
+                    <div class="wpb-section-head"><span class="dashicons dashicons-admin-settings"></span> Comportamento</div>
+                    <div class="wpb-section-body" style="padding-bottom:12px;">
+
+                        <div class="wpb-toggle-row">
+                            <label class="wpb-toggle">
+                                <input type="checkbox" name="wp_alt_ai_auto_upload" value="1" <?php checked($auto_upload, 1); ?>>
+                                <span class="wpb-toggle-track"></span>
+                            </label>
+                            <div class="wpb-toggle-info">
+                                <div class="wpb-toggle-label">Generazione automatica su upload</div>
+                                <div class="wpb-toggle-desc">Ogni nuova immagine caricata nella Libreria Media viene elaborata
+                                    automaticamente in background.</div>
+                            </div>
+                        </div>
+
+                        <?php $log_enabled = get_option('wp_alt_ai_log_enabled', 1); ?>
+                        <div class="wpb-toggle-row">
+                            <label class="wpb-toggle">
+                                <input type="checkbox" name="wp_alt_ai_log_enabled" value="1" <?php checked($log_enabled, 1); ?>>
+                                <span class="wpb-toggle-track"></span>
+                            </label>
+                            <div class="wpb-toggle-info">
+                                <div class="wpb-toggle-label">Registrazione log</div>
+                                <div class="wpb-toggle-desc">Salva ogni operazione AI nella scheda Log con stato e dettagli.
+                                </div>
                             </div>
                         </div>
                     </div>
-        </div>
-        </td>
-        </tr>
+                </div>
 
-        <!-- ── LOG ── -->
-        <tr>
-            <th scope="row">Registrazione log</th>
-            <td>
-                <?php $log_enabled = get_option('wp_alt_ai_log_enabled', 1); ?>
-                <div class="wpb-toggle-row">
-                    <label class="wpb-toggle">
-                        <input type="checkbox" name="wp_alt_ai_log_enabled" value="1" <?php checked($log_enabled, 1); ?>>
-                        <span class="wpb-toggle-slider"></span>
-                    </label>
-                    <div class="wpb-toggle-info">
-                        <div class="wpb-toggle-title">
-                            <?php echo $log_enabled ? '✓ Attivo — ogni operazione viene registrata nel Log' : 'Disattivo — le operazioni non vengono registrate'; ?>
+                <!-- Prompt -->
+                <div class="wpb-section-box">
+                    <div class="wpb-section-head"><span class="dashicons dashicons-edit-page"></span> Impostazioni prompt</div>
+                    <div class="wpb-section-body">
+
+                        <div style="margin-bottom:18px;">
+                            <label class="wpb-field-label" for="wp_alt_ai_tone">Registro linguistico</label>
+                            <?php $tone = get_option('wp_alt_ai_tone', 'neutral'); ?>
+                            <select name="wp_alt_ai_tone" id="wp_alt_ai_tone" class="wpb-select">
+                                <option value="neutral" <?php selected($tone, 'neutral'); ?>>Neutro e oggettivo</option>
+                                <option value="professional" <?php selected($tone, 'professional'); ?>>Professionale e formale
+                                </option>
+                                <option value="friendly" <?php selected($tone, 'friendly'); ?>>Amichevole e accessibile</option>
+                                <option value="technical" <?php selected($tone, 'technical'); ?>>Tecnico e preciso</option>
+                                <option value="creative" <?php selected($tone, 'creative'); ?>>Creativo e coinvolgente</option>
+                                <option value="seo" <?php selected($tone, 'seo'); ?>>Ottimizzato SEO</option>
+                            </select>
+                            <p class="wpb-field-desc">Tono dei testi generati per alt text e titolo.</p>
                         </div>
-                        <div class="wpb-toggle-desc">
-                            Se attivo, ogni generazione AI (singola, bulk e automatica) viene salvata nella scheda Log con stato
-                            e dettagli.
+
+                        <div style="margin-bottom:18px;">
+                            <label class="wpb-field-label" for="wp_alt_ai_style">Stile descrittivo</label>
+                            <?php $style = get_option('wp_alt_ai_style', 'descriptive'); ?>
+                            <select name="wp_alt_ai_style" id="wp_alt_ai_style" class="wpb-select">
+                                <option value="descriptive" <?php selected($style, 'descriptive'); ?>>Descrittivo — elenca gli
+                                    elementi visivi</option>
+                                <option value="contextual" <?php selected($style, 'contextual'); ?>>Contestuale — interpreta
+                                    significato e scopo</option>
+                                <option value="emotional" <?php selected($style, 'emotional'); ?>>Evocativo — trasmette
+                                    sensazioni e atmosfera</option>
+                                <option value="journalistic" <?php selected($style, 'journalistic'); ?>>Giornalistico —
+                                    sintetico come una didascalia</option>
+                            </select>
+                            <p class="wpb-field-desc">Approccio con cui l'AI descrive l'immagine.</p>
+                        </div>
+
+                        <div style="margin-bottom:18px;">
+                            <label class="wpb-field-label" for="wp_alt_ai_context">Contesto del sito</label>
+                            <input type="text" name="wp_alt_ai_context" id="wp_alt_ai_context" class="wpb-input"
+                                style="width:100%;max-width:460px;"
+                                value="<?php echo esc_attr(get_option('wp_alt_ai_context', '')); ?>"
+                                placeholder="es. e-commerce di moda sostenibile, blog di cucina italiana…">
+                            <p class="wpb-field-desc">Fornisce contesto all'AI per generare testi più pertinenti al tuo settore.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="wpb-field-label" for="wp_alt_ai_keywords">Parole chiave SEO</label>
+                            <input type="text" name="wp_alt_ai_keywords" id="wp_alt_ai_keywords" class="wpb-input"
+                                style="width:100%;max-width:460px;"
+                                value="<?php echo esc_attr(get_option('wp_alt_ai_keywords', '')); ?>"
+                                placeholder="es. scarpe artigianali, pelle italiana, handmade…">
+                            <p class="wpb-field-desc">Parole chiave da includere nell'alt text se pertinenti. Separate da
+                                virgola.</p>
                         </div>
                     </div>
                 </div>
-                </div>
-            </td>
-        </tr>
-        </tbody>
-        </table>
 
-        <h2 class="title" style="margin-top:24px;">Impostazioni prompt</h2>
-        <p class="description">Personalizza il tono e lo stile del testo generato dall'AI.</p>
-        <table class="form-table" role="presentation">
-            <tbody>
+                <button type="submit" class="wpb-save-btn">
+                    <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;margin-top:1px;"></span>
+                    Salva impostazioni
+                </button>
+            </form>
 
-                <tr>
-                    <th scope="row"><label for="wp_alt_ai_tone">Registro linguistico</label></th>
-                    <td>
-                        <?php $tone = get_option('wp_alt_ai_tone', 'neutral'); ?>
-                        <select name="wp_alt_ai_tone" id="wp_alt_ai_tone">
-                            <option value="neutral" <?php selected($tone, 'neutral'); ?>>Neutro e oggettivo</option>
-                            <option value="professional" <?php selected($tone, 'professional'); ?>>Professionale e formale
-                            </option>
-                            <option value="friendly" <?php selected($tone, 'friendly'); ?>>Amichevole e accessibile</option>
-                            <option value="technical" <?php selected($tone, 'technical'); ?>>Tecnico e preciso</option>
-                            <option value="creative" <?php selected($tone, 'creative'); ?>>Creativo e coinvolgente</option>
-                            <option value="seo" <?php selected($tone, 'seo'); ?>>Ottimizzato SEO</option>
-                        </select>
-                        <p class="description">Definisce il tono del testo dell'alt e del titolo.</p>
-                    </td>
-                </tr>
+            <script>
+                (function () {
+                    var ajaxUrl = '<?php echo admin_url("admin-ajax.php"); ?>';
+                    var nonce = '<?php echo wp_create_nonce("wp_alt_ai_nonce"); ?>';
+                    var currentModel = '<?php echo esc_js(get_option("wp_alt_ai_model", "")); ?>';
+                    var modelDefaults = { anthropic: 'claude-opus-4-6', gemini: 'gemini-2.5-flash' };
 
-                <tr>
-                    <th scope="row"><label for="wp_alt_ai_style">Stile descrittivo</label></th>
-                    <td>
-                        <?php $style = get_option('wp_alt_ai_style', 'descriptive'); ?>
-                        <select name="wp_alt_ai_style" id="wp_alt_ai_style">
-                            <option value="descriptive" <?php selected($style, 'descriptive'); ?>>Descrittivo — elenca gli
-                                elementi visivi</option>
-                            <option value="contextual" <?php selected($style, 'contextual'); ?>>Contestuale — interpreta
-                                significato e scopo</option>
-                            <option value="emotional" <?php selected($style, 'emotional'); ?>>Evocativo — trasmette sensazioni
-                                e
-                                atmosfera</option>
-                            <option value="journalistic" <?php selected($style, 'journalistic'); ?>>Giornalistico — sintetico
-                                come una didascalia</option>
-                        </select>
-                        <p class="description">Definisce l'approccio con cui l'AI descrive l'immagine.</p>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th scope="row"><label for="wp_alt_ai_context">Contesto del sito</label></th>
-                    <td>
-                        <input type="text" name="wp_alt_ai_context" id="wp_alt_ai_context"
-                            value="<?php echo esc_attr(get_option('wp_alt_ai_context', '')); ?>" class="regular-text"
-                            placeholder="es. e-commerce di moda sostenibile, blog di cucina italiana…">
-                        <p class="description">Fornisce contesto all'AI per generare testi più pertinenti al tuo settore.</p>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th scope="row"><label for="wp_alt_ai_keywords">Parole chiave SEO</label></th>
-                    <td>
-                        <input type="text" name="wp_alt_ai_keywords" id="wp_alt_ai_keywords"
-                            value="<?php echo esc_attr(get_option('wp_alt_ai_keywords', '')); ?>" class="regular-text"
-                            placeholder="es. scarpe artigianali, pelle italiana, handmade…">
-                        <p class="description">Parole chiave da includere nell'alt text se pertinenti all'immagine. Separate da
-                            virgola.</p>
-                    </td>
-                </tr>
-
-            </tbody>
-        </table>
-
-        <?php submit_button('Salva impostazioni', 'primary', 'submit', false); ?>
-        </form>
-
-        <script>
-            (function () {
-                var ajaxUrl = '<?php echo admin_url("admin-ajax.php"); ?>';
-                var nonce = '<?php echo wp_create_nonce("wp_alt_ai_nonce"); ?>';
-                var currentModel = '<?php echo esc_js(get_option("wp_alt_ai_model", "")); ?>';
-
-                var modelDefaults = {
-                    anthropic: 'claude-opus-4-6',
-                    gemini: 'gemini-2.5-flash'
-                };
-
-                function updateModelHighlight() {
-                    document.querySelectorAll('.wpb-model-label').forEach(function (lbl) {
-                        var r = lbl.querySelector('input[type=radio]');
-                        lbl.classList.toggle('selected', r && r.checked && !r.disabled);
-                    });
-                }
-
-                // Costruisce i radio del modello dentro un panel
-                function renderModels(panel, models, selectedId) {
-                    var group = panel.querySelector('.wpb-model-group');
-                    if (!group) return;
-                    var prov = panel.id.replace('keys-', '');
-                    var chosen = selectedId || modelDefaults[prov] || Object.keys(models)[0];
-
-                    group.innerHTML = '';
-                    Object.keys(models).forEach(function (id) {
-                        var m = models[id];
-                        var chk = (id === chosen);
-                        var lbl = document.createElement('label');
-                        lbl.className = 'wpb-model-label' + (chk ? ' selected' : '');
-                        lbl.innerHTML =
-                            '<input type="radio" name="wp_alt_ai_model" value="' + id + '"' +
-                            (chk ? ' checked' : '') + ' style="margin-top:2px;accent-color:#1a1a1a;flex-shrink:0;">' +
-                            '<div>' +
-                            '<div class="wpb-model-name">' + (m.name || id) + '</div>' +
-                            (m.desc ? '<div class="wpb-model-desc">' + m.desc + '</div>' : '') +
-                            '<div class="wpb-model-id">' + id + '</div>' +
-                            '</div>';
-                        lbl.querySelector('input').addEventListener('change', updateModelHighlight);
-                        group.appendChild(lbl);
-                    });
-                    updateModelHighlight();
-                }
-
-                // Carica i modelli dal server per un provider
-                function loadModels(provider, panel, force) {
-                    var statusEl = panel.querySelector('.wpb-model-status');
-                    if (statusEl) statusEl.textContent = 'Caricamento modelli...';
-
-                    var body = new URLSearchParams({
-                        action: 'wp_alt_ai_fetch_models',
-                        nonce: nonce,
-                        provider: provider,
-                        force: force ? '1' : ''
-                    });
-
-                    fetch(ajaxUrl, { method: 'POST', body: body })
-                        .then(function (r) { return r.json(); })
-                        .then(function (data) {
-                            if (statusEl) statusEl.textContent = '';
-                            if (data.success && data.data && Object.keys(data.data).length > 0) {
-                                // Scegli modello: quello corrente se esiste tra i nuovi, altrimenti default
-                                var sel = (currentModel && data.data[currentModel]) ? currentModel : null;
-                                renderModels(panel, data.data, sel);
-                                if (statusEl) {
-                                    var n = Object.keys(data.data).length;
-                                    statusEl.textContent = '✓ ' + n + ' modelli disponibili';
-                                    statusEl.style.color = '#16a34a';
-                                }
-                            } else {
-                                if (statusEl) {
-                                    statusEl.textContent = data.data || 'Errore nel caricamento modelli — uso lista offline';
-                                    statusEl.style.color = '#dc2626';
-                                }
-                            }
-                        })
-                        .catch(function () {
-                            if (statusEl) {
-                                statusEl.textContent = 'Errore di rete — uso lista offline';
-                                statusEl.style.color = '#dc2626';
-                            }
+                    function updateModelHighlight() {
+                        document.querySelectorAll('.wpb-model-label').forEach(function (lbl) {
+                            var r = lbl.querySelector('input[type=radio]');
+                            lbl.classList.toggle('selected', r && r.checked && !r.disabled);
                         });
-                }
+                    }
 
-                // Aggiungi barra stato + pulsante refresh a ogni panel
-                document.querySelectorAll('.wpb-provider-keys').forEach(function (panel) {
-                    var group = panel.querySelector('.wpb-model-group');
-                    if (!group) return;
-                    var bar = document.createElement('div');
-                    bar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px;';
-                    bar.innerHTML =
-                        '<span class="wpb-model-status" style="font-size:11px;color:#888;flex:1;"></span>' +
-                        '<button type="button" class="button button-small btn-refresh-models" style="font-size:11px;padding:3px 10px;background:#fff;border:1px solid #e0e0e0;border-radius:5px;cursor:pointer;font-family:inherit;">↻ Aggiorna</button>';
-                    group.parentNode.insertBefore(bar, group);
-
-                    bar.querySelector('.btn-refresh-models').addEventListener('click', function () {
+                    function renderModels(panel, models, selectedId) {
+                        var group = panel.querySelector('.wpb-model-group');
+                        if (!group) return;
                         var prov = panel.id.replace('keys-', '');
-                        currentModel = ''; // forza nuova selezione
-                        loadModels(prov, panel, true);
-                    });
-                });
-
-                // Al cambio provider: mostra/nasconde pannello e carica modelli
-                document.querySelectorAll('input[name="wp_alt_ai_provider"]').forEach(function (radio) {
-                    radio.addEventListener('change', function () {
-                        var sel = this.value;
-
-                        document.querySelectorAll('.wpb-provider-card').forEach(function (c) {
-                            c.classList.toggle('selected', c.dataset.provider === sel);
+                        var chosen = selectedId || modelDefaults[prov] || Object.keys(models)[0];
+                        group.innerHTML = '';
+                        Object.keys(models).forEach(function (id) {
+                            var m = models[id];
+                            var chk = (id === chosen);
+                            var lbl = document.createElement('label');
+                            lbl.className = 'wpb-model-label' + (chk ? ' selected' : '');
+                            lbl.innerHTML =
+                                '<input type="radio" name="wp_alt_ai_model" value="' + id + '"' +
+                                (chk ? ' checked' : '') + ' style="margin-top:2px;accent-color:#111827;flex-shrink:0;">' +
+                                '<div><div class="wpb-model-name">' + (m.name || id) + '</div>' +
+                                (m.desc ? '<div class="wpb-model-desc">' + m.desc + '</div>' : '') +
+                                '<div class="wpb-model-id">' + id + '</div></div>';
+                            lbl.querySelector('input').addEventListener('change', updateModelHighlight);
+                            group.appendChild(lbl);
                         });
+                        updateModelHighlight();
+                    }
 
-                        document.querySelectorAll('.wpb-provider-keys').forEach(function (panel) {
-                            var prov = panel.id.replace('keys-', '');
-                            var active = (prov === sel);
-                            panel.classList.toggle('visible', active);
-                            panel.querySelectorAll('input[type=radio][name="wp_alt_ai_model"]').forEach(function (r) {
-                                r.disabled = !active;
+                    function loadModels(provider, panel, force) {
+                        var statusEl = panel.querySelector('.wpb-model-status');
+                        if (statusEl) statusEl.textContent = 'Caricamento modelli…';
+                        var body = new URLSearchParams({ action: 'wp_alt_ai_fetch_models', nonce: nonce, provider: provider, force: force ? '1' : '' });
+                        fetch(ajaxUrl, { method: 'POST', body: body })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                if (statusEl) { statusEl.textContent = ''; statusEl.className = 'wpb-model-status'; }
+                                if (data.success && data.data && Object.keys(data.data).length > 0) {
+                                    var sel = (currentModel && data.data[currentModel]) ? currentModel : null;
+                                    renderModels(panel, data.data, sel);
+                                    if (statusEl) { statusEl.textContent = '&#x2713; ' + Object.keys(data.data).length + ' modelli'; statusEl.className = 'wpb-model-status ok'; }
+                                } else {
+                                    if (statusEl) { statusEl.textContent = data.data || 'Errore caricamento'; statusEl.className = 'wpb-model-status err'; }
+                                }
+                            })
+                            .catch(function () { if (statusEl) { statusEl.textContent = 'Errore di rete'; statusEl.className = 'wpb-model-status err'; } });
+                    }
+
+                    document.querySelectorAll('.wpb-provider-keys').forEach(function (panel) {
+                        panel.querySelector('.btn-refresh-models').addEventListener('click', function () {
+                            currentModel = '';
+                            loadModels(panel.id.replace('keys-', ''), panel, true);
+                        });
+                    });
+
+                    document.querySelectorAll('input[name="wp_alt_ai_provider"]').forEach(function (radio) {
+                        radio.addEventListener('change', function () {
+                            var sel = this.value;
+                            document.querySelectorAll('.wpb-provider-card').forEach(function (c) {
+                                c.classList.toggle('selected', c.dataset.provider === sel);
                             });
-                            if (active) {
-                                currentModel = '';
-                                loadModels(prov, panel, false);
-                            }
+                            document.querySelectorAll('.wpb-provider-keys').forEach(function (panel) {
+                                var prov = panel.id.replace('keys-', '');
+                                var active = (prov === sel);
+                                panel.classList.toggle('visible', active);
+                                panel.querySelectorAll('input[type=radio][name="wp_alt_ai_model"]').forEach(function (r) { r.disabled = !active; });
+                                if (active) { currentModel = ''; loadModels(prov, panel, false); }
+                            });
                         });
                     });
-                });
 
-                document.querySelectorAll('.model-radio-label input[type=radio]').forEach(function (r) {
-                    r.addEventListener('change', updateModelHighlight);
-                });
-                updateModelHighlight();
+                    updateModelHighlight();
+                    document.querySelectorAll('.wpb-provider-keys.visible').forEach(function (panel) {
+                        loadModels(panel.id.replace('keys-', ''), panel, false);
+                    });
+                })();
+            </script>
 
-                // Carica subito i modelli del provider attivo (classe wpb-provider-keys visible)
-                document.querySelectorAll('.wpb-provider-keys.visible').forEach(function (panel) {
-                    var prov = panel.id.replace('keys-', '');
-                    loadModels(prov, panel, false);
-                });
+        <?php endif; // end tabs ?>
 
-            })();
-        </script>
-
-    <?php endif; ?>
-
-    </div><!-- #wpbarrio-wrap -->
+    </div><!-- #wpb-autoalt-wrap -->
 
     <div id="wpb-toast"></div>
 
@@ -2549,45 +2437,26 @@ function wp_alt_ai_admin_page()
                 const t = document.getElementById('wpb-toast');
                 t.textContent = msg;
                 t.className = 'show' + (type === 'error' ? ' error' : '');
-                setTimeout(() => t.className = '', 3000);
+                setTimeout(() => t.className = '', 3400);
             }
 
-            /* ── Genera e salva in un unico roundtrip server-side ── */
+            /* ── Genera e salva singola card ── */
             async function generateForCard(card) {
-                const btn = card.querySelector('.wpb-btn-gen');
+                const btn = card.querySelector('.wpb-img-btn-gen');
                 btn.disabled = true;
                 btn.innerHTML = '<div class="wpb-spinner"></div> Elaborazione…';
 
-                const body = new URLSearchParams({
-                    action: 'wp_alt_ai_generate',
-                    nonce: apiNonce,
-                    attachment_id: card.dataset.id,
-                    save: '1',
-                });
-
                 try {
-                    const res = await fetch(ajaxUrl, { method: 'POST', body });
+                    const res = await fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_generate', nonce: apiNonce, attachment_id: card.dataset.id, save: '1' }) });
                     const data = await res.json();
+                    if (!data.success) throw new Error(data.data || 'Errore sconosciuto');
 
-                    if (!data.success) {
-                        throw new Error(data.data || 'Errore sconosciuto');
-                    }
-
-                    // Aggiorna i campi visibili nella card
                     const altIn = card.querySelector('.alt-input');
                     const titIn = card.querySelector('.title-input');
                     if (altIn) altIn.value = data.data.alt || '';
                     if (titIn) titIn.value = data.data.title || '';
                     card.classList.add('ai-generated', 'is-saved');
-
-                    // Rimuovi la card con animazione
-                    setTimeout(() => {
-                        card.style.transition = 'opacity 0.5s, transform 0.5s';
-                        card.style.opacity = '0';
-                        card.style.transform = 'scale(0.95)';
-                        setTimeout(() => card.remove(), 500);
-                    }, 600);
-
+                    setTimeout(() => { card.style.transition = 'opacity .5s, transform .5s'; card.style.opacity = '0'; card.style.transform = 'scale(.96)'; setTimeout(() => card.remove(), 500); }, 700);
                 } catch (e) {
                     toast('Errore: ' + e.message, 'error');
                     btn.innerHTML = '✦ Genera e salva';
@@ -2595,72 +2464,53 @@ function wp_alt_ai_admin_page()
                 }
             }
 
+            document.querySelectorAll('.wpb-img-btn-gen').forEach(b => b.addEventListener('click', () => generateForCard(b.closest('.wpb-img-card'))));
 
-
-            document.querySelectorAll('.wpb-btn-gen').forEach(b => b.addEventListener('click', () => generateForCard(b.closest('.wpb-card'))));
-
-            // ── Gestione job bulk background ──────────────────────────────────────
+            /* ── Polling job bulk ── */
             let pollInterval = null;
-
-            function startPolling() {
-                if (pollInterval) return;
-                pollInterval = setInterval(pollJobStatus, 4000);
-            }
-            function stopPolling() {
-                if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-            }
+            const startPolling = () => { if (!pollInterval) pollInterval = setInterval(pollJobStatus, 4000); };
+            const stopPolling = () => { if (pollInterval) { clearInterval(pollInterval); pollInterval = null; } };
 
             async function pollJobStatus() {
                 try {
                     const res = await fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_job_status', nonce: apiNonce }) });
                     const data = await res.json();
                     if (!data.success) { stopPolling(); return; }
-
                     const job = data.data;
                     const wrap = document.getElementById('bulk-progress-wrap');
                     const bar = document.getElementById('bulk-progress-bar');
                     const txt = document.getElementById('bulk-progress-text');
                     const stxt = document.getElementById('bulk-status-text');
-
                     if (!wrap) { stopPolling(); return; }
 
                     const processed = (job.done || 0) + (job.errors || 0);
                     const total = job.total || 0;
                     const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
-
                     wrap.style.display = 'block';
                     bar.style.width = pct + '%';
 
                     if (job.status === 'running') {
-                        if (stxt) stxt.textContent = `Elaborazione in corso: ${processed} / ${total} immagini`;
-                        txt.textContent = `${processed} / ${total} elaborate — ${job.done || 0} ✓${job.errors > 0 ? '  ' + job.errors + ' ✗' : ''}`;
-                        bar.style.background = '#2271b1';
+                        if (stxt) stxt.textContent = 'Elaborazione in corso: ' + processed + ' / ' + total + ' immagini';
+                        txt.textContent = processed + ' / ' + total + ' elaborate — ' + (job.done || 0) + ' ✓' + (job.errors > 0 ? '  ' + job.errors + ' ✗' : '');
                     } else if (job.status === 'done') {
                         bar.style.width = '100%';
-                        bar.style.background = job.errors > 0 ? '#d63638' : '#00a32a';
-                        txt.textContent = `✓ Completato — ${job.done || 0} salvate${job.errors > 0 ? ', ' + job.errors + ' errori (vedi Log)' : ''}`;
+                        bar.style.background = job.errors > 0 ? '#dc2626' : '#059669';
+                        txt.textContent = '✓ Completato — ' + (job.done || 0) + ' salvate' + (job.errors > 0 ? ', ' + job.errors + ' errori (vedi Log)' : '');
                         if (stxt) stxt.textContent = 'Elaborazione completata';
                         stopPolling();
-                        // Cancella il job sul server, poi ricarica una sola volta
                         setTimeout(async () => {
                             await fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_dismiss_job', nonce: apiNonce }) });
                             location.reload();
-                        }, 2500);
-                    } else {
-                        stopPolling();
-                    }
-                } catch (_) { /* silently ignore network errors during polling */ }
+                        }, 2800);
+                    } else { stopPolling(); }
+                } catch (_) { }
             }
 
-            // Avvia polling se c'è un job in corso al caricamento della pagina
             <?php $job = wp_alt_ai_get_job(); ?>
-            <?php if ($job && $job['status'] === 'running'): ?>
-                startPolling();
-            <?php elseif ($job && $job['status'] === 'done'): ?>
-                // Job completato: pulisci dopo 4s senza ricaricare in loop
+                <?php if ($job && $job['status'] === 'running'): ?> startPolling(); <?php endif; ?>
+            <?php if ($job && $job['status'] === 'done'): ?>
                 setTimeout(function () {
-                    fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_dismiss_job', nonce: apiNonce }) })
-                        .then(function () { location.reload(); });
+                    fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_dismiss_job', nonce: apiNonce }) }).then(() => location.reload());
                 }, 4000);
             <?php endif; ?>
 
@@ -2668,20 +2518,17 @@ function wp_alt_ai_admin_page()
             if (bulkGenBtn) {
                 bulkGenBtn.addEventListener('click', async () => {
                     bulkGenBtn.disabled = true;
-                    bulkGenBtn.innerHTML = '<div class="wpb-spinner" style="border-top-color:#1d2327;border-color:rgba(0,0,0,.15);display:inline-block;margin-right:6px;vertical-align:middle;width:12px;height:12px;"></div> Avvio…';
-
+                    bulkGenBtn.innerHTML = '<div class="wpb-spinner" style="border-top-color:#111827;border-color:rgba(0,0,0,.15);display:inline-block;margin-right:6px;width:12px;height:12px;vertical-align:middle;"></div> Avvio…';
                     try {
                         const res = await fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wp_alt_ai_bulk_start', nonce: apiNonce }) });
                         const data = await res.json();
                         if (!data.success) throw new Error(data.data || 'Errore avvio job');
-
-                        toast('✓ Elaborazione avviata in background — puoi continuare a lavorare');
-                        // Ricarica per mostrare la barra di stato
+                        toast('✓ Elaborazione avviata in background');
                         setTimeout(() => location.reload(), 800);
                     } catch (err) {
                         toast('Errore: ' + err.message, 'error');
                         bulkGenBtn.disabled = false;
-                        bulkGenBtn.innerHTML = '✦ Genera e salva tutte in background';
+                        bulkGenBtn.innerHTML = '✦ Genera tutte in background';
                     }
                 });
             }
@@ -2697,48 +2544,10 @@ function wp_alt_ai_admin_page()
                 });
             }
 
-
-
-            /* ── Provider switcher: mostra/nascondi chiave e modelli ── */
-            function switchProvider(pval) {
-                document.querySelectorAll('.provider-key-group, .provider-model-group').forEach(el => {
-                    el.style.display = el.dataset.provider === pval ? '' : 'none';
-                });
-                // Seleziona automaticamente il primo modello del provider appena attivato
-                const activeGroup = document.querySelector('.provider-model-group[data-provider="' + pval + '"]');
-                if (activeGroup) {
-                    const radios = activeGroup.querySelectorAll('input[type=radio]');
-                    const anyChecked = [...radios].some(r => r.checked);
-                    if (!anyChecked && radios.length) radios[0].checked = true;
-                    syncModelLabels(activeGroup);
-                }
-                // Highlight provider labels
-                document.querySelectorAll('.provider-label').forEach(lbl => {
-                    const checked = lbl.querySelector('input').checked;
-                    lbl.style.borderColor = checked ? '#1a1a1a' : '#e8e8e8';
-                    lbl.style.background = checked ? '#fafafa' : '#fff';
-                });
-            }
-            document.querySelectorAll('input[name="wp_alt_ai_provider"]').forEach(radio => {
-                radio.addEventListener('change', () => switchProvider(radio.value));
-            });
-
-            /* ── Highlight model radio on click ── */
-            function syncModelLabels(scope) {
-                (scope || document).querySelectorAll('.model-option-label').forEach(lbl => {
-                    const checked = lbl.querySelector('input').checked;
-                    lbl.style.borderColor = checked ? '#1a1a1a' : '#e8e8e8';
-                    lbl.style.background = checked ? '#fafafa' : '#fff';
-                });
-            }
-            document.querySelectorAll('input[name="wp_alt_ai_model"]').forEach(radio => {
-                radio.addEventListener('change', () => syncModelLabels());
-            });
-
             /* ── Filtro log ── */
-            document.querySelectorAll('.wpb-log-filter').forEach(btn => {
+            document.querySelectorAll('.wpb-chip').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    document.querySelectorAll('.wpb-log-filter').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.wpb-chip').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     const filter = btn.dataset.filter;
                     document.querySelectorAll('#log-table tbody tr').forEach(row => {

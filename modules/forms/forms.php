@@ -411,7 +411,7 @@ function wpb_forms_shortcode($atts)
         }
 
         .wpb-req {
-            color: #d63638;
+            color: #dc2626;
         }
 
         .wpb-form-wrap input[type=text],
@@ -423,8 +423,8 @@ function wpb_forms_shortcode($atts)
             width: 100%;
             padding: 10px 14px;
             font-size: 14px;
-            border: 1px solid #c3c4c7;
-            border-radius: 4px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
             background: #fff;
             box-sizing: border-box;
             transition: border-color .15s;
@@ -434,7 +434,7 @@ function wpb_forms_shortcode($atts)
         .wpb-form-wrap select:focus,
         .wpb-form-wrap textarea:focus {
             outline: none;
-            border-color: #2271b1;
+            border-color: #111827;
             box-shadow: 0 0 0 2px rgba(34, 113, 177, .15);
         }
 
@@ -456,10 +456,10 @@ function wpb_forms_shortcode($atts)
             padding: 11px 28px;
             font-size: 15px;
             font-weight: 600;
-            background: #2271b1;
+            background: #111827;
             color: #fff;
             border: none;
-            border-radius: 4px;
+            border-radius: 10px;
             cursor: pointer;
             transition: background .15s;
         }
@@ -475,21 +475,21 @@ function wpb_forms_shortcode($atts)
 
         .wpb-form-msg {
             padding: 12px 16px;
-            border-radius: 4px;
+            border-radius: 10px;
             font-size: 14px;
             margin-top: 12px;
         }
 
         .wpb-form-msg.success {
-            background: #edfaef;
-            border: 1px solid #00a32a;
-            color: #00a32a;
+            background: #dcfce7;
+            border: 1px solid #059669;
+            color: #059669;
         }
 
         .wpb-form-msg.error {
-            background: #fcf0f1;
+            background: #fee2e2;
             border: 1px solid #d63638;
-            color: #d63638;
+            color: #dc2626;
         }
     </style>
 
@@ -2002,7 +2002,7 @@ add_action('admin_menu', function () {
         'wp-barrio-forms',
         'wpb_forms_admin_page'
     );
-}, 11);
+}, 14);
 
 /* ─────────────────────────────────────────
    ENQUEUE: wp.media nella pagina Forms
@@ -2048,13 +2048,15 @@ function wpb_forms_admin_page()
     <style>
         #wpb-forms-wrap {
             max-width: 1200px;
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
         }
 
         .wpb-forms-table-wrap {
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
         }
 
         .wpb-forms-table {
@@ -2064,21 +2066,22 @@ function wpb_forms_admin_page()
         }
 
         .wpb-forms-table th {
-            background: #f0f0f1;
-            padding: 9px 14px;
+            background: #f9fafb;
+            padding: 10px 14px;
             text-align: left;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: .4px;
-            color: #50575e;
-            border-bottom: 1px solid #c3c4c7;
+            letter-spacing: .5px;
+            color: #6b7280;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .wpb-forms-table td {
-            padding: 10px 14px;
-            border-bottom: 1px solid #f0f0f1;
+            padding: 11px 14px;
+            border-bottom: 1px solid #f3f4f6;
             vertical-align: middle;
+            color: #374151;
         }
 
         .wpb-forms-table tr:last-child td {
@@ -2086,7 +2089,7 @@ function wpb_forms_admin_page()
         }
 
         .wpb-forms-table tr:hover td {
-            background: #fafafa;
+            background: #f9fafb;
         }
 
         /* ── Pill lingue nella lista form ── */
@@ -2105,7 +2108,7 @@ function wpb_forms_admin_page()
 
         .wpb-form-langs-label {
             font-size: 11px;
-            color: #a7aaad;
+            color: #9ca3af;
             margin-right: 3px;
         }
 
@@ -2116,7 +2119,7 @@ function wpb_forms_admin_page()
             font-size: 11px;
             font-weight: 600;
             padding: 2px 7px;
-            border-radius: 3px;
+            border-radius: 8px;
             border: 1px solid;
         }
 
@@ -2136,15 +2139,15 @@ function wpb_forms_admin_page()
 
         .wpb-lang-pill.missing {
             background: #fff;
-            border-color: #c3c4c7;
-            color: #646970;
+            border-color: #e5e7eb;
+            color: #6b7280;
             cursor: pointer;
         }
 
         .wpb-lang-pill.missing:hover {
             background: #f0f6fc;
             border-color: #72aee6;
-            color: #2271b1;
+            color: #111827;
         }
 
         .wpb-lang-pill.missing .wpb-lang-add {
@@ -2160,14 +2163,14 @@ function wpb_forms_admin_page()
 
         text-align: center;
         padding: 48px 20px;
-        color: #646970;
+        color: #6b7280;
         }
 
         .wpb-forms-empty .dashicons {
             font-size: 48px;
             width: 48px;
             height: 48px;
-            color: #c3c4c7;
+            color: #e5e7eb;
         }
 
         .wpb-sub-count {
@@ -2176,13 +2179,13 @@ function wpb_forms_admin_page()
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
-            background: #f0f0f1;
-            color: #1d2327;
+            background: #f3f4f6;
+            color: #111827;
         }
 
         .wpb-sub-count.has-subs {
-            background: #edfaef;
-            color: #00a32a;
+            background: #dcfce7;
+            color: #059669;
         }
 
         /* ── BUILDER ── */
@@ -2190,15 +2193,15 @@ function wpb_forms_admin_page()
             display: grid;
             grid-template-columns: 240px 1fr 280px;
             gap: 0;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             overflow: hidden;
             background: #fff;
         }
 
         .wpb-panel-fields {
-            background: #f6f7f7;
-            border-right: 1px solid #c3c4c7;
+            background: #f9fafb;
+            border-right: 1px solid #e5e7eb;
             overflow-y: auto;
             height: 100%;
         }
@@ -2208,7 +2211,7 @@ function wpb_forms_admin_page()
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: .5px;
-            color: #646970;
+            color: #6b7280;
             padding: 14px 16px 10px;
             border-bottom: 1px solid #e0e0e0;
             margin: 0;
@@ -2226,7 +2229,7 @@ function wpb_forms_admin_page()
             cursor: pointer;
             font-size: 13px;
             font-family: inherit;
-            color: #1d2327;
+            color: #111827;
             text-align: left;
             transition: background .1s;
         }
@@ -2238,7 +2241,7 @@ function wpb_forms_admin_page()
         .wpb-ft-icon {
             width: 28px;
             height: 28px;
-            border-radius: 4px;
+            border-radius: 10px;
             background: #e0e0e0;
             display: flex;
             align-items: center;
@@ -2255,7 +2258,7 @@ function wpb_forms_admin_page()
             padding: 20px;
             background: #fafafa;
             overflow-y: auto;
-            border-right: 1px solid #c3c4c7;
+            border-right: 1px solid #e5e7eb;
             height: 100%;
             box-sizing: border-box;
         }
@@ -2265,21 +2268,21 @@ function wpb_forms_admin_page()
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: .5px;
-            color: #646970;
+            color: #6b7280;
             margin: 0 0 14px;
         }
 
         .wpb-canvas-drop-zone {
             min-height: 380px;
-            border: 2px dashed #c3c4c7;
-            border-radius: 4px;
+            border: 2px dashed #e5e7eb;
+            border-radius: 10px;
             padding: 10px;
             transition: border-color .15s, background .15s;
         }
 
         .wpb-canvas-drop-zone.drag-over {
-            border-color: #2271b1;
-            background: rgba(34, 113, 177, .04);
+            border-color: #111827;
+            background: rgba(17, 24, 39, .03);
         }
 
         .wpb-canvas-empty {
@@ -2288,7 +2291,7 @@ function wpb_forms_admin_page()
             align-items: center;
             justify-content: center;
             height: 260px;
-            color: #a7aaad;
+            color: #9ca3af;
             pointer-events: none;
         }
 
@@ -2306,7 +2309,7 @@ function wpb_forms_admin_page()
         .wpb-field-card {
             background: #fff;
             border: 1px solid #d0d5dd;
-            border-radius: 3px;
+            border-radius: 8px;
             margin-bottom: 8px;
             cursor: grab;
             transition: box-shadow .1s, border-color .1s;
@@ -2317,7 +2320,7 @@ function wpb_forms_admin_page()
         }
 
         .wpb-field-card.selected {
-            border-color: #2271b1;
+            border-color: #111827;
             box-shadow: 0 0 0 2px rgba(34, 113, 177, .2);
         }
 
@@ -2330,11 +2333,11 @@ function wpb_forms_admin_page()
             align-items: center;
             gap: 8px;
             padding: 9px 12px;
-            border-bottom: 1px solid #f0f0f1;
+            border-bottom: 1px solid #f3f4f6;
         }
 
         .wpb-drag-handle {
-            color: #a7aaad;
+            color: #9ca3af;
             cursor: grab;
             font-size: 16px;
             line-height: 1;
@@ -2352,17 +2355,17 @@ function wpb_forms_admin_page()
 
         .wpb-field-card-type {
             font-size: 10px;
-            color: #646970;
-            background: #f0f0f1;
+            color: #6b7280;
+            background: #f3f4f6;
             padding: 1px 7px;
-            border-radius: 3px;
+            border-radius: 8px;
         }
 
         .wpb-btn-remove-field {
             background: none;
             border: none;
             cursor: pointer;
-            color: #d63638;
+            color: #dc2626;
             font-size: 18px;
             padding: 0 2px;
             line-height: 1;
@@ -2384,9 +2387,9 @@ function wpb_forms_admin_page()
             width: 100%;
             padding: 5px 8px;
             border: 1px solid #d0d5dd;
-            border-radius: 3px;
+            border-radius: 8px;
             font-size: 12px;
-            color: #a7aaad;
+            color: #9ca3af;
             background: #fafafa;
             pointer-events: none;
             box-sizing: border-box;
@@ -2404,10 +2407,10 @@ function wpb_forms_admin_page()
             justify-content: space-between;
             padding: 5px 8px;
             border: 1px solid #d0d5dd;
-            border-radius: 3px;
+            border-radius: 8px;
             background: #fafafa;
             font-size: 12px;
-            color: #a7aaad;
+            color: #9ca3af;
         }
 
         /* Preview radio / checkbox */
@@ -2422,14 +2425,14 @@ function wpb_forms_admin_page()
             align-items: center;
             gap: 7px;
             font-size: 12px;
-            color: #646970;
+            color: #6b7280;
         }
 
         .wpb-preview-radio,
         .wpb-preview-checkbox {
             width: 13px;
             height: 13px;
-            border: 1.5px solid #c3c4c7;
+            border: 1.5px solid #e5e7eb;
             flex-shrink: 0;
             background: #fff;
         }
@@ -2449,10 +2452,10 @@ function wpb_forms_admin_page()
             justify-content: space-between;
             padding: 5px 8px;
             border: 1px solid #d0d5dd;
-            border-radius: 3px;
+            border-radius: 8px;
             background: #fafafa;
             font-size: 12px;
-            color: #a7aaad;
+            color: #9ca3af;
         }
 
         /* Preview file */
@@ -2462,10 +2465,10 @@ function wpb_forms_admin_page()
             gap: 7px;
             padding: 5px 8px;
             border: 1px solid #d0d5dd;
-            border-radius: 3px;
+            border-radius: 8px;
             background: #fafafa;
             font-size: 12px;
-            color: #a7aaad;
+            color: #9ca3af;
         }
 
         .wpb-panel-props {
@@ -2478,11 +2481,11 @@ function wpb_forms_admin_page()
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: .5px;
-            color: #646970;
+            color: #6b7280;
             padding: 14px 16px 10px;
             border-bottom: 1px solid #e0e0e0;
             margin: 0;
-            background: #f6f7f7;
+            background: #f9fafb;
         }
 
         .wpb-props-inner {
@@ -2497,7 +2500,7 @@ function wpb_forms_admin_page()
             display: block;
             font-size: 11px;
             font-weight: 600;
-            color: #50575e;
+            color: #374151;
             margin-bottom: 5px;
         }
 
@@ -2507,8 +2510,8 @@ function wpb_forms_admin_page()
         .wpb-prop-group select {
             width: 100%;
             padding: 6px 9px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             font-size: 12px;
             font-family: inherit;
             background: #fff;
@@ -2519,8 +2522,7 @@ function wpb_forms_admin_page()
         .wpb-prop-group textarea:focus,
         .wpb-prop-group select:focus {
             outline: none;
-            border-color: #2271b1;
-            box-shadow: 0 0 0 1px #2271b1;
+            border-color: #111827;
         }
 
         .wpb-prop-check {
@@ -2528,7 +2530,7 @@ function wpb_forms_admin_page()
             align-items: center;
             gap: 8px;
             font-size: 12px;
-            color: #1d2327;
+            color: #111827;
             cursor: pointer;
             font-weight: 400;
         }
@@ -2536,7 +2538,7 @@ function wpb_forms_admin_page()
         .wpb-no-field-selected {
             text-align: center;
             padding: 40px 16px;
-            color: #a7aaad;
+            color: #9ca3af;
             font-size: 13px;
         }
 
@@ -2560,15 +2562,14 @@ function wpb_forms_admin_page()
             padding: 7px 12px;
             font-size: 15px;
             font-weight: 600;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             font-family: inherit;
         }
 
         .wpb-builder-title-input:focus {
             outline: none;
-            border-color: #2271b1;
-            box-shadow: 0 0 0 1px #2271b1;
+            border-color: #111827;
         }
 
         /* Opzioni lista */
@@ -2589,14 +2590,14 @@ function wpb_forms_admin_page()
             flex: 1;
             padding: 4px 7px;
             font-size: 12px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
         }
 
         .wpb-btn-rm-opt {
             background: none;
             border: none;
-            color: #d63638;
+            color: #dc2626;
             cursor: pointer;
             font-size: 16px;
             line-height: 1;
@@ -2606,31 +2607,31 @@ function wpb_forms_admin_page()
         .wpb-btn-add-opt {
             font-size: 11px;
             background: none;
-            border: 1px dashed #c3c4c7;
-            border-radius: 3px;
+            border: 1px dashed #e5e7eb;
+            border-radius: 8px;
             padding: 4px 10px;
             cursor: pointer;
-            color: #646970;
+            color: #6b7280;
             margin-top: 4px;
             width: 100%;
         }
 
         .wpb-btn-add-opt:hover {
-            border-color: #2271b1;
-            color: #2271b1;
+            border-color: #111827;
+            color: #111827;
         }
 
         /* ── Logica condizionale (Gravity Forms-style) ── */
         .wpb-cond-section {
             margin-top: 16px;
             padding-top: 14px;
-            border-top: 1px solid #f0f0f1;
+            border-top: 1px solid #f3f4f6;
         }
 
         .wpb-cond-section-title {
             font-size: 11px;
             font-weight: 600;
-            color: #50575e;
+            color: #374151;
             text-transform: uppercase;
             letter-spacing: .4px;
             margin: 0 0 10px;
@@ -2644,7 +2645,7 @@ function wpb_forms_admin_page()
             margin-bottom: 10px;
             font-size: 12px;
             font-weight: 600;
-            color: #1d2327;
+            color: #111827;
         }
 
         .wpb-cl-enable-row input[type=checkbox] {
@@ -2671,8 +2672,8 @@ function wpb_forms_admin_page()
         .wpb-cond-row input[type=text] {
             padding: 4px 6px;
             font-size: 11px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             background: #fff;
             font-family: inherit;
         }
@@ -2695,7 +2696,7 @@ function wpb_forms_admin_page()
             background: none;
             border: none;
             cursor: pointer;
-            color: #d63638;
+            color: #dc2626;
             font-size: 15px;
             line-height: 1;
             padding: 0 2px;
@@ -2710,18 +2711,18 @@ function wpb_forms_admin_page()
         .wpb-btn-add-cond {
             font-size: 11px;
             background: none;
-            border: 1px dashed #c3c4c7;
-            border-radius: 3px;
+            border: 1px dashed #e5e7eb;
+            border-radius: 8px;
             padding: 4px 10px;
             cursor: pointer;
-            color: #646970;
+            color: #6b7280;
             width: 100%;
             font-family: inherit;
         }
 
         .wpb-btn-add-cond:hover {
-            border-color: #2271b1;
-            color: #2271b1;
+            border-color: #111827;
+            color: #111827;
         }
 
         /* ══ Translation mode ══════════════════════════════════════════ */
@@ -2821,7 +2822,7 @@ function wpb_forms_admin_page()
 
         .wpb-builder-tabs {
             display: flex;
-            border-bottom: 1px solid #c3c4c7;
+            border-bottom: 1px solid #e5e7eb;
             margin-bottom: 16px;
         }
 
@@ -2833,13 +2834,13 @@ function wpb_forms_admin_page()
             border: none;
             border-bottom: 2px solid transparent;
             cursor: pointer;
-            color: #646970;
+            color: #6b7280;
             margin-bottom: -1px;
         }
 
         .wpb-btab.active {
-            color: #2271b1;
-            border-bottom-color: #2271b1;
+            color: #111827;
+            border-bottom-color: #111827;
             font-weight: 600;
         }
 
@@ -2854,23 +2855,23 @@ function wpb_forms_admin_page()
 
         .wpb-reg-count {
             font-size: 13px;
-            color: #646970;
+            color: #6b7280;
         }
 
         .wpb-reg-empty {
             text-align: center;
             padding: 48px 20px;
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
-            color: #646970;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            color: #6b7280;
             font-size: 13px;
         }
 
         .wpb-reg-table-wrap {
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             overflow: hidden;
             overflow-x: auto;
             width: 100%;
@@ -2884,7 +2885,7 @@ function wpb_forms_admin_page()
         }
 
         .wpb-reg-table thead tr {
-            background: #f0f0f1;
+            background: #f3f4f6;
         }
 
         .wpb-reg-table th {
@@ -2894,14 +2895,14 @@ function wpb_forms_admin_page()
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: .4px;
-            color: #50575e;
-            border-bottom: 1px solid #c3c4c7;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
             white-space: nowrap;
         }
 
         .wpb-reg-table td {
             padding: 9px 12px;
-            border-bottom: 1px solid #f0f0f1;
+            border-bottom: 1px solid #f3f4f6;
             vertical-align: top;
             font-size: 12px;
             max-width: 220px;
@@ -2911,7 +2912,7 @@ function wpb_forms_admin_page()
         }
 
         .wpb-reg-table td.wpb-reg-cell-empty {
-            color: #c3c4c7;
+            color: #e5e7eb;
             font-style: italic;
         }
 
@@ -2928,7 +2929,7 @@ function wpb_forms_admin_page()
         }
 
         .wpb-reg-table td:first-child {
-            color: #a7aaad;
+            color: #9ca3af;
             font-size: 11px;
             width: 40px;
         }
@@ -2940,19 +2941,19 @@ function wpb_forms_admin_page()
 
         .wpb-reg-date {
             font-size: 11px;
-            color: #646970;
+            color: #6b7280;
             white-space: nowrap;
         }
 
         .wpb-check-on {
             padding: 1px 0;
-            color: #00a32a;
+            color: #059669;
             font-weight: 600;
         }
 
         .wpb-check-off {
             padding: 1px 0;
-            color: #a7aaad;
+            color: #9ca3af;
         }
 
         .wpb-check-summary {
@@ -2961,8 +2962,8 @@ function wpb_forms_admin_page()
             border-radius: 10px;
             font-size: 11px;
             font-weight: 600;
-            background: #f0f0f1;
-            color: #646970;
+            background: #f3f4f6;
+            color: #6b7280;
         }
 
         /* Toggle dopo-invio */
@@ -2970,8 +2971,8 @@ function wpb_forms_admin_page()
             display: flex;
             gap: 0;
             margin-bottom: 10px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             overflow: hidden;
         }
 
@@ -2982,10 +2983,10 @@ function wpb_forms_admin_page()
             font-weight: 600;
             font-family: inherit;
             border: none;
-            border-right: 1px solid #c3c4c7;
+            border-right: 1px solid #e5e7eb;
             cursor: pointer;
-            background: #f6f7f7;
-            color: #646970;
+            background: #f9fafb;
+            color: #6b7280;
             transition: all .1s;
         }
 
@@ -2994,15 +2995,15 @@ function wpb_forms_admin_page()
         }
 
         .wpb-ast-btn.active {
-            background: #2271b1;
+            background: #111827;
             color: #fff;
         }
 
         /* Submissions */
         .wpb-sub-table-wrap {
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             overflow: hidden;
             overflow-x: auto;
         }
@@ -3015,20 +3016,20 @@ function wpb_forms_admin_page()
         }
 
         .wpb-sub-table th {
-            background: #f0f0f1;
+            background: #f3f4f6;
             padding: 8px 12px;
             text-align: left;
             font-weight: 600;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: .4px;
-            color: #50575e;
-            border-bottom: 1px solid #c3c4c7;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .wpb-sub-table td {
             padding: 9px 12px;
-            border-bottom: 1px solid #f0f0f1;
+            border-bottom: 1px solid #f3f4f6;
             vertical-align: top;
             font-size: 12px;
         }
@@ -3044,15 +3045,15 @@ function wpb_forms_admin_page()
         /* Dettaglio submission */
         .wpb-sub-detail-wrap {
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             max-width: 760px;
             width: 60%;
         }
 
         .wpb-sub-detail-header {
             padding: 16px 20px;
-            border-bottom: 1px solid #f0f0f1;
+            border-bottom: 1px solid #f3f4f6;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -3062,13 +3063,13 @@ function wpb_forms_admin_page()
         .wpb-sub-detail-header h3 {
             margin: 0;
             font-size: 14px;
-            color: #1d2327;
+            color: #111827;
         }
 
         .wpb-sub-detail-meta {
             padding: 12px 20px;
-            background: #f6f7f7;
-            border-bottom: 1px solid #f0f0f1;
+            background: #f9fafb;
+            border-bottom: 1px solid #f3f4f6;
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
@@ -3076,11 +3077,11 @@ function wpb_forms_admin_page()
 
         .wpb-sub-detail-meta span {
             font-size: 12px;
-            color: #646970;
+            color: #6b7280;
         }
 
         .wpb-sub-detail-meta strong {
-            color: #1d2327;
+            color: #111827;
         }
 
         .wpb-sub-detail-fields {
@@ -3091,7 +3092,7 @@ function wpb_forms_admin_page()
             display: grid;
             grid-template-columns: 200px 1fr;
             padding: 12px 20px;
-            border-bottom: 1px solid #f0f0f1;
+            border-bottom: 1px solid #f3f4f6;
             gap: 16px;
         }
 
@@ -3102,7 +3103,7 @@ function wpb_forms_admin_page()
         .wpb-sub-detail-label {
             font-size: 12px;
             font-weight: 600;
-            color: #50575e;
+            color: #374151;
             text-transform: uppercase;
             letter-spacing: .3px;
             padding-top: 1px;
@@ -3110,23 +3111,23 @@ function wpb_forms_admin_page()
 
         .wpb-sub-detail-value {
             font-size: 13px;
-            color: #1d2327;
+            color: #111827;
             word-break: break-word;
             white-space: pre-wrap;
         }
 
         .wpb-sub-detail-value.wpb-empty {
-            color: #a7aaad;
+            color: #9ca3af;
             font-style: italic;
         }
 
         .wpb-sub-detail-sep {
             padding: 10px 20px;
-            background: #f0f0f1;
+            background: #f3f4f6;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: .5px;
-            color: #50575e;
+            color: #374151;
             text-transform: uppercase;
             border-bottom: 1px solid #e0e0e0;
         }
@@ -3134,8 +3135,8 @@ function wpb_forms_admin_page()
         /* ── Rinvia notifica ── */
         .wpb-resend-wrap {
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             max-width: 760px;
             margin-top: 14px;
             overflow: hidden;
@@ -3145,14 +3146,14 @@ function wpb_forms_admin_page()
 
         .wpb-resend-header {
             padding: 14px 20px;
-            border-bottom: 1px solid #f0f0f1;
-            background: #f6f7f7;
+            border-bottom: 1px solid #f3f4f6;
+            background: #f9fafb;
         }
 
         .wpb-resend-header h4 {
             margin: 0;
             font-size: 13px;
-            color: #1d2327;
+            color: #111827;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -3174,7 +3175,7 @@ function wpb_forms_admin_page()
             display: block;
             font-size: 12px;
             font-weight: 600;
-            color: #50575e;
+            color: #374151;
             margin-bottom: 5px;
         }
 
@@ -3183,8 +3184,8 @@ function wpb_forms_admin_page()
             width: 100%;
             max-width: 400px;
             padding: 7px 10px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             font-size: 13px;
             font-family: inherit;
             background: #fff;
@@ -3194,13 +3195,12 @@ function wpb_forms_admin_page()
         .wpb-resend-field select:focus,
         .wpb-resend-field input:focus {
             outline: none;
-            border-color: #2271b1;
-            box-shadow: 0 0 0 1px #2271b1;
+            border-color: #111827;
         }
 
         .wpb-resend-field .description {
             font-size: 11px;
-            color: #a7aaad;
+            color: #9ca3af;
             margin: 4px 0 0;
         }
 
@@ -3218,8 +3218,8 @@ function wpb_forms_admin_page()
         /* ── Notifiche ── */
         .wpb-notif-card {
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 4px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
             margin-bottom: 10px;
             overflow: hidden;
             transition: box-shadow .15s;
@@ -3230,7 +3230,7 @@ function wpb_forms_admin_page()
         }
 
         .wpb-notif-card.is-open {
-            border-color: #2271b1;
+            border-color: #111827;
         }
 
         .wpb-notif-header {
@@ -3240,19 +3240,19 @@ function wpb_forms_admin_page()
             padding: 12px 16px;
             cursor: pointer;
             user-select: none;
-            background: #f6f7f7;
+            background: #f9fafb;
         }
 
         .wpb-notif-card.is-open .wpb-notif-header {
-            background: #f0f6fc;
-            border-bottom: 1px solid #c8d8f0;
+            background: #f9fafb;
+            border-bottom: 1px solid #f3f4f6;
         }
 
         .wpb-notif-header-icon {
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: #2271b1;
+            background: #111827;
             color: #fff;
             display: flex;
             align-items: center;
@@ -3269,7 +3269,7 @@ function wpb_forms_admin_page()
         .wpb-notif-header-title {
             font-size: 13px;
             font-weight: 600;
-            color: #1d2327;
+            color: #111827;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -3277,7 +3277,7 @@ function wpb_forms_admin_page()
 
         .wpb-notif-header-sub {
             font-size: 11px;
-            color: #646970;
+            color: #6b7280;
             margin-top: 2px;
         }
 
@@ -3290,7 +3290,7 @@ function wpb_forms_admin_page()
 
         .wpb-notif-chevron {
             font-size: 11px;
-            color: #646970;
+            color: #6b7280;
             transition: transform .2s;
             display: block;
         }
@@ -3303,7 +3303,7 @@ function wpb_forms_admin_page()
             background: none;
             border: none;
             cursor: pointer;
-            color: #d63638;
+            color: #dc2626;
             font-size: 16px;
             padding: 0 2px;
             line-height: 1;
@@ -3338,10 +3338,10 @@ function wpb_forms_admin_page()
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .6px;
-            color: #a7aaad;
+            color: #9ca3af;
             margin: 0 0 10px;
             padding-bottom: 7px;
-            border-bottom: 1px solid #f0f0f1;
+            border-bottom: 1px solid #f3f4f6;
         }
 
         .wpb-notif-grid {
@@ -3363,20 +3363,20 @@ function wpb_forms_admin_page()
         .wpb-notif-field>label {
             font-size: 11px;
             font-weight: 600;
-            color: #50575e;
+            color: #374151;
         }
 
         .wpb-notif-field .opt {
             font-weight: 400;
-            color: #a7aaad;
+            color: #9ca3af;
             margin-left: 4px;
         }
 
         .wpb-notif-field input,
         .wpb-notif-field textarea {
             padding: 7px 9px;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             font-size: 12px;
             font-family: inherit;
             width: 100%;
@@ -3388,8 +3388,7 @@ function wpb_forms_admin_page()
         .wpb-notif-field input:focus,
         .wpb-notif-field textarea:focus {
             outline: none;
-            border-color: #2271b1;
-            box-shadow: 0 0 0 1px #2271b1;
+            border-color: #111827;
         }
 
         .wpb-notif-field textarea {
@@ -3399,7 +3398,7 @@ function wpb_forms_admin_page()
 
         .wpb-notif-field .hint {
             font-size: 11px;
-            color: #a7aaad;
+            color: #9ca3af;
             margin: 0;
         }
 
@@ -3416,11 +3415,11 @@ function wpb_forms_admin_page()
             align-items: center;
             gap: 3px;
             padding: 2px 7px;
-            background: #f0f6fc;
-            border: 1px solid #c8d8f0;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
             border-radius: 12px;
             font-size: 10px;
-            color: #2271b1;
+            color: #374151;
             font-weight: 600;
             cursor: pointer;
             transition: background .1s, border-color .1s;
@@ -3429,8 +3428,8 @@ function wpb_forms_admin_page()
         }
 
         .wpb-field-var-pill:hover {
-            background: #dbeafe;
-            border-color: #2271b1;
+            background: #f9fafb;
+            border-color: #111827;
         }
 
         .wpb-notif-empty-state {
@@ -3438,8 +3437,8 @@ function wpb_forms_admin_page()
             padding: 40px 20px;
             background: #fff;
             border: 2px dashed #e0e0e0;
-            border-radius: 4px;
-            color: #a7aaad;
+            border-radius: 10px;
+            color: #9ca3af;
         }
 
         .wpb-notif-empty-state .dashicons {
@@ -3464,9 +3463,9 @@ function wpb_forms_admin_page()
             width: 100%;
             padding: 11px;
             background: #fff;
-            border: 1px dashed #2271b1;
-            border-radius: 4px;
-            color: #2271b1;
+            border: 1px dashed #d1d5db;
+            border-radius: 10px;
+            color: #6b7280;
             font-size: 13px;
             font-weight: 600;
             font-family: inherit;
@@ -3476,7 +3475,9 @@ function wpb_forms_admin_page()
         }
 
         .wpb-notif-add-btn:hover {
-            background: #f0f6fc;
+            background: #f9fafb;
+            border-color: #111827;
+            color: #111827;
         }
 
         /* Toast */
@@ -3487,7 +3488,7 @@ function wpb_forms_admin_page()
             background: #1d2327;
             color: #fff;
             padding: 10px 18px;
-            border-radius: 3px;
+            border-radius: 8px;
             font-size: 13px;
             font-weight: 500;
             z-index: 9999;
@@ -3495,7 +3496,7 @@ function wpb_forms_admin_page()
             transform: translateY(6px);
             transition: all .2s;
             pointer-events: none;
-            border-left: 4px solid #00a32a;
+            border-left: 4px solid #059669;
         }
 
         #wpb-forms-toast.show {
@@ -3504,7 +3505,7 @@ function wpb_forms_admin_page()
         }
 
         #wpb-forms-toast.error {
-            border-left-color: #d63638;
+            border-left-color: #dc2626;
         }
 
         /* ── Modale conferma elimina campo ── */
@@ -3524,7 +3525,7 @@ function wpb_forms_admin_page()
 
         .wpb-modal-box {
             background: #fff;
-            border-radius: 4px;
+            border-radius: 10px;
             padding: 28px 28px 22px;
             max-width: 380px;
             width: 90%;
@@ -3536,7 +3537,7 @@ function wpb_forms_admin_page()
             font-size: 32px;
             width: 48px;
             height: 48px;
-            background: #fcf0f1;
+            background: #fee2e2;
             border-radius: 50%;
             display: inline-flex;
             align-items: center;
@@ -3547,12 +3548,12 @@ function wpb_forms_admin_page()
         .wpb-modal-box h3 {
             font-size: 15px;
             margin: 0 0 8px;
-            color: #1d2327;
+            color: #111827;
         }
 
         .wpb-modal-box p {
             font-size: 13px;
-            color: #646970;
+            color: #6b7280;
             margin: 0 0 20px;
             line-height: 1.5;
         }
@@ -3569,15 +3570,15 @@ function wpb_forms_admin_page()
             font-family: inherit;
             font-weight: 600;
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             cursor: pointer;
-            color: #1d2327;
+            color: #111827;
             transition: border-color .1s;
         }
 
         .wpb-modal-btn-cancel:hover {
-            border-color: #1d2327;
+            border-color: #111827;
         }
 
         .wpb-modal-btn-confirm {
@@ -3587,7 +3588,7 @@ function wpb_forms_admin_page()
             font-weight: 600;
             background: #d63638;
             border: 1px solid #d63638;
-            border-radius: 3px;
+            border-radius: 8px;
             cursor: pointer;
             color: #fff;
             transition: background .1s;
@@ -3621,6 +3622,81 @@ function wpb_forms_admin_page()
             flex-wrap: wrap;
             justify-content: space-between;
         }
+
+
+        /* Small button variants */
+        .wpb-frm-btn-sm-ghost {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 12px;
+            font-size: 12.5px;
+            font-weight: 600;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            border-radius: 7px;
+            cursor: pointer;
+            text-decoration: none !important;
+            font-family: inherit;
+            transition: background .15s;
+            line-height: 1.4;
+        }
+
+        .wpb-frm-btn-sm-ghost:hover {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .wpb-frm-btn-sm-danger {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 12px;
+            font-size: 12.5px;
+            font-weight: 600;
+            background: #fff;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+            border-radius: 7px;
+            cursor: pointer;
+            text-decoration: none !important;
+            font-family: inherit;
+            transition: background .15s;
+            line-height: 1.4;
+        }
+
+        .wpb-frm-btn-sm-danger:hover {
+            background: #fee2e2;
+        }
+
+        /* ── WP Barrio Forms v7 — button styles ── */
+        .wpb-frm-btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            background: #111827;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity .15s;
+            text-decoration: none;
+        }
+
+        .wpb-frm-btn-primary:hover {
+            opacity: .85;
+            color: #fff;
+        }
+
+        .wpb-frm-btn-primary:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
     </style>
 
     <div id="wpb-forms-wrap" class="wrap<?php echo ($is_translation_mode ?? false) ? ' wpb-translation-mode' : ''; ?>">
@@ -3629,40 +3705,97 @@ function wpb_forms_admin_page()
         $mj_missing = empty(trim($mj_global['api_key'] ?? '')) || empty(trim($mj_global['secret_key'] ?? ''));
         if ($mj_missing): ?>
             <div
-                style="background:#fcf9e8;border:1px solid #dba617;border-left:4px solid #dba617;border-radius:3px;padding:30px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:16px;color:#6e4e00;">
+                style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;font-size:13px;color:#92400e;">
                 <span class="dashicons dashicons-warning" style="color:#dba617;font-size:18px;width:18px;height:18px;"></span>
                 <span>Le credenziali Mailjet non sono configurate.
                     <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms&tab=settings')); ?>"
                         style="color:#6e4e00;font-weight:600;">Vai alle impostazioni &rarr;</a></span>
             </div>
         <?php endif; ?>
-        <h1 class="wp-heading-inline">
-            <span class="dashicons dashicons-feedback"
-                style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
-            WP Barrio <span style="font-size:15px;font-weight:400;color:#646970;margin-left:4px;">/ Forms</span>
-        </h1>
+        <style>
+            .wpb-frm-header {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                margin-bottom: 8px;
+            }
+
+            .wpb-frm-header-icon {
+                width: 40px;
+                height: 40px;
+                background: #111827;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .wpb-frm-header-icon .dashicons {
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+                color: #fff;
+            }
+
+            .wpb-frm-header h1 {
+                font-size: 22px !important;
+                font-weight: 700 !important;
+                color: #111827 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                line-height: 1.2 !important;
+            }
+
+            .wpb-frm-breadcrumb {
+                font-size: 14px;
+                font-weight: 400;
+                color: #9ca3af;
+                margin-left: 4px;
+            }
+
+            .wpb-frm-sub {
+                font-size: 13px;
+                color: #6b7280;
+                margin: 2px 0 0;
+            }
+
+            .wpb-frm-divider {
+                border: none;
+                border-top: 1px solid #f3f4f6;
+                margin: 14px 0 20px;
+            }
+        </style>
+        <div class="wpb-frm-header">
+            <div class="wpb-frm-header-icon"><span class="dashicons dashicons-feedback"></span></div>
+            <div>
+                <h1>WP Barrio <span class="wpb-frm-breadcrumb">/ Forms</span></h1>
+                <p class="wpb-frm-sub">Builder drag &amp; drop per form di contatto</p>
+            </div>
+        </div>
+        <hr class="wpb-frm-divider">
 
         <?php if ($tab === 'list' || $tab === 'settings'): ?>
             <?php if ($tab === 'list'): ?>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms&tab=builder')); ?>"
-                    class="page-title-action">+ Nuovo form</a>
+                <div style="margin-bottom:16px;"><a
+                        href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms&tab=builder')); ?>"
+                        class="wpb-btn wpb-btn-primary wpb-btn-sm">+ Nuovo form</a></div>
             <?php endif; ?>
-            <hr class="wp-header-end" style="margin-bottom:20px;">
-
-            <nav class="nav-tab-wrapper" style="margin-bottom:20px;">
-                <a href="?page=wp-barrio-forms" class="nav-tab <?php echo $tab === 'list' ? 'nav-tab-active' : ''; ?>">Form</a>
+            <div class="wpb-tabs">
+                <a href="?page=wp-barrio-forms" class="wpb-tab <?php echo $tab === 'list' ? 'active' : ''; ?>"><span
+                        class="dashicons dashicons-feedback"></span> Form</a>
                 <a href="?page=wp-barrio-forms&tab=settings"
-                    class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>">Impostazioni</a>
-            </nav>
-        <?php else: ?>
-            <hr class="wp-header-end" style="margin-bottom:20px;">
+                    class="wpb-tab <?php echo $tab === 'settings' ? 'active' : ''; ?>"><span
+                        class="dashicons dashicons-admin-settings"></span> Impostazioni</a>
+            </div>
         <?php endif; ?>
 
         <?php /* ══════ IMPOSTAZIONI GLOBALI ══════ */ if ($tab === 'settings'):
             $mj_opts = get_option('wpb_forms_mailjet', []);
             ?>
             <div style="max-width:600px;">
-                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;margin-bottom:20px;">
+                <div
+                    style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
                     <h3
                         style="margin:0 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;display:flex;align-items:center;gap:8px;">
                         <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"
@@ -3693,7 +3826,7 @@ function wpb_forms_admin_page()
                                             value="<?php echo esc_attr($mj_opts['secret_key'] ?? ''); ?>"
                                             placeholder="es. 9z8y7x6w..." autocomplete="new-password" spellcheck="false">
                                         <button type="button"
-                                            style="background:none;border:1px solid #c3c4c7;border-radius:3px;padding:5px 9px;cursor:pointer;color:#646970;font-size:12px;white-space:nowrap;"
+                                            style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:7px;padding:6px 12px;cursor:pointer;color:#374151;font-size:12px;white-space:nowrap;font-family:inherit;"
                                             onclick="(function(){var i=document.getElementById('wpb-global-mj-secret-key');i.type=i.type==='password'?'text':'password';})();">Mostra</button>
                                     </div>
                                 </td>
@@ -3701,16 +3834,17 @@ function wpb_forms_admin_page()
                         </tbody>
                     </table>
                     <p style="margin:16px 0 0;">
-                        <button type="button" class="button button-primary" id="wpb-btn-save-global">
+                        <button type="button" class="wpb-frm-btn-primary" id="wpb-btn-save-global">
                             Salva impostazioni
                         </button>
-                        <span id="wpb-global-saved-msg" style="display:none;margin-left:10px;color:#00a32a;font-size:13px;">✓
+                        <span id="wpb-global-saved-msg" style="display:none;margin-left:10px;color:#059669;font-size:13px;">✓
                             Salvato</span>
                     </p>
                 </div>
 
                 <!-- MailUp card -->
-                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;margin-bottom:20px;">
+                <div
+                    style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
                     <h3
                         style="margin:0 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;display:flex;align-items:center;gap:8px;">
                         <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"
@@ -3742,10 +3876,10 @@ function wpb_forms_admin_page()
                         </tbody>
                     </table>
                     <p style="margin:16px 0 0;">
-                        <button type="button" class="button button-primary" id="wpb-btn-save-global-mu">
+                        <button type="button" class="wpb-frm-btn-primary" id="wpb-btn-save-global-mu">
                             Salva impostazioni MailUp
                         </button>
-                        <span id="wpb-global-saved-msg-mu" style="display:none;margin-left:10px;color:#00a32a;font-size:13px;">✓
+                        <span id="wpb-global-saved-msg-mu" style="display:none;margin-left:10px;color:#059669;font-size:13px;">✓
                             Salvato</span>
                     </p>
                 </div>
@@ -3819,7 +3953,7 @@ function wpb_forms_admin_page()
                         <p style="font-size:13px;color:#a7aaad;margin:0 0 16px;">Crea il tuo primo form di contatto in pochi click.
                         </p>
                         <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms&tab=builder')); ?>"
-                            class="button button-primary">+ Crea il primo form</a>
+                            class="wpb-frm-btn-primary">+ Crea il primo form</a>
                     </div>
                 <?php else: ?>
                     <table class="wpb-forms-table">
@@ -3841,7 +3975,8 @@ function wpb_forms_admin_page()
                                     <td style="color:#a7aaad;font-size:11px;"><?php echo intval($f->id); ?></td>
                                     <td>
                                         <strong>
-                                            <a href="<?php echo esc_url($edit_url); ?>" style="text-decoration:none;">
+                                            <a href="<?php echo esc_url($edit_url); ?>"
+                                                style="text-decoration:none;color:#111827;font-weight:600;">
                                                 <?php echo esc_html($f->title); ?>
                                             </a>
                                         </strong>
@@ -3857,9 +3992,8 @@ function wpb_forms_admin_page()
                                         <?php echo date_i18n('d/m/Y', strtotime($f->created_at)); ?>
                                     </td>
                                     <td>
-                                        <a href="<?php echo esc_url($edit_url); ?>" class="button button-small">Modifica</a>
-                                        <button class="button button-small wpb-btn-delete-form"
-                                            style="color:#d63638;border-color:#d63638;margin-left:4px;"
+                                        <a href="<?php echo esc_url($edit_url); ?>" class="wpb-frm-btn-sm-ghost">Modifica</a>
+                                        <button class="wpb-frm-btn-sm-danger wpb-btn-delete-form"
                                             data-id="<?php echo intval($f->id); ?>"
                                             data-title="<?php echo esc_attr($f->title); ?>">Elimina</button>
                                     </td>
@@ -3987,11 +4121,11 @@ function wpb_forms_admin_page()
             ?>
 
             <div class="wpb-builder-actions">
-                <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms')); ?>" class="button">← Tutti i
-                    form</a>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms')); ?>" class="wpb-frm-btn-sm-ghost">←
+                    Tutti i form</a>
                 <input type="text" id="wpb-form-title" class="wpb-builder-title-input"
                     value="<?php echo esc_attr($edit_form ? $edit_form->title : ''); ?>" placeholder="Nome del form…" <?php echo $is_translation_mode ? 'disabled style="opacity:.5;"' : ''; ?>>
-                <button class="button button-primary" id="wpb-btn-save-form">
+                <button class="wpb-frm-btn-primary" id="wpb-btn-save-form">
                     <?php echo $is_translation_mode ? 'Salva traduzione' : 'Salva form'; ?>
                 </button>
             </div>
@@ -4007,9 +4141,9 @@ function wpb_forms_admin_page()
                 }
                 ?>
                 <div
-                    style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid #c3c4c7;border-radius:3px;">
+                    style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:9px;">
                     <span class="dashicons dashicons-translation"
-                        style="font-size:16px;width:16px;height:16px;color:#2271b1;flex-shrink:0;"></span>
+                        style="font-size:16px;width:16px;height:16px;color:#6b7280;flex-shrink:0;"></span>
                     <label for="wpb-form-lang-select" style="font-size:13px;font-weight:600;color:#1d2327;margin:0;">Lingua:</label>
                     <select id="wpb-form-lang-select" style="min-width:180px;font-size:13px;">
                         <?php foreach ($editor_langs as $lc => $label): ?>
@@ -4021,7 +4155,7 @@ function wpb_forms_admin_page()
                     </select>
                     <?php if ($is_translation_mode): ?>
                         <span
-                            style="font-size:12px;color:#0a4b78;background:#f0f6fc;padding:4px 10px;border-radius:3px;border:1px solid #c6d9ef;">
+                            style="font-size:12px;color:#1e40af;background:#eff6ff;padding:4px 10px;border-radius:20px;border:1px solid #bfdbfe;">
                             Stai modificando la traduzione in
                             <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>.
                             Struttura, logica e impostazioni ereditate dall'originale.
@@ -4046,10 +4180,10 @@ function wpb_forms_admin_page()
                     <!-- Sx: tipi campo / disclaimer traduzione -->
                     <?php if ($is_translation_mode): ?>
                         <div class="wpb-panel-fields"
-                            style="background:#f0f6fc;border:1px solid #c6d9ef;border-radius:3px;padding:20px 16px;display:flex;flex-direction:column;gap:0;">
+                            style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:18px 16px;display:flex;flex-direction:column;gap:0;">
                             <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">
                                 <span class="dashicons dashicons-translation"
-                                    style="font-size:20px;width:20px;height:20px;color:#2271b1;flex-shrink:0;margin-top:2px;"></span>
+                                    style="font-size:20px;width:20px;height:20px;color:#6b7280;flex-shrink:0;margin-top:2px;"></span>
                                 <strong style="font-size:13px;color:#1d2327;">Modalità traduzione</strong>
                             </div>
                             <p style="font-size:12px;color:#0a4b78;margin:0 0 10px;line-height:1.6;">
@@ -4126,7 +4260,8 @@ function wpb_forms_admin_page()
             <div id="wpb-tab-settings" style="display:none;">
 
                 <!-- Impostazioni generali -->
-                <div style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;max-width:540px;">
+                <div
+                    style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;max-width:540px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
                     <h3
                         style="margin:0 0 16px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;">
                         Impostazioni generali</h3>
@@ -4169,7 +4304,7 @@ function wpb_forms_admin_page()
 
                 <!-- MailUp per-form card -->
                 <div
-                    style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;max-width:540px;margin-top:20px;">
+                    style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;max-width:540px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-top:20px;">
                     <h3
                         style="margin:0 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;display:flex;align-items:center;gap:8px;">
                         <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"
@@ -4227,7 +4362,7 @@ function wpb_forms_admin_page()
 
                         <!-- Campo opt-in newsletter -->
                         <div
-                            style="margin-bottom:24px;padding:16px;background:#f6f7f7;border-radius:3px;border:1px solid #e2e4e7;">
+                            style="margin-bottom:24px;padding:16px;background:#f9fafb;border-radius:9px;border:1px solid #e5e7eb;">
                             <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
                                 for="wpb-setting-mailup-optin-field">
                                 Campo opt-in newsletter
@@ -4237,7 +4372,7 @@ function wpb_forms_admin_page()
                                 MailUp avviene <strong>solo se questo campo checkbox è spuntato</strong> al momento dell'invio.
                                 Lascia vuoto per iscrivere sempre.</p>
                             <select id="wpb-setting-mailup-optin-field"
-                                style="width:100%;max-width:340px;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                                style="width:100%;max-width:340px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;">
                                 <option value="">— Iscrivi sempre —</option>
                             </select>
                             <p class="description" style="margin-top:6px;">Seleziona il campo <strong>checkbox</strong> del form
@@ -4268,7 +4403,7 @@ function wpb_forms_admin_page()
                             </div>
                             <div id="wpb-mailup-field-map-rows"></div>
                             <button type="button" id="wpb-mailup-add-map-row"
-                                style="margin-top:8px;background:none;border:1px dashed #c3c4c7;border-radius:3px;padding:6px 14px;cursor:pointer;font-size:12px;color:#646970;width:100%;text-align:center;">
+                                style="margin-top:8px;background:none;border:1px dashed #d1d5db;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;color:#6b7280;width:100%;text-align:center;font-family:inherit;">
                                 + Aggiungi mappatura campo
                             </button>
                             <p class="description" style="margin-top:8px;">
@@ -4289,7 +4424,7 @@ function wpb_forms_admin_page()
 
                 <!-- Impostazioni globali email -->
                 <div class="email-style-settings"
-                    style="background:#fff;border:1px solid #c3c4c7;border-radius:3px;padding:24px;max-width:600px;margin-bottom:20px;">
+                    style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:24px;max-width:600px;margin-bottom:20px;">
                     <h3
                         style="margin:0 0 16px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#50575e;">
                         Stile email</h3>
@@ -4299,7 +4434,7 @@ function wpb_forms_admin_page()
                                 <th style="width:220px;"><label for="wpb-setting-email-bg-color">Colore di sfondo</label></th>
                                 <td style="display:flex;align-items:center;gap:10px;">
                                     <input type="color" id="wpb-setting-email-bg-color" value="#f4f4f4"
-                                        style="width:44px;height:34px;padding:2px;border:1px solid #c3c4c7;border-radius:3px;cursor:pointer;">
+                                        style="width:44px;height:34px;padding:2px;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;">
                                     <input type="text" id="wpb-setting-email-bg-color-hex" class="small-text"
                                         placeholder="#f4f4f4" maxlength="7" style="width:90px;">
                                 </td>
@@ -4308,7 +4443,7 @@ function wpb_forms_admin_page()
                                 <th><label for="wpb-setting-email-header-color">Colore header</label></th>
                                 <td style="display:flex;align-items:center;gap:10px;">
                                     <input type="color" id="wpb-setting-email-header-color" value="#2271b1"
-                                        style="width:44px;height:34px;padding:2px;border:1px solid #c3c4c7;border-radius:3px;cursor:pointer;">
+                                        style="width:44px;height:34px;padding:2px;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;">
                                     <input type="text" id="wpb-setting-email-header-color-hex" class="small-text"
                                         placeholder="#2271b1" maxlength="7" style="width:90px;">
                                 </td>
@@ -4319,12 +4454,12 @@ function wpb_forms_admin_page()
                                     <div style="display:flex;align-items:center;gap:8px;">
                                         <input type="url" id="wpb-setting-email-logo-url" class="large-text"
                                             placeholder="https://esempio.com/logo.png">
-                                        <button type="button" class="button" id="wpb-btn-media-logo"
+                                        <button type="button" class="wpb-frm-btn-sm-ghost" id="wpb-btn-media-logo"
                                             style="white-space:nowrap;">Scegli immagine</button>
                                     </div>
                                     <div id="wpb-logo-preview" style="margin-top:8px;display:none;">
                                         <img src="" alt="Anteprima logo"
-                                            style="max-width:200px;max-height:60px;border:1px solid #c3c4c7;border-radius:3px;padding:4px;background:#fff;">
+                                            style="max-width:200px;max-height:60px;border:1px solid #e5e7eb;border-radius:8px;padding:4px;background:#fff;">
                                         <button type="button" id="wpb-btn-remove-logo"
                                             style="background:none;border:none;color:#d63638;cursor:pointer;font-size:16px;vertical-align:top;padding:0 4px;"
                                             title="Rimuovi">&times;</button>
@@ -4618,12 +4753,12 @@ function wpb_forms_admin_page()
                         <input type="text" placeholder="slug campo form (es. telefono)"
                             value="${esc(row.form_field || '')}"
                             data-idx="${idx}" data-key="form_field"
-                            style="flex:1;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                            style="flex:1;padding:5px 8px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;">
                         <span style="color:#a7aaad;font-size:18px;line-height:1;flex-shrink:0;">→</span>
                         <input type="text" placeholder="es. Nome"
                             value="${esc(row.mailup_field_name || '')}"
                             data-idx="${idx}" data-key="mailup_field_name"
-                            style="flex:1;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                            style="flex:1;padding:5px 8px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;">
                         <button type="button" data-idx="${idx}"
                             style="background:none;border:none;color:#d63638;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;flex-shrink:0;"
                             title="Rimuovi">×</button>`;
@@ -4823,15 +4958,15 @@ function wpb_forms_admin_page()
                                         <div class="wpb-notif-grid single">
                                             <div class="wpb-notif-field">
                                                 <label>Corpo del messaggio</label>
-                                                <div style="display:flex;gap:0;margin-bottom:8px;border:1px solid #c3c4c7;border-radius:3px;overflow:hidden;">
+                                                <div style="display:flex;gap:0;margin-bottom:8px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
                                                     <button type="button" class="wpb-msg-mode-btn${!isCustom ? ' active' : ''}"
                                                             data-mode="auto"
-                                                            style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;font-family:inherit;border:none;cursor:pointer;background:${!isCustom ? '#2271b1' : '#f6f7f7'};color:${!isCustom ? '#fff' : '#646970'};">
+                                                            style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;font-family:inherit;border:none;cursor:pointer;background:${!isCustom ? '#111827' : '#f6f7f7'};color:${!isCustom ? '#fff' : '#646970'};">
                                                         Auto (tutti i campi)
                                                     </button>
                                                     <button type="button" class="wpb-msg-mode-btn${isCustom ? ' active' : ''}"
                                                             data-mode="custom"
-                                                            style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;font-family:inherit;border:none;border-left:1px solid #c3c4c7;cursor:pointer;background:${isCustom ? '#2271b1' : '#f6f7f7'};color:${isCustom ? '#fff' : '#646970'};">
+                                                            style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;font-family:inherit;border:none;border-left:1px solid #e5e7eb;cursor:pointer;background:${isCustom ? '#111827' : '#f6f7f7'};color:${isCustom ? '#fff' : '#646970'};">
                                                         Personalizzato
                                                     </button>
                                                 </div>
@@ -4933,7 +5068,7 @@ function wpb_forms_admin_page()
                         // Aggiorna visuale senza re-render completo
                         card.querySelectorAll('.wpb-msg-mode-btn').forEach(b => {
                             const isActive = b.dataset.mode === mode;
-                            b.style.background = isActive ? '#2271b1' : '#f6f7f7';
+                            b.style.background = isActive ? '#111827' : '#f6f7f7';
                             b.style.color = isActive ? '#fff' : '#646970';
                         });
                         const customArea = card.querySelector('.wpb-msg-custom-area');
@@ -5180,19 +5315,19 @@ function wpb_forms_admin_page()
             } else if (f.type === 'file') {
                 preview = `<div class="wpb-preview-file"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 1h6l3 3v9H3V1z" stroke="#a7aaad" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 1v3h3" stroke="#a7aaad" stroke-width="1.2" stroke-linejoin="round"/></svg><span>Scegli file…</span></div>`;
             } else if (f.type === 'page_break') {
-                preview = `<div class="wpb-preview-page-break"><hr style="border:none;border-top:2px dashed #2271b1;margin:0;"><span style="display:block;text-align:center;font-size:11px;color:#2271b1;margin-top:4px;font-weight:600;">↓ Pagina successiva ↓</span></div>`;
+                preview = `<div class="wpb-preview-page-break"><hr style="border:none;border-top:2px dashed #d1d5db;margin:0;"><span style="display:block;text-align:center;font-size:11px;color:#6b7280;margin-top:4px;font-weight:600;">↓ Pagina successiva ↓</span></div>`;
             } else {
                 preview = `<input type="${esc(f.type)}" placeholder="${esc(f.placeholder || f.label)}" disabled>`;
             }
 
             card.innerHTML = `
-                                                                                                                                                                                                                                                                                                                                                                                                                        <div class="wpb-field-card-header">
-                                                                                                                                                                                                                                                                                                                                                                                                                            <span class="wpb-drag-handle">⠿</span>
-                                                                                                                                                                                                                                                                                                                                                                                                                            <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
-                                                                                                                                                                                                                                                                                                                                                                                                                            <span class="wpb-field-card-type">${esc(f.type)}</span>
-                                                                                                                                                                                                                                                                                                                                                                                                                            <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
-                                                                                                                                                                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                        <div class="wpb-field-card-preview">${preview}</div>`;
+                                                                                                                                                                                                                                                                                                                                                                                                                                <div class="wpb-field-card-header">
+                                                                                                                                                                                                                                                                                                                                                                                                                                    <span class="wpb-drag-handle">⠿</span>
+                                                                                                                                                                                                                                                                                                                                                                                                                                    <span class="wpb-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
+                                                                                                                                                                                                                                                                                                                                                                                                                                    <span class="wpb-field-card-type">${esc(f.type)}</span>
+                                                                                                                                                                                                                                                                                                                                                                                                                                    <button class="wpb-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
+                                                                                                                                                                                                                                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                                                                                                                                                                                                                                <div class="wpb-field-card-preview">${preview}</div>`;
 
             card.addEventListener('click', e => { if (!e.target.classList.contains('wpb-btn-remove-field')) selectField(f.id); });
             card.querySelector('.wpb-btn-remove-field').addEventListener('click', e => { e.stopPropagation(); removeField(f.id); });
@@ -5203,7 +5338,7 @@ function wpb_forms_admin_page()
                 e.preventDefault();
                 const mid = card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2;
                 dropZone.querySelectorAll('.wpb-field-card').forEach(c => { c.style.borderTop = c.style.borderBottom = ''; });
-                card.style[e.clientY < mid ? 'borderTop' : 'borderBottom'] = '2px solid #2271b1';
+                card.style[e.clientY < mid ? 'borderTop' : 'borderBottom'] = '2px solid #111827';
             });
             card.addEventListener('dragleave', () => { card.style.borderTop = card.style.borderBottom = ''; });
             card.addEventListener('drop', e => {
@@ -5291,10 +5426,10 @@ function wpb_forms_admin_page()
 
             if (f.type === 'page_break') {
                 propsInner.innerHTML = `<div style="padding:12px 0;text-align:center;color:#646970;">
-                                                                                                                                                                                                                                                                                            <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#2271b1;"></span>
-                                                                                                                                                                                                                                                                                            <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
-                                                                                                                                                                                                                                                                                            <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
-                                                                                                                                                                                                                                                                                        </div>`;
+                                                                                                                                                                                                                                                                                                    <span class="dashicons dashicons-minus" style="font-size:28px;width:28px;height:28px;color:#6b7280;"></span>
+                                                                                                                                                                                                                                                                                                    <p style="margin:8px 0 0;font-size:13px;">Interruzione pagina</p>
+                                                                                                                                                                                                                                                                                                    <p style="margin:4px 0 0;font-size:11px;color:#a7aaad;">Separa i campi in step diversi nel form multistep.</p>
+                                                                                                                                                                                                                                                                                                </div>`;
                 return;
             }
 
@@ -5306,16 +5441,16 @@ function wpb_forms_admin_page()
             const showPlaceholder = (!hasOpts || isSelect) && !isDatepicker && !isFile;
 
             propsInner.innerHTML = `
-                                                                                                                                                                                                    <div class="wpb-prop-group">
-                                                                                                                                                                                                        <label>Etichetta</label>
-                                                                                                                                                                                                        <input type="text" id="prop-label" value="${esc(f.label)}">
-                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                    <div class="wpb-prop-group">
-                                                                                                                                                                                                        <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
-                                                                                                                                                                                                        <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
-                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                    ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
-                                                                                                                                                                                                    ${isNumber ? `
+                                                                                                                                                                                                            <div class="wpb-prop-group">
+                                                                                                                                                                                                                <label>Etichetta</label>
+                                                                                                                                                                                                                <input type="text" id="prop-label" value="${esc(f.label)}">
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            <div class="wpb-prop-group">
+                                                                                                                                                                                                                <label>Name <span style="font-size:10px;color:#a7aaad;font-weight:400;">(attributo HTML, auto-generato dalla label)</span></label>
+                                                                                                                                                                                                                <input type="text" id="prop-name" value="${esc(f.name || '')}" style="font-family:Consolas,monospace;font-size:12px;">
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            ${showPlaceholder ? `<div class="wpb-prop-group"><label>Testo segnaposto</label><input type="text" id="prop-placeholder" value="${esc(f.placeholder || '')}"></div>` : ''}
+                                                                                                                                                                                                            ${isNumber ? `
                 <div class="wpb-prop-group">
                     <label>Valore minimo</label>
                     <input type="number" id="prop-min" value="${esc(f.min ?? '')}">
@@ -5324,36 +5459,36 @@ function wpb_forms_admin_page()
                     <label>Valore massimo</label>
                     <input type="number" id="prop-max" value="${esc(f.max ?? '')}">
                 </div>` : ''}
-                                                                                                                                                                                                    ${isDatepicker ? `
+                                                                                                                                                                                                            ${isDatepicker ? `
                 <div class="wpb-prop-group">
                     <label>Formato data</label>
                     <input type="text" id="prop-format" value="${esc(f.format || 'dd/MM/y')}" placeholder="dd/MM/y">
                     <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Es: dd/MM/y · MM/dd/yyyy · yyyy-MM-dd</p>
                 </div>` : ''}
-                                                                                                                                                                                                    ${hasOpts ? `<div class="wpb-prop-group">
+                                                                                                                                                                                                            ${hasOpts ? `<div class="wpb-prop-group">
                     <label>Opzioni</label>
                     <div class="wpb-options-list" id="wpb-opts-list">
                     ${(f.options || []).map((o, i) => `<div class="wpb-option-row"><input type="text" class="wpb-opt-input" data-idx="${i}" value="${esc(o)}" placeholder="Opzione ${i + 1}"><button class="wpb-btn-rm-opt" data-idx="${i}">×</button></div>`).join('')}
                     </div>
                     <button class="wpb-btn-add-opt" id="wpb-btn-add-opt">+ Aggiungi opzione</button>
                 </div>` : ''}
-                                                                                                                                                                                                    <div class="wpb-prop-group">
-                                                                                                                                                                                                        <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
-                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                    <div class="wpb-prop-group">
-                                                                                                                                                                                                        <label>Messaggio di errore</label>
-                                                                                                                                                                                                        <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
-                                                                                                                                                                                                        <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
-                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                    <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
-                                                                                                                                                                                                        Tipo: <strong>${esc(f.type)}</strong>
-                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                    <div class="wpb-cond-section">
-                                                                                                                                                                                                        <div class="wpb-cond-section-title">
-                                                                                                                                                                                                            <span>Logica condizionale</span>
-                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                        ${renderCondLogicUI(f)}
-                                                                                                                                                                                                    </div>`;
+                                                                                                                                                                                                            <div class="wpb-prop-group">
+                                                                                                                                                                                                                <label class="wpb-prop-check"><input type="checkbox" id="prop-required" ${f.required ? 'checked' : ''}> Campo obbligatorio</label>
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            <div class="wpb-prop-group">
+                                                                                                                                                                                                                <label>Messaggio di errore</label>
+                                                                                                                                                                                                                <input type="text" id="prop-error-message" value="${esc(f.error_message || '')}" placeholder="Questo campo è obbligatorio">
+                                                                                                                                                                                                                <p style="font-size:11px;color:#a7aaad;margin:4px 0 0;">Mostrato se il campo non è compilato correttamente.</p>
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f1;font-size:11px;color:#a7aaad;">
+                                                                                                                                                                                                                Tipo: <strong>${esc(f.type)}</strong>
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            <div class="wpb-cond-section">
+                                                                                                                                                                                                                <div class="wpb-cond-section-title">
+                                                                                                                                                                                                                    <span>Logica condizionale</span>
+                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                ${renderCondLogicUI(f)}
+                                                                                                                                                                                                            </div>`;
 
             const bi = (elId, key) => { const el = document.getElementById(elId); if (el) el.addEventListener('input', () => updateField(f.id, key, el.value)); };
 
@@ -5430,30 +5565,30 @@ function wpb_forms_admin_page()
                 : '';
 
             return `
-                                                                                                                                                            <div class="wpb-cl-wrap">
-                                                                                                                                                                <label class="wpb-cl-enable-row" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
-                                                                                                                                                                    <input type="checkbox" id="cl-enabled" ${enabled ? 'checked' : ''} style="margin:0;">
-                                                                                                                                                                    <span style="font-size:12px;font-weight:600;color:#1d2327;">Abilita logica condizionale</span>
-                                                                                                                                                                </label>
-                                                                                                                                                                <div id="cl-body" style="display:${enabled ? 'block' : 'none'};">
-                                                                                                                                                                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#1d2327;margin-bottom:10px;">
-                                                                                                                                                                        <select id="cl-action" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                                                                                            <option value="show" ${action === 'show' ? 'selected' : ''}>Mostra</option>
-                                                                                                                                                                            <option value="hide" ${action === 'hide' ? 'selected' : ''}>Nascondi</option>
-                                                                                                                                                                        </select>
-                                                                                                                                                                        <span>questo campo se</span>
-                                                                                                                                                                        <select id="cl-logic-type" style="padding:4px 8px;font-size:12px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                                                                                            <option value="all" ${logicType === 'all' ? 'selected' : ''}>tutte</option>
-                                                                                                                                                                            <option value="any" ${logicType === 'any' ? 'selected' : ''}>almeno una</option>
-                                                                                                                                                                        </select>
-                                                                                                                                                                        <span>delle seguenti condizioni sono soddisfatte:</span>
-                                                                                                                                                                    </div>
-                                                                                                                                                                    <div class="wpb-cond-list" id="wpb-cond-list">
-                                                                                                                                                                        ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
-                                                                                                                                                                    </div>
-                                                                                                                                                                    <button type="button" class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
-                                                                                                                                                                </div>
-                                                                                                                                                            </div>`;
+                                                                                                                                                                    <div class="wpb-cl-wrap">
+                                                                                                                                                                        <label class="wpb-cl-enable-row" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+                                                                                                                                                                            <input type="checkbox" id="cl-enabled" ${enabled ? 'checked' : ''} style="margin:0;">
+                                                                                                                                                                            <span style="font-size:12px;font-weight:600;color:#1d2327;">Abilita logica condizionale</span>
+                                                                                                                                                                        </label>
+                                                                                                                                                                        <div id="cl-body" style="display:${enabled ? 'block' : 'none'};">
+                                                                                                                                                                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#1d2327;margin-bottom:10px;">
+                                                                                                                                                                                <select id="cl-action" style="padding:4px 8px;font-size:12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;">
+                                                                                                                                                                                    <option value="show" ${action === 'show' ? 'selected' : ''}>Mostra</option>
+                                                                                                                                                                                    <option value="hide" ${action === 'hide' ? 'selected' : ''}>Nascondi</option>
+                                                                                                                                                                                </select>
+                                                                                                                                                                                <span>questo campo se</span>
+                                                                                                                                                                                <select id="cl-logic-type" style="padding:4px 8px;font-size:12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;">
+                                                                                                                                                                                    <option value="all" ${logicType === 'all' ? 'selected' : ''}>tutte</option>
+                                                                                                                                                                                    <option value="any" ${logicType === 'any' ? 'selected' : ''}>almeno una</option>
+                                                                                                                                                                                </select>
+                                                                                                                                                                                <span>delle seguenti condizioni sono soddisfatte:</span>
+                                                                                                                                                                            </div>
+                                                                                                                                                                            <div class="wpb-cond-list" id="wpb-cond-list">
+                                                                                                                                                                                ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
+                                                                                                                                                                            </div>
+                                                                                                                                                                            <button type="button" class="wpb-btn-add-cond" id="wpb-btn-add-cond">+ Aggiungi regola</button>
+                                                                                                                                                                        </div>
+                                                                                                                                                                    </div>`;
         }
 
         /**
@@ -5509,28 +5644,28 @@ function wpb_forms_admin_page()
                     const valOpts = (selectedField.options || []).map(opt =>
                         `<option value="${esc(opt)}" ${(rule.value || '') === opt ? 'selected' : ''}>${esc(opt)}</option>`
                     ).join('');
-                    valueEl = `<select class="cl-rule-val" data-ri="${ri}" style="flex:1;min-width:80px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                                                                                               <option value="" disabled ${!rule.value ? 'selected' : ''} hidden>Seleziona…</option>
-                                                                                                                                                                               ${valOpts}
-                                                                                                                                                                           </select>`;
+                    valueEl = `<select class="cl-rule-val" data-ri="${ri}" style="flex:1;min-width:80px;padding:4px 6px;font-size:11px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;">
+                                                                                                                                                                                       <option value="" disabled ${!rule.value ? 'selected' : ''} hidden>Seleziona…</option>
+                                                                                                                                                                                       ${valOpts}
+                                                                                                                                                                                   </select>`;
                 } else {
                     valueEl = `<input type="text" class="cl-rule-val" data-ri="${ri}"
-                                                                                                                                                                                  value="${esc(rule.value || '')}" placeholder="Valore…"
-                                                                                                                                                                                  style="flex:1;min-width:80px;padding:4px 7px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;font-family:inherit;">`;
+                                                                                                                                                                                          value="${esc(rule.value || '')}" placeholder="Valore…"
+                                                                                                                                                                                          style="flex:1;min-width:80px;padding:4px 7px;font-size:11px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;">`;
                 }
             }
 
             return `<div class="wpb-cond-row" data-ri="${ri}" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-                                                                                                                                                                    <select class="cl-rule-field" data-ri="${ri}" style="flex:1;min-width:110px;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                                                                                        <option value="" disabled ${!rule.fieldName ? 'selected' : ''} hidden>Campo…</option>
-                                                                                                                                                                        ${fieldOpts || '<option disabled>Nessun campo disponibile</option>'}
-                                                                                                                                                                    </select>
-                                                                                                                                                                    <select class="cl-rule-op" data-ri="${ri}" style="flex:0 0 auto;padding:4px 6px;font-size:11px;border:1px solid #c3c4c7;border-radius:3px;background:#fff;font-family:inherit;">
-                                                                                                                                                                        ${opOpts}
-                                                                                                                                                                    </select>
-                                                                                                                                                                    ${valueEl}
-                                                                                                                                                                    <button type="button" class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi regola" style="padding:2px 6px;font-size:14px;background:none;border:none;cursor:pointer;color:#d63638;flex-shrink:0;">×</button>
-                                                                                                                                                                </div>`;
+                                                                                                                                                                            <select class="cl-rule-field" data-ri="${ri}" style="flex:1;min-width:110px;padding:4px 6px;font-size:11px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;">
+                                                                                                                                                                                <option value="" disabled ${!rule.fieldName ? 'selected' : ''} hidden>Campo…</option>
+                                                                                                                                                                                ${fieldOpts || '<option disabled>Nessun campo disponibile</option>'}
+                                                                                                                                                                            </select>
+                                                                                                                                                                            <select class="cl-rule-op" data-ri="${ri}" style="flex:0 0 auto;padding:4px 6px;font-size:11px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;">
+                                                                                                                                                                                ${opOpts}
+                                                                                                                                                                            </select>
+                                                                                                                                                                            ${valueEl}
+                                                                                                                                                                            <button type="button" class="wpb-btn-rm-cond" data-ri="${ri}" title="Rimuovi regola" style="padding:2px 6px;font-size:14px;background:none;border:none;cursor:pointer;color:#d63638;flex-shrink:0;">×</button>
+                                                                                                                                                                        </div>`;
         }
 
         /* ── Logica condizionale: bind eventi ── */
@@ -5829,7 +5964,7 @@ add_action('admin_menu', function () {
             'wpb_forms_submissions_page'
         );
     }
-}, 12);
+}, 14);
 
 // Nasconde la voce dal menu laterale per gli admin (è accessibile solo via link)
 add_action('admin_head', function () {
@@ -5870,15 +6005,15 @@ function wpb_forms_submissions_page()
 
     .wpb-subs-reg-count {
         font-size: 13px;
-        color: #646970
+        color: #6b7280
     }
 
     .wpb-subs-spinner {
         display: inline-block;
         width: 18px;
         height: 18px;
-        border: 2px solid #c3c4c7;
-        border-top-color: #2271b1;
+        border: 2px solid #e5e7eb;
+        border-top-color: #111827;
         border-radius: 50%;
         animation: wpb-spin .6s linear infinite
     }
@@ -5898,26 +6033,26 @@ function wpb_forms_submissions_page()
         border-collapse: collapse;
         font-size: 13px;
         background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 3px
+        border: 1px solid #e5e7eb;
+        border-radius: 8px
     }
 
     .wpb-subs-reg-table th {
-        background: #f0f0f1;
+        background: #f3f4f6;
         padding: 8px 12px;
         text-align: left;
         font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: .3px;
-        color: #50575e;
-        border-bottom: 1px solid #c3c4c7;
+        color: #374151;
+        border-bottom: 1px solid #e5e7eb;
         white-space: nowrap
     }
 
     .wpb-subs-reg-table td {
         padding: 8px 12px;
-        border-bottom: 1px solid #f0f0f1;
+        border-bottom: 1px solid #f3f4f6;
         max-width: 220px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -5929,7 +6064,7 @@ function wpb_forms_submissions_page()
     }
 
     .wpb-subs-reg-table tr:hover td {
-        background: #f6f7f7
+        background: #f9fafb
     }
 
     .wpb-subs-reg-table tbody tr {
@@ -5937,22 +6072,22 @@ function wpb_forms_submissions_page()
     }
 
     .wpb-subs-reg-cell-empty {
-        color: #a7aaad;
+        color: #9ca3af;
         font-style: italic
     }
 
     .wpb-subs-reg-date {
         font-size: 12px;
-        color: #646970
+        color: #6b7280
     }
 
     .wpb-check-on {
-        color: #00a32a;
+        color: #059669;
         font-weight: 600
     }
 
     .wpb-check-off {
-        color: #a7aaad
+        color: #9ca3af
     }
 
     .wpb-check-summary {
@@ -5961,8 +6096,8 @@ function wpb_forms_submissions_page()
         border-radius: 10px;
         font-size: 11px;
         font-weight: 600;
-        background: #f0f0f1;
-        color: #646970
+        background: #f3f4f6;
+        color: #6b7280
     }
 
     /* Colonne picker */
@@ -5977,8 +6112,8 @@ function wpb_forms_submissions_page()
         left: 0;
         z-index: 99;
         background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 3px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
         box-shadow: 0 3px 10px rgba(0, 0, 0, .1);
         padding: 10px 14px;
         min-width: 200px
@@ -6012,7 +6147,7 @@ function wpb_forms_submissions_page()
         padding: 8px 12px;
         background: #f0f6fc;
         border: 1px solid #c6d9ef;
-        border-radius: 3px;
+        border-radius: 8px;
         margin-bottom: 10px;
         font-size: 13px
     }
@@ -6024,8 +6159,8 @@ function wpb_forms_submissions_page()
     /* Dettaglio */
     .wpb-subs-detail-wrap {
         background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
         overflow: hidden
     }
 
@@ -6034,7 +6169,7 @@ function wpb_forms_submissions_page()
         align-items: center;
         justify-content: space-between;
         padding: 16px 20px;
-        border-bottom: 1px solid #f0f0f1;
+        border-bottom: 1px solid #f3f4f6;
         background: #fafafa
     }
 
@@ -6049,8 +6184,8 @@ function wpb_forms_submissions_page()
         gap: 16px;
         padding: 14px 20px;
         font-size: 12px;
-        color: #646970;
-        border-bottom: 1px solid #f0f0f1;
+        color: #6b7280;
+        border-bottom: 1px solid #f3f4f6;
         background: #f9f9f9
     }
 
@@ -6060,7 +6195,7 @@ function wpb_forms_submissions_page()
 
     .wpb-subs-detail-row {
         display: flex;
-        border-bottom: 1px solid #f0f0f1;
+        border-bottom: 1px solid #f3f4f6;
         font-size: 13px
     }
 
@@ -6074,8 +6209,8 @@ function wpb_forms_submissions_page()
         padding: 12px 20px;
         background: #fafafa;
         font-weight: 600;
-        color: #50575e;
-        border-right: 1px solid #f0f0f1
+        color: #374151;
+        border-right: 1px solid #f3f4f6
     }
 
     .wpb-subs-detail-value {
@@ -6085,7 +6220,7 @@ function wpb_forms_submissions_page()
     }
 
     .wpb-subs-detail-empty {
-        color: #a7aaad;
+        color: #9ca3af;
         font-style: italic
     }
 
@@ -6095,13 +6230,13 @@ function wpb_forms_submissions_page()
         border-radius: 10px;
         font-size: 12px;
         font-weight: 600;
-        background: #f0f0f1;
-        color: #646970
+        background: #f3f4f6;
+        color: #6b7280
     }
 
     .wpb-sub-count.has-subs {
         background: #e7f5e8;
-        color: #00a32a
+        color: #059669
     }
 
     .wpb-subs-table {
@@ -6111,20 +6246,20 @@ function wpb_forms_submissions_page()
     }
 
     .wpb-subs-table th {
-        background: #f0f0f1;
+        background: #f3f4f6;
         padding: 9px 14px;
         text-align: left;
         font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: .4px;
-        color: #50575e;
-        border-bottom: 1px solid #c3c4c7
+        color: #374151;
+        border-bottom: 1px solid #e5e7eb
     }
 
     .wpb-subs-table td {
         padding: 10px 14px;
-        border-bottom: 1px solid #f0f0f1;
+        border-bottom: 1px solid #f3f4f6;
         vertical-align: middle
     }
 
@@ -6138,24 +6273,27 @@ function wpb_forms_submissions_page()
 
     .wpb-subs-table-wrap {
         background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 3px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
         overflow: hidden
     }
 </style>
 
-<div class="wrap" id="wpb-subs-wrap">
-    <h1 class="wp-heading-inline">
-        <span class="dashicons dashicons-list-view"
-            style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
-        Registrazioni Form
-    </h1>
-    <hr class="wp-header-end" style="margin-bottom:20px;">
+<div class="wrap wpb-page" id="wpb-subs-wrap">
+    <div class="wpb-frm-header">
+        <div class="wpb-frm-header-icon"><span class="dashicons dashicons-list-view"></span></div>
+        <div>
+            <h1>Registrazioni Form</h1>
+            <p class="wpb-frm-sub">Elenco completo delle sottomissioni ricevute</p>
+        </div>
+    </div>
+    <hr class="wpb-frm-divider">
 
     <?php if ($view_form): ?>
     <!-- ═══ REGISTRAZIONI DI UN FORM ═══ -->
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms')); ?>" class="button">← Tutti i form</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-forms')); ?>" class="wpb-frm-btn-sm-ghost">←
+            Tutti i form</a>
         <strong style="font-size:14px;"><?php echo esc_html($view_form->title); ?></strong>
     </div>
 
@@ -6173,7 +6311,7 @@ function wpb_forms_submissions_page()
         <?php endif; ?>
 
         <div class="wpb-col-picker">
-            <button type="button" class="button" id="wpb-col-picker-btn">
+            <button type="button" class="wpb-frm-btn-sm-ghost" id="wpb-col-picker-btn">
                 <span class="dashicons dashicons-visibility"
                     style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;"></span>
                 Colonne
@@ -6185,19 +6323,19 @@ function wpb_forms_submissions_page()
             </div>
         </div>
 
-        <button type="button" class="button button-small" id="wpb-select-all-btn" style="display:none;">
+        <button type="button" class="wpb-frm-btn-sm-ghost" id="wpb-select-all-btn" style="display:none;">
             Seleziona tutto
         </button>
     </div>
 
     <div class="wpb-bulk-bar" id="wpb-bulk-bar">
         <span id="wpb-bulk-count"></span>
-        <button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="wpb-bulk-delete-btn">
+        <button type="button" class="wpb-frm-btn-sm-danger" id="wpb-bulk-delete-btn">
             <span class="dashicons dashicons-trash"
                 style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span>
             Elimina selezionati
         </button>
-        <button type="button" class="button" id="wpb-bulk-cancel-btn">Annulla</button>
+        <button type="button" class="wpb-frm-btn-sm-ghost" id="wpb-bulk-cancel-btn">Annulla</button>
     </div>
 
     <div id="wpb-subs-content"><span class="wpb-subs-spinner"></span> Caricamento…</div>
@@ -6353,7 +6491,7 @@ function wpb_forms_submissions_page()
 
                     tbody += '<td><span class="wpb-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
                     tbody += '<td onclick="event.stopPropagation()" style="width:32px;padding:4px 8px;">'
-                        + '<button type="button" class="button button-small wpb-del-single" data-id="' + sub.id + '" title="Elimina" style="color:#d63638;border-color:#d63638;padding:2px 6px;">'
+                        + '<button type="button" class="wpb-frm-btn-sm-danger wpb-del-single" data-id="' + sub.id + '" title="Elimina">'
                         + '<span class="dashicons dashicons-trash" style="font-size:12px;width:12px;height:12px;"></span>'
                         + '</button></td>';
                     tbody += '</tr>';
@@ -6514,8 +6652,8 @@ function wpb_forms_submissions_page()
                     '<div class="wpb-subs-detail-header">' +
                     '<h3>Registrazione #' + sub.id + '</h3>' +
                     '<div style="display:flex;gap:8px;">' +
-                    '<button type="button" class="button" id="wpb-detail-back">← Lista</button>' +
-                    '<button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="wpb-detail-del">🗑 Elimina</button>' +
+                    '<button type="button" class="wpb-frm-btn-sm-ghost" id="wpb-detail-back">← Lista</button>' +
+                    '<button type="button" class="wpb-frm-btn-sm-danger" id="wpb-detail-del">🗑 Elimina</button>' +
                     '</div></div>' +
                     '<div class="wpb-subs-detail-meta">' + metaItems.map(m => '<span>' + m + '</span>').join('') + '</div>' +
                     '<div class="wpb-subs-detail-fields">' + fieldsHtml + '</div>' +
@@ -6567,7 +6705,7 @@ function wpb_forms_submissions_page()
                         <?php echo date_i18n('d/m/Y', strtotime($f->created_at)); ?>
                     </td>
                     <td>
-                        <a href="<?php echo esc_url($subs_url); ?>" class="button button-small">Vedi registrazioni</a>
+                        <a href="<?php echo esc_url($subs_url); ?>" class="wpb-frm-btn-sm-ghost">Vedi registrazioni</a>
                     </td>
                 </tr>
                 <?php endforeach; ?>
