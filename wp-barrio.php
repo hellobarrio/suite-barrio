@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  WP Barrio
  * Description:  WP Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      6.0.0
+ * Version:      7.2.0
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -13,9 +13,23 @@ if (!defined('ABSPATH'))
    exit;
 
 /* ─────────────────────────────────────────
+   CSS CONDIVISO: caricato su tutte le pagine WP Barrio
+   ───────────────────────────────────────── */
+add_action('admin_enqueue_scripts', function ($hook) {
+   if (strpos($hook, 'wp-barrio') === false)
+      return;
+   wp_enqueue_style(
+      'wpb-admin',
+      WP_ALT_AI_PLUGIN_URL . 'assets/css/wpb-admin.css',
+      [],
+      WP_ALT_AI_VERSION
+   );
+});
+
+/* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('WP_ALT_AI_VERSION', '6.0.0');
+define('WP_ALT_AI_VERSION', '7.2.0');
 define('WP_ALT_AI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_ALT_AI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WP_ALT_AI_LOG_OPTION', 'wp_alt_ai_log');

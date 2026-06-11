@@ -21,7 +21,7 @@ add_action('admin_menu', function () {
         'wp-barrio-auto-fields',
         'wpb_auto_fields_page'
     );
-}, 12);
+}, 11);
 
 /* ═══════════════════════════════════════════════════════════════
    AJAX ENDPOINTS
@@ -1208,709 +1208,1046 @@ function wpb_auto_fields_page()
         $loc_options['page_template'][] = ['value' => $f, 'label' => $n];
     foreach ($pages as $p)
         $loc_options['page'][] = ['value' => (string) $p->ID, 'label' => $p->post_title];
-
     ?>
-    <div class="wrap" id="wpb-af-wrap">
-        <h1>
-            <span class="dashicons dashicons-layout"
-                style="font-size:24px;width:24px;height:24px;margin-right:6px;vertical-align:middle;color:#8c5dce;"></span>
-            Auto Fields
-        </h1>
-        <p class="description" style="font-size:14px;margin:4px 0 24px;">
-            Analizza la struttura HTML di una pagina web e genera automaticamente un gruppo di campi ACF con schede
-            orizzontali e query GraphQL.
-        </p>
+        <style>
+            /* ── WP Barrio Auto Fields v7 — design system identico a dashboard/tools ── */
+            #wpb-af-wrap {
+                font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+                max-width: 1000px;
+            }
 
-        <?php if (!$acf_active): ?>
-            <div class="notice notice-error" style="margin-bottom:20px;">
-                <p><strong>ACF non rilevato.</strong>
-                    Installa e attiva <a
-                        href="<?php echo esc_url(admin_url('plugin-install.php?s=advanced+custom+fields&tab=search')); ?>">Advanced
-                        Custom Fields</a> per utilizzare questa funzionalità.</p>
-            </div>
-        <?php endif; ?>
+            /* ── Header ── */
+            .wpb-header {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                margin-bottom: 8px;
+            }
 
-        <!-- Step 1: URL -->
-        <div class="wpb-af-card">
-            <h2>1. Analizza pagina</h2>
-            <p>Inserisci l'URL della pagina web da analizzare. Verranno rilevate tutte le sezioni, testi, immagini e
-                repeater.</p>
-            <div style="display:flex;gap:8px;align-items:flex-start;">
-                <input type="url" id="wpb-af-url" placeholder="https://www.example.com/pagina"
-                    style="flex:1;min-width:300px;padding:8px 12px;font-size:14px;border:1px solid #8c8f94;border-radius:4px;">
-                <button id="wpb-af-analyze" class="button button-primary" <?php echo $acf_active ? '' : 'disabled'; ?>>
-                    <span class="dashicons dashicons-search"
-                        style="vertical-align:middle;margin-right:4px;font-size:16px;width:16px;height:16px;"></span>
-                    Analizza
-                </button>
-            </div>
-            <div id="wpb-af-analyze-status" style="margin-top:12px;display:none;"></div>
-        </div>
+            .wpb-header-icon {
+                width: 40px;
+                height: 40px;
+                background: #111827;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
 
-        <!-- Step 2: Preview -->
-        <div id="wpb-af-preview" class="wpb-af-card" style="display:none;">
-            <h2>2. Anteprima campi rilevati</h2>
-            <p>Modifica nomi, tipi ed etichette. Rimuovi i campi non necessari. I campi sono raggruppati per sezione (=
-                scheda ACF).</p>
-            <div id="wpb-af-sections"></div>
-        </div>
+            .wpb-header-icon .dashicons {
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+                color: #fff;
+            }
 
-        <!-- Step 3: Generate -->
-        <div id="wpb-af-generate-section" class="wpb-af-card" style="display:none;">
-            <h2>3. Genera gruppo campi ACF</h2>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-                <div>
-                    <label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Nome gruppo ACF</label>
-                    <input type="text" id="wpb-af-group-title" placeholder="Es. Homepage, Chi Siamo, Servizi…"
-                        style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #8c8f94;border-radius:4px;">
-                </div>
-                <div>
-                    <label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Assegna a</label>
-                    <div style="display:flex;gap:8px;">
-                        <select id="wpb-af-loc-type" style="padding:8px 12px;border:1px solid #8c8f94;border-radius:4px;">
-                            <option value="post_type">Tipo di contenuto</option>
-                            <option value="page_template">Template pagina</option>
-                            <option value="page">Pagina specifica</option>
-                        </select>
-                        <select id="wpb-af-loc-value"
-                            style="flex:1;padding:8px 12px;border:1px solid #8c8f94;border-radius:4px;">
-                            <?php foreach ($post_types as $pt): ?>
-                                <option value="<?php echo esc_attr($pt->name); ?>"><?php echo esc_html($pt->label); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <button id="wpb-af-generate" class="button button-primary button-hero">
-                <span class="dashicons dashicons-hammer"
-                    style="vertical-align:middle;margin-right:6px;font-size:20px;width:20px;height:20px;"></span>
-                Genera campi ACF + Query GraphQL
-            </button>
-            <div id="wpb-af-generate-status" style="margin-top:12px;display:none;"></div>
-        </div>
+            .wpb-header h1 {
+                font-size: 22px !important;
+                font-weight: 700 !important;
+                color: #111827 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                line-height: 1.2 !important;
+            }
 
-        <!-- Step 4: Result -->
-        <div id="wpb-af-result" class="wpb-af-card" style="display:none;">
-            <h2>4. Risultato</h2>
-            <div id="wpb-af-result-info"></div>
-            <div style="margin-top:20px;">
-                <label style="font-weight:600;font-size:13px;display:block;margin-bottom:8px;">Query GraphQL</label>
-                <div style="position:relative;">
-                    <pre id="wpb-af-graphql"
-                        style="background:#1d2327;color:#d4d4d4;padding:20px;border-radius:4px;overflow-x:auto;font-size:13px;font-family:'Fira Code',Consolas,monospace;line-height:1.6;max-height:500px;overflow-y:auto;margin:0;"></pre>
-                    <button id="wpb-af-copy" class="button"
-                        style="position:absolute;top:8px;right:8px;font-size:11px;padding:4px 12px;">
-                        Copia
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+            .wpb-header-breadcrumb {
+                font-size: 14px;
+                font-weight: 400;
+                color: #9ca3af;
+                margin-left: 4px;
+            }
 
-    <style>
-        #wpb-af-wrap {
-            max-width: 1000px;
-        }
+            .wpb-header-sub {
+                font-size: 13px;
+                color: #6b7280;
+                margin: 2px 0 0;
+            }
 
-        .wpb-af-card {
-            background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 4px;
-            padding: 20px 24px;
-            margin-bottom: 16px;
-        }
+            .wpb-divider {
+                border: none;
+                border-top: 1px solid #f3f4f6;
+                margin: 14px 0 24px;
+            }
 
-        .wpb-af-card h2 {
-            margin: 0 0 8px;
-            font-size: 16px;
-            color: #1d2327;
-        }
+            /* ── Notice ── */
+            .wpb-notice {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                border-radius: 10px;
+                padding: 14px 18px;
+                font-size: 13px;
+                line-height: 1.5;
+                margin-bottom: 20px;
+            }
 
-        .wpb-af-card>p {
-            color: #646970;
-            font-size: 13px;
-            margin: 0 0 16px;
-        }
+            .wpb-notice .dashicons {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+                flex-shrink: 0;
+                margin-top: 1px;
+            }
 
-        /* Section card */
-        .wpb-af-section-card {
-            border: 1px solid #dcdcde;
-            border-radius: 4px;
-            margin-bottom: 12px;
-            overflow: hidden;
-        }
+            .wpb-notice-error {
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                color: #991b1b;
+            }
 
-        .wpb-af-section-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 14px;
-            background: #f6f7f7;
-            border-bottom: 1px solid #dcdcde;
-        }
+            .wpb-notice-error .dashicons {
+                color: #dc2626;
+            }
 
-        .wpb-af-section-label {
-            font-size: 14px;
-            font-weight: 600;
-            border: 1px solid transparent;
-            background: transparent;
-            padding: 4px 8px;
-            border-radius: 3px;
-            flex: 1;
-        }
+            .wpb-notice-warning {
+                background: #fffbeb;
+                border: 1px solid #fde68a;
+                color: #92400e;
+            }
 
-        .wpb-af-section-label:hover {
-            border-color: #8c8f94;
-            background: #fff;
-        }
+            .wpb-notice-warning .dashicons {
+                color: #d97706;
+            }
 
-        .wpb-af-section-label:focus {
-            border-color: #2271b1;
-            background: #fff;
-            outline: none;
-            box-shadow: 0 0 0 1px #2271b1;
-        }
+            .wpb-notice-success {
+                background: #f0fdf4;
+                border: 1px solid #bbf7d0;
+                color: #166534;
+            }
 
-        .wpb-af-badge {
-            font-size: 11px;
-            background: #8c5dce;
-            color: #fff;
-            padding: 2px 10px;
-            border-radius: 10px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
+            .wpb-notice-success .dashicons {
+                color: #059669;
+            }
 
-        /* Fields */
-        .wpb-af-fields-list {
-            padding: 8px 14px;
-        }
+            .wpb-notice-info {
+                background: #eff6ff;
+                border: 1px solid #bfdbfe;
+                color: #1e40af;
+            }
 
-        .wpb-af-field {
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f1;
-        }
+            .wpb-notice-info .dashicons {
+                color: #3b82f6;
+            }
 
-        .wpb-af-field:last-child {
-            border-bottom: none;
-        }
+            /* ── Step cards ── */
+            .wpb-af-step {
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                padding: 22px 24px;
+                margin-bottom: 16px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+            }
 
-        .wpb-af-field-row {
-            display: grid;
-            grid-template-columns: 150px 1fr 1fr 32px;
-            gap: 8px;
-            align-items: center;
-        }
+            .wpb-af-step-head {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 6px;
+            }
 
-        .wpb-af-field-row select,
-        .wpb-af-field-row input[type="text"] {
-            padding: 5px 8px;
-            font-size: 13px;
-            border: 1px solid #dcdcde;
-            border-radius: 3px;
-        }
+            .wpb-af-step-num {
+                width: 28px;
+                height: 28px;
+                background: #111827;
+                color: #fff;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+                font-weight: 700;
+                flex-shrink: 0;
+            }
 
-        .wpb-af-field-row select:focus,
-        .wpb-af-field-row input:focus {
-            border-color: #2271b1;
-            outline: none;
-            box-shadow: 0 0 0 1px #2271b1;
-        }
+            .wpb-af-step-title {
+                font-size: 15px;
+                font-weight: 700;
+                color: #111827;
+                margin: 0;
+            }
 
-        .wpb-af-field-name {
-            font-family: Consolas, monospace;
-            font-size: 12px !important;
-            color: #50575e;
-        }
+            .wpb-af-step-desc {
+                font-size: 13px;
+                color: #6b7280;
+                margin: 0 0 18px;
+                padding-left: 40px;
+                line-height: 1.5;
+            }
 
-        .wpb-af-remove {
-            color: #b32d2e;
-            cursor: pointer;
-            border: none;
-            background: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-        }
+            /* ── Input / Select ── */
+            .wpb-input,
+            .wpb-select {
+                padding: 8px 12px;
+                border: 1px solid #e5e7eb;
+                border-radius: 7px;
+                font-size: 13px;
+                color: #111827;
+                background: #fff;
+                font-family: inherit;
+                transition: border-color .15s;
+            }
 
-        .wpb-af-remove:hover {
-            color: #d63638;
-        }
+            .wpb-input:focus,
+            .wpb-select:focus {
+                outline: none;
+                border-color: #111827;
+            }
 
-        .wpb-af-preview {
-            font-size: 12px;
-            color: #8c8f94;
-            margin-top: 4px;
-            padding-left: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
-        }
+            .wpb-input-url {
+                font-size: 14px;
+                padding: 9px 14px;
+                border-radius: 8px;
+            }
 
-        /* Sub-fields */
-        .wpb-af-sub-fields {
-            margin: 8px 0 0 20px;
-            padding: 8px 12px;
-            background: #f9f9f9;
-            border-left: 3px solid #8c5dce;
-            border-radius: 0 3px 3px 0;
-        }
+            /* ── Buttons ── */
+            .wpb-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+                border-radius: 8px;
+                cursor: pointer;
+                border: none;
+                transition: opacity .15s;
+                line-height: 1.4;
+                font-family: inherit;
+                text-decoration: none !important;
+            }
 
-        .wpb-af-sub-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #8c5dce;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: .3px;
-        }
+            .wpb-btn:hover {
+                opacity: .85;
+            }
 
-        .wpb-af-sub-field {
-            display: grid;
-            grid-template-columns: 120px 1fr 1fr;
-            gap: 6px;
-            align-items: center;
-            margin-bottom: 4px;
-        }
+            .wpb-btn-primary {
+                background: #111827;
+                color: #fff !important;
+            }
 
-        .wpb-af-sub-field select,
-        .wpb-af-sub-field input[type="text"] {
-            padding: 4px 6px;
-            font-size: 12px;
-            border: 1px solid #dcdcde;
-            border-radius: 3px;
-        }
+            .wpb-btn-ghost {
+                background: #f3f4f6;
+                color: #374151 !important;
+                border: 1px solid #e5e7eb;
+            }
 
-        /* Status messages */
-        .wpb-af-card .notice {
-            margin: 0;
-        }
+            .wpb-btn-lg {
+                padding: 11px 22px;
+                font-size: 14px;
+                border-radius: 9px;
+            }
 
-        /* Insert field button */
-        .wpb-af-insert-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 2px 0;
-        }
+            .wpb-btn .dashicons {
+                font-size: 16px;
+                width: 16px;
+                height: 16px;
+            }
 
-        .wpb-af-insert-row::before,
-        .wpb-af-insert-row::after {
-            content: '';
-            flex: 1;
-            border-top: 1px dashed #dcdcde;
-        }
+            .wpb-btn-lg .dashicons {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+            }
 
-        .wpb-af-insert-btn {
-            border: 1px dashed #c3c4c7;
-            background: transparent;
-            color: #8c8f94;
-            font-size: 11px;
-            padding: 1px 10px;
-            border-radius: 10px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all .15s;
-        }
+            .wpb-btn:disabled {
+                opacity: .45;
+                cursor: not-allowed;
+            }
 
-        .wpb-af-insert-btn:hover {
-            border-color: #8c5dce;
-            color: #8c5dce;
-            background: #f8f5fd;
-        }
+            /* Spinner */
+            @keyframes wpb-spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
 
-        /* Responsive */
-        @media (max-width: 782px) {
+            .wpb-spinner {
+                width: 14px;
+                height: 14px;
+                border: 2px solid rgba(255, 255, 255, .3);
+                border-top-color: #fff;
+                border-radius: 50%;
+                animation: wpb-spin .65s linear infinite;
+                display: inline-block;
+                flex-shrink: 0;
+            }
+
+            .wpb-spinner-dark {
+                border-color: rgba(17, 24, 39, .15);
+                border-top-color: #111827;
+            }
+
+            /* ── URL row ── */
+            .wpb-url-row {
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .wpb-url-row .wpb-input-url {
+                flex: 1;
+                min-width: 0;
+            }
+
+            /* ── Section cards (preview) ── */
+            .wpb-af-section-card {
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                margin-bottom: 12px;
+                overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+            }
+
+            .wpb-af-section-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 12px 16px;
+                background: #f9fafb;
+                border-bottom: 1px solid #f3f4f6;
+            }
+
+            .wpb-af-section-label {
+                font-size: 13.5px;
+                font-weight: 600;
+                flex: 1;
+                border: 1px solid transparent;
+                background: transparent;
+                padding: 4px 8px;
+                border-radius: 7px;
+                color: #111827;
+                font-family: inherit;
+            }
+
+            .wpb-af-section-label:hover {
+                border-color: #e5e7eb;
+                background: #fff;
+            }
+
+            .wpb-af-section-label:focus {
+                border-color: #111827;
+                background: #fff;
+                outline: none;
+            }
+
+            .wpb-af-section-badge {
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: .3px;
+                background: #111827;
+                color: #fff;
+                padding: 3px 10px;
+                border-radius: 20px;
+                white-space: nowrap;
+            }
+
+            /* ── Fields list ── */
+            .wpb-af-fields-list {
+                padding: 8px 16px;
+            }
+
+            .wpb-af-field {
+                padding: 10px 0;
+                border-bottom: 1px solid #f3f4f6;
+            }
+
+            .wpb-af-field:last-child {
+                border-bottom: none;
+            }
+
             .wpb-af-field-row {
-                grid-template-columns: 1fr;
+                display: grid;
+                grid-template-columns: 160px 1fr 1fr 34px;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .wpb-af-field-row select,
+            .wpb-af-field-row input[type="text"] {
+                padding: 6px 10px;
+                font-size: 12.5px;
+                border: 1px solid #e5e7eb;
+                border-radius: 7px;
+                font-family: inherit;
+                color: #111827;
+                background: #fff;
+                transition: border-color .15s;
+            }
+
+            .wpb-af-field-row select:focus,
+            .wpb-af-field-row input[type="text"]:focus {
+                border-color: #111827;
+                outline: none;
+            }
+
+            .wpb-af-field-name {
+                font-family: ui-monospace, Consolas, monospace !important;
+                font-size: 11.5px !important;
+                color: #6b7280;
+            }
+
+            .wpb-af-remove {
+                color: #9ca3af;
+                cursor: pointer;
+                border: none;
+                background: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                transition: color .15s;
+            }
+
+            .wpb-af-remove:hover {
+                color: #dc2626;
+            }
+
+            .wpb-af-preview {
+                font-size: 11.5px;
+                color: #9ca3af;
+                margin-top: 5px;
+                padding-left: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* ── Sub-fields ── */
+            .wpb-af-sub-fields {
+                margin: 10px 0 0 12px;
+                padding: 10px 14px;
+                background: #f9fafb;
+                border-left: 3px solid #111827;
+                border-radius: 0 8px 8px 0;
+            }
+
+            .wpb-af-sub-label {
+                font-size: 11px;
+                font-weight: 700;
+                color: #374151;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: .4px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
             }
 
             .wpb-af-sub-field {
-                grid-template-columns: 1fr;
+                display: grid;
+                grid-template-columns: 130px 1fr 1fr;
+                gap: 6px;
+                align-items: center;
+                margin-bottom: 6px;
             }
 
-            #wpb-af-generate-section .wpb-af-card>div:first-of-type {
-                grid-template-columns: 1fr;
+            .wpb-af-sub-field:last-child {
+                margin-bottom: 0;
             }
-        }
-    </style>
 
-    <script>
-        (function () {
-            'use strict';
+            .wpb-af-sub-field select,
+            .wpb-af-sub-field input[type="text"] {
+                padding: 5px 9px;
+                font-size: 12px;
+                border: 1px solid #e5e7eb;
+                border-radius: 7px;
+                font-family: inherit;
+                color: #111827;
+                background: #fff;
+            }
 
-            var NONCE = <?php echo wp_json_encode($nonce); ?>;
-            var AJAX_URL = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
-            var LOC_OPTS = <?php echo wp_json_encode($loc_options); ?>;
+            .wpb-af-sub-field select:focus,
+            .wpb-af-sub-field input:focus {
+                border-color: #111827;
+                outline: none;
+            }
 
-            var state = { sections: [] };
+            /* ── Insert button ── */
+            .wpb-af-insert-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 4px 0;
+            }
 
-            var $url = document.getElementById('wpb-af-url');
-            var $analyze = document.getElementById('wpb-af-analyze');
-            var $preview = document.getElementById('wpb-af-preview');
-            var $sections = document.getElementById('wpb-af-sections');
-            var $genSec = document.getElementById('wpb-af-generate-section');
-            var $generate = document.getElementById('wpb-af-generate');
-            var $result = document.getElementById('wpb-af-result');
-            var $locType = document.getElementById('wpb-af-loc-type');
-            var $locVal = document.getElementById('wpb-af-loc-value');
+            .wpb-af-insert-row::before,
+            .wpb-af-insert-row::after {
+                content: '';
+                flex: 1;
+                border-top: 1px dashed #e5e7eb;
+            }
 
-            var TYPES = [
-                ['text', 'Testo'],
-                ['textarea', 'Area di testo'],
-                ['wysiwyg', 'Editor WYSIWYG'],
-                ['image', 'Immagine'],
-                ['gallery', 'Galleria'],
-                ['file', 'File (Video MP4)'],
-                ['link', 'Link'],
-                ['oembed', 'oEmbed / Video'],
-                ['repeater', 'Ripetitore']
-            ];
+            .wpb-af-insert-btn {
+                border: 1px dashed #e5e7eb;
+                background: transparent;
+                color: #9ca3af;
+                font-size: 11px;
+                padding: 2px 12px;
+                border-radius: 20px;
+                cursor: pointer;
+                white-space: nowrap;
+                font-family: inherit;
+                transition: all .15s;
+            }
 
-            var SUB_TYPES = [
-                ['text', 'Testo'],
-                ['textarea', 'Area di testo'],
-                ['wysiwyg', 'WYSIWYG'],
-                ['image', 'Immagine'],
-                ['gallery', 'Galleria'],
-                ['file', 'File (Video MP4)'],
-                ['link', 'Link']
-            ];
+            .wpb-af-insert-btn:hover {
+                border-color: #111827;
+                color: #111827;
+                background: #f9fafb;
+            }
 
-            /* ── Analizza ─────────────────────────────── */
-            $analyze.addEventListener('click', function () {
-                var url = $url.value.trim();
-                if (!url) { showStatus('wpb-af-analyze-status', 'Inserisci un URL.', 'warning'); return; }
+            /* ── Generate form ── */
+            .wpb-af-gen-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+                margin-bottom: 20px;
+            }
 
-                $analyze.disabled = true;
-                $analyze.innerHTML = '<span class="spinner is-active" style="margin:0 4px 0 0;float:none;"></span> Analisi in corso…';
-                hideStatus('wpb-af-analyze-status');
+            .wpb-field-label {
+                display: block;
+                font-size: 12px;
+                font-weight: 700;
+                color: #374151;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: .4px;
+            }
 
-                var fd = new FormData();
-                fd.append('action', 'wpb_auto_fields_analyze');
-                fd.append('nonce', NONCE);
-                fd.append('url', url);
+            .wpb-loc-row {
+                display: flex;
+                gap: 8px;
+            }
 
-                fetch(AJAX_URL, { method: 'POST', body: fd })
-                    .then(function (r) { return r.json(); })
-                    .then(function (json) {
-                        if (json.success) {
-                            state.sections = json.data.sections;
-                            renderPreview();
-                            $preview.style.display = '';
-                            $genSec.style.display = '';
-                            $result.style.display = 'none';
-                            showStatus('wpb-af-analyze-status',
-                                'Trovate <strong>' + state.sections.length + ' sezioni</strong> con <strong>' +
-                                countFields() + ' campi</strong> totali.', 'success');
-                        } else {
-                            showStatus('wpb-af-analyze-status', json.data || 'Errore durante l\'analisi.', 'error');
-                        }
-                    })
-                    .catch(function () {
-                        showStatus('wpb-af-analyze-status', 'Errore di rete.', 'error');
-                    })
-                    .finally(function () {
-                        $analyze.disabled = false;
-                        $analyze.innerHTML = '<span class="dashicons dashicons-search" style="vertical-align:middle;margin-right:4px;font-size:16px;width:16px;height:16px;"></span> Analizza';
-                    });
-            });
+            .wpb-loc-row .wpb-select:first-child {
+                flex-shrink: 0;
+            }
 
-            /* ── Render anteprima ─────────────────────── */
-            function renderPreview() {
-                $sections.innerHTML = '';
-                state.sections.forEach(function (section, si) {
-                    var card = document.createElement('div');
-                    card.className = 'wpb-af-section-card';
-                    card.innerHTML =
-                        '<div class="wpb-af-section-header">' +
-                        '<input type="text" value="' + esc(section.label) + '" class="wpb-af-section-label" data-si="' + si + '">' +
-                        '<span class="wpb-af-badge">' + section.fields.length + ' campi</span>' +
-                        '</div>' +
-                        '<div class="wpb-af-fields-list">' +
-                        renderInsertBtn(si, 0) +
-                        section.fields.map(function (f, fi) {
-                            return renderField(f, si, fi) + renderInsertBtn(si, fi + 1);
-                        }).join('') +
-                        '</div>';
-                    $sections.appendChild(card);
-                });
+            .wpb-loc-row .wpb-select:last-child {
+                flex: 1;
+                min-width: 0;
+            }
 
-                // Bind section label changes
-                document.querySelectorAll('.wpb-af-section-label').forEach(function (el) {
-                    el.addEventListener('change', function () {
-                        var si = parseInt(this.dataset.si);
-                        var newLabel = this.value;
-                        var newId = toSnakeCase(newLabel);
-                        var section = state.sections[si];
-                        section.label = newLabel;
-                        section.id = newId;
-                        // Aggiorna a cascata i nomi dei campi
-                        section.fields.forEach(function (f) {
-                            if (f.suffix) {
-                                f.name = newId + '_' + f.suffix;
+            /* ── Result: GraphQL block ── */
+            .wpb-gql-wrap {
+                position: relative;
+                margin-top: 16px;
+            }
+
+            .wpb-gql-pre {
+                background: #111827;
+                color: #e5e7eb;
+                padding: 20px;
+                border-radius: 10px;
+                overflow-x: auto;
+                font-size: 13px;
+                font-family: ui-monospace, "Fira Code", Consolas, monospace;
+                line-height: 1.7;
+                max-height: 500px;
+                overflow-y: auto;
+                margin: 0;
+            }
+
+            .wpb-gql-copy {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                padding: 4px 12px;
+                font-size: 11px;
+                font-weight: 600;
+                background: rgba(255, 255, 255, .12);
+                color: #fff;
+                border: 1px solid rgba(255, 255, 255, .2);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                transition: background .15s;
+            }
+
+            .wpb-gql-copy:hover {
+                background: rgba(255, 255, 255, .22);
+            }
+
+            /* ── Status inline ── */
+            .wpb-af-status {
+                display: none;
+                margin-top: 14px;
+            }
+
+            /* ── Responsive ── */
+            @media (max-width: 782px) {
+                .wpb-af-field-row {
+                    grid-template-columns: 1fr;
+                }
+
+                .wpb-af-sub-field {
+                    grid-template-columns: 1fr;
+                }
+
+                .wpb-af-gen-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .wpb-loc-row {
+                    flex-direction: column;
+                }
+            }
+        </style>
+
+        <div id="wpb-af-wrap" class="wrap">
+
+            <!-- Header -->
+            <div class="wpb-header">
+                <div class="wpb-header-icon"><span class="dashicons dashicons-layout"></span></div>
+                <div>
+                    <h1>WP Barrio <span class="wpb-header-breadcrumb">/ Auto Fields</span></h1>
+                    <p class="wpb-header-sub">Analizza una pagina web e genera automaticamente i campi ACF con query GraphQL</p>
+                </div>
+            </div>
+            <hr class="wpb-divider">
+
+            <?php if (!$acf_active): ?>
+                    <div class="wpb-notice wpb-notice-error">
+                        <span class="dashicons dashicons-warning"></span>
+                        <div>
+                            <strong>ACF non rilevato.</strong>
+                            Installa e attiva <a
+                                href="<?php echo esc_url(admin_url('plugin-install.php?s=advanced+custom+fields&tab=search')); ?>">Advanced
+                                Custom Fields</a> per utilizzare questa funzionalità.
+                        </div>
+                    </div>
+            <?php endif; ?>
+
+            <!-- Step 1: URL -->
+            <div class="wpb-af-step">
+                <div class="wpb-af-step-head">
+                    <div class="wpb-af-step-num">1</div>
+                    <h2 class="wpb-af-step-title">Analizza pagina</h2>
+                </div>
+                <p class="wpb-af-step-desc">Inserisci l'URL della pagina web da analizzare. Verranno rilevate automaticamente
+                    sezioni, testi, immagini e repeater.</p>
+                <div class="wpb-url-row">
+                    <input type="url" id="wpb-af-url" class="wpb-input wpb-input-url"
+                        placeholder="https://www.example.com/pagina">
+                    <button id="wpb-af-analyze" class="wpb-btn wpb-btn-primary" <?php echo $acf_active ? '' : 'disabled'; ?>>
+                        <span class="dashicons dashicons-search"></span>
+                        Analizza
+                    </button>
+                </div>
+                <div id="wpb-af-analyze-status" class="wpb-af-status"></div>
+            </div>
+
+            <!-- Step 2: Preview campi -->
+            <div id="wpb-af-preview" class="wpb-af-step" style="display:none;">
+                <div class="wpb-af-step-head">
+                    <div class="wpb-af-step-num">2</div>
+                    <h2 class="wpb-af-step-title">Anteprima campi rilevati</h2>
+                </div>
+                <p class="wpb-af-step-desc">Modifica nomi, tipi ed etichette. Rimuovi i campi non necessari. I campi sono
+                    raggruppati per sezione (= scheda ACF).</p>
+                <div id="wpb-af-sections"></div>
+            </div>
+
+            <!-- Step 3: Genera -->
+            <div id="wpb-af-generate-section" class="wpb-af-step" style="display:none;">
+                <div class="wpb-af-step-head">
+                    <div class="wpb-af-step-num">3</div>
+                    <h2 class="wpb-af-step-title">Genera gruppo campi ACF</h2>
+                </div>
+                <p class="wpb-af-step-desc">Assegna un nome al gruppo e scegli a quale contenuto applicarlo.</p>
+
+                <div class="wpb-af-gen-grid">
+                    <div>
+                        <label class="wpb-field-label" for="wpb-af-group-title">Nome gruppo ACF</label>
+                        <input type="text" id="wpb-af-group-title" class="wpb-input" style="width:100%;"
+                            placeholder="Es. Homepage, Chi Siamo, Servizi…">
+                    </div>
+                    <div>
+                        <label class="wpb-field-label">Assegna a</label>
+                        <div class="wpb-loc-row">
+                            <select id="wpb-af-loc-type" class="wpb-select">
+                                <option value="post_type">Tipo di contenuto</option>
+                                <option value="page_template">Template pagina</option>
+                                <option value="page">Pagina specifica</option>
+                            </select>
+                            <select id="wpb-af-loc-value" class="wpb-select">
+                                <?php foreach ($post_types as $pt): ?>
+                                        <option value="<?php echo esc_attr($pt->name); ?>"><?php echo esc_html($pt->label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="wpb-af-generate" class="wpb-btn wpb-btn-primary wpb-btn-lg">
+                    <span class="dashicons dashicons-hammer"></span>
+                    Genera campi ACF + Query GraphQL
+                </button>
+                <div id="wpb-af-generate-status" class="wpb-af-status"></div>
+            </div>
+
+            <!-- Step 4: Risultato -->
+            <div id="wpb-af-result" class="wpb-af-step" style="display:none;">
+                <div class="wpb-af-step-head">
+                    <div class="wpb-af-step-num" style="background:#059669;">✓</div>
+                    <h2 class="wpb-af-step-title">Risultato</h2>
+                </div>
+                <div id="wpb-af-result-info" style="margin-top:4px;"></div>
+                <div class="wpb-gql-wrap">
+                    <label class="wpb-field-label" style="margin-top:16px;display:block;">Query GraphQL</label>
+                    <pre id="wpb-af-graphql" class="wpb-gql-pre"></pre>
+                    <button id="wpb-af-copy" class="wpb-gql-copy">Copia</button>
+                </div>
+            </div>
+
+        </div><!-- #wpb-af-wrap -->
+
+        <script>
+            (function () {
+                'use strict';
+
+                var NONCE = <?php echo wp_json_encode($nonce); ?>;
+                var AJAX_URL = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+                var LOC_OPTS = <?php echo wp_json_encode($loc_options); ?>;
+
+                var state = { sections: [] };
+
+                var $url = document.getElementById('wpb-af-url');
+                var $analyze = document.getElementById('wpb-af-analyze');
+                var $preview = document.getElementById('wpb-af-preview');
+                var $sections = document.getElementById('wpb-af-sections');
+                var $genSec = document.getElementById('wpb-af-generate-section');
+                var $generate = document.getElementById('wpb-af-generate');
+                var $result = document.getElementById('wpb-af-result');
+                var $locType = document.getElementById('wpb-af-loc-type');
+                var $locVal = document.getElementById('wpb-af-loc-value');
+
+                var TYPES = [
+                    ['text', 'Testo'],
+                    ['textarea', 'Area di testo'],
+                    ['wysiwyg', 'Editor WYSIWYG'],
+                    ['image', 'Immagine'],
+                    ['gallery', 'Galleria'],
+                    ['file', 'File (Video MP4)'],
+                    ['link', 'Link'],
+                    ['oembed', 'oEmbed / Video'],
+                    ['repeater', 'Ripetitore']
+                ];
+
+                var SUB_TYPES = [
+                    ['text', 'Testo'],
+                    ['textarea', 'Area di testo'],
+                    ['wysiwyg', 'WYSIWYG'],
+                    ['image', 'Immagine'],
+                    ['gallery', 'Galleria'],
+                    ['file', 'File (Video MP4)'],
+                    ['link', 'Link']
+                ];
+
+                /* ── Analizza ─────────────────────────────── */
+                $analyze.addEventListener('click', function () {
+                    var url = $url.value.trim();
+                    if (!url) { showStatus('wpb-af-analyze-status', 'Inserisci un URL valido.', 'warning'); return; }
+
+                    $analyze.disabled = true;
+                    $analyze.innerHTML = '<div class="wpb-spinner"></div> Analisi in corso…';
+                    hideStatus('wpb-af-analyze-status');
+
+                    var fd = new FormData();
+                    fd.append('action', 'wpb_auto_fields_analyze');
+                    fd.append('nonce', NONCE);
+                    fd.append('url', url);
+
+                    fetch(AJAX_URL, { method: 'POST', body: fd })
+                        .then(function (r) { return r.json(); })
+                        .then(function (json) {
+                            if (json.success) {
+                                state.sections = json.data.sections;
+                                renderPreview();
+                                $preview.style.display = '';
+                                $genSec.style.display = '';
+                                $result.style.display = 'none';
+                                showStatus('wpb-af-analyze-status',
+                                    'Trovate <strong>' + state.sections.length + ' sezioni</strong> con <strong>' +
+                                    countFields() + ' campi</strong> totali.', 'success');
+                            } else {
+                                showStatus('wpb-af-analyze-status', json.data || 'Errore durante l\'analisi.', 'error');
                             }
+                        })
+                        .catch(function () { showStatus('wpb-af-analyze-status', 'Errore di rete.', 'error'); })
+                        .finally(function () {
+                            $analyze.disabled = false;
+                            $analyze.innerHTML = '<span class="dashicons dashicons-search"></span> Analizza';
                         });
-                        renderPreview();
-                    });
                 });
 
-                bindFieldEvents();
-            }
+                /* ── Render preview ──────────────────────── */
+                function renderPreview() {
+                    $sections.innerHTML = '';
+                    state.sections.forEach(function (section, si) {
+                        var card = document.createElement('div');
+                        card.className = 'wpb-af-section-card';
+                        card.innerHTML =
+                            '<div class="wpb-af-section-header">' +
+                            '<input type="text" value="' + esc(section.label) + '" class="wpb-af-section-label" data-si="' + si + '">' +
+                            '<span class="wpb-af-section-badge">' + section.fields.length + ' campi</span>' +
+                            '</div>' +
+                            '<div class="wpb-af-fields-list">' +
+                            renderInsertBtn(si, 0) +
+                            section.fields.map(function (f, fi) {
+                                return renderField(f, si, fi) + renderInsertBtn(si, fi + 1);
+                            }).join('') +
+                            '</div>';
+                        $sections.appendChild(card);
+                    });
 
-            function renderInsertBtn(si, pos) {
-                return '<div class="wpb-af-insert-row">' +
-                    '<button class="wpb-af-insert-btn" data-si="' + si + '" data-pos="' + pos + '" title="Inserisci campo">+ Aggiungi campo</button>' +
-                    '</div>';
-            }
+                    document.querySelectorAll('.wpb-af-section-label').forEach(function (el) {
+                        el.addEventListener('change', function () {
+                            var si = parseInt(this.dataset.si);
+                            var newLabel = this.value;
+                            var newId = toSnakeCase(newLabel);
+                            var section = state.sections[si];
+                            section.label = newLabel;
+                            section.id = newId;
+                            section.fields.forEach(function (f) {
+                                if (f.suffix) f.name = newId + '_' + f.suffix;
+                            });
+                            renderPreview();
+                        });
+                    });
 
-            function renderField(field, si, fi) {
-                var typeOpts = TYPES.map(function (t) {
-                    return '<option value="' + t[0] + '"' + (t[0] === field.type ? ' selected' : '') + '>' + t[1] + '</option>';
-                }).join('');
+                    bindFieldEvents();
+                }
 
-                var html =
-                    '<div class="wpb-af-field" data-si="' + si + '" data-fi="' + fi + '">' +
-                    '<div class="wpb-af-field-row">' +
-                    '<select class="wpb-af-ftype">' + typeOpts + '</select>' +
-                    '<input type="text" value="' + esc(field.label) + '" class="wpb-af-flabel" placeholder="Etichetta">' +
-                    '<input type="text" value="' + esc(field.name) + '" class="wpb-af-fname wpb-af-field-name" placeholder="Nome campo">' +
-                    '<button class="wpb-af-remove" title="Rimuovi campo">' +
-                    '<span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span>' +
-                    '</button>' +
-                    '</div>' +
-                    (field.preview ? '<div class="wpb-af-preview">' + esc(field.preview) + '</div>' : '') +
-                    (field.type === 'repeater' && field.sub_fields ? renderSubFields(field.sub_fields, si, fi) : '') +
-                    '</div>';
-                return html;
-            }
-
-            function renderSubFields(subFields, si, fi) {
-                var html = '<div class="wpb-af-sub-fields"><div class="wpb-af-sub-label">Sub-campi ripetitore</div>';
-                subFields.forEach(function (sf, sfi) {
-                    var typeOpts = SUB_TYPES.map(function (t) {
-                        return '<option value="' + t[0] + '"' + (t[0] === sf.type ? ' selected' : '') + '>' + t[1] + '</option>';
-                    }).join('');
-                    html +=
-                        '<div class="wpb-af-sub-field" data-si="' + si + '" data-fi="' + fi + '" data-sfi="' + sfi + '">' +
-                        '<select class="wpb-af-sftype">' + typeOpts + '</select>' +
-                        '<input type="text" value="' + esc(sf.label) + '" class="wpb-af-sflabel" placeholder="Etichetta">' +
-                        '<input type="text" value="' + esc(sf.name) + '" class="wpb-af-sfname wpb-af-field-name" placeholder="Nome">' +
+                function renderInsertBtn(si, pos) {
+                    return '<div class="wpb-af-insert-row">' +
+                        '<button class="wpb-af-insert-btn" data-si="' + si + '" data-pos="' + pos + '">+ Aggiungi campo</button>' +
                         '</div>';
-                });
-                html += '</div>';
-                return html;
-            }
+                }
 
-            /* ── Bind eventi campi ────────────────────── */
-            function bindFieldEvents() {
-                // Insert field
-                document.querySelectorAll('.wpb-af-insert-btn').forEach(function (el) {
-                    el.addEventListener('click', function () {
-                        var si = parseInt(this.dataset.si);
-                        var pos = parseInt(this.dataset.pos);
-                        var section = state.sections[si];
-                        var nextNum = section.fields.length + 1;
-                        var suffix = 'campo_' + nextNum;
-                        section.fields.splice(pos, 0, {
-                            name: section.id + '_' + suffix,
-                            label: 'Nuovo campo',
-                            type: 'text',
-                            preview: '',
-                            suffix: suffix
+                function renderField(field, si, fi) {
+                    var typeOpts = TYPES.map(function (t) {
+                        return '<option value="' + t[0] + '"' + (t[0] === field.type ? ' selected' : '') + '>' + t[1] + '</option>';
+                    }).join('');
+
+                    return '<div class="wpb-af-field" data-si="' + si + '" data-fi="' + fi + '">' +
+                        '<div class="wpb-af-field-row">' +
+                        '<select class="wpb-af-ftype">' + typeOpts + '</select>' +
+                        '<input type="text" value="' + esc(field.label) + '" class="wpb-af-flabel" placeholder="Etichetta">' +
+                        '<input type="text" value="' + esc(field.name) + '" class="wpb-af-fname wpb-af-field-name" placeholder="Nome campo">' +
+                        '<button class="wpb-af-remove" title="Rimuovi">' +
+                        '<span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span>' +
+                        '</button>' +
+                        '</div>' +
+                        (field.preview ? '<div class="wpb-af-preview">' + esc(field.preview) + '</div>' : '') +
+                        (field.type === 'repeater' && field.sub_fields ? renderSubFields(field.sub_fields, si, fi) : '') +
+                        '</div>';
+                }
+
+                function renderSubFields(subFields, si, fi) {
+                    var html = '<div class="wpb-af-sub-fields">' +
+                        '<div class="wpb-af-sub-label">Sub-campi ripetitore</div>';
+                    subFields.forEach(function (sf, sfi) {
+                        var typeOpts = SUB_TYPES.map(function (t) {
+                            return '<option value="' + t[0] + '"' + (t[0] === sf.type ? ' selected' : '') + '>' + t[1] + '</option>';
+                        }).join('');
+                        html += '<div class="wpb-af-sub-field" data-si="' + si + '" data-fi="' + fi + '" data-sfi="' + sfi + '">' +
+                            '<select class="wpb-af-sftype">' + typeOpts + '</select>' +
+                            '<input type="text" value="' + esc(sf.label) + '" class="wpb-af-sflabel" placeholder="Etichetta">' +
+                            '<input type="text" value="' + esc(sf.name) + '" class="wpb-af-sfname wpb-af-field-name" placeholder="Nome">' +
+                            '</div>';
+                    });
+                    return html + '</div>';
+                }
+
+                /* ── Bind eventi campi ────────────────────── */
+                function bindFieldEvents() {
+                    document.querySelectorAll('.wpb-af-insert-btn').forEach(function (el) {
+                        el.addEventListener('click', function () {
+                            var si = parseInt(this.dataset.si), pos = parseInt(this.dataset.pos);
+                            var section = state.sections[si];
+                            var nextNum = section.fields.length + 1;
+                            var suffix = 'campo_' + nextNum;
+                            section.fields.splice(pos, 0, { name: section.id + '_' + suffix, label: 'Nuovo campo', type: 'text', preview: '', suffix: suffix });
+                            renderPreview();
                         });
-                        renderPreview();
+                    });
+
+                    document.querySelectorAll('.wpb-af-ftype').forEach(function (el) {
+                        el.addEventListener('change', function () {
+                            var f = this.closest('.wpb-af-field');
+                            var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
+                            state.sections[si].fields[fi].type = this.value;
+                            if (this.value === 'repeater' && !state.sections[si].fields[fi].sub_fields) {
+                                state.sections[si].fields[fi].sub_fields = [{ name: 'voce', label: 'Voce', type: 'text' }];
+                            }
+                            renderPreview();
+                        });
+                    });
+
+                    document.querySelectorAll('.wpb-af-flabel').forEach(function (el) {
+                        el.addEventListener('change', function () {
+                            var f = this.closest('.wpb-af-field');
+                            var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
+                            var field = state.sections[si].fields[fi];
+                            field.label = this.value;
+                            var newSuffix = toSnakeCase(this.value);
+                            field.suffix = newSuffix;
+                            field.name = state.sections[si].id + '_' + newSuffix;
+                            var nameInput = f.querySelector('.wpb-af-fname');
+                            if (nameInput) nameInput.value = field.name;
+                        });
+                    });
+
+                    document.querySelectorAll('.wpb-af-fname').forEach(function (el) {
+                        el.addEventListener('change', function () {
+                            var f = this.closest('.wpb-af-field');
+                            var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
+                            state.sections[si].fields[fi].name = this.value;
+                            state.sections[si].fields[fi].suffix = null;
+                        });
+                    });
+
+                    document.querySelectorAll('.wpb-af-remove').forEach(function (el) {
+                        el.addEventListener('click', function () {
+                            var f = this.closest('.wpb-af-field');
+                            var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
+                            state.sections[si].fields.splice(fi, 1);
+                            renderPreview();
+                        });
+                    });
+
+                    document.querySelectorAll('.wpb-af-sftype').forEach(function (el) {
+                        el.addEventListener('change', function () {
+                            var sf = this.closest('.wpb-af-sub-field');
+                            state.sections[parseInt(sf.dataset.si)].fields[parseInt(sf.dataset.fi)].sub_fields[parseInt(sf.dataset.sfi)].type = this.value;
+                        });
+                    });
+                    document.querySelectorAll('.wpb-af-sflabel').forEach(function (el) {
+                        el.addEventListener('change', function () {
+                            var sf = this.closest('.wpb-af-sub-field');
+                            var sub = state.sections[parseInt(sf.dataset.si)].fields[parseInt(sf.dataset.fi)].sub_fields[parseInt(sf.dataset.sfi)];
+                            sub.label = this.value;
+                            sub.name = toSnakeCase(this.value);
+                            var nameInput = sf.querySelector('.wpb-af-sfname');
+                            if (nameInput) nameInput.value = sub.name;
+                        });
+                    });
+                    document.querySelectorAll('.wpb-af-sfname').forEach(function (el) {
+                        el.addEventListener('change', function () {
+                            var sf = this.closest('.wpb-af-sub-field');
+                            state.sections[parseInt(sf.dataset.si)].fields[parseInt(sf.dataset.fi)].sub_fields[parseInt(sf.dataset.sfi)].name = this.value;
+                        });
+                    });
+                }
+
+                /* ── Genera ───────────────────────────────── */
+                $generate.addEventListener('click', function () {
+                    var title = document.getElementById('wpb-af-group-title').value.trim();
+                    if (!title) { showStatus('wpb-af-generate-status', 'Inserisci un nome per il gruppo ACF.', 'warning'); return; }
+
+                    $generate.disabled = true;
+                    $generate.innerHTML = '<div class="wpb-spinner"></div> Generazione in corso…';
+                    hideStatus('wpb-af-generate-status');
+
+                    var fd = new FormData();
+                    fd.append('action', 'wpb_auto_fields_generate');
+                    fd.append('nonce', NONCE);
+                    fd.append('group_title', title);
+                    fd.append('sections', JSON.stringify(state.sections));
+                    fd.append('location_type', $locType.value);
+                    fd.append('location_value', $locVal.value);
+
+                    fetch(AJAX_URL, { method: 'POST', body: fd })
+                        .then(function (r) { return r.json(); })
+                        .then(function (json) {
+                            if (json.success) {
+                                $result.style.display = '';
+                                document.getElementById('wpb-af-result-info').innerHTML =
+                                    '<div class="wpb-notice wpb-notice-success" style="margin-bottom:0;">' +
+                                    '<span class="dashicons dashicons-yes-alt"></span>' +
+                                    '<div><strong>' + esc(json.data.message) + '</strong><br>' +
+                                    json.data.field_count + ' campi creati. ' +
+                                    '<a href="' + esc(json.data.edit_url) + '" target="_blank" style="font-weight:600;">Modifica in ACF &rarr;</a>' +
+                                    '</div></div>';
+                                document.getElementById('wpb-af-graphql').textContent = json.data.graphql;
+                                $result.scrollIntoView({ behavior: 'smooth' });
+                            } else {
+                                showStatus('wpb-af-generate-status', json.data || 'Errore durante la generazione.', 'error');
+                            }
+                        })
+                        .catch(function () { showStatus('wpb-af-generate-status', 'Errore di rete.', 'error'); })
+                        .finally(function () {
+                            $generate.disabled = false;
+                            $generate.innerHTML = '<span class="dashicons dashicons-hammer"></span> Genera campi ACF + Query GraphQL';
+                        });
+                });
+
+                /* ── Copia GraphQL ────────────────────────── */
+                document.getElementById('wpb-af-copy').addEventListener('click', function () {
+                    var btn = this;
+                    navigator.clipboard.writeText(document.getElementById('wpb-af-graphql').textContent).then(function () {
+                        btn.textContent = '✓ Copiato!';
+                        setTimeout(function () { btn.textContent = 'Copia'; }, 2000);
                     });
                 });
 
-                // Field type change → re-render
-                document.querySelectorAll('.wpb-af-ftype').forEach(function (el) {
-                    el.addEventListener('change', function () {
-                        var f = this.closest('.wpb-af-field');
-                        var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
-                        state.sections[si].fields[fi].type = this.value;
-                        if (this.value === 'repeater' && !state.sections[si].fields[fi].sub_fields) {
-                            state.sections[si].fields[fi].sub_fields = [{ name: 'voce', label: 'Voce', type: 'text' }];
-                        }
-                        renderPreview();
+                /* ── Location type ───────────────────────── */
+                $locType.addEventListener('change', function () { updateLocOptions(this.value); });
+
+                function updateLocOptions(type) {
+                    var opts = LOC_OPTS[type] || [];
+                    $locVal.innerHTML = '';
+                    opts.forEach(function (o) {
+                        var opt = document.createElement('option');
+                        opt.value = o.value;
+                        opt.textContent = o.label;
+                        $locVal.appendChild(opt);
                     });
-                });
+                }
 
-                // Field label/name change
-                document.querySelectorAll('.wpb-af-flabel').forEach(function (el) {
-                    el.addEventListener('change', function () {
-                        var f = this.closest('.wpb-af-field');
-                        var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
-                        var field = state.sections[si].fields[fi];
-                        field.label = this.value;
-                        // Aggiorna lo slug: prefisso sezione + label in snake_case
-                        var newSuffix = toSnakeCase(this.value);
-                        field.suffix = newSuffix;
-                        field.name = state.sections[si].id + '_' + newSuffix;
-                        // Aggiorna l'input name visibile
-                        var nameInput = f.querySelector('.wpb-af-fname');
-                        if (nameInput) nameInput.value = field.name;
-                    });
-                });
-                document.querySelectorAll('.wpb-af-fname').forEach(function (el) {
-                    el.addEventListener('change', function () {
-                        var f = this.closest('.wpb-af-field');
-                        var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
-                        var field = state.sections[si].fields[fi];
-                        field.name = this.value;
-                        // Scollega il suffix dal nome manuale
-                        field.suffix = null;
-                    });
-                });
+                /* ── Enter key on URL ────────────────────── */
+                $url.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $analyze.click(); } });
 
-                // Remove field
-                document.querySelectorAll('.wpb-af-remove').forEach(function (el) {
-                    el.addEventListener('click', function () {
-                        var f = this.closest('.wpb-af-field');
-                        var si = parseInt(f.dataset.si), fi = parseInt(f.dataset.fi);
-                        state.sections[si].fields.splice(fi, 1);
-                        renderPreview();
-                    });
-                });
+                /* ── Helpers ─────────────────────────────── */
+                function countFields() {
+                    var n = 0;
+                    state.sections.forEach(function (s) { n += s.fields.length; });
+                    return n;
+                }
 
-                // Sub-field changes
-                document.querySelectorAll('.wpb-af-sftype').forEach(function (el) {
-                    el.addEventListener('change', function () {
-                        var sf = this.closest('.wpb-af-sub-field');
-                        var si = parseInt(sf.dataset.si), fi = parseInt(sf.dataset.fi), sfi = parseInt(sf.dataset.sfi);
-                        state.sections[si].fields[fi].sub_fields[sfi].type = this.value;
-                    });
-                });
-                document.querySelectorAll('.wpb-af-sflabel').forEach(function (el) {
-                    el.addEventListener('change', function () {
-                        var sf = this.closest('.wpb-af-sub-field');
-                        var si = parseInt(sf.dataset.si), fi = parseInt(sf.dataset.fi), sfi = parseInt(sf.dataset.sfi);
-                        var sub = state.sections[si].fields[fi].sub_fields[sfi];
-                        sub.label = this.value;
-                        sub.name = toSnakeCase(this.value);
-                        var nameInput = sf.querySelector('.wpb-af-sfname');
-                        if (nameInput) nameInput.value = sub.name;
-                    });
-                });
-                document.querySelectorAll('.wpb-af-sfname').forEach(function (el) {
-                    el.addEventListener('change', function () {
-                        var sf = this.closest('.wpb-af-sub-field');
-                        state.sections[parseInt(sf.dataset.si)].fields[parseInt(sf.dataset.fi)].sub_fields[parseInt(sf.dataset.sfi)].name = this.value;
-                    });
-                });
-            }
+                function showStatus(id, msg, type) {
+                    var el = document.getElementById(id);
+                    el.style.display = '';
+                    el.className = 'wpb-notice wpb-notice-' + (type || 'info') + ' wpb-af-status';
+                    var icon = { success: 'dashicons-yes-alt', error: 'dashicons-warning', warning: 'dashicons-warning', info: 'dashicons-info' };
+                    el.innerHTML = '<span class="dashicons ' + (icon[type] || 'dashicons-info') + '"></span><div>' + msg + '</div>';
+                }
 
-            /* ── Genera ───────────────────────────────── */
-            $generate.addEventListener('click', function () {
-                var title = document.getElementById('wpb-af-group-title').value.trim();
-                if (!title) { showStatus('wpb-af-generate-status', 'Inserisci un nome per il gruppo ACF.', 'warning'); return; }
+                function hideStatus(id) {
+                    document.getElementById(id).style.display = 'none';
+                }
 
-                $generate.disabled = true;
-                $generate.innerHTML = '<span class="spinner is-active" style="margin:0 6px 0 0;float:none;"></span> Generazione in corso…';
-                hideStatus('wpb-af-generate-status');
+                function esc(str) {
+                    if (!str) return '';
+                    var d = document.createElement('div');
+                    d.appendChild(document.createTextNode(String(str)));
+                    return d.innerHTML;
+                }
 
-                var fd = new FormData();
-                fd.append('action', 'wpb_auto_fields_generate');
-                fd.append('nonce', NONCE);
-                fd.append('group_title', title);
-                fd.append('sections', JSON.stringify(state.sections));
-                fd.append('location_type', $locType.value);
-                fd.append('location_value', $locVal.value);
+                function toSnakeCase(str) {
+                    return String(str)
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '_')
+                        .replace(/^_+|_+$/g, '')
+                        .replace(/_+/g, '_');
+                }
 
-                fetch(AJAX_URL, { method: 'POST', body: fd })
-                    .then(function (r) { return r.json(); })
-                    .then(function (json) {
-                        if (json.success) {
-                            $result.style.display = '';
-                            document.getElementById('wpb-af-result-info').innerHTML =
-                                '<div class="notice notice-success inline" style="margin:0;">' +
-                                '<p><strong>' + esc(json.data.message) + '</strong></p>' +
-                                '<p>' + json.data.field_count + ' campi creati. ' +
-                                '<a href="' + esc(json.data.edit_url) + '" target="_blank" style="font-weight:600;">Modifica in ACF →</a></p>' +
-                                '</div>';
-                            document.getElementById('wpb-af-graphql').textContent = json.data.graphql;
-                            $result.scrollIntoView({ behavior: 'smooth' });
-                        } else {
-                            showStatus('wpb-af-generate-status', json.data || 'Errore durante la generazione.', 'error');
-                        }
-                    })
-                    .catch(function () {
-                        showStatus('wpb-af-generate-status', 'Errore di rete.', 'error');
-                    })
-                    .finally(function () {
-                        $generate.disabled = false;
-                        $generate.innerHTML = '<span class="dashicons dashicons-hammer" style="vertical-align:middle;margin-right:6px;font-size:20px;width:20px;height:20px;"></span> Genera campi ACF + Query GraphQL';
-                    });
-            });
-
-            /* ── Copia GraphQL ────────────────────────── */
-            document.getElementById('wpb-af-copy').addEventListener('click', function () {
-                var btn = this;
-                var text = document.getElementById('wpb-af-graphql').textContent;
-                navigator.clipboard.writeText(text).then(function () {
-                    btn.textContent = '✓ Copiato!';
-                    setTimeout(function () { btn.textContent = 'Copia'; }, 2000);
-                });
-            });
-
-            /* ── Location type change ─────────────────── */
-            $locType.addEventListener('change', function () { updateLocOptions(this.value); });
-
-            function updateLocOptions(type) {
-                var opts = LOC_OPTS[type] || [];
-                $locVal.innerHTML = '';
-                opts.forEach(function (o) {
-                    var opt = document.createElement('option');
-                    opt.value = o.value;
-                    opt.textContent = o.label;
-                    $locVal.appendChild(opt);
-                });
-            }
-
-            /* ── Enter key on URL input ───────────────── */
-            $url.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') { e.preventDefault(); $analyze.click(); }
-            });
-
-            /* ── Helpers ──────────────────────────────── */
-            function countFields() {
-                var n = 0;
-                state.sections.forEach(function (s) { n += s.fields.length; });
-                return n;
-            }
-
-            function showStatus(id, msg, type) {
-                var el = document.getElementById(id);
-                el.style.display = '';
-                el.className = 'notice notice-' + (type || 'info') + ' inline';
-                el.innerHTML = '<p>' + msg + '</p>';
-            }
-
-            function hideStatus(id) {
-                var el = document.getElementById(id);
-                el.style.display = 'none';
-            }
-
-            function esc(str) {
-                if (!str) return '';
-                var d = document.createElement('div');
-                d.appendChild(document.createTextNode(String(str)));
-                return d.innerHTML;
-            }
-
-            function toSnakeCase(str) {
-                return String(str)
-                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // rimuovi accenti
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '_')  // non-alfanumerici → underscore
-                    .replace(/^_+|_+$/g, '')       // trim underscore
-                    .replace(/_+/g, '_');           // dedup underscore
-            }
-
-        })();
-    </script>
-    <?php
+            })();
+        </script>
+        <?php
 }

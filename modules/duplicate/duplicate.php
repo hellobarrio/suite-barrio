@@ -77,7 +77,7 @@ add_action('admin_menu', function () {
         'wp-barrio-duplicate',
         'wpb_duplicate_admin_page'
     );
-}, 14);
+}, 13);
 
 /* ─────────────────────────────────────────
    ENQUEUE — solo nelle pagine duplicate
@@ -451,57 +451,95 @@ add_filter('tag_row_actions', function (array $actions, \WP_Term $term): array {
 /* ─────────────────────────────────────────
    CSS — pagina configurazione
    ───────────────────────────────────────── */
+/* ─────────────────────────────────────────
+   CSS — pagina configurazione
+   ───────────────────────────────────────── */
 function wpb_duplicate_config_css(): string
 {
     return '
-    #wpb-duplicate-wrap { max-width: 760px; }
+    /* ── WP Barrio Duplicate v7 ── */
+    #wpb-duplicate-wrap {
+        max-width: 760px;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    }
 
-    .wpb-dup-tabs { display:flex; gap:2px; border-bottom:1px solid #c3c4c7; margin-bottom:0; }
+    /* Header */
+    .wpb-dup-header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+    .wpb-dup-header-icon {
+        width:40px; height:40px; background:#111827; border-radius:10px;
+        display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .wpb-dup-header-icon .dashicons { font-size:20px; width:20px; height:20px; color:#fff; }
+    .wpb-dup-header h1 {
+        font-size:22px !important; font-weight:700 !important;
+        color:#111827 !important; margin:0 !important; padding:0 !important; line-height:1.2 !important;
+    }
+    .wpb-dup-header-breadcrumb { font-size:14px; font-weight:400; color:#9ca3af; margin-left:4px; }
+    .wpb-dup-header-sub { font-size:13px; color:#6b7280; margin:2px 0 0; }
+    .wpb-dup-divider { border:none; border-top:1px solid #f3f4f6; margin:14px 0 24px; }
+
+    /* Tabs */
+    .wpb-dup-tabs { display:flex; gap:2px; border-bottom:2px solid #e5e7eb; margin-bottom:24px; }
     .wpb-dup-tab {
-        padding:8px 18px; font-size:13px; font-weight:500; color:#646970;
-        cursor:pointer; border:1px solid transparent; border-bottom:none;
-        border-radius:3px 3px 0 0; background:#f6f7f7;
-        transition:background .15s, color .15s; user-select:none;
+        display:inline-flex; align-items:center; gap:6px;
+        padding:9px 18px; font-size:13px; font-weight:600; color:#6b7280;
+        cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px;
+        border-radius:6px 6px 0 0; transition:color .15s; user-select:none;
     }
-    .wpb-dup-tab:hover { background:#fff; color:#1d2327; }
-    .wpb-dup-tab.active {
-        background:#fff; color:#1d2327; border-color:#c3c4c7;
-        margin-bottom:-1px; padding-bottom:9px;
+    .wpb-dup-tab:hover { color:#111827; background:#f9fafb; }
+    .wpb-dup-tab.active { color:#111827; border-bottom-color:#111827; }
+    .wpb-dup-tab .dashicons { font-size:15px; width:15px; height:15px; }
+    .wpb-dup-tab-badge {
+        display:inline-flex; align-items:center; justify-content:center;
+        background:#111827; color:#fff;
+        border-radius:20px; padding:1px 8px;
+        font-size:10px; font-weight:700; min-width:18px;
     }
-    .wpb-dup-panel { display:none; padding-top:24px; }
+    .wpb-dup-panel { display:none; }
     .wpb-dup-panel.active { display:block; }
 
-    .wpb-dup-card { background:#fff; border:1px solid #c3c4c7; border-radius:3px; margin-bottom:2px; }
+    /* Info notice */
+    .wpb-dup-notice {
+        display:flex; align-items:flex-start; gap:12px;
+        background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px;
+        padding:13px 16px; margin-bottom:16px;
+        font-size:13px; color:#1e40af; line-height:1.5;
+    }
+    .wpb-dup-notice .dashicons { font-size:17px; width:17px; height:17px; flex-shrink:0; margin-top:1px; color:#3b82f6; }
+
+    /* List card */
+    .wpb-dup-card {
+        background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+        overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05);
+    }
     .wpb-dup-row {
         display:flex; align-items:center; gap:16px;
-        padding:14px 18px; border-bottom:1px solid #f0f0f1;
+        padding:13px 20px; border-bottom:1px solid #f3f4f6;
+        transition:background .12s;
     }
     .wpb-dup-row:last-child { border-bottom:none; }
-    .wpb-dup-row-info { flex:1; }
-    .wpb-dup-row-label { font-size:13px; font-weight:600; color:#1d2327; }
-    .wpb-dup-row-slug  { font-size:11px; color:#a7aaad; margin-top:1px; font-family:monospace; }
-    .wpb-dup-row-hint  { font-size:11px; color:#2271b1; margin-top:3px; }
+    .wpb-dup-row:hover { background:#f9fafb; }
+    .wpb-dup-row-info { flex:1; min-width:0; }
+    .wpb-dup-row-label { font-size:13.5px; font-weight:600; color:#111827; }
+    .wpb-dup-row-slug  { font-size:11px; color:#9ca3af; margin-top:2px; font-family:ui-monospace,Consolas,monospace; }
+    .wpb-dup-row-hint  { font-size:12px; color:#059669; margin-top:4px; font-weight:500; }
 
-    .wpb-toggle { position:relative; width:40px; height:22px; flex-shrink:0; }
+    /* Toggle switch — identico a tools.php */
+    .wpb-toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
     .wpb-toggle input { opacity:0; width:0; height:0; position:absolute; }
-    .wpb-toggle-slider {
-        position:absolute; inset:0; background:#a7aaad;
-        border-radius:22px; cursor:pointer; transition:background .2s;
+    .wpb-toggle-track {
+        position:absolute; inset:0; background:#d1d5db;
+        border-radius:24px; cursor:pointer; transition:background .2s;
     }
-    .wpb-toggle-slider:before {
-        content:""; position:absolute; width:16px; height:16px;
+    .wpb-toggle-track::before {
+        content:""; position:absolute; width:18px; height:18px;
         left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s;
+        box-shadow:0 1px 3px rgba(0,0,0,.2);
     }
-    .wpb-toggle input:checked + .wpb-toggle-slider { background:#2271b1; }
-    .wpb-toggle input:checked + .wpb-toggle-slider:before { transform:translateX(18px); }
-    .wpb-toggle-saving .wpb-toggle-slider { opacity:.5; pointer-events:none; }
-
-    .wpb-dup-info-bar {
-        display:flex; align-items:center; gap:8px; padding:10px 14px;
-        background:#f0f6fc; border:1px solid #c5d9f0; border-radius:3px;
-        font-size:12px; color:#1d2327; margin-bottom:16px;
-    }
-';
+    .wpb-toggle input:checked + .wpb-toggle-track { background:#111827; }
+    .wpb-toggle input:checked + .wpb-toggle-track::before { transform:translateX(20px); }
+    .wpb-toggle-saving .wpb-toggle-track { opacity:.5; pointer-events:none; }
+    ';
 }
 
 /* ─────────────────────────────────────────
@@ -529,15 +567,15 @@ jQuery(function($){
     // Toggle post type
     $(document).on('change', '.wpb-dup-pt-toggle', function(){
         var input   = $(this);
-        var label   = input.closest('.wpb-toggle');
+        var wrap    = input.closest('.wpb-toggle');
         var row     = input.closest('.wpb-dup-row');
         var pt      = input.data('pt');
         var enabled = input.is(':checked') ? 1 : 0;
 
-        label.addClass('wpb-toggle-saving');
+        wrap.addClass('wpb-toggle-saving');
         $.post(ajaxUrl, { action:'wpb_duplicate_toggle_pt', nonce:nonce, post_type:pt, enabled:enabled },
         function(res){
-            label.removeClass('wpb-toggle-saving');
+            wrap.removeClass('wpb-toggle-saving');
             if (!res.success) {
                 input.prop('checked', !enabled);
                 alert('Errore nel salvataggio.');
@@ -551,15 +589,15 @@ jQuery(function($){
     // Toggle tassonomia
     $(document).on('change', '.wpb-dup-tax-toggle', function(){
         var input   = $(this);
-        var label   = input.closest('.wpb-toggle');
+        var wrap    = input.closest('.wpb-toggle');
         var row     = input.closest('.wpb-dup-row');
         var tax     = input.data('tax');
         var enabled = input.is(':checked') ? 1 : 0;
 
-        label.addClass('wpb-toggle-saving');
+        wrap.addClass('wpb-toggle-saving');
         $.post(ajaxUrl, { action:'wpb_duplicate_toggle_tax', nonce:nonce, taxonomy:tax, enabled:enabled },
         function(res){
-            label.removeClass('wpb-toggle-saving');
+            wrap.removeClass('wpb-toggle-saving');
             if (!res.success) {
                 input.prop('checked', !enabled);
                 alert('Errore nel salvataggio.');
@@ -587,50 +625,43 @@ function wpb_duplicate_admin_page()
     $enabled_taxs = wpb_duplicate_enabled_taxonomies();
     ?>
     <div id="wpb-duplicate-wrap" class="wrap">
-        <h1 class="wp-heading-inline">
-            <span class="dashicons dashicons-admin-page"
-                style="font-size:26px;width:26px;height:26px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
-            WP Barrio
-            <span style="font-size:15px;font-weight:400;color:#646970;margin-left:6px;">/ Duplicate</span>
-        </h1>
-        <p class="description" style="font-size:13px;color:#646970;margin:6px 0 24px;">
-            Scegli quali post type e tassonomie supportano la duplicazione. Il link <strong>Copia</strong> apparirà nelle
-            azioni di riga, accanto a "Modifica rapida".
-        </p>
-        <hr class="wp-header-end" style="margin-bottom:24px;">
+
+        <!-- Header -->
+        <div class="wpb-dup-header">
+            <div class="wpb-dup-header-icon"><span class="dashicons dashicons-admin-page"></span></div>
+            <div>
+                <h1>WP Barrio <span class="wpb-dup-header-breadcrumb">/ Duplicate</span></h1>
+                <p class="wpb-dup-header-sub">Attiva la duplicazione rapida per post type e tassonomie</p>
+            </div>
+        </div>
+        <hr class="wpb-dup-divider">
 
         <!-- Tabs -->
         <div class="wpb-dup-tabs">
             <div class="wpb-dup-tab active" data-tab="post-types">
-                <span class="dashicons dashicons-admin-post"
-                    style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;"></span>
+                <span class="dashicons dashicons-admin-post"></span>
                 Post Type
                 <?php if (!empty($enabled_pts)): ?>
-                    <span
-                        style="display:inline-block;margin-left:6px;padding:0 6px;background:#2271b1;color:#fff;border-radius:8px;font-size:10px;font-weight:700;vertical-align:middle;"><?php echo count($enabled_pts); ?></span>
+                    <span class="wpb-dup-tab-badge"><?php echo count($enabled_pts); ?></span>
                 <?php endif; ?>
             </div>
             <div class="wpb-dup-tab" data-tab="taxonomies">
-                <span class="dashicons dashicons-tag"
-                    style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;"></span>
+                <span class="dashicons dashicons-tag"></span>
                 Tassonomie
                 <?php if (!empty($enabled_taxs)): ?>
-                    <span
-                        style="display:inline-block;margin-left:6px;padding:0 6px;background:#2271b1;color:#fff;border-radius:8px;font-size:10px;font-weight:700;vertical-align:middle;"><?php echo count($enabled_taxs); ?></span>
+                    <span class="wpb-dup-tab-badge"><?php echo count($enabled_taxs); ?></span>
                 <?php endif; ?>
             </div>
         </div>
 
         <!-- Panel: Post Type -->
         <div id="wpb-dup-panel-post-types" class="wpb-dup-panel active">
-            <div class="wpb-dup-info-bar">
-                <span class="dashicons dashicons-info"
-                    style="color:#2271b1;font-size:16px;width:16px;height:16px;flex-shrink:0;"></span>
-                <span>Attiva la duplicazione per un post type: comparirà il link <strong>Copia</strong> nella riga di ogni
-                    post, accanto a "Modifica rapida". Il duplicato viene creato come <em>bozza</em> con titolo "<em>Titolo
-                        originale — Copia</em>", inclusi meta, tassonomie e immagine in evidenza.</span>
+            <div class="wpb-dup-notice">
+                <span class="dashicons dashicons-info"></span>
+                <div>Attiva la duplicazione per un post type: apparirà il link <strong>Copia</strong> nella riga di ogni
+                    post, accanto a «Modifica rapida». Il duplicato viene creato come <strong>bozza</strong> con titolo
+                    «<em>Titolo originale — Copia</em>», inclusi meta, tassonomie e immagine in evidenza.</div>
             </div>
-
             <div class="wpb-dup-card">
                 <?php foreach ($post_types as $pt):
                     $is_enabled = in_array($pt['slug'], $enabled_pts, true);
@@ -639,14 +670,14 @@ function wpb_duplicate_admin_page()
                         <div class="wpb-dup-row-info">
                             <div class="wpb-dup-row-label"><?php echo esc_html($pt['label']); ?></div>
                             <div class="wpb-dup-row-slug"><?php echo esc_html($pt['slug']); ?></div>
-                            <div class="wpb-dup-row-hint" style="<?php echo $is_enabled ? '' : 'display:none;'; ?>">
-                                ↳ "Copia" è visibile nella lista <?php echo esc_html($pt['label']); ?>
+                            <div class="wpb-dup-row-hint" <?php echo $is_enabled ? '' : 'style="display:none;"'; ?>>
+                                &#x2713; «Copia» visibile nella lista <?php echo esc_html($pt['label']); ?>
                             </div>
                         </div>
                         <label class="wpb-toggle">
                             <input type="checkbox" class="wpb-dup-pt-toggle" data-pt="<?php echo esc_attr($pt['slug']); ?>"
                                 <?php checked($is_enabled); ?>>
-                            <span class="wpb-toggle-slider"></span>
+                            <span class="wpb-toggle-track"></span>
                         </label>
                     </div>
                 <?php endforeach; ?>
@@ -655,33 +686,30 @@ function wpb_duplicate_admin_page()
 
         <!-- Panel: Tassonomie -->
         <div id="wpb-dup-panel-taxonomies" class="wpb-dup-panel">
-            <div class="wpb-dup-info-bar">
-                <span class="dashicons dashicons-info"
-                    style="color:#2271b1;font-size:16px;width:16px;height:16px;flex-shrink:0;"></span>
-                <span>Attiva la duplicazione per una tassonomia: comparirà il link <strong>Copia</strong> nella riga di ogni
-                    termine. Il duplicato viene creato con nome "<em>Nome originale — Copia</em>", inclusi i term
-                    meta.</span>
+            <div class="wpb-dup-notice">
+                <span class="dashicons dashicons-info"></span>
+                <div>Attiva la duplicazione per una tassonomia: apparirà il link <strong>Copia</strong> nella riga di ogni
+                    termine. Il duplicato viene creato con nome «<em>Nome originale — Copia</em>», inclusi i term meta.
+                </div>
             </div>
-
             <div class="wpb-dup-card">
                 <?php foreach ($taxonomies as $tax):
-                    $is_enabled = in_array($tax['slug'], $enabled_taxs, true);
-
-                    if ($tax['slug'] == "post_format")
+                    if ($tax['slug'] === 'post_format')
                         continue;
+                    $is_enabled = in_array($tax['slug'], $enabled_taxs, true);
                     ?>
                     <div class="wpb-dup-row">
                         <div class="wpb-dup-row-info">
                             <div class="wpb-dup-row-label"><?php echo esc_html($tax['label']); ?></div>
                             <div class="wpb-dup-row-slug"><?php echo esc_html($tax['slug']); ?></div>
-                            <div class="wpb-dup-row-hint" style="<?php echo $is_enabled ? '' : 'display:none;'; ?>">
-                                ↳ "Copia" è visibile nella lista <?php echo esc_html($tax['label']); ?>
+                            <div class="wpb-dup-row-hint" <?php echo $is_enabled ? '' : 'style="display:none;"'; ?>>
+                                &#x2713; «Copia» visibile nella lista <?php echo esc_html($tax['label']); ?>
                             </div>
                         </div>
                         <label class="wpb-toggle">
                             <input type="checkbox" class="wpb-dup-tax-toggle" data-tax="<?php echo esc_attr($tax['slug']); ?>"
                                 <?php checked($is_enabled); ?>>
-                            <span class="wpb-toggle-slider"></span>
+                            <span class="wpb-toggle-track"></span>
                         </label>
                     </div>
                 <?php endforeach; ?>

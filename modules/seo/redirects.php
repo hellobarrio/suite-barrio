@@ -47,7 +47,8 @@ add_filter('submenu_file', function ($submenu_file) {
 function wpb_redirects_get_all(): array
 {
     $rows = get_option(WPB_REDIRECTS_OPTION, []);
-    if (!is_array($rows)) return [];
+    if (!is_array($rows))
+        return [];
 
     // Ordina per from_uri alfabetico
     usort($rows, fn($a, $b) => strcmp($a['from'] ?? '', $b['from'] ?? ''));
@@ -64,9 +65,11 @@ function wpb_redirects_normalize_uri(string $input): string
     // Se è un URL assoluto estrai solo il path
     if (preg_match('#^https?://#i', $input)) {
         $parsed = wp_parse_url($input);
-        $input  = ($parsed['path'] ?? '/');
-        if (!empty($parsed['query']))  $input .= '?' . $parsed['query'];
-        if (!empty($parsed['fragment'])) $input .= '#' . $parsed['fragment'];
+        $input = ($parsed['path'] ?? '/');
+        if (!empty($parsed['query']))
+            $input .= '?' . $parsed['query'];
+        if (!empty($parsed['fragment']))
+            $input .= '#' . $parsed['fragment'];
     }
 
     // Assicura che inizi con /
@@ -82,11 +85,12 @@ function wpb_redirects_normalize_uri(string $input): string
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_redirect_save', function () {
     check_ajax_referer('wpb_redirects_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized', 403);
+    if (!current_user_can('manage_options'))
+        wp_send_json_error('Unauthorized', 403);
 
-    $id   = sanitize_text_field($_POST['id']   ?? '');
+    $id = sanitize_text_field($_POST['id'] ?? '');
     $from = wpb_redirects_normalize_uri(sanitize_text_field($_POST['from'] ?? ''));
-    $to   = wpb_redirects_normalize_uri(sanitize_text_field($_POST['to']   ?? ''));
+    $to = wpb_redirects_normalize_uri(sanitize_text_field($_POST['to'] ?? ''));
     $code = (int) ($_POST['code'] ?? 301);
     $note = sanitize_text_field($_POST['note'] ?? '');
 
@@ -96,7 +100,8 @@ add_action('wp_ajax_wpb_redirect_save', function () {
         wp_send_json_error('Codice non valido');
 
     $rows = get_option(WPB_REDIRECTS_OPTION, []);
-    if (!is_array($rows)) $rows = [];
+    if (!is_array($rows))
+        $rows = [];
 
     if ($id) {
         // Edit
@@ -115,9 +120,9 @@ add_action('wp_ajax_wpb_redirect_save', function () {
                 wp_send_json_error('Esiste già un redirect per ' . esc_html($from));
         }
         $rows[] = [
-            'id'   => wp_generate_uuid4(),
+            'id' => wp_generate_uuid4(),
             'from' => $from,
-            'to'   => $to,
+            'to' => $to,
             'code' => $code,
             'note' => $note,
         ];
@@ -132,11 +137,13 @@ add_action('wp_ajax_wpb_redirect_save', function () {
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_redirect_delete', function () {
     check_ajax_referer('wpb_redirects_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized', 403);
+    if (!current_user_can('manage_options'))
+        wp_send_json_error('Unauthorized', 403);
 
-    $id   = sanitize_text_field($_POST['id'] ?? '');
+    $id = sanitize_text_field($_POST['id'] ?? '');
     $rows = get_option(WPB_REDIRECTS_OPTION, []);
-    if (!is_array($rows)) $rows = [];
+    if (!is_array($rows))
+        $rows = [];
 
     $rows = array_values(array_filter($rows, fn($r) => ($r['id'] ?? '') !== $id));
     update_option(WPB_REDIRECTS_OPTION, $rows, false);
@@ -158,10 +165,12 @@ add_action('wp_ajax_wpb_redirect_delete', function () {
    ───────────────────────────────────────── */
 function wpb_redirects_add_auto(string $from, string $to): void
 {
-    if (empty($from) || empty($to) || $from === $to) return;
+    if (empty($from) || empty($to) || $from === $to)
+        return;
 
     $rows = get_option(WPB_REDIRECTS_OPTION, []);
-    if (!is_array($rows)) $rows = [];
+    if (!is_array($rows))
+        $rows = [];
 
     // 0. Pulizia preventiva: se $to è un URI che era già una "from"
     //    in un redirect esistente, quel redirect è ora obsoleto
@@ -170,11 +179,13 @@ function wpb_redirects_add_auto(string $from, string $to): void
 
     // 1. Non aggiungere se esiste già lo stesso "from"
     foreach ($rows as $row) {
-        if (($row['from'] ?? '') === $from) return;
+        if (($row['from'] ?? '') === $from)
+            return;
     }
 
     // 2. Rileva loop transitivi
-    if (wpb_redirects_would_loop($from, $to, $rows)) return;
+    if (wpb_redirects_would_loop($from, $to, $rows))
+        return;
 
     // 3. Accorcia catene esistenti: A→B→C diventa A→C
     foreach ($rows as &$row) {
@@ -186,9 +197,9 @@ function wpb_redirects_add_auto(string $from, string $to): void
 
     // 4. Aggiunge il nuovo redirect
     $rows[] = [
-        'id'   => wp_generate_uuid4(),
+        'id' => wp_generate_uuid4(),
         'from' => $from,
-        'to'   => $to,
+        'to' => $to,
         'code' => 301,
         'note' => 'Aggiunto automaticamente al cambio slug',
     ];
@@ -211,7 +222,8 @@ function wpb_redirects_add_auto(string $from, string $to): void
    ───────────────────────────────────────── */
 function wpb_redirects_cleanup_for_uri(string $uri, array $rows): array
 {
-    if (empty($uri)) return $rows;
+    if (empty($uri))
+        return $rows;
 
     $rows = array_values(array_filter($rows, fn($r) => ($r['from'] ?? '') !== $uri));
 
@@ -234,13 +246,16 @@ function wpb_redirects_would_loop(string $from, string $to, array $rows): bool
 
     $current = $to;
     $visited = [$from => true];
-    $steps   = 0;
+    $steps = 0;
 
     while ($steps++ < 20) {
-        if ($current === $from)       return true;
-        if (isset($visited[$current])) return true;
+        if ($current === $from)
+            return true;
+        if (isset($visited[$current]))
+            return true;
         $visited[$current] = true;
-        if (!isset($map[$current]))   break;
+        if (!isset($map[$current]))
+            break;
         $current = $map[$current];
     }
 
@@ -251,12 +266,15 @@ function wpb_redirects_would_loop(string $from, string $to, array $rows): bool
    AUTO-REDIRECT — QUICK EDIT (inline-save)
    ───────────────────────────────────────── */
 add_action('wp_ajax_inline-save', function () {
-    $post_id = (int)($_POST['post_ID'] ?? 0);
-    if (!$post_id) return;
+    $post_id = (int) ($_POST['post_ID'] ?? 0);
+    if (!$post_id)
+        return;
     $post = get_post($post_id);
-    if (!$post || $post->post_status !== 'publish') return;
+    if (!$post || $post->post_status !== 'publish')
+        return;
     $uri = wp_make_link_relative(get_permalink($post_id) ?: '');
-    if ($uri) update_post_meta($post_id, '_wpb_pre_update_link_uri', $uri);
+    if ($uri)
+        update_post_meta($post_id, '_wpb_pre_update_link_uri', $uri);
     update_post_meta($post_id, '_wpb_pre_update_slug', $post->post_name);
 }, 0);
 
@@ -266,38 +284,48 @@ add_action('wp_ajax_inline-save', function () {
 
 // Priority 9: salva URI prima dell'hook a priority 10
 add_action('pre_post_update', function ($post_id, $data) {
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)
+        return;
     $post = get_post($post_id);
-    if (!$post || $post->post_status !== 'publish') return;
+    if (!$post || $post->post_status !== 'publish')
+        return;
     $uri = wp_make_link_relative(get_permalink($post_id) ?: '');
-    if ($uri) update_post_meta($post_id, '_wpb_pre_update_link_uri', $uri);
+    if ($uri)
+        update_post_meta($post_id, '_wpb_pre_update_link_uri', $uri);
     update_post_meta($post_id, '_wpb_pre_update_slug', $post->post_name);
 }, 9, 2);
 
 add_action('post_updated', function ($post_id, $post_after, $post_before) {
-    if (!wpb_tools_module_enabled('seo')) return;
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
-    if (wp_is_post_revision($post_id)) return;
+    if (!wpb_tools_module_enabled('seo'))
+        return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)
+        return;
+    if (wp_is_post_revision($post_id))
+        return;
 
     $old_slug = get_post_meta($post_id, '_wpb_pre_update_slug', true);
     $new_slug = $post_after->post_name;
-    $old_uri  = get_post_meta($post_id, '_wpb_pre_update_link_uri', true);
+    $old_uri = get_post_meta($post_id, '_wpb_pre_update_link_uri', true);
 
     delete_post_meta($post_id, '_wpb_pre_update_slug');
     delete_post_meta($post_id, '_wpb_pre_update_link_uri');
 
-    if (empty($old_slug) || $old_slug === $new_slug) return;
-    if (empty($old_uri)) return;
+    if (empty($old_slug) || $old_slug === $new_slug)
+        return;
+    if (empty($old_uri))
+        return;
 
     $new_uri = wp_make_link_relative(get_permalink($post_id) ?: '');
-    if (empty($new_uri)) return;
+    if (empty($new_uri))
+        return;
 
     // Rimuove eventuali redirect obsoleti verso il nuovo URI
     // (es. /chi-siamo→/about viene rimosso quando lo slug torna a /chi-siamo)
     $rows = get_option(WPB_REDIRECTS_OPTION, []);
     wpb_redirects_cleanup_for_uri($new_uri, is_array($rows) ? $rows : []);
 
-    if ($old_uri === $new_uri) return;
+    if ($old_uri === $new_uri)
+        return;
 
     wpb_redirects_add_auto($old_uri, $new_uri);
 }, 10, 3);
@@ -306,30 +334,38 @@ add_action('post_updated', function ($post_id, $post_after, $post_before) {
    AUTO-REDIRECT — TASSONOMIE
    ───────────────────────────────────────── */
 add_action('edit_term', function ($term_id, $tt_id, $taxonomy) {
-    if (!wpb_tools_module_enabled('seo')) return;
+    if (!wpb_tools_module_enabled('seo'))
+        return;
     $term = get_term($term_id, $taxonomy);
-    if (!$term || is_wp_error($term)) return;
+    if (!$term || is_wp_error($term))
+        return;
     $link = get_term_link($term, $taxonomy);
-    if (is_wp_error($link)) return;
+    if (is_wp_error($link))
+        return;
     set_transient('wpb_term_pre_uri_' . $term_id, wp_make_link_relative($link), 60);
 }, 10, 3);
 
 add_action('edited_term', function ($term_id, $tt_id, $taxonomy) {
-    if (!wpb_tools_module_enabled('seo')) return;
+    if (!wpb_tools_module_enabled('seo'))
+        return;
     $old_uri = get_transient('wpb_term_pre_uri_' . $term_id);
     delete_transient('wpb_term_pre_uri_' . $term_id);
-    if (!$old_uri) return;
+    if (!$old_uri)
+        return;
     $term = get_term($term_id, $taxonomy);
-    if (!$term || is_wp_error($term)) return;
+    if (!$term || is_wp_error($term))
+        return;
     $link = get_term_link($term, $taxonomy);
-    if (is_wp_error($link)) return;
+    if (is_wp_error($link))
+        return;
     $new_uri = wp_make_link_relative($link);
 
     // Rimuove eventuali redirect obsoleti verso il nuovo URI
     $rows = get_option(WPB_REDIRECTS_OPTION, []);
     wpb_redirects_cleanup_for_uri($new_uri, is_array($rows) ? $rows : []);
 
-    if ($old_uri === $new_uri) return;
+    if ($old_uri === $new_uri)
+        return;
     wpb_redirects_add_auto($old_uri, $new_uri);
 }, 10, 3);
 
@@ -348,137 +384,333 @@ function wpb_redirects_admin_page()
     ];
     ?>
     <style>
-        #wpb-redirects-wrap { max-width: 960px; }
+        #wpb-redirects-wrap {
+            max-width: 960px;
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+        }
 
-        /* ── Toolbar ────────────────────────── */
+        .wpb-rd-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 8px;
+        }
+
+        .wpb-rd-header-icon {
+            width: 40px;
+            height: 40px;
+            background: #111827;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .wpb-rd-header-icon .dashicons {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+            color: #fff;
+        }
+
+        .wpb-rd-header h1 {
+            font-size: 22px !important;
+            font-weight: 700 !important;
+            color: #111827 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
+        }
+
+        .wpb-rd-breadcrumb {
+            font-size: 14px;
+            font-weight: 400;
+            color: #9ca3af;
+            margin-left: 4px;
+        }
+
+        .wpb-rd-sub {
+            font-size: 13px;
+            color: #6b7280;
+            margin: 2px 0 0;
+        }
+
+        .wpb-rd-divider {
+            border: none;
+            border-top: 1px solid #f3f4f6;
+            margin: 14px 0 24px;
+        }
+
         .wpb-rd-toolbar {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
+
         .wpb-rd-toolbar input[type=search] {
             flex: 1;
             max-width: 300px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-family: inherit;
         }
 
-        /* ── Table ──────────────────────────── */
+        .wpb-rd-toolbar input[type=search]:focus {
+            outline: none;
+            border-color: #111827;
+        }
+
+        .wpb-rd-count {
+            font-size: 13px;
+            color: #6b7280;
+            margin-left: auto;
+        }
+
+        .wpb-rd-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            background: #111827;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity .15s;
+        }
+
+        .wpb-rd-add-btn:hover {
+            opacity: .85;
+        }
+
         .wpb-rd-table {
             width: 100%;
             border-collapse: collapse;
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
             font-size: 13px;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
         }
+
         .wpb-rd-table th {
             padding: 10px 14px;
             text-align: left;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: .4px;
-            color: #646970;
-            background: #f6f7f7;
-            border-bottom: 1px solid #f0f0f1;
+            letter-spacing: .5px;
+            color: #6b7280;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
             white-space: nowrap;
         }
+
         .wpb-rd-table td {
             padding: 11px 14px;
-            border-bottom: 1px solid #f0f0f1;
+            border-bottom: 1px solid #f3f4f6;
             vertical-align: middle;
+            color: #374151;
         }
-        .wpb-rd-table tbody tr:last-child td { border-bottom: none; }
-        .wpb-rd-table tbody tr:hover td { background: #f9f9f9; }
+
+        .wpb-rd-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .wpb-rd-table tbody tr:hover td {
+            background: #f9fafb;
+        }
 
         .wpb-rd-uri {
-            font-family: monospace;
+            font-family: ui-monospace, Consolas, monospace;
             font-size: 12px;
-            color: #1d2327;
+            color: #374151;
             word-break: break-all;
+            font-weight: 500;
         }
-        .wpb-rd-arrow {
-            color: #c3c4c7;
-            font-size: 14px;
-            padding: 0 4px;
-        }
+
         .wpb-rd-code {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             font-size: 11px;
             font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 3px;
+            padding: 3px 9px;
+            border-radius: 20px;
             white-space: nowrap;
         }
-        .wpb-rd-code-301, .wpb-rd-code-308 { background: #edfaef; color: #00a32a; }
-        .wpb-rd-code-302, .wpb-rd-code-307 { background: #e8f0fb; color: #2271b1; }
-        .wpb-rd-code-410                    { background: #fce8e8; color: #d63638; }
 
-        .wpb-rd-note { font-size: 11px; color: #a7aaad; margin-top: 2px; }
+        .wpb-rd-code-301,
+        .wpb-rd-code-308 {
+            background: #dcfce7;
+            color: #166534;
+        }
 
-        .wpb-rd-actions { display: flex; gap: 6px; }
-        .wpb-rd-actions .button { font-size: 12px; padding: 2px 8px; min-height: 26px; line-height: 22px; }
+        .wpb-rd-code-302,
+        .wpb-rd-code-307 {
+            background: #dbeafe;
+            color: #1e40af;
+        }
 
-        /* ── Modale ─────────────────────────── */
+        .wpb-rd-code-410 {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .wpb-rd-note {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        .wpb-rd-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .wpb-rd-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 7px;
+            cursor: pointer;
+            border: 1px solid #e5e7eb;
+            background: #f3f4f6;
+            color: #374151;
+            font-family: inherit;
+            transition: background .15s;
+        }
+
+        .wpb-rd-action-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .wpb-rd-delete-btn {
+            background: #fff;
+            border-color: #fca5a5;
+            color: #dc2626;
+        }
+
+        .wpb-rd-delete-btn:hover {
+            background: #fee2e2;
+        }
+
         .wpb-rd-modal-overlay {
             display: none;
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,.45);
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .5);
             z-index: 99998;
             align-items: center;
             justify-content: center;
+            backdrop-filter: blur(2px);
         }
-        .wpb-rd-modal-overlay.open { display: flex; }
+
+        .wpb-rd-modal-overlay.open {
+            display: flex;
+        }
+
         .wpb-rd-modal {
             background: #fff;
-            border-radius: 4px;
-            padding: 24px 28px;
+            border-radius: 16px;
+            padding: 28px 30px;
             width: 520px;
             max-width: 95vw;
-            box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .18);
             position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
         }
+
         .wpb-rd-modal h2 {
             font-size: 16px;
             font-weight: 700;
-            color: #1d2327;
-            margin: 0 0 20px;
+            color: #111827;
+            margin: 0 0 22px;
         }
+
         .wpb-rd-modal-close {
             position: absolute;
-            top: 16px; right: 16px;
-            background: none; border: none;
-            font-size: 20px; color: #a7aaad;
-            cursor: pointer; line-height: 1;
+            top: 18px;
+            right: 18px;
+            background: #f3f4f6;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 16px;
+            color: #6b7280;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .wpb-rd-modal-close:hover { color: #1d2327; }
 
-        .wpb-rd-field { margin-bottom: 16px; }
+        .wpb-rd-modal-close:hover {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .wpb-rd-field {
+            margin-bottom: 16px;
+        }
+
         .wpb-rd-field label {
             display: block;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
-            color: #646970;
+            color: #374151;
             text-transform: uppercase;
-            letter-spacing: .4px;
-            margin-bottom: 5px;
+            letter-spacing: .5px;
+            margin-bottom: 6px;
         }
+
         .wpb-rd-field input[type=text],
         .wpb-rd-field select {
             width: 100%;
             font-size: 13px;
+            border: 1px solid #e5e7eb;
+            border-radius: 7px;
+            padding: 8px 12px;
+            font-family: inherit;
         }
-        .wpb-rd-field .wpb-rd-hint {
-            font-size: 11px; color: #a7aaad; margin-top: 4px;
+
+        .wpb-rd-field input[type=text]:focus,
+        .wpb-rd-field select:focus {
+            outline: none;
+            border-color: #111827;
+        }
+
+        .wpb-rd-hint {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 4px;
         }
 
         .wpb-rd-modal-row {
-            display: flex; gap: 10px; align-items: center;
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
-        .wpb-rd-modal-row .wpb-rd-field { flex: 1; margin-bottom: 0; }
+
+        .wpb-rd-modal-row .wpb-rd-field {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
         .wpb-rd-modal-arrow {
-            font-size: 18px; color: #c3c4c7; flex-shrink: 0;
+            font-size: 18px;
+            color: #d1d5db;
+            flex-shrink: 0;
             margin-top: 18px;
         }
 
@@ -486,138 +718,157 @@ function wpb_redirects_admin_page()
             display: flex;
             justify-content: flex-end;
             gap: 8px;
-            margin-top: 20px;
+            margin-top: 22px;
             padding-top: 16px;
-            border-top: 1px solid #f0f0f1;
+            border-top: 1px solid #f3f4f6;
         }
 
         .wpb-rd-error {
-            background: #fce8e8; color: #d63638;
-            padding: 8px 12px; border-radius: 3px;
-            font-size: 12px; margin-bottom: 12px;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 9px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 12px;
             display: none;
         }
 
-        /* ── Empty state ─────────────────────── */
         .wpb-rd-empty {
             text-align: center;
-            padding: 48px 24px;
-            color: #646970;
+            padding: 56px 24px;
+            color: #6b7280;
             background: #fff;
-            border: 1px solid #c3c4c7;
-            border-radius: 3px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
         }
-        .wpb-rd-empty .dashicons {
-            font-size: 40px; width: 40px; height: 40px;
-            color: #c3c4c7; display: block; margin: 0 auto 12px;
-        }
-        .wpb-rd-empty p { margin: 0 0 16px; font-size: 14px; }
 
-        /* ── Counter ─────────────────────────── */
-        .wpb-rd-count {
-            font-size: 13px; color: #646970; margin-left: auto;
+        .wpb-rd-empty .dashicons {
+            font-size: 48px;
+            width: 48px;
+            height: 48px;
+            color: #d1d5db;
+            display: block;
+            margin: 0 auto 14px;
+        }
+
+        .wpb-rd-empty p {
+            margin: 0 0 16px;
+            font-size: 14px;
+        }
+
+        .wpb-rd-modal-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            border: none;
+            transition: opacity .15s;
+        }
+
+        .wpb-rd-modal-btn:hover {
+            opacity: .85;
+        }
+
+        .wpb-rd-modal-btn-primary {
+            background: #111827;
+            color: #fff;
+        }
+
+        .wpb-rd-modal-btn-ghost {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
         }
     </style>
 
     <div id="wpb-redirects-wrap" class="wrap">
-        <h1>
-            <span class="dashicons dashicons-randomize"
-                style="font-size:24px;width:24px;height:24px;vertical-align:middle;margin-right:6px;color:#e6600d;"></span>
-            WP Barrio
-            <span style="font-size:15px;font-weight:400;color:#646970;margin-left:4px;">/ SEO / Redirects</span>
-        </h1>
-        <p class="description" style="font-size:14px;margin:4px 0 20px;">
-            Gestisci i redirect del sito. Vengono esportati via GraphQL come URI relativi
-            da gestire nel frontend headless.
-        </p>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+            <div class="wpb-rd-header">
+                <div class="wpb-rd-header-icon"><span class="dashicons dashicons-randomize"></span></div>
+                <div>
+                    <h1>WP Barrio <span class="wpb-rd-breadcrumb">/ SEO / Redirects</span></h1>
+                    <p class="wpb-rd-sub">Gestisci redirect del sito per il frontend headless</p>
+                </div>
+            </div>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-seo')); ?>"
+                style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:12.5px;font-weight:600;background:#f3f4f6;color:#374151 !important;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none !important;white-space:nowrap;flex-shrink:0;align-self:flex-start;">
+                <span class="dashicons dashicons-arrow-left-alt2"
+                    style="font-size:14px;width:14px;height:14px;margin-top:1px;"></span>
+                Strumenti SEO
+            </a>
+        </div>
+        <hr class="wpb-rd-divider">
 
-        <!-- Toolbar -->
         <div class="wpb-rd-toolbar">
             <input type="search" id="wpb-rd-search" placeholder="Filtra per URI o nota…">
-            <span class="wpb-rd-count" id="wpb-rd-count">
-                <?php echo count($rows); ?> redirect
-            </span>
-            <button class="button button-primary" id="wpb-rd-add-btn">
-                + Aggiungi redirect
-            </button>
+            <span class="wpb-rd-count" id="wpb-rd-count"><?php echo count($rows); ?> redirect</span>
+            <button class="wpb-rd-add-btn" id="wpb-rd-add-btn">+ Aggiungi redirect</button>
         </div>
 
-        <!-- Tabella -->
         <div id="wpb-rd-table-wrap">
-        <?php if (empty($rows)): ?>
-            <div class="wpb-rd-empty" id="wpb-rd-empty">
-                <span class="dashicons dashicons-randomize"></span>
-                <p>Nessun redirect configurato.</p>
-                <button class="button button-primary" id="wpb-rd-add-btn-empty">+ Aggiungi il primo redirect</button>
-            </div>
-        <?php else: ?>
-            <table class="wpb-rd-table" id="wpb-rd-table">
-                <thead>
-                    <tr>
-                        <th style="width:35%">Da URI</th>
-                        <th style="width:35%">A URI</th>
-                        <th style="width:90px">Codice</th>
-                        <th>Nota</th>
-                        <th style="width:100px"></th>
-                    </tr>
-                </thead>
-                <tbody id="wpb-rd-tbody">
-                    <?php foreach ($rows as $row): ?>
-                        <?php
-                        $code = (int)($row['code'] ?? 301);
-                        $is_gone = $code === 410;
-                        ?>
-                        <tr data-id="<?php echo esc_attr($row['id']); ?>"
-                            data-from="<?php echo esc_attr($row['from']); ?>"
-                            data-to="<?php echo esc_attr($row['to'] ?? ''); ?>"
-                            data-code="<?php echo esc_attr($code); ?>"
-                            data-note="<?php echo esc_attr($row['note'] ?? ''); ?>">
-                            <td>
-                                <span class="wpb-rd-uri"><?php echo esc_html($row['from']); ?></span>
-                            </td>
-                            <td>
-                                <?php if (!$is_gone): ?>
-                                    <span class="wpb-rd-uri"><?php echo esc_html($row['to'] ?? ''); ?></span>
-                                <?php else: ?>
-                                    <span style="color:#a7aaad;font-size:12px;font-style:italic;">rimossa</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <span class="wpb-rd-code wpb-rd-code-<?php echo $code; ?>">
-                                    <?php echo $code; ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php if (!empty($row['note'])): ?>
-                                    <span class="wpb-rd-note"><?php echo esc_html($row['note']); ?></span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <div class="wpb-rd-actions">
-                                    <button class="button wpb-rd-edit-btn">Modifica</button>
-                                    <button class="button wpb-rd-delete-btn"
-                                        style="color:#d63638;border-color:#d63638;">✕</button>
-                                </div>
-                            </td>
+            <?php if (empty($rows)): ?>
+                <div class="wpb-rd-empty" id="wpb-rd-empty">
+                    <span class="dashicons dashicons-randomize"></span>
+                    <p>Nessun redirect configurato.</p>
+                    <button class="wpb-rd-add-btn" id="wpb-rd-add-btn-empty">+ Aggiungi il primo redirect</button>
+                </div>
+            <?php else: ?>
+                <table class="wpb-rd-table" id="wpb-rd-table">
+                    <thead>
+                        <tr>
+                            <th style="width:35%">Da URI</th>
+                            <th style="width:35%">A URI</th>
+                            <th style="width:90px">Codice</th>
+                            <th>Nota</th>
+                            <th style="width:110px"></th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
+                    </thead>
+                    <tbody id="wpb-rd-tbody">
+                        <?php foreach ($rows as $row):
+                            $code = (int) ($row['code'] ?? 301);
+                            $is_gone = $code === 410;
+                            ?>
+                            <tr data-id="<?php echo esc_attr($row['id']); ?>" data-from="<?php echo esc_attr($row['from']); ?>"
+                                data-to="<?php echo esc_attr($row['to'] ?? ''); ?>" data-code="<?php echo esc_attr($code); ?>"
+                                data-note="<?php echo esc_attr($row['note'] ?? ''); ?>">
+                                <td><span class="wpb-rd-uri"><?php echo esc_html($row['from']); ?></span></td>
+                                <td>
+                                    <?php if (!$is_gone): ?>
+                                        <span class="wpb-rd-uri"><?php echo esc_html($row['to'] ?? ''); ?></span>
+                                    <?php else: ?>
+                                        <span style="color:#9ca3af;font-size:12px;font-style:italic;">rimossa</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><span class="wpb-rd-code wpb-rd-code-<?php echo $code; ?>"><?php echo $code; ?></span></td>
+                                <td><?php if (!empty($row['note'])): ?><span
+                                            class="wpb-rd-note"><?php echo esc_html($row['note']); ?></span><?php endif; ?></td>
+                                <td>
+                                    <div class="wpb-rd-actions">
+                                        <button class="wpb-rd-action-btn wpb-rd-edit-btn">Modifica</button>
+                                        <button class="wpb-rd-action-btn wpb-rd-delete-btn">&#x2715;</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         </div>
     </div>
 
-    <!-- Modale aggiungi/modifica -->
+    <!-- Modale -->
     <div class="wpb-rd-modal-overlay" id="wpb-rd-modal">
         <div class="wpb-rd-modal">
-            <button class="wpb-rd-modal-close" id="wpb-rd-modal-close">✕</button>
+            <button class="wpb-rd-modal-close" id="wpb-rd-modal-close">&#x2715;</button>
             <h2 id="wpb-rd-modal-title">Aggiungi redirect</h2>
-
             <div class="wpb-rd-error" id="wpb-rd-modal-error"></div>
-
             <input type="hidden" id="wpb-rd-edit-id" value="">
-
-            <!-- Da → A -->
             <div class="wpb-rd-modal-row">
                 <div class="wpb-rd-field">
                     <label for="wpb-rd-from">Da</label>
@@ -631,8 +882,6 @@ function wpb_redirects_admin_page()
                     <div class="wpb-rd-hint">URI di destinazione (vuoto se 410 Gone)</div>
                 </div>
             </div>
-
-            <!-- Codice -->
             <div class="wpb-rd-field" style="margin-top:14px;">
                 <label for="wpb-rd-code">Codice HTTP</label>
                 <select id="wpb-rd-code">
@@ -641,218 +890,167 @@ function wpb_redirects_admin_page()
                     <?php endforeach; ?>
                 </select>
             </div>
-
-            <!-- Nota -->
             <div class="wpb-rd-field">
                 <label for="wpb-rd-note">Nota (opzionale)</label>
                 <input type="text" id="wpb-rd-note" placeholder="Es. migrazione sezione blog">
             </div>
-
             <div class="wpb-rd-modal-footer">
-                <button class="button" id="wpb-rd-cancel-btn">Annulla</button>
-                <button class="button button-primary" id="wpb-rd-save-btn">Salva redirect</button>
+                <button class="wpb-rd-modal-btn wpb-rd-modal-btn-ghost" id="wpb-rd-cancel-btn">Annulla</button>
+                <button class="wpb-rd-modal-btn wpb-rd-modal-btn-primary" id="wpb-rd-save-btn">
+                    <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
+                    Salva redirect
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-    (function () {
-        var nonce    = <?php echo wp_json_encode(wp_create_nonce('wpb_redirects_nonce')); ?>;
-        var ajaxUrl  = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+        (function () {
+            var nonce = <?php echo wp_json_encode(wp_create_nonce('wpb_redirects_nonce')); ?>;
+            var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
 
-        var modal       = document.getElementById('wpb-rd-modal');
-        var modalTitle  = document.getElementById('wpb-rd-modal-title');
-        var modalError  = document.getElementById('wpb-rd-modal-error');
-        var editId      = document.getElementById('wpb-rd-edit-id');
-        var fromInput   = document.getElementById('wpb-rd-from');
-        var toInput     = document.getElementById('wpb-rd-to');
-        var codeSelect  = document.getElementById('wpb-rd-code');
-        var noteInput   = document.getElementById('wpb-rd-note');
-        var saveBtn     = document.getElementById('wpb-rd-save-btn');
-        var tbody       = document.getElementById('wpb-rd-tbody');
-        var countEl     = document.getElementById('wpb-rd-count');
-        var searchInput = document.getElementById('wpb-rd-search');
-        var tableWrap   = document.getElementById('wpb-rd-table-wrap');
+            var modal = document.getElementById('wpb-rd-modal');
+            var modalTitle = document.getElementById('wpb-rd-modal-title');
+            var modalError = document.getElementById('wpb-rd-modal-error');
+            var editId = document.getElementById('wpb-rd-edit-id');
+            var fromInput = document.getElementById('wpb-rd-from');
+            var toInput = document.getElementById('wpb-rd-to');
+            var codeSelect = document.getElementById('wpb-rd-code');
+            var noteInput = document.getElementById('wpb-rd-note');
+            var saveBtn = document.getElementById('wpb-rd-save-btn');
+            var tbody = document.getElementById('wpb-rd-tbody');
+            var countEl = document.getElementById('wpb-rd-count');
+            var searchInput = document.getElementById('wpb-rd-search');
+            var tableWrap = document.getElementById('wpb-rd-table-wrap');
 
-        // ── Apri modale ──────────────────────────────────────────────────
-        function openModal(data) {
-            data = data || {};
-            editId.value       = data.id   || '';
-            fromInput.value    = data.from || '';
-            toInput.value      = data.to   || '';
-            codeSelect.value   = data.code || '301';
-            noteInput.value    = data.note || '';
-            modalTitle.textContent = data.id ? 'Modifica redirect' : 'Aggiungi redirect';
-            modalError.style.display = 'none';
-            modal.classList.add('open');
-            fromInput.focus();
-        }
-        function closeModal() { modal.classList.remove('open'); }
+            function openModal(data) {
+                data = data || {};
+                editId.value = data.id || '';
+                fromInput.value = data.from || '';
+                toInput.value = data.to || '';
+                codeSelect.value = data.code || '301';
+                noteInput.value = data.note || '';
+                toInput.disabled = (data.code === '410');
+                modalTitle.textContent = data.id ? 'Modifica redirect' : 'Aggiungi redirect';
+                modalError.style.display = 'none';
+                modal.classList.add('open');
+                fromInput.focus();
+            }
+            function closeModal() { modal.classList.remove('open'); }
 
-        document.getElementById('wpb-rd-add-btn').addEventListener('click', function () { openModal(); });
-        var addBtnEmpty = document.getElementById('wpb-rd-add-btn-empty');
-        if (addBtnEmpty) addBtnEmpty.addEventListener('click', function () { openModal(); });
-        document.getElementById('wpb-rd-modal-close').addEventListener('click', closeModal);
-        document.getElementById('wpb-rd-cancel-btn').addEventListener('click', closeModal);
-        modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+            document.getElementById('wpb-rd-add-btn').addEventListener('click', function () { openModal(); });
+            var addBtnEmpty = document.getElementById('wpb-rd-add-btn-empty');
+            if (addBtnEmpty) addBtnEmpty.addEventListener('click', function () { openModal(); });
+            document.getElementById('wpb-rd-modal-close').addEventListener('click', closeModal);
+            document.getElementById('wpb-rd-cancel-btn').addEventListener('click', closeModal);
+            modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 
-        // 410 Gone → svuota e disabilita campo "A"
-        codeSelect.addEventListener('change', function () {
-            var gone = this.value === '410';
-            toInput.disabled = gone;
-            if (gone) toInput.value = '';
-        });
-
-        // ── Salva ────────────────────────────────────────────────────────
-        saveBtn.addEventListener('click', function () {
-            var from = fromInput.value.trim();
-            var to   = toInput.value.trim();
-            var code = codeSelect.value;
-            if (!from) { showError('Il campo "Da" è obbligatorio.'); return; }
-            if (code !== '410' && !to) { showError('Il campo "A" è obbligatorio per questo codice.'); return; }
-
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Salvataggio…';
-
-            var data = new FormData();
-            data.append('action', 'wpb_redirect_save');
-            data.append('nonce',  nonce);
-            data.append('id',     editId.value);
-            data.append('from',   from);
-            data.append('to',     to);
-            data.append('code',   code);
-            data.append('note',   noteInput.value.trim());
-
-            fetch(ajaxUrl, { method: 'POST', body: data })
-                .then(function (r) { return r.json(); })
-                .then(function (res) {
-                    if (res.success) {
-                        closeModal();
-                        renderTable(res.data.rows);
-                    } else {
-                        showError(res.data || 'Errore sconosciuto.');
-                    }
-                })
-                .catch(function () { showError('Errore di rete.'); })
-                .finally(function () {
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Salva redirect';
-                });
-        });
-
-        // ── Elimina ──────────────────────────────────────────────────────
-        document.addEventListener('click', function (e) {
-            if (!e.target.classList.contains('wpb-rd-delete-btn')) return;
-            var row = e.target.closest('tr');
-            var from = row.dataset.from;
-            if (!confirm('Eliminare il redirect da ' + from + '?')) return;
-
-            var data = new FormData();
-            data.append('action', 'wpb_redirect_delete');
-            data.append('nonce',  nonce);
-            data.append('id',     row.dataset.id);
-
-            fetch(ajaxUrl, { method: 'POST', body: data })
-                .then(function (r) { return r.json(); })
-                .then(function (res) {
-                    if (res.success) renderTable(res.data.rows);
-                });
-        });
-
-        // ── Modifica ─────────────────────────────────────────────────────
-        document.addEventListener('click', function (e) {
-            if (!e.target.classList.contains('wpb-rd-edit-btn')) return;
-            var row = e.target.closest('tr');
-            openModal({
-                id:   row.dataset.id,
-                from: row.dataset.from,
-                to:   row.dataset.to,
-                code: row.dataset.code,
-                note: row.dataset.note,
+            codeSelect.addEventListener('change', function () {
+                var gone = this.value === '410';
+                toInput.disabled = gone;
+                if (gone) toInput.value = '';
             });
-        });
 
-        // ── Ricerca ──────────────────────────────────────────────────────
-        if (searchInput) {
-            searchInput.addEventListener('input', function () {
-                var q = this.value.toLowerCase();
-                var rows = document.querySelectorAll('#wpb-rd-tbody tr');
-                var visible = 0;
-                rows.forEach(function (tr) {
-                    var text = (tr.dataset.from + ' ' + tr.dataset.to + ' ' + tr.dataset.note).toLowerCase();
-                    var show = !q || text.includes(q);
-                    tr.style.display = show ? '' : 'none';
-                    if (show) visible++;
-                });
-                if (countEl) countEl.textContent = visible + ' redirect';
+            saveBtn.addEventListener('click', function () {
+                var from = fromInput.value.trim();
+                var to = toInput.value.trim();
+                var code = codeSelect.value;
+                if (!from) { showError('Il campo "Da" è obbligatorio.'); return; }
+                if (code !== '410' && !to) { showError('Il campo "A" è obbligatorio per questo codice.'); return; }
+
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<div style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:wpbrdSpin .65s linear infinite;vertical-align:middle;margin-right:4px;"></div> Salvataggio…';
+
+                var data = new FormData();
+                data.append('action', 'wpb_redirect_save');
+                data.append('nonce', nonce);
+                data.append('id', editId.value);
+                data.append('from', from);
+                data.append('to', to);
+                data.append('code', code);
+                data.append('note', noteInput.value.trim());
+
+                fetch(ajaxUrl, { method: 'POST', body: data })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        if (res.success) { closeModal(); renderTable(res.data.rows); }
+                        else { showError(res.data || 'Errore sconosciuto.'); }
+                    })
+                    .catch(function () { showError('Errore di rete.'); })
+                    .finally(function () {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span> Salva redirect';
+                    });
             });
-        }
 
-        // ── Render tabella ───────────────────────────────────────────────
-        function renderTable(rows) {
-            if (!rows || rows.length === 0) {
-                tableWrap.innerHTML =
-                    '<div class="wpb-rd-empty" id="wpb-rd-empty">' +
-                    '<span class="dashicons dashicons-randomize"></span>' +
-                    '<p>Nessun redirect configurato.</p>' +
-                    '<button class="button button-primary" id="wpb-rd-add-btn-empty">+ Aggiungi il primo redirect</button>' +
-                    '</div>';
-                var b = document.getElementById('wpb-rd-add-btn-empty');
-                if (b) b.addEventListener('click', function () { openModal(); });
-                if (countEl) countEl.textContent = '0 redirect';
-                return;
+            document.addEventListener('click', function (e) {
+                if (e.target.classList.contains('wpb-rd-delete-btn')) {
+                    var row = e.target.closest('tr');
+                    if (!confirm('Eliminare il redirect da ' + row.dataset.from + '?')) return;
+                    var data = new FormData();
+                    data.append('action', 'wpb_redirect_delete');
+                    data.append('nonce', nonce);
+                    data.append('id', row.dataset.id);
+                    fetch(ajaxUrl, { method: 'POST', body: data })
+                        .then(function (r) { return r.json(); })
+                        .then(function (res) { if (res.success) renderTable(res.data.rows); });
+                }
+                if (e.target.classList.contains('wpb-rd-edit-btn')) {
+                    var row = e.target.closest('tr');
+                    openModal({ id: row.dataset.id, from: row.dataset.from, to: row.dataset.to, code: row.dataset.code, note: row.dataset.note });
+                }
+            });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    var q = this.value.toLowerCase();
+                    var rows = document.querySelectorAll('#wpb-rd-tbody tr');
+                    var visible = 0;
+                    rows.forEach(function (tr) {
+                        var show = !q || (tr.dataset.from + ' ' + tr.dataset.to + ' ' + tr.dataset.note).toLowerCase().includes(q);
+                        tr.style.display = show ? '' : 'none';
+                        if (show) visible++;
+                    });
+                    if (countEl) countEl.textContent = visible + ' redirect';
+                });
             }
 
-            var codeClass = { 301:'wpb-rd-code-301', 302:'wpb-rd-code-302', 307:'wpb-rd-code-307', 308:'wpb-rd-code-308', 410:'wpb-rd-code-410' };
+            function renderTable(rows) {
+                if (!rows || rows.length === 0) {
+                    tableWrap.innerHTML = '<div class="wpb-rd-empty"><span class="dashicons dashicons-randomize"></span><p>Nessun redirect configurato.</p><button class="wpb-rd-add-btn" id="wpb-rd-add-btn-empty">+ Aggiungi il primo redirect</button></div>';
+                    var b = document.getElementById('wpb-rd-add-btn-empty');
+                    if (b) b.addEventListener('click', function () { openModal(); });
+                    if (countEl) countEl.textContent = '0 redirect';
+                    return;
+                }
+                var codeClass = { 301: 'wpb-rd-code-301', 302: 'wpb-rd-code-302', 307: 'wpb-rd-code-307', 308: 'wpb-rd-code-308', 410: 'wpb-rd-code-410' };
+                var html = '<table class="wpb-rd-table" id="wpb-rd-table"><thead><tr><th style="width:35%">Da URI</th><th style="width:35%">A URI</th><th style="width:90px">Codice</th><th>Nota</th><th style="width:110px"></th></tr></thead><tbody id="wpb-rd-tbody">';
+                rows.forEach(function (row) {
+                    var code = row.code || 301;
+                    var isGone = code === 410;
+                    html += '<tr data-id="' + esc(row.id) + '" data-from="' + esc(row.from) + '" data-to="' + esc(row.to || '') + '" data-code="' + esc(String(code)) + '" data-note="' + esc(row.note || '') + '">' +
+                        '<td><span class="wpb-rd-uri">' + esc(row.from) + '</span></td>' +
+                        '<td>' + (isGone ? '<span style="color:#9ca3af;font-size:12px;font-style:italic;">rimossa</span>' : '<span class="wpb-rd-uri">' + esc(row.to || '') + '</span>') + '</td>' +
+                        '<td><span class="wpb-rd-code ' + (codeClass[code] || '') + '">' + code + '</span></td>' +
+                        '<td>' + (row.note ? '<span class="wpb-rd-note">' + esc(row.note) + '</span>' : '') + '</td>' +
+                        '<td><div class="wpb-rd-actions"><button class="wpb-rd-action-btn wpb-rd-edit-btn">Modifica</button><button class="wpb-rd-action-btn wpb-rd-delete-btn">&#x2715;</button></div></td>' +
+                        '</tr>';
+                });
+                html += '</tbody></table>';
+                tableWrap.innerHTML = html;
+                if (countEl) countEl.textContent = rows.length + ' redirect';
+            }
 
-            var html = '<table class="wpb-rd-table" id="wpb-rd-table">' +
-                '<thead><tr>' +
-                '<th style="width:35%">Da URI</th>' +
-                '<th style="width:35%">A URI</th>' +
-                '<th style="width:90px">Codice</th>' +
-                '<th>Nota</th>' +
-                '<th style="width:100px"></th>' +
-                '</tr></thead><tbody id="wpb-rd-tbody">';
-
-            rows.forEach(function (row) {
-                var code   = row.code || 301;
-                var isGone = code === 410;
-                html += '<tr' +
-                    ' data-id="'   + esc(row.id)           + '"' +
-                    ' data-from="' + esc(row.from)         + '"' +
-                    ' data-to="'   + esc(row.to   || '')   + '"' +
-                    ' data-code="' + esc(String(code))     + '"' +
-                    ' data-note="' + esc(row.note || '')   + '">' +
-                    '<td><span class="wpb-rd-uri">' + esc(row.from) + '</span></td>' +
-                    '<td>' + (isGone
-                        ? '<span style="color:#a7aaad;font-size:12px;font-style:italic;">rimossa</span>'
-                        : '<span class="wpb-rd-uri">' + esc(row.to || '') + '</span>') +
-                    '</td>' +
-                    '<td><span class="wpb-rd-code ' + (codeClass[code] || '') + '">' + code + '</span></td>' +
-                    '<td>' + (row.note ? '<span class="wpb-rd-note">' + esc(row.note) + '</span>' : '') + '</td>' +
-                    '<td><div class="wpb-rd-actions">' +
-                    '<button class="button wpb-rd-edit-btn">Modifica</button>' +
-                    '<button class="button wpb-rd-delete-btn" style="color:#d63638;border-color:#d63638;">✕</button>' +
-                    '</div></td>' +
-                    '</tr>';
-            });
-
-            html += '</tbody></table>';
-            tableWrap.innerHTML = html;
-            if (countEl) countEl.textContent = rows.length + ' redirect';
-        }
-
-        function showError(msg) {
-            modalError.textContent = msg;
-            modalError.style.display = 'block';
-        }
-
-        function esc(s) {
-            return String(s)
-                .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-                .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-    })();
+            function showError(msg) { modalError.textContent = msg; modalError.style.display = 'block'; }
+            function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+        })();
     </script>
+    <style>
+        @keyframes wpbrdSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
     <?php
 }
