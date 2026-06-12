@@ -461,7 +461,7 @@ function wpb_popups_admin_page(): void
     $editing = $edit_id ? wpb_popups_get($edit_id) : null;
     $qs_lang = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
     ?>
-<div id="wpb-popups-wrap" class="wrap">
+<div id="wpb-popups-wrap" class="wrap wpb-wrap">
 
             <!-- Header -->
             <div class="wpb-pop-header">

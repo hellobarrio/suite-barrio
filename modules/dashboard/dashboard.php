@@ -117,7 +117,7 @@ function wp_barrio_dashboard_page()
             && $cp_privacy_page_id !== $cp_cookie_page_id;
     }
     ?>
-    <div id="wpb-dash" class="wrap">
+    <div id="wpb-dash" class="wrap wpb-wrap">
 
         <div class="wpb-header">
             <div class="wpb-header-icon">

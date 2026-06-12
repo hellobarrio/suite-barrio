@@ -181,7 +181,7 @@ function wpb_orari_admin_page()
     $graphql_active = function_exists('register_graphql_field');
     $configured = !empty(trim($settings['google_api_key'] ?? '')) && !empty(trim($settings['place_id'] ?? ''));
     ?>
-<div id="wpb-orari-wrap" class="wrap">
+<div id="wpb-orari-wrap" class="wrap wpb-wrap">
 
         <!-- Header -->
         <div class="wpb-ori-header">

@@ -1740,7 +1740,7 @@ function wpb_meta_admin_page()
     $taxonomies = array_filter(get_taxonomies(['public' => true], 'objects'), fn($t) => !in_array($t->name, ['post_format', 'nav_menu', 'link_category'], true));
     unset($post_types['attachment']);
     ?>
-<div id="wpb-meta-wrap" class="wrap">
+<div id="wpb-meta-wrap" class="wrap wpb-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
             <div class="wpb-gs-header">
                 <div class="wpb-gs-header-icon"><span class="dashicons dashicons-search"></span></div>

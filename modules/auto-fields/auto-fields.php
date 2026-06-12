@@ -1209,7 +1209,7 @@ function wpb_auto_fields_page()
     foreach ($pages as $p)
         $loc_options['page'][] = ['value' => (string) $p->ID, 'label' => $p->post_title];
     ?>
-<div id="wpb-af-wrap" class="wrap">
+<div id="wpb-af-wrap" class="wrap wpb-wrap">
 
             <!-- Header -->
             <div class="wpb-header">

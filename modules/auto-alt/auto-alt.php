@@ -781,7 +781,7 @@ function wp_alt_ai_admin_page()
     $log_success = count(array_filter($log_entries, fn($e) => $e['status'] === 'success'));
     $log_errors = count(array_filter($log_entries, fn($e) => $e['status'] === 'error'));
     ?>
-    <div id="wpb-autoalt-wrap" class="wrap">
+    <div id="wpb-autoalt-wrap" class="wrap wpb-wrap">
 
         <!-- Header -->
         <div class="wpb-header">

@@ -282,7 +282,7 @@ function wpb_tools_admin_page()
     $ml_trans = wpb_multilang_translation_languages();
     $ml_languages = wpb_multilang_languages_with_flags();
     ?>
-    <div id="wpb-tools-wrap" class="wrap">
+    <div id="wpb-tools-wrap" class="wrap wpb-wrap">
 
         <div class="wpb-tools-header">
             <div class="wpb-tools-header-icon">

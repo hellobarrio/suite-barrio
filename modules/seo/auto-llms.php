@@ -859,7 +859,7 @@ function wpb_llms_admin_page()
     $short_size = $short_exists ? size_format(filesize(ABSPATH . 'llms.txt')) : '—';
     $full_size = $full_exists ? size_format(filesize(ABSPATH . 'llms-full.txt')) : '—';
     ?>
-<div id="wpb-llms-wrap" class="wrap">
+<div id="wpb-llms-wrap" class="wrap wpb-wrap">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
                 <div class="wpb-llms-hdr">
                     <div class="wpb-llms-hdr-icon"><span class="dashicons dashicons-text-page"></span></div>
