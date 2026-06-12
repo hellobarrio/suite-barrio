@@ -12,6 +12,7 @@
  *   hbPopup           → HBPopup (popup attivo)
  *   hbOrari           → HBOrari (orari da Google Places)
  *   hbBanner          → HBBanner (banner marquee attivo)
+ *   hbCompanyInfo     → HBCompanyInfo (info anagrafiche azienda)
  *
  * Mutation disponibili:
  *   hbSubmitForm(input: { formId, fields: [HbFormFieldInput], pageUrl?, pageTitle?, pageReferrer? })
@@ -276,17 +277,17 @@ function wpb_graphql_register_schema(): void
 
     // ── 9a2. RootQuery: hbPopup ───────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbPopup', [
-        'type'        => 'HBPopup',
+        'type' => 'HBPopup',
         'description' => 'Restituisce il popup attivo, o null se nessuno è attivo. '
-                       . 'Il parametro opzionale `lang` (codice ISO, es. "en") restituisce '
-                       . 'i contenuti testuali nella lingua richiesta se la traduzione esiste; '
-                       . 'l\'immagine è sempre quella della versione principale.',
+            . 'Il parametro opzionale `lang` (codice ISO, es. "en") restituisce '
+            . 'i contenuti testuali nella lingua richiesta se la traduzione esiste; '
+            . 'l\'immagine è sempre quella della versione principale.',
         'args' => [
             'lang' => [
-                'type'        => 'String',
+                'type' => 'String',
                 'description' => 'Codice ISO della lingua richiesta (es. "it", "en", "fr"). '
-                               . 'Se omesso restituisce i contenuti nella lingua principale. '
-                               . 'Se la traduzione non esiste fa fallback ai contenuti originali.',
+                    . 'Se omesso restituisce i contenuti nella lingua principale. '
+                    . 'Se la traduzione non esiste fa fallback ai contenuti originali.',
             ],
         ],
         'resolve' => function ($root, array $args): ?array {
@@ -301,7 +302,7 @@ function wpb_graphql_register_schema(): void
                 return null;
 
             // ── Wrapper immagine (sempre dalla riga principale) ──
-            $image    = null;
+            $image = null;
             $image_id = (int) ($popup->image_id ?? 0);
             if ($image_id > 0) {
                 try {
@@ -317,11 +318,11 @@ function wpb_graphql_register_schema(): void
             }
 
             // ── Campi testuali: di default dalla riga principale ──
-            $title   = (string) $popup->title;
+            $title = (string) $popup->title;
             $content = (string) $popup->content;
-            $link    = !empty($popup->link) ? [
-                'url'    => (string) $popup->link,
-                'title'  => (string) ($popup->link_title  ?? ''),
+            $link = !empty($popup->link) ? [
+                'url' => (string) $popup->link,
+                'title' => (string) ($popup->link_title ?? ''),
                 'target' => (string) ($popup->link_target ?? '_self'),
             ] : null;
 
@@ -339,11 +340,11 @@ function wpb_graphql_register_schema(): void
                 ));
 
                 if ($trans) {
-                    $title   = (string) $trans->title;
+                    $title = (string) $trans->title;
                     $content = (string) $trans->content;
-                    $link    = !empty($trans->link) ? [
-                        'url'    => (string) $trans->link,
-                        'title'  => (string) ($trans->link_title  ?? ''),
+                    $link = !empty($trans->link) ? [
+                        'url' => (string) $trans->link,
+                        'title' => (string) ($trans->link_title ?? ''),
                         'target' => (string) ($trans->link_target ?? '_self'),
                     ] : null;
                 }
@@ -351,11 +352,11 @@ function wpb_graphql_register_schema(): void
             }
 
             return [
-                'id'      => (int) $popup->id,
-                'title'   => $title,
+                'id' => (int) $popup->id,
+                'title' => $title,
                 'content' => $content,
-                'link'    => $link,
-                'image'   => $image,
+                'link' => $link,
+                'image' => $image,
             ];
         },
     ]);
@@ -382,16 +383,16 @@ function wpb_graphql_register_schema(): void
 
     // ── 9a5. RootQuery: hbBanner ──────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbBanner', [
-        'type'        => 'HBBanner',
+        'type' => 'HBBanner',
         'description' => 'Restituisce il banner attivo, o null se nessuno è attivo. '
-                       . 'Il parametro opzionale `lang` (codice ISO, es. "en") restituisce '
-                       . 'i contenuti nella lingua richiesta se la traduzione esiste; '
-                       . 'fallback ai contenuti originali se la traduzione non esiste.',
+            . 'Il parametro opzionale `lang` (codice ISO, es. "en") restituisce '
+            . 'i contenuti nella lingua richiesta se la traduzione esiste; '
+            . 'fallback ai contenuti originali se la traduzione non esiste.',
         'args' => [
             'lang' => [
-                'type'        => 'String',
+                'type' => 'String',
                 'description' => 'Codice ISO della lingua richiesta (es. "it", "en", "fr"). '
-                               . 'Se omesso restituisce i contenuti nella lingua principale.',
+                    . 'Se omesso restituisce i contenuti nella lingua principale.',
             ],
         ],
         'resolve' => function ($root, array $args): ?array {
@@ -405,8 +406,8 @@ function wpb_graphql_register_schema(): void
                 return null;
 
             // Campi testuali: di default dalla riga principale
-            $title       = (string) $banner->title;
-            $link        = (string) $banner->link;
+            $title = (string) $banner->title;
+            $link = (string) $banner->link;
             $link_target = (string) ($banner->link_target ?? '_self');
 
             // Sovrascrittura con la traduzione se richiesta
@@ -422,18 +423,18 @@ function wpb_graphql_register_schema(): void
                 ));
 
                 if ($trans) {
-                    $title       = (string) $trans->title;
-                    $link        = (string) $trans->link;
+                    $title = (string) $trans->title;
+                    $link = (string) $trans->link;
                     $link_target = (string) ($trans->link_target ?? '_self');
                 }
                 // Traduzione assente → fallback silenzioso ai valori originali
             }
 
             return [
-                'id'    => (int) $banner->id,
+                'id' => (int) $banner->id,
                 'title' => $title,
-                'link'  => !empty($link) ? [
-                    'url'    => $link,
+                'link' => !empty($link) ? [
+                    'url' => $link,
                     'target' => $link_target,
                 ] : null,
             ];
@@ -566,12 +567,12 @@ function wpb_graphql_register_schema(): void
 
     // ── 10. RootQuery: hbForm ──────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbForm', [
-        'type'        => 'HBForm',
+        'type' => 'HBForm',
         'description' => 'Restituisce un form HB per ID. '
-                       . 'Il parametro opzionale `lang` restituisce label, placeholder, '
-                       . 'opzioni, messaggi di errore e impostazioni tradotte.',
+            . 'Il parametro opzionale `lang` restituisce label, placeholder, '
+            . 'opzioni, messaggi di errore e impostazioni tradotte.',
         'args' => [
-            'id'   => ['type' => 'Int',    'description' => 'ID numerico del form.'],
+            'id' => ['type' => 'Int', 'description' => 'ID numerico del form.'],
             'lang' => ['type' => 'String', 'description' => 'Codice ISO lingua (es. "en"). Fallback ai valori originali se la traduzione non esiste.'],
         ],
         'resolve' => function ($root, array $args): ?array {
@@ -583,23 +584,26 @@ function wpb_graphql_register_schema(): void
                 return null;
 
             // Applica traduzione se richiesta
-            $requested_lang = isset($args['lang']) ? sanitize_key((string)$args['lang']) : '';
+            $requested_lang = isset($args['lang']) ? sanitize_key((string) $args['lang']) : '';
             if ($requested_lang !== '') {
                 global $wpdb;
                 $trans = $wpdb->get_row($wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}wpb_forms_translations
                      WHERE form_id = %d AND lang = %s LIMIT 1",
-                    (int)$form->id, $requested_lang
+                    (int) $form->id,
+                    $requested_lang
                 ));
                 if ($trans && function_exists('wpb_forms_apply_translation')) {
-                    $orig_fields   = json_decode($form->fields,   true) ?: [];
+                    $orig_fields = json_decode($form->fields, true) ?: [];
                     $orig_settings = json_decode($form->settings, true) ?: [];
                     [$merged_fields, $merged_settings] = wpb_forms_apply_translation(
-                        $orig_fields, $orig_settings, $trans
+                        $orig_fields,
+                        $orig_settings,
+                        $trans
                     );
                     // Clona il form con i dati mergiati
                     $form = clone $form;
-                    $form->fields   = wp_json_encode($merged_fields);
+                    $form->fields = wp_json_encode($merged_fields);
                     $form->settings = wp_json_encode($merged_settings);
                 }
             }
@@ -648,10 +652,10 @@ function wpb_graphql_register_schema(): void
                 'description' => 'Lista dei campi compilati.',
             ],
             // Informazioni pagina (opzionali — usate se displayPageInfo è attivo)
-            'pageUrl'      => ['type' => 'String', 'description' => 'URL della pagina da cui è stato inviato il form.'],
-            'pageTitle'    => ['type' => 'String', 'description' => 'Titolo della pagina corrente.'],
+            'pageUrl' => ['type' => 'String', 'description' => 'URL della pagina da cui è stato inviato il form.'],
+            'pageTitle' => ['type' => 'String', 'description' => 'Titolo della pagina corrente.'],
             'pageReferrer' => ['type' => 'String', 'description' => 'Referrer della pagina corrente.'],
-            'lang'         => ['type' => 'String', 'description' => 'Codice lingua WPML (es. "it", "en"). Se omesso usa ICL_LANGUAGE_CODE.'],
+            'lang' => ['type' => 'String', 'description' => 'Codice lingua WPML (es. "it", "en"). Se omesso usa ICL_LANGUAGE_CODE.'],
         ],
         'outputFields' => [
             'success' => ['type' => ['non_null' => 'Boolean'], 'description' => 'true se l\'invio è riuscito.'],
@@ -800,10 +804,10 @@ function wpb_graphql_register_schema(): void
                 $ok = $wpdb->insert(
                     $wpdb->prefix . WPB_FORMS_SUB_TABLE,
                     [
-                        'form_id'    => $form_id,
-                        'data'       => wp_json_encode($submission_data),
-                        'lang'       => $submission_lang,
-                        'ip'         => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
+                        'form_id' => $form_id,
+                        'data' => wp_json_encode($submission_data),
+                        'lang' => $submission_lang,
+                        'ip' => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
                         'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
                     ],
                     ['%d', '%s', '%s', '%s', '%s']
@@ -962,14 +966,11 @@ function wpb_graphql_register_schema(): void
 
                 $sep = $s['separator'] ?? '—';
                 $site_name = $s['site_title'] ?? get_bloginfo('name');
-                $order = $s['title_order'] ?? 'page_site';
 
                 // Title
                 $custom_title = get_post_meta($post_id, '_wpb_seo_title', true);
                 $base_title = $custom_title ?: get_the_title($post);
-                $full_title = $order === 'site_page'
-                    ? $site_name . ' ' . $sep . ' ' . $base_title
-                    : $base_title . ' ' . $sep . ' ' . $site_name;
+                $full_title = get_option('page_on_front') == $post_id ? $base_title . " " . $sep . " " . $site_name : $base_title;
 
                 // Description
                 $description = get_post_meta($post_id, '_wpb_seo_description', true);
@@ -1139,6 +1140,123 @@ function wpb_graphql_register_schema(): void
             }
 
             return $result;
+        },
+    ]);
+
+    // ── 14a. HBCompanyAddress ────────────────────────────────────────────────
+    register_graphql_object_type('HBCompanyAddress', [
+        'description' => 'Indirizzo di una sede aziendale.',
+        'fields' => [
+            'via' => ['type' => 'String', 'description' => 'Via e numero civico.'],
+            'citta' => ['type' => 'String', 'description' => 'Città.'],
+            'cap' => ['type' => 'String', 'description' => 'CAP.'],
+            'provincia' => ['type' => 'String', 'description' => 'Provincia.'],
+            'googleMaps' => ['type' => 'String', 'description' => 'URL Google Maps della sede.'],
+        ],
+    ]);
+
+    // ── 14b. HBCompanySocial ─────────────────────────────────────────────────
+    register_graphql_object_type('HBCompanySocial', [
+        'description' => 'Profili social dell\'azienda.',
+        'fields' => [
+            'facebook' => ['type' => 'String', 'description' => 'URL profilo Facebook.'],
+            'instagram' => ['type' => 'String', 'description' => 'URL profilo Instagram.'],
+            'linkedin' => ['type' => 'String', 'description' => 'URL profilo LinkedIn.'],
+            'twitter' => ['type' => 'String', 'description' => 'URL profilo X (ex Twitter).'],
+            'youtube' => ['type' => 'String', 'description' => 'URL canale YouTube.'],
+            'telegram' => ['type' => 'String', 'description' => 'URL canale Telegram.'],
+            'tiktok' => ['type' => 'String', 'description' => 'URL profilo TikTok.'],
+        ],
+    ]);
+
+    // ── 14c. HBCompanyInfo ───────────────────────────────────────────────────
+    register_graphql_object_type('HBCompanyInfo', [
+        'description' => 'Informazioni anagrafiche dell\'azienda salvate in WP Barrio → Info Azienda.',
+        'fields' => [
+            // Anagrafica & contatti
+            'ragioneSociale' => ['type' => 'String', 'description' => 'Ragione sociale.'],
+            'sitoWeb' => ['type' => 'String', 'description' => 'URL del sito web.'],
+            'telefono' => ['type' => 'String'],
+            'cellulare' => ['type' => 'String'],
+            'email' => ['type' => 'String', 'description' => 'Email principale.'],
+            'emailPrivacy' => ['type' => 'String', 'description' => 'Email del titolare del trattamento dati.'],
+            'pec' => ['type' => 'String', 'description' => 'Posta Elettronica Certificata.'],
+            // Dati fiscali
+            'partitaIva' => ['type' => 'String'],
+            'codiceFiscale' => ['type' => 'String'],
+            'rea' => ['type' => 'String', 'description' => 'Numero REA (Camera di Commercio).'],
+            'capitaleSociale' => ['type' => 'String'],
+            'codiceUnivoco' => ['type' => 'String', 'description' => 'Codice SDI per fatturazione elettronica.'],
+            // Sedi
+            'sedeLegale' => ['type' => 'HBCompanyAddress', 'description' => 'Sede legale dell\'azienda. Null se nessun campo è valorizzato.'],
+            'sedeOperativa' => [
+                'type' => 'HBCompanyAddress',
+                'description' => 'Sede operativa dell\'azienda. Null se coincide con la sede legale (flag "Sede operativa diversa" disattivato) o se nessun campo è valorizzato.',
+            ],
+            // Social
+            'social' => ['type' => 'HBCompanySocial', 'description' => 'Profili social dell\'azienda.'],
+        ],
+    ]);
+
+    // ── 14d. RootQuery: hbCompanyInfo ────────────────────────────────────────
+    register_graphql_field('RootQuery', 'hbCompanyInfo', [
+        'type' => 'HBCompanyInfo',
+        'description' => 'Restituisce le informazioni anagrafiche dell\'azienda. '
+            . 'Tutti i campi stringa sono nullabili: una stringa vuota è esposta come null.',
+        'resolve' => function (): ?array {
+            if (!function_exists('wpb_company_info_get')) {
+                return null;
+            }
+            $d = wpb_company_info_get();
+
+            // Helper: stringa trimmata, oppure null se vuota
+            $s = function ($v) {
+                $v = is_string($v) ? trim($v) : '';
+                return $v !== '' ? $v : null;
+            };
+
+            // Helper: costruisce un indirizzo dal prefisso (sede_ / sede_op_).
+            // Restituisce null se nessun campo è valorizzato.
+            $address = function (string $prefix) use ($d, $s): ?array {
+                $addr = [
+                    'via' => $s($d[$prefix . 'via'] ?? ''),
+                    'citta' => $s($d[$prefix . 'citta'] ?? ''),
+                    'cap' => $s($d[$prefix . 'cap'] ?? ''),
+                    'provincia' => $s($d[$prefix . 'provincia'] ?? ''),
+                    'googleMaps' => $s($d[$prefix . 'google_maps'] ?? ''),
+                ];
+                foreach ($addr as $v) {
+                    if ($v !== null)
+                        return $addr;
+                }
+                return null;
+            };
+
+            return [
+                'ragioneSociale' => $s($d['ragione_sociale']),
+                'sitoWeb' => $s($d['sito_web']),
+                'telefono' => $s($d['telefono']),
+                'cellulare' => $s($d['cellulare']),
+                'email' => $s($d['email']),
+                'emailPrivacy' => $s($d['email_privacy']),
+                'pec' => $s($d['pec']),
+                'partitaIva' => $s($d['partita_iva']),
+                'codiceFiscale' => $s($d['codice_fiscale']),
+                'rea' => $s($d['rea']),
+                'capitaleSociale' => $s($d['capitale_sociale']),
+                'codiceUnivoco' => $s($d['codice_univoco']),
+                'sedeLegale' => $address('sede_'),
+                'sedeOperativa' => !empty($d['sede_operativa_diversa']) ? $address('sede_op_') : null,
+                'social' => [
+                    'facebook' => $s($d['facebook']),
+                    'instagram' => $s($d['instagram']),
+                    'linkedin' => $s($d['linkedin']),
+                    'twitter' => $s($d['twitter']),
+                    'youtube' => $s($d['youtube']),
+                    'telegram' => $s($d['telegram']),
+                    'tiktok' => $s($d['tiktok']),
+                ],
+            ];
         },
     ]);
 }

@@ -54,6 +54,12 @@ add_action('admin_init', function () {
     register_setting('wpb_advisor_settings', 'wpb_advisor_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
     register_setting('wpb_advisor_settings', 'wpb_advisor_model', ['sanitize_callback' => 'sanitize_text_field']);
     register_setting('wpb_advisor_settings', 'wpb_advisor_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
+    // Impostazioni prompt
+    register_setting('wpb_advisor_settings', 'wpb_advisor_language', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'it']);
+    register_setting('wpb_advisor_settings', 'wpb_advisor_tone', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'seo']);
+    register_setting('wpb_advisor_settings', 'wpb_advisor_style', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'contextual']);
+    register_setting('wpb_advisor_settings', 'wpb_advisor_context', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
+    register_setting('wpb_advisor_settings', 'wpb_advisor_keywords', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
 });
 
 /* ─────────────────────────────────────────
@@ -134,18 +140,60 @@ function wpb_advisor_generate(array $content_data): array
     $title = $content_data['title'] ?? '';
     $content = mb_substr($content_data['content'] ?? '', 0, 3000);
     $excerpt = $content_data['excerpt'] ?? '';
-    $lang = get_bloginfo('language');
+
+    // Lingua: usa l'impostazione del modulo, fallback alla lingua del sito
+    $lang_code = get_option('wpb_advisor_language', 'it');
+    $lang_map = [
+        'it' => 'italiano',
+        'en' => 'English',
+        'es' => 'español',
+        'fr' => 'français',
+        'de' => 'Deutsch',
+    ];
+    $lang = $lang_map[$lang_code] ?? get_bloginfo('language');
+
+    // Tono / Stile / Contesto / Parole chiave (Impostazioni prompt)
+    $tone_map = [
+        'neutral' => 'neutro e oggettivo',
+        'professional' => 'professionale e formale',
+        'friendly' => 'amichevole e accessibile',
+        'technical' => 'tecnico e preciso',
+        'creative' => 'creativo e coinvolgente',
+        'seo' => 'ottimizzato SEO',
+    ];
+    $style_map = [
+        'descriptive' => 'descrittivo, elenca gli elementi visibili',
+        'contextual' => 'contestuale, interpreta significato e scopo',
+        'emotional' => 'evocativo, trasmette sensazioni e atmosfera',
+        'journalistic' => 'giornalistico, sintetico come una didascalia',
+    ];
+    $tone_key = get_option('wpb_advisor_tone', 'seo');
+    $style_key = get_option('wpb_advisor_style', 'contextual');
+    $tone_str = $tone_map[$tone_key] ?? $tone_map['seo'];
+    $style_str = $style_map[$style_key] ?? $style_map['contextual'];
+    $context_str = trim((string) get_option('wpb_advisor_context', ''));
+    $keywords_str = trim((string) get_option('wpb_advisor_keywords', ''));
+
+    $extra_lines = '';
+    if ($context_str !== '') {
+        $extra_lines .= "Contesto del sito: {$context_str}\n";
+    }
+    if ($keywords_str !== '') {
+        $extra_lines .= "Parole chiave da includere se pertinenti: {$keywords_str}\n";
+    }
 
     $prompt = <<<PROMPT
 Sei un esperto SEO. Analizza il contenuto e genera elementi SEO ottimizzati.
 
 Sito: $site
 Lingua: $lang
-Titolo: $title
+Registro linguistico: $tone_str
+Stile: $style_str
+{$extra_lines}Titolo: $title
 Excerpt: $excerpt
 Contenuto: $content
 
-Genera:
+Genera in $lang:
 1. SEO Title: max 60 caratteri, keyword primaria inclusa.
 2. SEO Description: 120-160 caratteri, keyword inclusa.
 3. Keywords: 5-8 keyword, la PRIMA e' la primaria.
@@ -428,6 +476,14 @@ add_action('wp_ajax_wpb_advisor_save', function () {
             update_term_meta($obj_id, '_wpb_seo_keywords', wp_json_encode($kws));
     }
 
+    if (function_exists('invalidate_vercel_cache')) {
+        if ($obj_type === 'post') {
+            invalidate_vercel_cache($obj_id);
+        } else {
+            invalidate_vercel_cache('wp:global');
+        }
+    }
+
     wp_send_json_success(['message' => 'Meta SEO salvati con successo.']);
 });
 
@@ -607,716 +663,7 @@ function wpb_advisor_admin_page()
         $sources[$tax] = ['label' => $obj->labels->name ?? $tax, 'type' => 'taxonomy'];
     }
     ?>
-    <style>
-        #wpb-advisor-wrap {
-            max-width: 1100px;
-            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-        }
-
-        /* Header */
-        .wpb-adv-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 8px;
-        }
-
-        .wpb-adv-header-icon {
-            width: 40px;
-            height: 40px;
-            background: #111827;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .wpb-adv-header-icon .dashicons {
-            font-size: 20px;
-            width: 20px;
-            height: 20px;
-            color: #fff;
-        }
-
-        .wpb-adv-header h1 {
-            font-size: 22px !important;
-            font-weight: 700 !important;
-            color: #111827 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            line-height: 1.2 !important;
-        }
-
-        .wpb-adv-breadcrumb {
-            font-size: 14px;
-            font-weight: 400;
-            color: #9ca3af;
-            margin-left: 4px;
-        }
-
-        .wpb-adv-sub {
-            font-size: 13px;
-            color: #6b7280;
-            margin: 2px 0 0;
-        }
-
-        .wpb-adv-divider {
-            border: none;
-            border-top: 1px solid #f3f4f6;
-            margin: 14px 0 24px;
-        }
-
-        /* Tabs */
-        .wpb-adv-tabs {
-            display: flex;
-            gap: 2px;
-            border-bottom: 2px solid #e5e7eb;
-            margin-bottom: 24px;
-        }
-
-        .wpb-adv-tab {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 9px 18px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #6b7280;
-            text-decoration: none !important;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            border-radius: 6px 6px 0 0;
-            transition: color .15s;
-        }
-
-        .wpb-adv-tab:hover {
-            color: #111827;
-            background: #f9fafb;
-        }
-
-        .wpb-adv-tab.active {
-            color: #111827;
-            border-bottom-color: #111827;
-        }
-
-        /* Notice */
-        .wpb-adv-notice-warning {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            background: #fffbeb;
-            border: 1px solid #fde68a;
-            border-radius: 10px;
-            padding: 13px 16px;
-            font-size: 13px;
-            color: #92400e;
-            margin-bottom: 20px;
-        }
-
-        .wpb-adv-notice-warning .dashicons {
-            font-size: 17px;
-            width: 17px;
-            height: 17px;
-            flex-shrink: 0;
-            margin-top: 1px;
-            color: #d97706;
-        }
-
-        .wpb-adv-notice-success {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            border-radius: 10px;
-            padding: 13px 16px;
-            font-size: 13px;
-            color: #166534;
-            margin-bottom: 20px;
-        }
-
-        .wpb-adv-notice-success .dashicons {
-            color: #059669;
-            font-size: 17px;
-            width: 17px;
-            height: 17px;
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
-
-        /* Layout generate */
-        .wpb-adv-layout {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 20px;
-            align-items: start;
-        }
-
-        .wpb-adv-panel {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
-        }
-
-        .wpb-adv-panel-header {
-            padding: 13px 16px;
-            border-bottom: 1px solid #f3f4f6;
-            background: #f9fafb;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .wpb-adv-panel-header .dashicons {
-            color: #6b7280;
-            font-size: 16px;
-            width: 16px;
-            height: 16px;
-        }
-
-        .wpb-adv-panel-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: #111827;
-        }
-
-        /* Source selector */
-        .wpb-adv-source-select {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f3f4f6;
-        }
-
-        .wpb-adv-source-select select {
-            width: 100%;
-            font-size: 13px;
-            padding: 7px 10px;
-            border: 1px solid #e5e7eb;
-            border-radius: 7px;
-            font-family: inherit;
-        }
-
-        .wpb-adv-source-select select:focus {
-            outline: none;
-            border-color: #111827;
-        }
-
-        .wpb-adv-search {
-            padding: 8px 16px;
-            border-bottom: 1px solid #f3f4f6;
-        }
-
-        .wpb-adv-search input {
-            width: 100%;
-            font-size: 13px;
-            padding: 7px 10px;
-            border: 1px solid #e5e7eb;
-            border-radius: 7px;
-            font-family: inherit;
-        }
-
-        .wpb-adv-search input:focus {
-            outline: none;
-            border-color: #111827;
-        }
-
-        .wpb-adv-items {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .wpb-adv-item {
-            padding: 10px 16px;
-            border-bottom: 1px solid #f3f4f6;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 13px;
-            cursor: pointer;
-            transition: background .1s;
-        }
-
-        .wpb-adv-item:last-child {
-            border-bottom: none;
-        }
-
-        .wpb-adv-item:hover {
-            background: #f9fafb;
-        }
-
-        .wpb-adv-item.selected {
-            background: #eff6ff;
-        }
-
-        .wpb-adv-item-title {
-            font-weight: 500;
-            color: #111827;
-        }
-
-        .wpb-adv-item-type {
-            font-size: 10px;
-            color: #6b7280;
-            background: #f3f4f6;
-            padding: 2px 7px;
-            border-radius: 20px;
-            flex-shrink: 0;
-            margin-left: 8px;
-            font-weight: 600;
-        }
-
-        .wpb-adv-lang-sep {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 7px 12px 6px;
-            background: #f9fafb;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 11px;
-            font-weight: 700;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: .4px;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
-
-        .wpb-adv-lang-sep .dashicons {
-            font-size: 13px;
-            width: 13px;
-            height: 13px;
-            color: #6b7280;
-        }
-
-        .wpb-adv-lang-sep-primary-badge {
-            font-size: 9px;
-            background: #111827;
-            color: #fff;
-            padding: 1px 5px;
-            border-radius: 2px;
-            font-weight: 600;
-            text-transform: none;
-            letter-spacing: 0;
-        }
-
-        .wpb-adv-empty {
-            padding: 24px 16px;
-            text-align: center;
-            font-size: 13px;
-            color: #6b7280;
-        }
-
-        /* Result */
-        .wpb-adv-result-wrap {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .wpb-adv-placeholder {
-            padding: 56px 24px;
-            text-align: center;
-            color: #6b7280;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
-        }
-
-        .wpb-adv-placeholder .dashicons {
-            font-size: 40px;
-            width: 40px;
-            height: 40px;
-            color: #d1d5db;
-            display: block;
-            margin: 0 auto 12px;
-        }
-
-        .wpb-adv-field {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .wpb-adv-field-label {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            color: #6b7280;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .wpb-adv-field-label .wpb-adv-counter {
-            font-weight: 400;
-            font-size: 10px;
-            color: #9ca3af;
-            margin-left: auto;
-        }
-
-        .wpb-adv-field input[type=text],
-        .wpb-adv-field textarea {
-            width: 100%;
-            font-size: 13px;
-            resize: none;
-            border: 1px solid #e5e7eb;
-            border-radius: 7px;
-            padding: 7px 10px;
-            font-family: inherit;
-        }
-
-        .wpb-adv-field input:focus,
-        .wpb-adv-field textarea:focus {
-            outline: none;
-            border-color: #111827;
-        }
-
-        .wpb-adv-field textarea {
-            min-height: 60px;
-        }
-
-        .wpb-adv-kw-wrap {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            padding: 6px 8px;
-            border: 1px solid #e5e7eb;
-            border-radius: 7px;
-            min-height: 36px;
-            align-items: center;
-            background: #fff;
-        }
-
-        .wpb-adv-kw-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .wpb-adv-kw-pill-primary {
-            background: #111827;
-            color: #fff;
-        }
-
-        .wpb-adv-kw-pill-secondary {
-            background: #f3f4f6;
-            color: #111827;
-        }
-
-        /* SERP preview */
-        .wpb-adv-serp {
-            border: 1px solid #dfe1e5;
-            border-radius: 8px;
-            padding: 12px 16px;
-            background: #fff;
-            font-family: arial, sans-serif;
-        }
-
-        .wpb-adv-serp-site {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
-
-        .wpb-adv-serp-favicon {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #e8eaed;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .wpb-adv-serp-site-name {
-            font-size: 13px;
-            color: #202124;
-            font-weight: 500;
-        }
-
-        .wpb-adv-serp-url {
-            font-size: 11px;
-            color: #4d5156;
-        }
-
-        .wpb-adv-serp-title {
-            font-size: 18px;
-            color: #1a0dab;
-            line-height: 1.3;
-            margin: 3px 0 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .wpb-adv-serp-desc {
-            font-size: 13px;
-            color: #4d5156;
-            line-height: 1.5;
-        }
-
-        .wpb-adv-serp-desc.empty {
-            color: #d1d5db;
-            font-style: italic;
-        }
-
-        /* Generate bar */
-        .wpb-adv-generate-row {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .wpb-adv-spinner {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #f3f4f6;
-            border-top-color: #111827;
-            border-radius: 50%;
-            animation: wpbAdvSpin .7s linear infinite;
-        }
-
-        @keyframes wpbAdvSpin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .wpb-adv-error {
-            background: #fee2e2;
-            color: #dc2626;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            display: none;
-        }
-
-        .wpb-adv-success {
-            background: #dcfce7;
-            color: #059669;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            display: none;
-        }
-
-        .wpb-adv-btn-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 9px 20px;
-            font-size: 13.5px;
-            font-weight: 600;
-            background: #111827;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            transition: opacity .15s;
-        }
-
-        .wpb-adv-btn-primary:hover {
-            opacity: .85;
-        }
-
-        .wpb-adv-btn-primary:disabled {
-            opacity: .45;
-            cursor: not-allowed;
-        }
-
-        .wpb-adv-btn-ghost {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            transition: background .15s;
-            text-decoration: none !important;
-        }
-
-        .wpb-adv-btn-ghost:hover {
-            background: #e5e7eb;
-        }
-
-        .wpb-adv-save-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 18px;
-            font-size: 13px;
-            font-weight: 600;
-            background: #111827;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            transition: opacity .15s;
-        }
-
-        .wpb-adv-save-btn:hover {
-            opacity: .85;
-        }
-
-        /* Log */
-        .wpb-log-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            overflow: hidden;
-            font-size: 13px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
-        }
-
-        .wpb-log-table th {
-            padding: 10px 14px;
-            text-align: left;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            color: #6b7280;
-            background: #f9fafb;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .wpb-log-table td {
-            padding: 10px 14px;
-            border-bottom: 1px solid #f3f4f6;
-            vertical-align: top;
-            color: #374151;
-        }
-
-        .wpb-log-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .wpb-log-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 9px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-        }
-
-        .wpb-log-badge.success {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .wpb-log-badge.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        /* Settings */
-        .wpb-settings-card {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
-        }
-
-        .wpb-settings-card-header {
-            padding: 13px 22px;
-            background: #f9fafb;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 13px;
-            font-weight: 700;
-            color: #111827;
-        }
-
-        .wpb-settings-card-body {
-            padding: 22px;
-        }
-
-        .wpb-settings-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            margin-bottom: 16px;
-        }
-
-        .wpb-settings-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .wpb-settings-label {
-            width: 180px;
-            flex-shrink: 0;
-            font-size: 13px;
-            font-weight: 600;
-            color: #111827;
-            padding-top: 5px;
-        }
-
-        .wpb-settings-label small {
-            display: block;
-            font-weight: 400;
-            font-size: 12px;
-            color: #6b7280;
-            margin-top: 2px;
-        }
-
-        .wpb-settings-input {
-            flex: 1;
-        }
-
-        .wpb-settings-input input:not([type="checkbox"]),
-        .wpb-settings-input select {
-            width: 100%;
-            max-width: 400px;
-            font-size: 13px;
-            border: 1px solid #e5e7eb;
-            border-radius: 7px;
-            padding: 7px 10px;
-            font-family: inherit;
-        }
-
-        .wpb-settings-input input:focus,
-        .wpb-settings-input select:focus {
-            outline: none;
-            border-color: #111827;
-        }
-
-        .wpb-model-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .wpb-model-row select {
-            flex: 1;
-            max-width: 300px;
-        }
-    </style>
-
-    <div id="wpb-advisor-wrap" class="wrap">
+<div id="wpb-advisor-wrap" class="wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
             <div class="wpb-adv-header">
                 <div class="wpb-adv-header-icon"><span class="dashicons dashicons-chart-line"></span></div>
@@ -1572,6 +919,75 @@ function wpb_advisor_admin_page()
                                     <button type="button" class="wpb-adv-btn-ghost" id="wpb-adv-load-models">Carica
                                         modelli</button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wpb-settings-card">
+                    <div class="wpb-settings-card-header">Lingua output</div>
+                    <div class="wpb-settings-card-body">
+                        <div class="wpb-settings-row">
+                            <div class="wpb-settings-label">Lingua<small>Lingua dei testi generati</small></div>
+                            <div class="wpb-settings-input">
+                                <?php $adv_lang = get_option('wpb_advisor_language', 'it'); ?>
+                                <select name="wpb_advisor_language">
+                                    <option value="it" <?php selected($adv_lang, 'it'); ?>>🇮🇹 Italiano</option>
+                                    <option value="en" <?php selected($adv_lang, 'en'); ?>>🇬🇧 English</option>
+                                    <option value="es" <?php selected($adv_lang, 'es'); ?>>🇪🇸 Español</option>
+                                    <option value="fr" <?php selected($adv_lang, 'fr'); ?>>🇫🇷 Français</option>
+                                    <option value="de" <?php selected($adv_lang, 'de'); ?>>🇩🇪 Deutsch</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wpb-settings-card">
+                    <div class="wpb-settings-card-header">Impostazioni prompt</div>
+                    <div class="wpb-settings-card-body">
+                        <div class="wpb-settings-row">
+                            <div class="wpb-settings-label">Registro linguistico<small>Tono dei testi generati</small></div>
+                            <div class="wpb-settings-input">
+                                <?php $adv_tone = get_option('wpb_advisor_tone', 'seo'); ?>
+                                <select name="wpb_advisor_tone">
+                                    <option value="neutral" <?php selected($adv_tone, 'neutral'); ?>>Neutro e oggettivo</option>
+                                    <option value="professional" <?php selected($adv_tone, 'professional'); ?>>Professionale e formale</option>
+                                    <option value="friendly" <?php selected($adv_tone, 'friendly'); ?>>Amichevole e accessibile</option>
+                                    <option value="technical" <?php selected($adv_tone, 'technical'); ?>>Tecnico e preciso</option>
+                                    <option value="creative" <?php selected($adv_tone, 'creative'); ?>>Creativo e coinvolgente</option>
+                                    <option value="seo" <?php selected($adv_tone, 'seo'); ?>>Ottimizzato SEO</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="wpb-settings-row">
+                            <div class="wpb-settings-label">Stile descrittivo<small>Approccio dell'AI</small></div>
+                            <div class="wpb-settings-input">
+                                <?php $adv_style = get_option('wpb_advisor_style', 'contextual'); ?>
+                                <select name="wpb_advisor_style">
+                                    <option value="descriptive" <?php selected($adv_style, 'descriptive'); ?>>Descrittivo — elenca gli elementi</option>
+                                    <option value="contextual" <?php selected($adv_style, 'contextual'); ?>>Contestuale — interpreta significato e scopo</option>
+                                    <option value="emotional" <?php selected($adv_style, 'emotional'); ?>>Evocativo — trasmette sensazioni e atmosfera</option>
+                                    <option value="journalistic" <?php selected($adv_style, 'journalistic'); ?>>Giornalistico — sintetico come una didascalia</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="wpb-settings-row">
+                            <div class="wpb-settings-label">Contesto del sito<small>Fornisce contesto all'AI</small></div>
+                            <div class="wpb-settings-input">
+                                <input type="text" name="wpb_advisor_context"
+                                    value="<?php echo esc_attr(get_option('wpb_advisor_context', '')); ?>"
+                                    placeholder="es. e-commerce di moda sostenibile, blog di cucina italiana…"
+                                    style="width:100%;">
+                            </div>
+                        </div>
+                        <div class="wpb-settings-row">
+                            <div class="wpb-settings-label">Parole chiave SEO<small>Separate da virgola</small></div>
+                            <div class="wpb-settings-input">
+                                <input type="text" name="wpb_advisor_keywords"
+                                    value="<?php echo esc_attr(get_option('wpb_advisor_keywords', '')); ?>"
+                                    placeholder="es. scarpe artigianali, pelle italiana, handmade…"
+                                    style="width:100%;">
                             </div>
                         </div>
                     </div>
