@@ -605,7 +605,7 @@ function wpb_cp_admin_page()
     $selected_cookie_page_id = absint(get_option('wpb_cp_cookie_page_id', 0));
     $cookie_report_script = wpb_cp_get_cookie_report_script();
     ?>
-<div id="wpb-cp-wrap" class="wrap">
+<div id="wpb-cp-wrap" class="wrap wpb-wrap">
         <div class="wpb-cp-header">
             <div class="wpb-cp-header-icon"><span class="dashicons dashicons-shield"></span></div>
             <div>

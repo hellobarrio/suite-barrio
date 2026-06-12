@@ -663,7 +663,7 @@ function wpb_advisor_admin_page()
         $sources[$tax] = ['label' => $obj->labels->name ?? $tax, 'type' => 'taxonomy'];
     }
     ?>
-<div id="wpb-advisor-wrap" class="wrap">
+<div id="wpb-advisor-wrap" class="wrap wpb-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
             <div class="wpb-adv-header">
                 <div class="wpb-adv-header-icon"><span class="dashicons dashicons-chart-line"></span></div>

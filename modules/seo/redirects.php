@@ -389,7 +389,7 @@ function wpb_redirects_admin_page()
         410 => '410 — Gone',
     ];
     ?>
-<div id="wpb-redirects-wrap" class="wrap">
+<div id="wpb-redirects-wrap" class="wrap wpb-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
             <div class="wpb-rd-header">
                 <div class="wpb-rd-header-icon"><span class="dashicons dashicons-randomize"></span></div>

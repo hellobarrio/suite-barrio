@@ -1336,7 +1336,7 @@ function wpb_stats_admin_page()
         ], WPB_STATS_AUTH_URL);
     }
     ?>
-    <div id="wpb-stats-wrap" class="wrap">
+    <div id="wpb-stats-wrap" class="wrap wpb-wrap">
 
         <!-- Header -->
         <div class="wpb-st-header">

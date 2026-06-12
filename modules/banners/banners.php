@@ -402,7 +402,7 @@ function wpb_banners_admin_page(): void
     $ml_languages = wpb_multilang_languages_with_flags();
     $ml_active = $ml_enabled && !empty($ml_trans);
     ?>
-<div id="wpb-banners-wrap" class="wrap">
+<div id="wpb-banners-wrap" class="wrap wpb-wrap">
 
             <!-- Header -->
             <div class="wpb-ban-header">

@@ -2045,7 +2045,7 @@ function wpb_forms_admin_page()
     $ml_active = $ml_enabled && !empty($ml_trans);
 
     ?>
-<div id="wpb-forms-wrap" class="wrap<?php echo ($is_translation_mode ?? false) ? ' wpb-translation-mode' : ''; ?>">
+<div id="wpb-forms-wrap" class="wrap wpb-wrap<?php echo ($is_translation_mode ?? false) ? ' wpb-translation-mode' : ''; ?>">
         <?php
         $mj_global = get_option('wpb_forms_mailjet', []);
         $mj_missing = empty(trim($mj_global['api_key'] ?? '')) || empty(trim($mj_global['secret_key'] ?? ''));
@@ -4282,7 +4282,7 @@ function wpb_forms_submissions_page()
     $ml_active = function_exists('wpb_multilang_is_enabled') && wpb_multilang_is_enabled();
     $ml_languages = $ml_active && function_exists('wpb_multilang_languages_with_flags') ? wpb_multilang_languages_with_flags() : [];
     ?>
-<div class="wrap wpb-page" id="wpb-subs-wrap">
+<div class="wrap wpb-page wpb-wrap" id="wpb-subs-wrap">
     <div class="wpb-frm-header">
         <div class="wpb-frm-header-icon"><span class="dashicons dashicons-list-view"></span></div>
         <div>

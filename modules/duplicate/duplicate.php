@@ -529,7 +529,7 @@ function wpb_duplicate_admin_page()
     $enabled_pts = wpb_duplicate_enabled_post_types();
     $enabled_taxs = wpb_duplicate_enabled_taxonomies();
     ?>
-    <div id="wpb-duplicate-wrap" class="wrap">
+    <div id="wpb-duplicate-wrap" class="wrap wpb-wrap">
 
         <!-- Header -->
         <div class="wpb-dup-header">

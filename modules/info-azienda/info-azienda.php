@@ -190,7 +190,7 @@ function wpb_company_info_admin_page()
     $saved = isset($_GET['saved']);
     $active_tab = isset($_GET['tab']) && isset($tabs[$_GET['tab']]) ? sanitize_key($_GET['tab']) : 'dati';
     ?>
-<div id="wpb-company-wrap" class="wrap">
+<div id="wpb-company-wrap" class="wrap wpb-wrap">
 
         <div class="wpb-company-header">
             <div class="wpb-company-header-icon">

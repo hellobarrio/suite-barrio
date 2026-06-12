@@ -270,7 +270,7 @@ function wpb_sitemap_admin_page()
     $entries = wpb_sitemap_build_entries();
     $total_url = count($entries);
     ?>
-<div id="wpb-sitemap-wrap" class="wrap">
+<div id="wpb-sitemap-wrap" class="wrap wpb-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
             <div class="wpb-sm-header">
                 <div class="wpb-sm-header-icon"><span class="dashicons dashicons-media-document"></span></div>

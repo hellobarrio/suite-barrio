@@ -525,7 +525,7 @@ function wpb_schema_admin_page()
         'RealEstateAgent' => 'RealEstateAgent',
     ];
     ?>
-<div id="wpb-schema-wrap" class="wrap">
+<div id="wpb-schema-wrap" class="wrap wpb-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
             <div class="wpb-sch-header">
                 <div class="wpb-sch-header-icon"><span class="dashicons dashicons-networking"></span></div>

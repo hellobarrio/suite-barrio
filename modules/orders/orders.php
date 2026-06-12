@@ -648,7 +648,7 @@ function wpb_orders_admin_page()
     $enabled_pts = wpb_orders_enabled_post_types();
     $enabled_taxs = wpb_orders_enabled_taxonomies();
     ?>
-    <div id="wpb-orders-wrap" class="wrap">
+    <div id="wpb-orders-wrap" class="wrap wpb-wrap">
 
         <!-- Header -->
         <div class="wpb-ord-header">

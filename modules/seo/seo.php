@@ -64,7 +64,7 @@ function wpb_seo_page()
     $pt_count = count(array_filter($content['post_types'] ?? [], fn($c) => !empty($c['index'])));
     $tax_count = count(array_filter($content['taxonomies'] ?? [], fn($c) => !empty($c['index'])));
     ?>
-<div id="wpb-seo-hub" class="wrap">
+<div id="wpb-seo-hub" class="wrap wpb-wrap">
 
         <div class="wpb-seo-header">
             <div class="wpb-seo-header-icon"><span class="dashicons dashicons-search"></span></div>
