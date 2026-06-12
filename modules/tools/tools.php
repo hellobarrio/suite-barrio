@@ -37,33 +37,37 @@ function wpb_tools_modules_list()
             'label' => 'Auto Alt',
             'desc' => 'Generazione automatica di alt text e title delle immagini tramite AI.',
         ],
-        'forms' => [
-            'label' => 'Forms',
-            'desc' => 'Builder drag & drop per form di contatto.',
-        ],
         'auto_fields' => [
             'label' => 'Auto Fields',
             'desc' => 'Generazione automatica dei campi custom tramite AI.',
-        ],
-        'orari' => [
-            'label' => 'Orari',
-            'desc' => 'Sincronizzazione automatica degli orari di apertura da Google Places API.',
-        ],
-        'popups' => [
-            'label' => 'Popups',
-            'desc' => 'Crea e gestisci popup per il frontend. Un solo popup attivo alla volta.',
         ],
         'banners' => [
             'label' => 'Banners',
             'desc' => 'Crea e gestisci banner a scorrimento (marquee) per il frontend. Un solo banner attivo alla volta.',
         ],
-        'orders' => [
-            'label' => 'Orders',
-            'desc' => 'Riordina a piacimento post type e termini di tassonomia tramite drag & drop.',
+        'cookie_privacy' => [
+            'label' => 'Cookie e Privacy',
+            'desc' => 'Generazione automatica di Privacy Policy e Cookie Policy tramite Gemini.',
         ],
         'duplicate' => [
             'label' => 'Duplicate',
             'desc' => 'Duplica post e termini di tassonomia direttamente dalla lista, con un click.',
+        ],
+        'forms' => [
+            'label' => 'Forms',
+            'desc' => 'Builder drag & drop per form di contatto.',
+        ],
+        'orari' => [
+            'label' => 'Orari',
+            'desc' => 'Sincronizzazione automatica degli orari di apertura da Google Places API.',
+        ],
+        'orders' => [
+            'label' => 'Orders',
+            'desc' => 'Riordina a piacimento post type e termini di tassonomia tramite drag & drop.',
+        ],
+        'popups' => [
+            'label' => 'Popups',
+            'desc' => 'Crea e gestisci popup per il frontend. Un solo popup attivo alla volta.',
         ],
         'seo' => [
             'label' => 'SEO',
@@ -278,290 +282,6 @@ function wpb_tools_admin_page()
     $ml_trans = wpb_multilang_translation_languages();
     $ml_languages = wpb_multilang_languages_with_flags();
     ?>
-    <style>
-        /* ── WP Barrio Tools v7 ── */
-        #wpb-tools-wrap {
-            max-width: 680px;
-            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-        }
-
-        .wpb-tools-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 8px;
-        }
-
-        .wpb-tools-header-icon {
-            width: 40px;
-            height: 40px;
-            background: #111827;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .wpb-tools-header-icon .dashicons {
-            font-size: 20px;
-            width: 20px;
-            height: 20px;
-            color: #fff;
-        }
-
-        .wpb-tools-header h1 {
-            font-size: 22px !important;
-            font-weight: 700 !important;
-            color: #111827 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            line-height: 1.2 !important;
-        }
-
-        .wpb-tools-header-sub {
-            font-size: 13px;
-            color: #6b7280;
-            margin: 0;
-        }
-
-        .wpb-tools-divider {
-            border: none;
-            border-top: 1px solid #f3f4f6;
-            margin: 16px 0 28px;
-        }
-
-        /* Section heading */
-        .wpb-tools-section-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: #111827;
-            margin: 0 0 4px;
-            letter-spacing: .2px;
-        }
-
-        .wpb-tools-section-desc {
-            font-size: 12.5px;
-            color: #6b7280;
-            margin: 0 0 16px;
-            line-height: 1.5;
-        }
-
-        /* Module list */
-        .wpb-modules-list {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
-        }
-
-        .wpb-module-row {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 14px 20px;
-        }
-
-        .wpb-module-row+.wpb-module-row {
-            border-top: 1px solid #f3f4f6;
-        }
-
-        .wpb-module-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .wpb-module-label {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 2px;
-        }
-
-        .wpb-module-desc {
-            font-size: 12px;
-            color: #9ca3af;
-            line-height: 1.4;
-        }
-
-        /* Toggle switch */
-        .wpb-toggle {
-            position: relative;
-            width: 44px;
-            height: 24px;
-            flex-shrink: 0;
-        }
-
-        .wpb-toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-            position: absolute;
-        }
-
-        .wpb-toggle-track {
-            position: absolute;
-            inset: 0;
-            background: #d1d5db;
-            border-radius: 24px;
-            cursor: pointer;
-            transition: background .2s;
-        }
-
-        .wpb-toggle-track:before {
-            content: '';
-            position: absolute;
-            width: 18px;
-            height: 18px;
-            left: 3px;
-            top: 3px;
-            background: #fff;
-            border-radius: 50%;
-            transition: transform .2s;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
-        }
-
-        .wpb-toggle input:checked+.wpb-toggle-track {
-            background: #111827;
-        }
-
-        .wpb-toggle input:checked+.wpb-toggle-track:before {
-            transform: translateX(20px);
-        }
-
-        .wpb-toggle input:focus-visible+.wpb-toggle-track {
-            outline: 2px solid #6366f1;
-            outline-offset: 2px;
-        }
-
-        /* Save button */
-        .wpb-save-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 18px;
-            padding: 9px 20px;
-            background: #111827;
-            color: #fff !important;
-            font-size: 13px;
-            font-weight: 600;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: opacity .15s;
-        }
-
-        .wpb-save-btn:hover {
-            opacity: .85;
-        }
-
-        /* Notices */
-        .wpb-tools-notice {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            border-radius: 10px;
-            padding: 14px 18px;
-            font-size: 13px;
-            line-height: 1.5;
-            margin-bottom: 24px;
-        }
-
-        .wpb-tools-notice .dashicons {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
-
-        .wpb-notice-success {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            color: #166534;
-        }
-
-        .wpb-notice-success .dashicons {
-            color: #059669;
-        }
-
-        /* Multilingua section */
-        .wpb-ml-section {
-            margin-top: 36px;
-        }
-
-        .wpb-ml-section-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: #111827;
-            margin: 0 0 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .wpb-ml-section-title .dashicons {
-            font-size: 16px;
-            width: 16px;
-            height: 16px;
-            color: #6b7280;
-        }
-
-        .wpb-ml-status {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 14px 18px;
-            border-radius: 10px;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .wpb-ml-status .dashicons {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
-
-        .wpb-ml-neutral {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            color: #6b7280;
-        }
-
-        .wpb-ml-neutral .dashicons {
-            color: #9ca3af;
-        }
-
-        .wpb-ml-warning {
-            background: #fffbeb;
-            border: 1px solid #fde68a;
-            color: #92400e;
-        }
-
-        .wpb-ml-warning .dashicons {
-            color: #d97706;
-        }
-
-        .wpb-ml-warning a {
-            color: #b45309;
-        }
-
-        .wpb-ml-active {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            color: #166534;
-        }
-
-        .wpb-ml-active .dashicons {
-            color: #059669;
-        }
-    </style>
-
     <div id="wpb-tools-wrap" class="wrap">
 
         <div class="wpb-tools-header">
@@ -582,6 +302,23 @@ function wpb_tools_admin_page()
                 <span>Impostazioni salvate.</span>
             </div>
         <?php endif; ?>
+
+        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-info-azienda')); ?>" class="wpb-company-link">
+            <div class="wpb-company-link-icon">
+                <span class="dashicons dashicons-id-alt"></span>
+            </div>
+            <div class="wpb-company-link-text">
+                <p class="wpb-company-link-title">Info Azienda</p>
+                <p class="wpb-company-link-desc">
+                    Gestisci ragione sociale, dati fiscali, contatti, indirizzo e social media dell'azienda.
+                </p>
+            </div>
+            <span class="dashicons dashicons-arrow-right-alt2 wpb-company-link-arrow"></span>
+        </a>
+
+        <?php if (function_exists('wpb_cache_purge_render')) {
+            wpb_cache_purge_render();
+        } ?>
 
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <?php wp_nonce_field('wpb_tools_save'); ?>

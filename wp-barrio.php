@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  WP Barrio
  * Description:  WP Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      7.2.0
+ * Version:      7.4.0
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -16,8 +16,8 @@ if (!defined('ABSPATH'))
    CSS CONDIVISO: caricato su tutte le pagine WP Barrio
    ───────────────────────────────────────── */
 add_action('admin_enqueue_scripts', function ($hook) {
-   if (strpos($hook, 'wp-barrio') === false)
-      return;
+   // if (strpos($hook, 'wp-barrio') === false)
+   //    return;
    wp_enqueue_style(
       'wpb-admin',
       WP_ALT_AI_PLUGIN_URL . 'assets/css/wpb-admin.css',
@@ -29,7 +29,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('WP_ALT_AI_VERSION', '7.2.0');
+define('WP_ALT_AI_VERSION', '7.4.0');
 define('WP_ALT_AI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_ALT_AI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WP_ALT_AI_LOG_OPTION', 'wp_alt_ai_log');
@@ -44,6 +44,7 @@ define('WP_ALT_AI_BATCH_SIZE', 5);
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/dashboard/dashboard.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/tools/tools.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/seo/seo.php';
+require_once WP_ALT_AI_PLUGIN_DIR . 'modules/info-azienda/info-azienda.php';
 
 // Carica ogni modulo solo se non e' stato disattivato dalla pagina Strumenti
 if (wpb_tools_module_enabled('auto_alt'))
@@ -65,6 +66,11 @@ if (wpb_tools_module_enabled('popups'))
 if (wpb_tools_module_enabled('banners'))
    require_once WP_ALT_AI_PLUGIN_DIR . 'modules/banners/banners.php';
 
+
+if (wpb_tools_module_enabled('cookie_privacy'))
+   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/cookie-privacy/cookie-privacy.php';
+
+
 if (wpb_tools_module_enabled('orders'))
    require_once WP_ALT_AI_PLUGIN_DIR . 'modules/orders/orders.php';
 
@@ -82,3 +88,8 @@ if (wpb_tools_module_enabled('stats'))
    `graphql_register_types` vengono ignorati silenziosamente.
    ───────────────────────────────────────── */
 require_once WP_ALT_AI_PLUGIN_DIR . 'modules/graphql.php';
+
+/* ─────────────────────────────────────────
+   CACHE INVALIDATION (Vercel)
+   ───────────────────────────────────────── */
+require_once WP_ALT_AI_PLUGIN_DIR . 'cache.php';

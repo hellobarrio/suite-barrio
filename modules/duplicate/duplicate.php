@@ -86,7 +86,6 @@ add_action('admin_enqueue_scripts', function ($hook) {
     if (strpos($hook, 'wp-barrio-duplicate') === false)
         return;
 
-    wp_add_inline_style('wp-admin', wpb_duplicate_config_css());
     wp_add_inline_script('jquery', wpb_duplicate_config_js());
 });
 
@@ -447,100 +446,6 @@ add_filter('tag_row_actions', function (array $actions, \WP_Term $term): array {
 
     return wpb_duplicate_inject_link($actions, $url, 'Copia "' . $term->name . '"');
 }, 10, 2);
-
-/* ─────────────────────────────────────────
-   CSS — pagina configurazione
-   ───────────────────────────────────────── */
-/* ─────────────────────────────────────────
-   CSS — pagina configurazione
-   ───────────────────────────────────────── */
-function wpb_duplicate_config_css(): string
-{
-    return '
-    /* ── WP Barrio Duplicate v7 ── */
-    #wpb-duplicate-wrap {
-        max-width: 760px;
-        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-    }
-
-    /* Header */
-    .wpb-dup-header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
-    .wpb-dup-header-icon {
-        width:40px; height:40px; background:#111827; border-radius:10px;
-        display:flex; align-items:center; justify-content:center; flex-shrink:0;
-    }
-    .wpb-dup-header-icon .dashicons { font-size:20px; width:20px; height:20px; color:#fff; }
-    .wpb-dup-header h1 {
-        font-size:22px !important; font-weight:700 !important;
-        color:#111827 !important; margin:0 !important; padding:0 !important; line-height:1.2 !important;
-    }
-    .wpb-dup-header-breadcrumb { font-size:14px; font-weight:400; color:#9ca3af; margin-left:4px; }
-    .wpb-dup-header-sub { font-size:13px; color:#6b7280; margin:2px 0 0; }
-    .wpb-dup-divider { border:none; border-top:1px solid #f3f4f6; margin:14px 0 24px; }
-
-    /* Tabs */
-    .wpb-dup-tabs { display:flex; gap:2px; border-bottom:2px solid #e5e7eb; margin-bottom:24px; }
-    .wpb-dup-tab {
-        display:inline-flex; align-items:center; gap:6px;
-        padding:9px 18px; font-size:13px; font-weight:600; color:#6b7280;
-        cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px;
-        border-radius:6px 6px 0 0; transition:color .15s; user-select:none;
-    }
-    .wpb-dup-tab:hover { color:#111827; background:#f9fafb; }
-    .wpb-dup-tab.active { color:#111827; border-bottom-color:#111827; }
-    .wpb-dup-tab .dashicons { font-size:15px; width:15px; height:15px; }
-    .wpb-dup-tab-badge {
-        display:inline-flex; align-items:center; justify-content:center;
-        background:#111827; color:#fff;
-        border-radius:20px; padding:1px 8px;
-        font-size:10px; font-weight:700; min-width:18px;
-    }
-    .wpb-dup-panel { display:none; }
-    .wpb-dup-panel.active { display:block; }
-
-    /* Info notice */
-    .wpb-dup-notice {
-        display:flex; align-items:flex-start; gap:12px;
-        background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px;
-        padding:13px 16px; margin-bottom:16px;
-        font-size:13px; color:#1e40af; line-height:1.5;
-    }
-    .wpb-dup-notice .dashicons { font-size:17px; width:17px; height:17px; flex-shrink:0; margin-top:1px; color:#3b82f6; }
-
-    /* List card */
-    .wpb-dup-card {
-        background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-        overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05);
-    }
-    .wpb-dup-row {
-        display:flex; align-items:center; gap:16px;
-        padding:13px 20px; border-bottom:1px solid #f3f4f6;
-        transition:background .12s;
-    }
-    .wpb-dup-row:last-child { border-bottom:none; }
-    .wpb-dup-row:hover { background:#f9fafb; }
-    .wpb-dup-row-info { flex:1; min-width:0; }
-    .wpb-dup-row-label { font-size:13.5px; font-weight:600; color:#111827; }
-    .wpb-dup-row-slug  { font-size:11px; color:#9ca3af; margin-top:2px; font-family:ui-monospace,Consolas,monospace; }
-    .wpb-dup-row-hint  { font-size:12px; color:#059669; margin-top:4px; font-weight:500; }
-
-    /* Toggle switch — identico a tools.php */
-    .wpb-toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
-    .wpb-toggle input { opacity:0; width:0; height:0; position:absolute; }
-    .wpb-toggle-track {
-        position:absolute; inset:0; background:#d1d5db;
-        border-radius:24px; cursor:pointer; transition:background .2s;
-    }
-    .wpb-toggle-track::before {
-        content:""; position:absolute; width:18px; height:18px;
-        left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s;
-        box-shadow:0 1px 3px rgba(0,0,0,.2);
-    }
-    .wpb-toggle input:checked + .wpb-toggle-track { background:#111827; }
-    .wpb-toggle input:checked + .wpb-toggle-track::before { transform:translateX(20px); }
-    .wpb-toggle-saving .wpb-toggle-track { opacity:.5; pointer-events:none; }
-    ';
-}
 
 /* ─────────────────────────────────────────
    JS — pagina configurazione

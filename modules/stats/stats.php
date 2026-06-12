@@ -748,10 +748,6 @@ add_action('admin_enqueue_scripts', function ($hook) {
         wp_add_inline_script('wpb-stats-chartjs', wpb_stats_dashboard_js());
         wp_add_inline_style('wp-admin', wpb_stats_dashboard_css());
     }
-
-    if ($is_settings) {
-        wp_add_inline_style('wp-admin', wpb_stats_settings_css());
-    }
 });
 
 /* ─────────────────────────────────────────
@@ -829,19 +825,22 @@ function wpb_stats_dashboard_widget()
             <div class="wpb-kpi-card">
                 <div class="wpb-kpi-label">Utenti attivi</div>
                 <div class="wpb-kpi-value" id="wpb-kpi-users">
-                    <?php echo esc_html(number_format((int) ($itv[0]['value'] ?? 0))); ?></div>
+                    <?php echo esc_html(number_format((int) ($itv[0]['value'] ?? 0))); ?>
+                </div>
                 <div class="wpb-kpi-sub" id="wpb-kpi-period-label">30 giorni</div>
             </div>
             <div class="wpb-kpi-card">
                 <div class="wpb-kpi-label">Pageview</div>
                 <div class="wpb-kpi-value" id="wpb-kpi-pageviews">
-                    <?php echo esc_html(number_format((int) ($itv[1]['value'] ?? 0))); ?></div>
+                    <?php echo esc_html(number_format((int) ($itv[1]['value'] ?? 0))); ?>
+                </div>
                 <div class="wpb-kpi-sub">30 giorni</div>
             </div>
             <div class="wpb-kpi-card">
                 <div class="wpb-kpi-label">Sessioni</div>
                 <div class="wpb-kpi-value" id="wpb-kpi-sessions">
-                    <?php echo esc_html(number_format((int) ($itv[2]['value'] ?? 0))); ?></div>
+                    <?php echo esc_html(number_format((int) ($itv[2]['value'] ?? 0))); ?>
+                </div>
                 <div class="wpb-kpi-sub">30 giorni</div>
             </div>
             <div class="wpb-kpi-card">
@@ -1304,169 +1303,6 @@ document.addEventListener("DOMContentLoaded", function () {
 }
 
 /* ─────────────────────────────────────────
-   CSS — pagina impostazioni
-   ───────────────────────────────────────── */
-/* ─────────────────────────────────────────
-   CSS — pagina impostazioni
-   ───────────────────────────────────────── */
-function wpb_stats_settings_css(): string
-{
-    return '
-    /* ── WP Barrio Stats settings v7 ── */
-    #wpb-stats-wrap {
-        max-width: 680px;
-        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-    }
-
-    /* Header */
-    .wpb-st-header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
-    .wpb-st-header-icon {
-        width:40px; height:40px; background:#111827; border-radius:10px;
-        display:flex; align-items:center; justify-content:center; flex-shrink:0;
-    }
-    .wpb-st-header-icon .dashicons { font-size:20px; width:20px; height:20px; color:#fff; }
-    .wpb-st-header h1 {
-        font-size:22px !important; font-weight:700 !important;
-        color:#111827 !important; margin:0 !important; padding:0 !important; line-height:1.2 !important;
-    }
-    .wpb-st-breadcrumb { font-size:14px; font-weight:400; color:#9ca3af; margin-left:4px; }
-    .wpb-st-sub { font-size:13px; color:#6b7280; margin:2px 0 0; }
-    .wpb-st-divider { border:none; border-top:1px solid #f3f4f6; margin:14px 0 24px; }
-
-    /* Notices */
-    .wpb-st-notice {
-        display:flex; align-items:flex-start; gap:12px;
-        border-radius:10px; padding:14px 18px;
-        font-size:13px; line-height:1.5; margin-bottom:16px;
-    }
-    .wpb-st-notice .dashicons { font-size:18px; width:18px; height:18px; flex-shrink:0; margin-top:1px; }
-    .wpb-st-notice-success { background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; }
-    .wpb-st-notice-success .dashicons { color:#059669; }
-    .wpb-st-notice-info    { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; }
-    .wpb-st-notice-info .dashicons { color:#3b82f6; }
-    .wpb-st-notice-warning { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
-    .wpb-st-notice-warning .dashicons { color:#d97706; }
-    .wpb-st-notice-error   { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
-    .wpb-st-notice-error .dashicons { color:#dc2626; }
-
-    /* Connected card */
-    .wpb-st-connected-card {
-        display:flex; align-items:center; justify-content:space-between;
-        gap:16px; padding:16px 20px; flex-wrap:wrap;
-        background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px;
-        margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,.04);
-    }
-    .wpb-st-connected-left { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
-    .wpb-st-connected-dot {
-        width:10px; height:10px; border-radius:50%;
-        background:#059669; flex-shrink:0;
-        box-shadow:0 0 0 3px #dcfce7;
-    }
-    .wpb-st-connected-title { font-size:13.5px; font-weight:700; color:#166534; margin-bottom:2px; }
-    .wpb-st-connected-meta  { font-size:12px; color:#3d6b50; }
-    .wpb-st-disconnect-btn {
-        padding:7px 14px; font-size:12px; font-weight:600;
-        background:#fff; border:1px solid #fca5a5; border-radius:7px;
-        color:#dc2626; cursor:pointer; white-space:nowrap; font-family:inherit;
-        transition:background .15s;
-    }
-    .wpb-st-disconnect-btn:hover { background:#fee2e2; }
-
-    /* Instructions box */
-    .wpb-st-steps {
-        background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px;
-        padding:16px 18px; margin-bottom:20px; font-size:13px; line-height:1.7; color:#1e40af;
-    }
-    .wpb-st-steps strong { color:#1e3a8a; }
-    .wpb-st-steps ol { margin:8px 0 0 18px; padding:0; }
-    .wpb-st-steps li { margin-bottom:4px; }
-    .wpb-st-steps a { color:#1d4ed8; }
-    .wpb-st-steps code {
-        background:#dbeafe; padding:1px 6px; border-radius:4px;
-        font-size:11.5px; color:#1e3a8a; font-family:ui-monospace,Consolas,monospace;
-    }
-
-    /* Section cards */
-    .wpb-st-section {
-        background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-        margin-bottom:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05);
-    }
-    .wpb-st-section-head {
-        padding:13px 20px; background:#f9fafb; border-bottom:1px solid #f3f4f6;
-        display:flex; align-items:center; gap:8px;
-    }
-    .wpb-st-section-head .dashicons { color:#6b7280; font-size:16px; width:16px; height:16px; }
-    .wpb-st-section-title { font-size:13px; font-weight:700; color:#111827; margin:0; }
-    .wpb-st-section-body { padding:22px; }
-
-    /* Form fields */
-    .wpb-st-field { margin-bottom:18px; }
-    .wpb-st-field:last-child { margin-bottom:0; }
-    .wpb-st-field > label {
-        display:block; font-size:12px; font-weight:700; color:#374151;
-        margin-bottom:6px; text-transform:uppercase; letter-spacing:.4px;
-    }
-    .wpb-st-field input[type="text"],
-    .wpb-st-field input[type="password"] {
-        width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:7px;
-        font-size:13px; color:#111827; background:#fff; box-sizing:border-box;
-        font-family:inherit; transition:border-color .15s;
-    }
-    .wpb-st-field input[type="text"]:focus,
-    .wpb-st-field input[type="password"]:focus { outline:none; border-color:#111827; }
-    .wpb-st-desc { font-size:12px; color:#9ca3af; margin-top:5px; line-height:1.5; }
-    .wpb-st-desc code {
-        background:#f3f4f6; padding:1px 5px; border-radius:4px;
-        font-size:11px; color:#374151; font-family:ui-monospace,Consolas,monospace;
-    }
-
-    /* Toggle switch */
-    .wpb-st-toggle-row { display:flex; align-items:center; gap:12px; }
-    .wpb-toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
-    .wpb-toggle input { opacity:0; width:0; height:0; position:absolute; }
-    .wpb-toggle-track {
-        position:absolute; inset:0; background:#d1d5db;
-        border-radius:24px; cursor:pointer; transition:background .2s;
-    }
-    .wpb-toggle-track::before {
-        content:""; position:absolute; width:18px; height:18px;
-        left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s;
-        box-shadow:0 1px 3px rgba(0,0,0,.2);
-    }
-    .wpb-toggle input:checked + .wpb-toggle-track { background:#111827; }
-    .wpb-toggle input:checked + .wpb-toggle-track::before { transform:translateX(20px); }
-    .wpb-st-toggle-label { font-size:13.5px; font-weight:600; color:#111827; cursor:pointer; }
-
-    /* Connect Google button */
-    .wpb-st-connect-wrap {
-        margin-top:20px; padding:22px 24px;
-        background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-        box-shadow:0 1px 3px rgba(0,0,0,.05);
-    }
-    .wpb-st-connect-title { font-size:13.5px; font-weight:700; color:#111827; margin:0 0 14px; }
-    .wpb-st-connect-btn {
-        display:inline-flex; align-items:center; gap:10px;
-        padding:10px 20px; background:#fff; border:1px solid #dadce0;
-        border-radius:8px; font-size:13.5px; font-weight:600; color:#3c4043;
-        text-decoration:none !important; cursor:pointer;
-        transition:box-shadow .15s, border-color .15s;
-        box-shadow:0 1px 2px rgba(0,0,0,.08);
-    }
-    .wpb-st-connect-btn:hover { box-shadow:0 2px 8px rgba(0,0,0,.14); border-color:#c6c9cb; color:#3c4043; }
-
-    /* Save button */
-    .wpb-st-save-btn {
-        display:inline-flex; align-items:center; gap:6px;
-        padding:9px 20px; background:#111827; color:#fff;
-        font-size:13px; font-weight:600; border:none; border-radius:8px;
-        cursor:pointer; font-family:inherit; transition:opacity .15s; margin-top:4px;
-    }
-    .wpb-st-save-btn:hover { opacity:.85; }
-    .wpb-st-save-btn .dashicons { font-size:16px; width:16px; height:16px; }
-';
-}
-
-/* ─────────────────────────────────────────
    PAGINA ADMIN — Impostazioni
    ───────────────────────────────────────── */
 function wpb_stats_admin_page()
@@ -1591,7 +1427,8 @@ function wpb_stats_admin_page()
                 </li>
                 <li>Copia <strong>Client ID</strong> e <strong>Client Secret</strong> e incollali qui sotto.</li>
                 <li>Copia il <strong>Property ID</strong> da GA4 → Impostazioni proprietà (solo il numero, es.
-                    <code>123456789</code>).</li>
+                    <code>123456789</code>).
+                </li>
             </ol>
         </div>
 
