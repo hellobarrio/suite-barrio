@@ -228,7 +228,7 @@ add_action('wp_ajax_wpb_orders_save_posts', function () {
         wp_update_post(['ID' => $post_id, 'menu_order' => (int) $order]);
     }
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:type:' . $post_type);
     }
     wp_send_json_success('Ordine salvato.');
 });
@@ -254,7 +254,7 @@ add_action('wp_ajax_wpb_orders_save_terms', function () {
         update_term_meta($term_id, 'wpb_term_order', (int) $order);
     }
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:type:' . $taxonomy);
     }
     wp_send_json_success('Ordine salvato.');
 });
