@@ -284,7 +284,134 @@ function wpb_popup_shortcode($atts = []): string
     $link_target = in_array($link_target, ['_self', '_blank'], true) ? $link_target : '_self';
     $rel = '_blank' === $link_target ? ' rel="noopener noreferrer"' : '';
 
-    return wpb_get_template('popup.php', [
+    static $style_printed = false;
+    $style = '';
+    if (!$style_printed) {
+        $style_printed = true;
+        $style = <<<'CSS'
+<style>
+.wpb-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    transition: opacity .3s ease-in-out;
+}
+.wpb-popup.is-open {
+    opacity: 1;
+    pointer-events: all;
+}
+.wpb-popup__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .35);
+    cursor: pointer;
+}
+.wpb-popup__dialog {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    z-index: 1;
+    width: 100%;
+    max-width: 760px;
+    max-height: 90vh;
+    transform: translateY(30px);
+    overflow: auto;
+    background: white;
+    color: black;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, .35);
+    transition: transform .3s ease-in-out;
+}
+.wpb-popup.is-open .wpb-popup__dialog {
+    transform: translateY(0);
+}
+.wpb-popup__close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    background: white;
+    border-radius: 50px;
+    font-size: 30px;
+    line-height: 1;
+    color: black;
+    cursor: pointer;
+    transition: opacity .3s ease;
+}
+.wpb-popup__close:hover {
+    opacity: .6;
+}
+.wpb-popup__image {
+    display: block;
+    width: 40%;
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: cover;
+}
+.wpb-popup__body {
+    padding: 40px;
+}
+.wpb-popup__title {
+    margin: 0 0 16px;
+    font-weight: 400;
+    font-size: 2rem;
+    line-height: 1.2;
+    color: black;
+}
+.wpb-popup__content {
+    margin: 0 0 24px;
+    font-size: 1rem;
+    line-height: 1.4;
+    color: black;
+}
+.wpb-popup__content :last-child {
+    margin-bottom: 0;
+}
+.wpb-popup__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    background: black;
+    border: 1px solid black;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: all .5s ease;
+}
+.wpb-popup__cta:hover {
+    color: black;
+    background: white;
+}
+@media (max-width: 639px) {
+    .wpb-popup__body {
+        padding: 28px 24px;
+    }
+    .wpb-popup__title {
+        font-size: 1.5rem;
+        line-height: 1.3;
+    }
+    .wpb-popup__image {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 4/3;
+    }
+}
+</style>
+CSS;
+    }
+
+    $html = wpb_get_template('popup.php', [
         'wrap_id'     => $wrap_id,
         'title_id'    => $title_id,
         'id'          => $id,
@@ -298,6 +425,58 @@ function wpb_popup_shortcode($atts = []): string
         'rel'         => $rel,
         'image'       => $image,
     ], __DIR__ . '/templates');
+
+    $script = sprintf(
+        <<<'JS'
+<script>(function () {
+    var el = document.getElementById('%s');
+    if (!el || el.dataset.wpbPopupInit) return;
+    el.dataset.wpbPopupInit = '1';
+
+    var cookieName = 'wpb_popup_closed_%s';
+    var days  = parseInt(el.dataset.days, 10) || 0;
+    var delay = parseInt(el.dataset.delay, 10) || 0;
+
+    function hasClosedCookie() {
+        return document.cookie.split('; ').some(function (c) {
+            return c.indexOf(cookieName + '=') === 0;
+        });
+    }
+    function setClosedCookie() {
+        if (days <= 0) return;
+        var d = new Date();
+        d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+        var secure = location.protocol === 'https:' ? '; secure' : '';
+        document.cookie = cookieName + '=1; expires=' + d.toUTCString() + '; path=/; samesite=lax' + secure;
+    }
+
+    if (days > 0 && hasClosedCookie()) return;
+
+    function open() {
+        el.classList.add('is-open');
+        document.documentElement.style.overflow = 'hidden';
+    }
+    function close() {
+        el.classList.remove('is-open');
+        document.documentElement.style.overflow = '';
+        setClosedCookie();
+    }
+
+    el.querySelectorAll('[data-wpb-popup-close]').forEach(function (b) {
+        b.addEventListener('click', close);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && el.classList.contains('is-open')) close();
+    });
+
+    if (delay > 0) { setTimeout(open, delay); } else { open(); }
+})();</script>
+JS,
+        esc_js($wrap_id),
+        esc_js((string) $id)
+    );
+
+    return $style . $html . $script;
 }
 
 /* ─────────────────────────────────────────

@@ -152,9 +152,9 @@ function wpb_banners_delete_translations(int $banner_id): void
 if (!function_exists('wpb_get_template')) {
     function wpb_get_template(string $name, array $data = [], string $plugin_templates_dir = ''): string
     {
-        $theme_file  = locate_template('wp-barrio/' . $name);
+        $theme_file = locate_template('wp-barrio/' . $name);
         $plugin_file = $plugin_templates_dir ? (rtrim($plugin_templates_dir, '/') . '/' . $name) : '';
-        $file        = $theme_file ?: $plugin_file;
+        $file = $theme_file ?: $plugin_file;
 
         if (!$file || !is_readable($file))
             return '';
@@ -180,8 +180,8 @@ function wpb_banner_shortcode(): string
     if (!$banner)
         return '';
 
-    $title       = (string) $banner->title;
-    $link        = (string) $banner->link;
+    $title = (string) $banner->title;
+    $link = (string) $banner->link;
     $link_target = $banner->link_target ?: '_self';
 
     $lang = '';
@@ -193,9 +193,12 @@ function wpb_banner_shortcode(): string
     if ($lang) {
         $tr = wpb_banners_get_translation((int) $banner->id, $lang);
         if ($tr) {
-            if ('' !== $tr->title)       $title       = (string) $tr->title;
-            if ('' !== $tr->link)        $link        = (string) $tr->link;
-            if ('' !== $tr->link_target) $link_target = (string) $tr->link_target;
+            if ('' !== $tr->title)
+                $title = (string) $tr->title;
+            if ('' !== $tr->link)
+                $link = (string) $tr->link;
+            if ('' !== $tr->link_target)
+                $link_target = (string) $tr->link_target;
         }
     }
 
@@ -204,13 +207,85 @@ function wpb_banner_shortcode(): string
 
     $link_target = in_array($link_target, ['_self', '_blank'], true) ? $link_target : '_self';
 
-    return wpb_get_template('banner.php', [
-        'uid'         => 'wpb-banner-' . (int) $banner->id,
-        'title'       => $title,
-        'link'        => $link,
+    static $style_printed = false;
+    $style = '';
+    if (!$style_printed) {
+        $style_printed = true;
+        $style = <<<'CSS'
+<style>
+.wpb-banner {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+.wpb-banner__inner {
+    display: flex;
+    align-items: center;
+}
+.wpb-banner__track {
+    display: flex;
+    align-items: center;
+    will-change: transform;
+}
+.wpb-banner__item {
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+</style>
+CSS;
+    }
+
+    $uid = 'wpb-banner-' . (int) $banner->id;
+
+    $html = wpb_get_template('banner.php', [
+        'uid' => $uid,
+        'title' => $title,
+        'link' => $link,
         'link_target' => $link_target,
-        'rel'         => '_blank' === $link_target ? ' rel="noopener noreferrer"' : '',
+        'rel' => '_blank' === $link_target ? ' rel="noopener noreferrer"' : '',
     ], __DIR__ . '/templates');
+
+    $script = sprintf(
+        '<script>(function () {
+    var t1    = document.getElementById(%s);
+    var t2    = document.getElementById(%s);
+    var inner = document.getElementById(%s);
+    if (!t1 || !t2 || !inner) return;
+
+    var x = 0, targetV = 80, currentV = 80, lastTs = null, trackW = 0;
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    inner.addEventListener(\'mouseenter\', function () { targetV = 0; });
+    inner.addEventListener(\'mouseleave\', function () { targetV = 80; });
+
+    function tick(ts) {
+        if (lastTs === null) { lastTs = ts; requestAnimationFrame(tick); return; }
+        var delta = ts - lastTs;
+        lastTs = ts;
+
+        if (trackW === 0) trackW = t1.getBoundingClientRect().width;
+
+        currentV = lerp(currentV, targetV, 0.05);
+        x -= (currentV * delta) / 1000;
+
+        if (trackW > 0 && x <= -(trackW + 20)) x = 0;
+
+        var tx = \'translateX(\' + x + \'px)\';
+        t1.style.transform = tx;
+        t2.style.transform = tx;
+
+        requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+})();</script>',
+        wp_json_encode($uid . '-t1'),
+        wp_json_encode($uid . '-t2'),
+        wp_json_encode($uid . '-inner')
+    );
+
+    return $style . $html . $script;
 }
 
 /* ─────────────────────────────────────────
