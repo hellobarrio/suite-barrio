@@ -219,7 +219,7 @@ function wpb_meta_output_tags()
     if (is_singular()) {
         $description = get_post_meta(get_the_ID(), '_wpb_seo_description', true);
         if (empty($description))
-            $description = get_the_excerpt();
+            $description = mb_substr(wp_strip_all_tags(strip_shortcodes(get_post_field('post_content', get_the_ID()))), 0, 160);
     } elseif (is_tax() || is_category() || is_tag()) {
         $term = get_queried_object();
         if ($term) {
@@ -362,7 +362,7 @@ function wpb_meta_render_post_metabox($post)
     $sitemap_default = (bool) ($pt_cfg['sitemap'] ?? 1);
 
     $default_title = get_the_title($post->ID);
-    $default_desc = get_the_excerpt($post->ID) ? wp_strip_all_tags(get_the_excerpt($post->ID)) : '';
+    $default_desc = mb_substr(wp_strip_all_tags(strip_shortcodes(get_post_field('post_content', $post->ID))), 0, 160);
     $default_og = get_the_post_thumbnail_url($post->ID, 'medium') ?: '';
     $custom_og_url = $custom_og_id ? wp_get_attachment_image_url($custom_og_id, 'medium') : '';
 
@@ -383,7 +383,7 @@ function wpb_meta_render_post_metabox($post)
         ? wp_get_attachment_image_url((int) $s['favicon_id'], 'thumbnail')
         : '';
     ?>
-<div class="wpb-seo-mb">
+    <div class="wpb-seo-mb">
 
         <!-- ── Colonna campi ── -->
         <div class="wpb-seo-fields">
@@ -1551,7 +1551,7 @@ function wpb_meta_term_og_script($select_id, $remove_id, $input_id, $thumb_id)
 function wpb_meta_term_kw_script($wrap_id, $input_id, $hidden_id, array $initial_kws)
 {
     ?>
-<script>
+    <script>
         (function () {
             var wrap = document.getElementById(<?php echo wp_json_encode($wrap_id); ?>);
             var input = document.getElementById(<?php echo wp_json_encode($input_id); ?>);
@@ -1740,7 +1740,7 @@ function wpb_meta_admin_page()
     $taxonomies = array_filter(get_taxonomies(['public' => true], 'objects'), fn($t) => !in_array($t->name, ['post_format', 'nav_menu', 'link_category'], true));
     unset($post_types['attachment']);
     ?>
-<div id="wpb-meta-wrap" class="wrap wpb-wrap">
+    <div id="wpb-meta-wrap" class="wrap wpb-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
             <div class="wpb-gs-header">
                 <div class="wpb-gs-header-icon"><span class="dashicons dashicons-search"></span></div>
@@ -1847,8 +1847,8 @@ function wpb_meta_admin_page()
                                     </td>
                                     <td>
                                         <code class="wpb-robots-preview" id="robots-pt-<?php echo esc_attr($slug); ?>">
-                                                                <?php echo esc_html($robots); ?>
-                                                            </code>
+                                                                            <?php echo esc_html($robots); ?>
+                                                                        </code>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1915,8 +1915,8 @@ function wpb_meta_admin_page()
                                         </td>
                                         <td>
                                             <code class="wpb-robots-preview" id="robots-tax-<?php echo esc_attr($slug); ?>">
-                                                                        <?php echo esc_html($robots); ?>
-                                                                    </code>
+                                                                                        <?php echo esc_html($robots); ?>
+                                                                                    </code>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
