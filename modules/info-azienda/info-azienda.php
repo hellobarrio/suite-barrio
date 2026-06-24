@@ -112,14 +112,27 @@ function wpb_company_info_tabs()
    1. MENU ADMIN
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    add_submenu_page(
-        'wp-barrio',
-        'Info Azienda — WP Barrio',
-        'Info Azienda',
-        'manage_options',
-        'wp-barrio-info-azienda',
-        'wpb_company_info_admin_page'
-    );
+    if (current_user_can('manage_options')) {
+        add_submenu_page(
+            'wp-barrio',
+            'Info Azienda — WP Barrio',
+            'Info Azienda',
+            'manage_options',
+            'wp-barrio-info-azienda',
+            'wpb_company_info_admin_page'
+        );
+    } elseif (current_user_can('edit_others_posts')) {
+        // Editor e ruoli con edit_others_posts: voce principale nel menu admin
+        add_menu_page(
+            'Info Azienda — WP Barrio',
+            'Info Azienda',
+            'edit_others_posts',
+            'wp-barrio-info-azienda',
+            'wpb_company_info_admin_page',
+            'dashicons-info-outline',
+            88
+        );
+    }
 }, 11);
 
 /* La pagina resta accessibile via URL e callback,
@@ -128,15 +141,18 @@ add_action('admin_menu', function () {
    perché il check `user_can_access_admin_page()` gira tra i due hook
    e si basa sulla presenza della voce in $submenu. */
 add_action('admin_head', function () {
-    remove_submenu_page('wp-barrio', 'wp-barrio-info-azienda');
+    if (current_user_can('manage_options')) {
+        remove_submenu_page('wp-barrio', 'wp-barrio-info-azienda');
+    }
 }, 1);
 
 /* ─────────────────────────────────────────
    2. SALVATAGGIO IMPOSTAZIONI
    ───────────────────────────────────────── */
 add_action('admin_post_wpb_company_info_save', function () {
-    if (!current_user_can('manage_options'))
-        wp_die('Accesso negato.');
+    // if (!current_user_can('manage_options'))
+    //     wp_die('Accesso negato.');
+
     check_admin_referer('wpb_company_info_save');
 
     $clean = [];
@@ -181,16 +197,16 @@ add_action('admin_post_wpb_company_info_save', function () {
    ───────────────────────────────────────── */
 function wpb_company_info_admin_page()
 {
-    if (!current_user_can('manage_options')) {
-        wp_die('Accesso riservato.');
-    }
+    // if (!current_user_can('manage_options')) {
+    //     wp_die('Accesso riservato.');
+    // }
 
     $tabs = wpb_company_info_tabs();
     $data = wpb_company_info_get();
     $saved = isset($_GET['saved']);
     $active_tab = isset($_GET['tab']) && isset($tabs[$_GET['tab']]) ? sanitize_key($_GET['tab']) : 'dati';
     ?>
-<div id="wpb-company-wrap" class="wrap wpb-wrap">
+    <div id="wpb-company-wrap" class="wrap wpb-wrap">
 
         <div class="wpb-company-header">
             <div class="wpb-company-header-icon">
