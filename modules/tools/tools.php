@@ -37,6 +37,10 @@ function wpb_tools_modules_list()
             'label' => 'Auto Alt',
             'desc' => 'Generazione automatica di alt text e title delle immagini tramite AI.',
         ],
+        'blocks' => [
+            'label' => 'Blocks',
+            'desc' => 'Gestisci quali blocchi Gutenberg sono disponibili per gli utenti non amministratori.',
+        ],
         'auto_fields' => [
             'label' => 'Auto Fields',
             'desc' => 'Generazione automatica dei campi custom tramite AI.',
