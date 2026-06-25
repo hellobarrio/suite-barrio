@@ -18,7 +18,7 @@
 .wpb-wrap {
   font-family:
     -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-  max-width: 1000px;
+  max-width: 1200px;
 }
 #wpb-dash,
 #wpb-seo-hub {
@@ -82,6 +82,973 @@
   border: none;
   border-top: 1px solid #f3f4f6;
   margin: 14px 0 24px;
+}
+
+/* ── Header row: header sinistra + back button destra ── */
+.wpb-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* ── Wizard launch banner ── */
+.wpb-wizard-banner {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #162032 100%);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.wpb-wizard-banner::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: 120px;
+  width: 200px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.wpb-wizard-banner::after {
+  content: "";
+  position: absolute;
+  bottom: -60px;
+  right: -20px;
+  width: 160px;
+  height: 160px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.wpb-wizard-banner-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.wpb-wizard-banner-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wpb-wizard-banner-icon .dashicons {
+  font-size: 22px !important;
+  width: 22px !important;
+  height: 22px !important;
+  color: #fff;
+}
+
+.wpb-wizard-banner-text {
+  min-width: 0;
+}
+
+.wpb-wizard-banner-text strong {
+  display: block;
+  color: #f9fafb;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+.wpb-wizard-banner-text span {
+  display: block;
+  color: #94a3b8;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.wpb-btn-launch {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  color: #0f172a !important;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 22px;
+  border-radius: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.1px;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+
+.wpb-btn-launch:hover {
+  background: #f1f5f9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  opacity: 1;
+}
+
+/* ─────────────────────────────────────────
+   Wizard — pagina messa online
+   ───────────────────────────────────────── */
+.wpb-wizard-steps {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.wpb-wizard-step {
+  display: flex;
+  align-items: center;
+}
+
+.wpb-wizard-step:not(:last-child)::after {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 2px;
+  background: #e5e7eb;
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+
+.wpb-wizard-step-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: #e5e7eb;
+  color: #9ca3af;
+  border: 2px solid #e5e7eb;
+}
+
+.wpb-wizard-step.is-active .wpb-wizard-step-num {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.wpb-wizard-step.is-done .wpb-wizard-step-num {
+  background: #059669;
+  color: #fff;
+  border-color: #059669;
+}
+
+.wpb-wizard-step-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.wpb-wizard-step.is-active .wpb-wizard-step-label {
+  color: #111827;
+}
+
+.wpb-wizard-step.is-done .wpb-wizard-step-label {
+  color: #059669;
+}
+
+.wpb-wizard-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 860px;
+}
+
+.wpb-wizard-card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+
+.wpb-wizard-card-head-icon {
+  width: 38px;
+  height: 38px;
+  background: #111827;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wpb-wizard-card-head-icon .dashicons {
+  color: #fff;
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.wpb-wizard-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.wpb-wizard-card-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.wpb-wizard-form {
+  padding: 24px;
+}
+
+.wpb-wizard-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+  margin-bottom: 28px;
+}
+
+.wpb-wizard-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.wpb-wizard-field-full {
+  grid-column: 1 / -1;
+}
+
+.wpb-wizard-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  letter-spacing: 0.1px;
+}
+
+.wpb-wizard-field input,
+.wpb-wizard-field select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  color: #111827;
+  background-color: #fff;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  font-family: inherit;
+}
+.wpb-wizard-field select {
+  padding-block: 0;
+}
+
+.wpb-wizard-field input:focus,
+.wpb-wizard-field select:focus {
+  outline: none;
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.wpb-wizard-field input::placeholder {
+  color: #9ca3af;
+}
+
+.wpb-wizard-field input[type="checkbox"],
+.wpb-wizard-field input[type="radio"] {
+  width: auto;
+  aspect-ratio: 1 / 1;
+}
+
+.wpb-wizard-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.wpb-wizard-submit {
+  padding: 10px 22px;
+  font-size: 13.5px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wpb-wizard-submit:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.wpb-wizard-submit-note {
+  font-size: 12px;
+  color: #dc2626;
+  align-self: center;
+}
+
+.wpb-wizard-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.wpb-wizard-label-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.wpb-wizard-textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  resize: vertical;
+  color: #1f2937;
+  background: #f9fafb;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.wpb-wizard-textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  background: #fff;
+}
+
+/* Step inner: link o span identici visivamente */
+.wpb-wizard-step-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none !important;
+  color: inherit;
+}
+
+/* Stato skipped — ambra, bordo tratteggiato */
+.wpb-wizard-step.is-skipped .wpb-wizard-step-num {
+  background: #fff;
+  color: #d97706;
+  border-color: #fcd34d;
+  border-style: dashed;
+}
+
+.wpb-wizard-step.is-skipped .wpb-wizard-step-label {
+  color: #d97706;
+  font-style: italic;
+}
+
+/* Card footer con il bottone salta */
+.wpb-wizard-card-footer {
+  padding: 12px 24px;
+  border-top: 1px solid #f3f4f6;
+  background: #fafafa;
+}
+
+.wpb-wizard-skip-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wpb-wizard-skip-btn:hover {
+  color: #6b7280;
+}
+
+/* Navigazione sotto-step SEO */
+.wpb-wizard-substeps {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin: 0 0 24px;
+  padding: 0 24px;
+  overflow-x: auto;
+}
+
+.wpb-wizard-substep {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #9ca3af;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  margin-bottom: -1px;
+}
+
+.wpb-wizard-substep-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e5e7eb;
+  color: #9ca3af;
+}
+
+.wpb-wizard-substep.is-active {
+  color: #111827;
+  border-bottom-color: #111827;
+}
+
+.wpb-wizard-substep.is-active .wpb-wizard-substep-num {
+  background: #111827;
+  color: #fff;
+}
+
+.wpb-wizard-substep.is-done {
+  color: #059669;
+}
+
+.wpb-wizard-substep.is-done .wpb-wizard-substep-num {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.wpb-wizard-substep.is-skipped {
+  color: #d97706;
+  font-style: italic;
+}
+
+.wpb-wizard-substep.is-skipped .wpb-wizard-substep-num {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* Toggle list (es. sitemap post types / tassonomie) */
+.wpb-wizard-toggle-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.wpb-wizard-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: #fff;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.12s;
+}
+
+.wpb-wizard-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.wpb-wizard-toggle-row:hover {
+  background: #f9fafb;
+}
+
+.wpb-wizard-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wpb-wizard-toggle-info strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.wpb-wizard-toggle-info code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  color: #6b7280;
+  background: none;
+  padding: 0;
+}
+
+.wpb-wizard-toggle-wrap {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.wpb-wizard-toggle-wrap input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.wpb-wizard-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.wpb-wizard-toggle-track::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 3px;
+  left: 3px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s;
+}
+
+.wpb-wizard-toggle-wrap input:checked + .wpb-wizard-toggle-track {
+  background: #111827;
+}
+
+.wpb-wizard-toggle-wrap input:checked + .wpb-wizard-toggle-track::before {
+  transform: translateX(18px);
+}
+
+.wpb-wizard-toggle-wrap input:focus-visible + .wpb-wizard-toggle-track {
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.2);
+}
+
+/* Redirects builder — multi-riga */
+.wpb-redirects-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.wpb-redirect-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px 12px 14px 14px;
+}
+
+.wpb-redirect-row-fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.wpb-redirect-cell label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.wpb-redirect-cell label span {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #9ca3af;
+}
+
+.wpb-redirect-cell input,
+.wpb-redirect-cell select {
+  width: 100%;
+}
+
+.wpb-redirect-cell-code select {
+  min-width: 170px;
+}
+
+.wpb-redirect-cell-note input {
+  min-width: 160px;
+}
+
+.wpb-redirect-remove {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  color: #9ca3af;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+  padding: 0;
+}
+
+.wpb-redirect-remove:hover {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.wpb-redirect-remove .dashicons {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 900px) {
+  .wpb-redirect-row-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .wpb-redirect-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wpb-redirect-row-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .wpb-redirect-remove {
+    width: 100%;
+    height: 32px;
+  }
+}
+
+/* Controlli Finali — checklist */
+.wpb-wizard-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 20px 0 28px;
+}
+
+.wpb-wizard-check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+  user-select: none;
+}
+
+.wpb-wizard-check-item:hover {
+  background: #f3f4f6;
+}
+
+.wpb-wizard-check-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: #111827;
+  margin: 0;
+}
+
+.wpb-wizard-check-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.wpb-wizard-check-icon .dashicons {
+  color: #6b7280;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  transition: color 0.15s;
+}
+
+.wpb-wizard-check-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  line-height: 1.4;
+  transition: color 0.15s;
+}
+
+.wpb-wizard-check-done {
+  flex-shrink: 0;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #d1fae5;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    color 0.15s;
+}
+
+.wpb-wizard-check-item:has(input:checked) {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.wpb-wizard-check-item:has(input:checked) .wpb-wizard-check-icon {
+  background: #dcfce7;
+}
+
+.wpb-wizard-check-item:has(input:checked) .wpb-wizard-check-icon .dashicons {
+  color: #16a34a;
+}
+
+.wpb-wizard-check-item:has(input:checked) .wpb-wizard-check-label {
+  color: #15803d;
+}
+
+.wpb-wizard-check-item:has(input:checked) .wpb-wizard-check-done {
+  opacity: 1;
+  color: #16a34a;
+}
+
+/* Schermata completamento */
+.wpb-wizard-complete {
+  max-width: 860px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.wpb-wizard-complete-icon {
+  width: 56px;
+  height: 56px;
+  background: #dcfce7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.wpb-wizard-complete-icon .dashicons {
+  color: #059669;
+  font-size: 28px !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.wpb-wizard-complete h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px;
+}
+
+.wpb-wizard-complete p {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0 0 24px;
+}
+
+/* Step 2 — module selection grid */
+.wpb-wizard-modules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.wpb-wizard-module {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #fff;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.wpb-wizard-module:has(input:checked) {
+  border-color: #111827;
+  background: #f9fafb;
+}
+
+.wpb-wizard-module-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wpb-wizard-module-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wpb-wizard-module-icon .dashicons {
+  color: #fff;
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.wpb-wizard-module-body {
+  min-width: 0;
+}
+
+.wpb-wizard-module-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+.wpb-wizard-module-desc {
+  font-size: 11.5px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* Step 3 — GTM check result */
+.wpb-wizard-gtm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.wpb-wizard-gtm-check .dashicons {
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.wpb-wizard-gtm-check div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wpb-wizard-gtm-check strong {
+  font-weight: 700;
+  display: block;
+}
+
+.wpb-wizard-gtm-check code {
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.wpb-wizard-gtm-ok {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.wpb-wizard-gtm-ok .dashicons {
+  color: #16a34a;
+}
+
+.wpb-wizard-gtm-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.wpb-wizard-gtm-error .dashicons {
+  color: #dc2626;
+}
+
+.wpb-wizard-gtm-warn {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.wpb-wizard-gtm-warn .dashicons {
+  color: #d97706;
 }
 
 /* ── Badge "Auto ON" ── */
@@ -176,6 +1143,121 @@
   font-size: 15px;
   width: 15px;
   height: 15px;
+}
+
+/* ── Wizard todo — operazioni da completare ── */
+.wpb-wizard-todo {
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.wpb-wizard-todo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fde68a;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.wpb-wizard-todo-head .dashicons {
+  color: #d97706;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.wpb-wizard-todo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wpb-wizard-todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #78350f;
+  border-bottom: 1px solid #fde68a;
+}
+
+.wpb-wizard-todo-item:last-child {
+  border-bottom: none;
+}
+
+.wpb-wizard-todo-item > .dashicons {
+  flex-shrink: 0;
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  color: #d97706;
+}
+
+.wpb-wizard-todo-label {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.wpb-wizard-todo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.wpb-wizard-todo-link:hover {
+  color: #92400e;
+  text-decoration: underline;
+}
+
+.wpb-wizard-todo-link .dashicons {
+  font-size: 13px;
+  width: 13px;
+  height: 13px;
+}
+
+.wpb-wizard-todo-dismiss {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin-left: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #d97706;
+  opacity: 0.45;
+  border-radius: 4px;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+}
+
+.wpb-wizard-todo-dismiss:hover {
+  opacity: 1;
+  background: #fde68a;
+}
+
+.wpb-wizard-todo-dismiss .dashicons {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
 }
 
 /* ── Notices ── */
@@ -3458,6 +4540,9 @@ tr[data-status="error"]:hover td {
     opacity 0.15s,
     background 0.15s;
   line-height: 1.4;
+}
+.wpb-btn.wpb-btn-small {
+  flex: none;
 }
 
 .wpb-btn:hover {
@@ -7365,6 +8450,36 @@ tr[data-status="error"]:hover td {
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
+}
+
+.wpb-stats-bar-item {
+  flex: 1;
+  padding: 12px 20px;
+  border-right: 1px solid #e5e7eb;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.wpb-stats-bar-item:last-child {
+  border-right: none;
+}
+
+.wpb-stats-bar-num {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  color: #111827;
+}
+
+.wpb-stats-bar-lbl {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .wpb-stat {
@@ -12177,26 +13292,26 @@ tr[data-status="error"]:hover td {
   align-items: stretch;
 }
 
-.wpb-cache-purge-input {
-  flex: 1 1 220px;
-  min-width: 180px;
-  height: 36px;
-  padding: 0 12px;
+input.wpb-cache-purge-input[type="text"] {
+  width: 100%;
+  padding: 8px 12px;
   font-size: 13px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
+  font-family: inherit;
+  line-height: 1.4;
   color: #111827;
-  box-shadow: none;
-  outline: none;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
+  box-shadow: none;
 }
 
-.wpb-cache-purge-input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+input.wpb-cache-purge-input[type="text"]:focus {
+  border-color: #111827;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
 }
 
 .wpb-cache-purge-btn {

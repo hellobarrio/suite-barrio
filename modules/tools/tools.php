@@ -395,6 +395,41 @@ function wpb_tools_admin_page()
             <?php endif; ?>
         </div>
 
+        <!-- Messa Online -->
+        <div class="wpb-ml-section">
+            <p class="wpb-ml-section-title">
+                <span class="dashicons dashicons-migrate"></span>
+                Messa Online
+            </p>
+            <?php
+            $wiz_complete = function_exists('wpb_wizard_is_complete') && wpb_wizard_is_complete();
+            $wiz_badge = function_exists('wpb_wizard_badge_count') ? wpb_wizard_badge_count() : 0;
+            $wiz_url = admin_url('admin.php?page=wp-barrio-wizard');
+            ?>
+            <div class="wpb-wizard-banner">
+                <div class="wpb-wizard-banner-body">
+                    <div class="wpb-wizard-banner-icon">
+                        <span class="dashicons dashicons-migrate"></span>
+                    </div>
+                    <div class="wpb-wizard-banner-text">
+                        <?php if ($wiz_complete && $wiz_badge === 0): ?>
+                            <strong>Messa online completata</strong>
+                            <span>Tutti i passaggi sono stati completati. Puoi riaprire il wizard in qualsiasi momento.</span>
+                        <?php elseif ($wiz_complete && $wiz_badge > 0): ?>
+                            <strong>Messa online — <?php echo $wiz_badge; ?> operazioni in sospeso</strong>
+                            <span>Alcuni passaggi sono stati saltati o non completati. Rientra nel wizard per terminarli.</span>
+                        <?php else: ?>
+                            <strong>Wizard non ancora completato</strong>
+                            <span>Segui la guida passo-passo per portare il sito online correttamente.</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <a href="<?php echo esc_url($wiz_url); ?>" class="wpb-btn wpb-btn-small wpb-btn-launch">
+                    Controlla messa online &rarr;
+                </a>
+            </div>
+        </div>
+
     </div>
     <?php
 }
