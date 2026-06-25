@@ -513,6 +513,7 @@ add_action('wp_ajax_wpb_stats_fetch_period', function () {
         ['name' => 'screenPageViews'],
         ['name' => 'sessions'],
     ], $start, $end, 1);
+    if ($res_kpi === false) $res_kpi = [];
     $tv = $res_kpi['totals'][0]['metricValues'] ?? $res_kpi['rows'][0]['metricValues'] ?? [];
     $result['kpi'] = [
         'users' => $tv[0]['value'] ?? 0,
@@ -735,7 +736,6 @@ add_action('wp_dashboard_setup', function () {
    ───────────────────────────────────────── */
 add_action('admin_enqueue_scripts', function ($hook) {
     $is_dash = ($hook === 'index.php');
-    $is_settings = strpos($hook, 'wp-barrio-stats') !== false;
 
     if ($is_dash && wpb_stats_replace_active()) {
         wp_enqueue_script(
@@ -817,6 +817,7 @@ function wpb_stats_dashboard_widget()
                 'today',
                 1
             );
+            if ($init_kpi === false) $init_kpi = [];
             $itv = $init_kpi['totals'][0]['metricValues'] ?? $init_kpi['rows'][0]['metricValues'] ?? [];
             $init_avg_sec = round((float) ($itv[3]['value'] ?? 0));
             $init_bounce = round((float) ($itv[4]['value'] ?? 0) * 100, 1);
@@ -1055,6 +1056,7 @@ function wpb_stats_dashboard_css(): string
     .wpb-stats-panel.loading { opacity:.45; pointer-events:none; }
     .wpb-stats-panel-title { font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px; }
     .wpb-stats-chart-wrap { height:160px; position:relative; }
+    .wpb-stats-panel--wide { grid-column:1 / -1; }
 
     /* ── Tabella pagine ── */
     .wpb-stats-table { width:100%; border-collapse:collapse; font-size:12px; }
@@ -1098,6 +1100,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!board) return;
     var ajaxUrl = board.dataset.ajax;
     var nonce   = board.dataset.nonce;
+
+    function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
     // Colori sorgenti
     var srcColors = {
@@ -1191,7 +1195,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var ptitle = row.dimensionValues[1].value || path;
                 if (ptitle.length > 40) ptitle = ptitle.slice(0,40) + "…";
                 var views  = fmt(row.metricValues[0].value);
-                tbody.innerHTML += "<tr><td><a href=\"" + location.origin + path + "\" target=\"_blank\">" + ptitle + "</a></td><td class=\"wpb-stats-num\">" + views + "</td></tr>";
+                tbody.innerHTML += "<tr><td><a href=\"" + esc(location.origin + path) + "\" target=\"_blank\">" + esc(ptitle) + "</a></td><td class=\"wpb-stats-num\">" + views + "</td></tr>";
             });
 
             // Sorgenti
@@ -1206,7 +1210,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var col  = srcColors[ch] || "#646970";
                 srcWrap.innerHTML +=
                     "<div class=\"wpb-stats-source-row\">" +
-                    "<div class=\"wpb-stats-source-label\">" + ch + "</div>" +
+                    "<div class=\"wpb-stats-source-label\">" + esc(ch) + "</div>" +
                     "<div class=\"wpb-stats-source-bar-wrap\"><div class=\"wpb-stats-source-bar\" style=\"width:" + pct + "%;background:" + col + ";\"></div></div>" +
                     "<div class=\"wpb-stats-source-pct\">" + pct + "%</div>" +
                     "<div class=\"wpb-stats-source-num\">" + fmt(sess) + "</div>" +
@@ -1229,7 +1233,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var lbl2 = devLabels[dev] || (dev.charAt(0).toUpperCase() + dev.slice(1));
                 devWrap.innerHTML +=
                     "<div class=\"wpb-stats-source-row\">" +
-                    "<div class=\"wpb-stats-source-label\">" + lbl2 + "</div>" +
+                    "<div class=\"wpb-stats-source-label\">" + esc(lbl2) + "</div>" +
                     "<div class=\"wpb-stats-source-bar-wrap\"><div class=\"wpb-stats-source-bar\" style=\"width:" + pct + "%;background:" + col + ";\"></div></div>" +
                     "<div class=\"wpb-stats-source-pct\">" + pct + "%</div>" +
                     "<div class=\"wpb-stats-source-num\">" + fmt(usr) + " utenti</div>" +
@@ -1251,7 +1255,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var col  = ctryColors[i % ctryColors.length];
                 ctryWrap.innerHTML +=
                     "<div class=\"wpb-stats-source-row wpb-stats-source-row--country\">" +
-                    "<div class=\"wpb-stats-source-label\">" + ctry + "</div>" +
+                    "<div class=\"wpb-stats-source-label\">" + esc(ctry) + "</div>" +
                     "<div class=\"wpb-stats-source-bar-wrap\"><div class=\"wpb-stats-source-bar\" style=\"width:" + pct + "%;background:" + col + ";\"></div></div>" +
                     "<div class=\"wpb-stats-source-pct\">" + pct + "%</div>" +
                     "<div class=\"wpb-stats-source-num\">" + fmt(usr) + " utenti</div>" +
