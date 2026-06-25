@@ -19,6 +19,7 @@ function wpb_blocks_get_settings(): array
     $defaults = [
         'enabled' => true,
         'allowed' => ['core/paragraph', 'core/list', 'core/heading', 'core/separator', 'core/embed'],
+        // gutenberg_post_types è assente di default: null = mai configurato = tutti abilitati
     ];
     $s = get_option(WPB_BLOCKS_OPTION, false);
     if ($s === false || !is_array($s)) return $defaults;
@@ -35,6 +36,28 @@ function wpb_blocks_get_allowed(): array
     $s = wpb_blocks_get_settings();
     return isset($s['allowed']) && is_array($s['allowed']) ? $s['allowed'] : [];
 }
+
+// Restituisce null se non ancora configurato (= tutti abilitati), array altrimenti.
+function wpb_blocks_gutenberg_post_types(): ?array
+{
+    $s = wpb_blocks_get_settings();
+    if (!array_key_exists('gutenberg_post_types', $s)) return null;
+    return is_array($s['gutenberg_post_types']) ? $s['gutenberg_post_types'] : [];
+}
+
+/* ─────────────────────────────────────────
+   RIMOZIONE EDITOR PER POST TYPE non selezionati
+   ───────────────────────────────────────── */
+add_action('init', function () {
+    $enabled = wpb_blocks_gutenberg_post_types();
+    if ($enabled === null) return; // mai configurato: nessuna restrizione
+    foreach (get_post_types(['public' => true]) as $pt) {
+        if ($pt === 'attachment') continue;
+        if (!in_array($pt, $enabled, true)) {
+            remove_post_type_support($pt, 'editor');
+        }
+    }
+}, 20);
 
 /* ─────────────────────────────────────────
    FILTRO EDITOR — limita blocchi per non-admin
@@ -61,16 +84,39 @@ add_filter('render_block', function (string $html, array $block): string {
     return preg_replace('/<(\/?)h1(\b[^>]*)>/i', '<$1h2$2>', $html);
 }, 10, 2);
 
-// Editor JS: nasconde H1 dalla toolbar heading e corregge blocchi H1 già salvati
+// Editor JS: nasconde H1, rimuove pannelli sidebar per non-admin
 add_action('enqueue_block_editor_assets', function () {
     if (!wpb_blocks_is_enabled()) return;
     if (current_user_can('manage_options')) return;
     wp_enqueue_script(
         'wpb-blocks-no-h1',
         WP_ALT_AI_PLUGIN_URL . 'modules/blocks/editor.js',
-        ['wp-hooks', 'wp-compose', 'wp-element'],
+        ['wp-hooks', 'wp-compose', 'wp-element', 'wp-data', 'wp-dom-ready'],
         WP_ALT_AI_VERSION
     );
+});
+
+/* ─────────────────────────────────────────
+   NASCONDI REVISIONI / AUTORE / ATTRIBUTI PAGINA per non-admin
+   ───────────────────────────────────────── */
+add_action('admin_init', function () {
+    if (current_user_can('manage_options')) return;
+
+    // Classic Editor: rimuovi le meta box (priority 99 = dopo tutti i plugin)
+    add_action('add_meta_boxes', function () {
+        foreach (get_post_types() as $pt) {
+            remove_meta_box('revisionsdiv',  $pt, 'normal'); // Revisioni
+            remove_meta_box('authordiv',     $pt, 'normal'); // Autore
+            remove_meta_box('pageparentdiv', $pt, 'side');   // Attributi della pagina
+        }
+    }, 99);
+
+    // Block Editor: rimuovere il support fa sparire i pannelli Author e Page Attributes
+    // (il pannello Revisioni viene rimosso lato JS in editor.js)
+    foreach (get_post_types(['public' => true]) as $pt) {
+        remove_post_type_support($pt, 'author');
+        remove_post_type_support($pt, 'page-attributes');
+    }
 });
 
 /* ─────────────────────────────────────────
@@ -105,9 +151,18 @@ add_action('admin_post_wpb_blocks_save', function () {
         }
     }
 
+    $gutenberg_post_types = [];
+    if (isset($_POST['gutenberg_post_types']) && is_array($_POST['gutenberg_post_types'])) {
+        foreach ($_POST['gutenberg_post_types'] as $raw) {
+            $pt = sanitize_key(wp_unslash($raw));
+            if ($pt) $gutenberg_post_types[] = $pt;
+        }
+    }
+
     update_option(WPB_BLOCKS_OPTION, [
-        'enabled' => $enabled,
-        'allowed' => $allowed,
+        'enabled'              => $enabled,
+        'allowed'              => $allowed,
+        'gutenberg_post_types' => $gutenberg_post_types,
     ]);
 
     wp_safe_redirect(admin_url('admin.php?page=wp-barrio-blocks&saved=1'));
@@ -119,10 +174,19 @@ add_action('admin_post_wpb_blocks_save', function () {
    ───────────────────────────────────────── */
 function wpb_blocks_admin_page()
 {
-    $settings = wpb_blocks_get_settings();
-    $enabled  = !empty($settings['enabled']);
-    $allowed  = isset($settings['allowed']) && is_array($settings['allowed']) ? $settings['allowed'] : [];
-    $saved    = isset($_GET['saved']);
+    $settings             = wpb_blocks_get_settings();
+    $enabled              = !empty($settings['enabled']);
+    $allowed              = isset($settings['allowed']) && is_array($settings['allowed']) ? $settings['allowed'] : [];
+    $saved                = isset($_GET['saved']);
+
+    // null = mai configurato = tutti attivi; array = quelli selezionati
+    $gutenberg_post_types = wpb_blocks_gutenberg_post_types();
+
+    // Tutti i post type pubblici tranne attachment
+    $all_post_types_for_gutenberg = array_filter(
+        get_post_types(['public' => true], 'objects'),
+        function ($pt) { return $pt->name !== 'attachment'; }
+    );
 
     // Tutti i blocchi registrati, raggruppati per namespace.
     $registry   = WP_Block_Type_Registry::get_instance();
@@ -185,6 +249,39 @@ function wpb_blocks_admin_page()
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="wpb-blocks-form">
             <?php wp_nonce_field('wpb_blocks_save'); ?>
             <input type="hidden" name="action" value="wpb_blocks_save">
+
+            <!-- Editor Gutenberg per post type -->
+            <div class="wpb-section-box" style="margin-bottom:20px;">
+                <div class="wpb-section-head">
+                    <span class="dashicons dashicons-edit-page"></span> Editor Gutenberg per tipo di contenuto
+                </div>
+                <div class="wpb-section-body">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
+                    <?php foreach ($all_post_types_for_gutenberg as $pt):
+                        $pt_id      = 'wpb_gpt_' . $pt->name;
+                        $pt_checked = ($gutenberg_post_types === null) || in_array($pt->name, $gutenberg_post_types, true);
+                        $pt_label   = $pt->labels->singular_name ?: $pt->name;
+                    ?>
+                        <label class="wpb-blocks-item<?php echo $pt_checked ? ' is-checked' : ''; ?>"
+                               for="<?php echo esc_attr($pt_id); ?>"
+                               style="padding:10px 14px;">
+                            <span class="wpb-blocks-item-label">
+                                <strong><?php echo esc_html($pt_label); ?></strong>
+                                <code><?php echo esc_html($pt->name); ?></code>
+                            </span>
+                            <span class="wpb-wizard-toggle-wrap">
+                                <input type="checkbox"
+                                       id="<?php echo esc_attr($pt_id); ?>"
+                                       name="gutenberg_post_types[]"
+                                       value="<?php echo esc_attr($pt->name); ?>"
+                                       <?php checked($pt_checked); ?>>
+                                <span class="wpb-wizard-toggle-track"></span>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
 
             <!-- Attiva filtro -->
             <div class="wpb-section-box" style="margin-bottom:20px;">
@@ -300,7 +397,7 @@ function wpb_blocks_admin_page()
         var searchInput  = document.getElementById('wpb-blocks-search');
         var countEl      = document.getElementById('wpb-blocks-count');
 
-        // Abilita/disabilita lista al cambio del toggle principale
+        // Abilita/disabilita lista blocchi al cambio del toggle principale
         enableToggle.addEventListener('change', function () {
             listWrap.style.opacity       = this.checked ? '1'    : '.4';
             listWrap.style.pointerEvents = this.checked ? 'auto' : 'none';

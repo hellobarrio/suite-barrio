@@ -510,16 +510,26 @@
 }
 
 .wpb-wizard-substep {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 12px 16px;
   font-size: 13px;
   font-weight: 500;
   color: #9ca3af;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
   margin-bottom: -1px;
+}
+
+.wpb-wizard-substep-inner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 16px;
+  text-decoration: none !important;
+  color: inherit;
+  cursor: default;
+}
+
+a.wpb-wizard-substep-inner {
+  cursor: pointer;
 }
 
 .wpb-wizard-substep-num {
@@ -1242,9 +1252,11 @@
   background: transparent;
   cursor: pointer;
   color: #d97706;
-  opacity: .45;
+  opacity: 0.45;
   border-radius: 4px;
-  transition: opacity .15s, background .15s;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
 }
 
 .wpb-wizard-todo-dismiss:hover {
@@ -1303,7 +1315,7 @@
 #wpb-blocks-search:focus {
   outline: none;
   border-color: #111827;
-  box-shadow: 0 0 0 2px rgba(17,24,39,.1);
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.1);
 }
 
 .wpb-blocks-global-actions {
@@ -1353,7 +1365,7 @@
   color: #6b7280;
   padding: 0;
   border-radius: 4px;
-  transition: background .15s;
+  transition: background 0.15s;
 }
 
 .wpb-blocks-group-toggle:hover {
@@ -1364,7 +1376,7 @@
   font-size: 14px;
   width: 14px;
   height: 14px;
-  transition: transform .2s;
+  transition: transform 0.2s;
 }
 
 .wpb-blocks-group-chevron-up {
@@ -1410,7 +1422,7 @@
   padding: 10px 14px;
   border-bottom: 1px solid #f3f4f6;
   cursor: pointer;
-  transition: background .12s;
+  transition: background 0.12s;
 }
 
 .wpb-blocks-item:hover {
@@ -5027,10 +5039,6 @@ tr[data-status="error"]:hover td {
   display: grid;
   grid-template-columns: 240px 1fr 280px;
   gap: 0;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #fff;
 }
 
 .wpb-panel-fields {
