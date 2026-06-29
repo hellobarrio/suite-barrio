@@ -13566,3 +13566,7 @@ input.wpb-cache-purge-input[type="text"]:focus {
   color: #6b7280;
   font-style: italic;
 }
+
+#wpfooter {
+  pointer-events: none !important;
+}

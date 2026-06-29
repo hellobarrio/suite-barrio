@@ -33,6 +33,10 @@ function wpb_tools_can_access()
 function wpb_tools_modules_list()
 {
     return [
+        'accessibility' => [
+            'label' => 'Accessibilità',
+            'desc'  => 'Widget di accessibilità frontend: regolazioni di testo, colore e orientamento per gli utenti del sito.',
+        ],
         'auto_alt' => [
             'label' => 'Auto Alt',
             'desc' => 'Generazione automatica di alt text e title delle immagini tramite AI.',
@@ -406,9 +410,9 @@ function wpb_tools_admin_page()
                 Messa Online
             </p>
             <?php
-            $wiz_complete = function_exists('wpb_wizard_is_complete') && wpb_wizard_is_complete();
-            $wiz_badge = function_exists('wpb_wizard_badge_count') ? wpb_wizard_badge_count() : 0;
-            $wiz_url = admin_url('admin.php?page=wp-barrio-wizard');
+            $wiz_complete  = function_exists('wpb_wizard_is_complete') && wpb_wizard_is_complete();
+            $wiz_badge     = function_exists('wpb_wizard_badge_count') ? wpb_wizard_badge_count() : 0;
+            $wiz_url       = admin_url('admin.php?page=wp-barrio-wizard');
             ?>
             <div class="wpb-wizard-banner">
                 <div class="wpb-wizard-banner-body">
