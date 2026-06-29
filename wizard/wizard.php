@@ -114,7 +114,7 @@ function wpb_wizard_skipped_count(): int
 // Numero di checkbox di "Controlli Finali" non spuntate (escluse le dismissed).
 function wpb_wizard_unchecked_finals_count(): int
 {
-    $all       = ['gtm_analytics', 'mailjet_recaptcha', 'email_forms', 'orari_gmaps', 'popup_banner', 'auto_alt', 'cookie_policy'];
+    $all       = ['gtm_analytics', 'mailjet_recaptcha', 'email_forms', 'orari_gmaps', 'popup_banner', 'auto_alt', 'cookie_policy', 'accessibility'];
     $p         = wpb_wizard_get_progress();
     $saved     = isset($p['step_8_checks']) && is_array($p['step_8_checks']) ? $p['step_8_checks'] : [];
     $dismissed = wpb_wizard_get_dismissed();
@@ -600,7 +600,7 @@ add_action('admin_post_wpb_wizard_seo_substep_skip', function () {
 add_action('admin_post_wpb_wizard_step8_save', function () {
     check_admin_referer('wpb_wizard_step8_save');
 
-    $allowed = ['gtm_analytics', 'mailjet_recaptcha', 'email_forms', 'orari_gmaps', 'popup_banner', 'auto_alt', 'cookie_policy'];
+    $allowed = ['gtm_analytics', 'mailjet_recaptcha', 'email_forms', 'orari_gmaps', 'popup_banner', 'auto_alt', 'cookie_policy', 'accessibility'];
     $submitted = isset($_POST['checks']) && is_array($_POST['checks']) ? array_keys($_POST['checks']) : [];
     $checks = array_filter($submitted, fn($k) => in_array($k, $allowed, true));
 
@@ -816,6 +816,7 @@ function wpb_wizard_page()
         <?php elseif ($current === 2):
 
             $module_meta = [
+                'accessibility'  => ['icon' => 'dashicons-universal-access', 'color' => '#0d9488'],
                 'auto_alt'       => ['icon' => 'dashicons-format-image', 'color' => '#1d4ed8'],
                 'auto_fields'    => ['icon' => 'dashicons-layout',       'color' => '#7c3aed'],
                 'banners'        => ['icon' => 'dashicons-flag',         'color' => '#0369a1'],
@@ -2065,6 +2066,10 @@ function wpb_wizard_page()
                 'report_ai' => [
                     'label' => 'Configura sito per report AI',
                     'icon'  => 'dashicons-media-document',
+                ],
+                'accessibility' => [
+                    'label' => 'Attiva accessibilità',
+                    'icon'  => 'dashicons-universal-access',
                 ],
             ];
 

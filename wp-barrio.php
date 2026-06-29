@@ -48,6 +48,9 @@ require_once WP_ALT_AI_PLUGIN_DIR . 'modules/info-azienda/info-azienda.php';
 require_once WP_ALT_AI_PLUGIN_DIR . 'wizard/wizard.php';
 
 // Carica ogni modulo solo se non e' stato disattivato dalla pagina Strumenti
+if (wpb_tools_module_enabled('accessibility'))
+   require_once WP_ALT_AI_PLUGIN_DIR . 'modules/accessibility/accessibility.php';
+
 if (wpb_tools_module_enabled('auto_alt'))
    require_once WP_ALT_AI_PLUGIN_DIR . 'modules/auto-alt/auto-alt.php';
 

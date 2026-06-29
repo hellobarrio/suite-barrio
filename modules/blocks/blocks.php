@@ -226,7 +226,7 @@ function wpb_blocks_admin_page()
                     <span class="dashicons dashicons-layout" style="color:#fff;font-size:20px;width:20px;height:20px;"></span>
                 </div>
                 <div>
-                    <h1>Blocks</h1>
+                    <h1>WP Barrio <span style="font-size:14px;font-weight:400;color:#9ca3af;">/ Blocks</span></h1>
                     <p class="wpb-header-sub">Gestisci quali blocchi Gutenberg sono disponibili per gli utenti non amministratori</p>
                 </div>
             </div>
