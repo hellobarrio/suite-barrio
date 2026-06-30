@@ -80,9 +80,9 @@ function wp_barrio_dashboard_page()
     }
 
     if (wpb_tools_module_enabled('blocks')) {
-        $blocks_s       = function_exists('wpb_blocks_get_settings') ? wpb_blocks_get_settings() : [];
+        $blocks_s = function_exists('wpb_blocks_get_settings') ? wpb_blocks_get_settings() : [];
         $blocks_enabled = !empty($blocks_s['enabled']);
-        $blocks_count   = isset($blocks_s['allowed']) && is_array($blocks_s['allowed']) ? count($blocks_s['allowed']) : 0;
+        $blocks_count = isset($blocks_s['allowed']) && is_array($blocks_s['allowed']) ? count($blocks_s['allowed']) : 0;
     }
 
     if (wpb_tools_module_enabled('duplicate')) {
@@ -144,20 +144,21 @@ function wp_barrio_dashboard_page()
         <hr class="wpb-divider">
 
         <?php if (!function_exists('wpb_wizard_is_complete') || !wpb_wizard_is_complete()): ?>
-        <div class="wpb-wizard-banner">
-            <div class="wpb-wizard-banner-body">
-                <div class="wpb-wizard-banner-icon">
-                    <span class="dashicons dashicons-migrate"></span>
+            <div class="wpb-wizard-banner">
+                <div class="wpb-wizard-banner-body">
+                    <div class="wpb-wizard-banner-icon">
+                        <span class="dashicons dashicons-migrate"></span>
+                    </div>
+                    <div class="wpb-wizard-banner-text">
+                        <strong>Messa online del sito</strong>
+                        <span>Segui la guida passo-passo per configurare e pubblicare il sito.</span>
+                    </div>
                 </div>
-                <div class="wpb-wizard-banner-text">
-                    <strong>Messa online del sito</strong>
-                    <span>Segui la guida passo-passo per configurare e pubblicare il sito.</span>
-                </div>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-wizard')); ?>"
+                    class="wpb-btn wpb-btn-small wpb-btn-launch">
+                    Inizia la messa online &rarr;
+                </a>
             </div>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-wizard')); ?>" class="wpb-btn wpb-btn-small wpb-btn-launch">
-                Inizia la messa online &rarr;
-            </a>
-        </div>
         <?php endif; ?>
 
         <?php
@@ -167,44 +168,71 @@ function wp_barrio_dashboard_page()
             function_exists('wpb_wizard_badge_count') && wpb_wizard_badge_count() > 0
         ):
             $wiz_progress = function_exists('wpb_wizard_get_progress') ? wpb_wizard_get_progress() : [];
-            $saved_chks   = isset($wiz_progress['step_8_checks']) && is_array($wiz_progress['step_8_checks'])
+            $saved_chks = isset($wiz_progress['step_8_checks']) && is_array($wiz_progress['step_8_checks'])
                 ? $wiz_progress['step_8_checks'] : [];
-            $dismissed    = function_exists('wpb_wizard_get_dismissed') ? wpb_wizard_get_dismissed() : [];
+            $dismissed = function_exists('wpb_wizard_get_dismissed') ? wpb_wizard_get_dismissed() : [];
 
             $final_items = [
-                'gtm_analytics'    => ['label' => 'Inserire analytics in Google Tag Manager', 'icon' => 'dashicons-chart-area'],
-                'mailjet_recaptcha'=> ['label' => 'Inserire Mailjet + Recaptcha',             'icon' => 'dashicons-email-alt'],
-                'email_forms'      => ['label' => 'Graficare email inviate dai form',          'icon' => 'dashicons-email'],
-                'orari_gmaps'      => ['label' => 'Inserire orari tramite Google Place API',   'icon' => 'dashicons-location-alt'],
-                'popup_banner'     => ['label' => 'Graficare Popup e Banner',                  'icon' => 'dashicons-megaphone'],
-                'auto_alt'         => ['label' => 'Generare alt e title delle immagini',       'icon' => 'dashicons-format-image'],
-                'cookie_policy'    => ['label' => 'Genera Cookie e Privacy policy con AI',     'icon' => 'dashicons-shield'],
-                'accessibility'    => ['label' => 'Attiva accessibilità',                      'icon' => 'dashicons-universal-access'],
+                'gtm_analytics' => ['label' => 'Inserire analytics in Google Tag Manager', 'icon' => 'dashicons-chart-area'],
+                'mailjet_recaptcha' => ['label' => 'Inserire Recaptcha', 'icon' => 'dashicons-email-alt'],
+                'email_forms' => ['label' => 'Graficare email inviate dai form', 'icon' => 'dashicons-email'],
+                'orari_gmaps' => ['label' => 'Inserire orari tramite Google Place API', 'icon' => 'dashicons-location-alt'],
+                'popup_banner' => ['label' => 'Graficare Popup e Banner', 'icon' => 'dashicons-megaphone'],
+                'auto_alt' => ['label' => 'Generare alt e title delle immagini', 'icon' => 'dashicons-format-image'],
+                'cookie_policy' => ['label' => 'Genera Cookie e Privacy policy con AI', 'icon' => 'dashicons-shield'],
+                'accessibility' => ['label' => 'Attiva accessibilità', 'icon' => 'dashicons-universal-access'],
             ];
-        ?>
-        <div class="wpb-wizard-todo" id="wpb-wizard-todo">
-            <div class="wpb-wizard-todo-head">
-                <span class="dashicons dashicons-warning"></span>
-                <strong>Messa online — operazioni da completare</strong>
-            </div>
-            <ul class="wpb-wizard-todo-list">
+            ?>
+            <div class="wpb-wizard-todo" id="wpb-wizard-todo">
+                <div class="wpb-wizard-todo-head">
+                    <span class="dashicons dashicons-warning"></span>
+                    <strong>Messa online — operazioni da completare</strong>
+                </div>
+                <ul class="wpb-wizard-todo-list">
 
-                <?php
-                // Step saltati
-                if (function_exists('wpb_wizard_steps')) {
-                    foreach (wpb_wizard_steps() as $n => $step) {
-                        if ($n === 8) continue;
-                        if (($wiz_progress["step_{$n}"] ?? 'pending') !== 'skipped') continue;
-                        if (in_array("step_{$n}", $dismissed, true)) continue;
-                        $url = admin_url('admin.php?page=wp-barrio-wizard&step=' . $n);
+                    <?php
+                    // Step saltati
+                    if (function_exists('wpb_wizard_steps')) {
+                        foreach (wpb_wizard_steps() as $n => $step) {
+                            if ($n === 8)
+                                continue;
+                            if (($wiz_progress["step_{$n}"] ?? 'pending') !== 'skipped')
+                                continue;
+                            if (in_array("step_{$n}", $dismissed, true))
+                                continue;
+                            $url = admin_url('admin.php?page=wp-barrio-wizard&step=' . $n);
+                            ?>
+                            <li class="wpb-wizard-todo-item" data-alert-key="step_<?php echo $n; ?>">
+                                <span class="dashicons <?php echo esc_attr($step['icon']); ?>"></span>
+                                <span class="wpb-wizard-todo-label">
+                                    Passaggio saltato: <strong><?php echo esc_html($step['label']); ?></strong>
+                                </span>
+                                <a href="<?php echo esc_url($url); ?>" class="wpb-wizard-todo-link">
+                                    Configura <span class="dashicons dashicons-arrow-right-alt2"></span>
+                                </a>
+                                <button type="button" class="wpb-wizard-todo-dismiss" title="Elimina notifica">
+                                    <span class="dashicons dashicons-no-alt"></span>
+                                </button>
+                            </li>
+                            <?php
+                        }
+                    }
+
+                    // Checkbox non spuntate in "Controlli Finali"
+                    $wiz_url_7 = admin_url('admin.php?page=wp-barrio-wizard&step=8');
+                    foreach ($final_items as $key => $item) {
+                        if (in_array($key, $saved_chks, true))
+                            continue;
+                        if (in_array("final_{$key}", $dismissed, true))
+                            continue;
                         ?>
-                        <li class="wpb-wizard-todo-item" data-alert-key="step_<?php echo $n; ?>">
-                            <span class="dashicons <?php echo esc_attr($step['icon']); ?>"></span>
+                        <li class="wpb-wizard-todo-item" data-alert-key="final_<?php echo esc_attr($key); ?>">
+                            <span class="dashicons <?php echo esc_attr($item['icon']); ?>"></span>
                             <span class="wpb-wizard-todo-label">
-                                Passaggio saltato: <strong><?php echo esc_html($step['label']); ?></strong>
+                                <?php echo esc_html($item['label']); ?>
                             </span>
-                            <a href="<?php echo esc_url($url); ?>" class="wpb-wizard-todo-link">
-                                Configura <span class="dashicons dashicons-arrow-right-alt2"></span>
+                            <a href="<?php echo esc_url($wiz_url_7); ?>" class="wpb-wizard-todo-link">
+                                Verifica <span class="dashicons dashicons-arrow-right-alt2"></span>
                             </a>
                             <button type="button" class="wpb-wizard-todo-dismiss" title="Elimina notifica">
                                 <span class="dashicons dashicons-no-alt"></span>
@@ -212,85 +240,63 @@ function wp_barrio_dashboard_page()
                         </li>
                         <?php
                     }
-                }
-
-                // Checkbox non spuntate in "Controlli Finali"
-                $wiz_url_7 = admin_url('admin.php?page=wp-barrio-wizard&step=8');
-                foreach ($final_items as $key => $item) {
-                    if (in_array($key, $saved_chks, true)) continue;
-                    if (in_array("final_{$key}", $dismissed, true)) continue;
                     ?>
-                    <li class="wpb-wizard-todo-item" data-alert-key="final_<?php echo esc_attr($key); ?>">
-                        <span class="dashicons <?php echo esc_attr($item['icon']); ?>"></span>
-                        <span class="wpb-wizard-todo-label">
-                            <?php echo esc_html($item['label']); ?>
-                        </span>
-                        <a href="<?php echo esc_url($wiz_url_7); ?>" class="wpb-wizard-todo-link">
-                            Verifica <span class="dashicons dashicons-arrow-right-alt2"></span>
-                        </a>
-                        <button type="button" class="wpb-wizard-todo-dismiss" title="Elimina notifica">
-                            <span class="dashicons dashicons-no-alt"></span>
-                        </button>
-                    </li>
-                    <?php
-                }
-                ?>
 
-            </ul>
-        </div>
+                </ul>
+            </div>
 
-        <script>
-        (function () {
-            var nonce   = <?php echo wp_json_encode(wp_create_nonce('wpb_wizard_dismiss_alert')); ?>;
-            var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
-            var todo    = document.getElementById('wpb-wizard-todo');
+            <script>
+                (function () {
+                    var nonce = <?php echo wp_json_encode(wp_create_nonce('wpb_wizard_dismiss_alert')); ?>;
+                    var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+                    var todo = document.getElementById('wpb-wizard-todo');
 
-            function updateMenuBadge(count) {
-                var badge = document.querySelector('#menu-posts-wp-barrio .update-plugins, #toplevel_page_wp-barrio .update-plugins');
-                if (!badge) return;
-                if (count <= 0) {
-                    badge.remove();
-                } else {
-                    badge.className = 'update-plugins count-' + count;
-                    var inner = badge.querySelector('.update-count');
-                    if (inner) inner.textContent = count;
-                }
-            }
+                    function updateMenuBadge(count) {
+                        var badge = document.querySelector('#menu-posts-wp-barrio .update-plugins, #toplevel_page_wp-barrio .update-plugins');
+                        if (!badge) return;
+                        if (count <= 0) {
+                            badge.remove();
+                        } else {
+                            badge.className = 'update-plugins count-' + count;
+                            var inner = badge.querySelector('.update-count');
+                            if (inner) inner.textContent = count;
+                        }
+                    }
 
-            document.querySelectorAll('.wpb-wizard-todo-dismiss').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    var li  = btn.closest('.wpb-wizard-todo-item');
-                    var key = li ? li.dataset.alertKey : '';
-                    if (!key) return;
+                    document.querySelectorAll('.wpb-wizard-todo-dismiss').forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            var li = btn.closest('.wpb-wizard-todo-item');
+                            var key = li ? li.dataset.alertKey : '';
+                            if (!key) return;
 
-                    btn.disabled = true;
+                            btn.disabled = true;
 
-                    var fd = new FormData();
-                    fd.append('action',    'wpb_wizard_dismiss_alert');
-                    fd.append('nonce',     nonce);
-                    fd.append('alert_key', key);
+                            var fd = new FormData();
+                            fd.append('action', 'wpb_wizard_dismiss_alert');
+                            fd.append('nonce', nonce);
+                            fd.append('alert_key', key);
 
-                    fetch(ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
-                        .then(function (r) { return r.json(); })
-                        .then(function (data) {
-                            if (!data.success) { btn.disabled = false; return; }
-                            li.style.transition = 'opacity .2s';
-                            li.style.opacity    = '0';
-                            setTimeout(function () {
-                                li.remove();
-                                updateMenuBadge(data.data.badge);
-                                if (todo && todo.querySelectorAll('.wpb-wizard-todo-item').length === 0) {
-                                    todo.style.transition = 'opacity .2s';
-                                    todo.style.opacity    = '0';
-                                    setTimeout(function () { todo.remove(); }, 200);
-                                }
-                            }, 200);
-                        })
-                        .catch(function () { btn.disabled = false; });
-                });
-            });
-        })();
-        </script>
+                            fetch(ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                                .then(function (r) { return r.json(); })
+                                .then(function (data) {
+                                    if (!data.success) { btn.disabled = false; return; }
+                                    li.style.transition = 'opacity .2s';
+                                    li.style.opacity = '0';
+                                    setTimeout(function () {
+                                        li.remove();
+                                        updateMenuBadge(data.data.badge);
+                                        if (todo && todo.querySelectorAll('.wpb-wizard-todo-item').length === 0) {
+                                            todo.style.transition = 'opacity .2s';
+                                            todo.style.opacity = '0';
+                                            setTimeout(function () { todo.remove(); }, 200);
+                                        }
+                                    }, 200);
+                                })
+                                .catch(function () { btn.disabled = false; });
+                        });
+                    });
+                })();
+            </script>
 
         <?php endif; ?>
 
@@ -797,8 +803,10 @@ function wp_barrio_dashboard_page()
                                 <td>Colore principale</td>
                                 <td>
                                     <span style="display:inline-flex;align-items:center;gap:6px;">
-                                        <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:<?php echo esc_attr($a11y_s['accent_color'] ?? '#ea9c17'); ?>;border:1px solid rgba(0,0,0,.1);"></span>
-                                        <span class="wpb-mute"><?php echo esc_html($a11y_s['accent_color'] ?? '#ea9c17'); ?></span>
+                                        <span
+                                            style="display:inline-block;width:12px;height:12px;border-radius:3px;background:<?php echo esc_attr($a11y_s['accent_color'] ?? '#ea9c17'); ?>;border:1px solid rgba(0,0,0,.1);"></span>
+                                        <span
+                                            class="wpb-mute"><?php echo esc_html($a11y_s['accent_color'] ?? '#ea9c17'); ?></span>
                                     </span>
                                 </td>
                             </tr>
@@ -806,8 +814,10 @@ function wp_barrio_dashboard_page()
                                 <td>Colore secondario</td>
                                 <td>
                                     <span style="display:inline-flex;align-items:center;gap:6px;">
-                                        <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:<?php echo esc_attr($a11y_s['navy_color'] ?? '#415568'); ?>;border:1px solid rgba(0,0,0,.1);"></span>
-                                        <span class="wpb-mute"><?php echo esc_html($a11y_s['navy_color'] ?? '#415568'); ?></span>
+                                        <span
+                                            style="display:inline-block;width:12px;height:12px;border-radius:3px;background:<?php echo esc_attr($a11y_s['navy_color'] ?? '#415568'); ?>;border:1px solid rgba(0,0,0,.1);"></span>
+                                        <span
+                                            class="wpb-mute"><?php echo esc_html($a11y_s['navy_color'] ?? '#415568'); ?></span>
                                     </span>
                                 </td>
                             </tr>
