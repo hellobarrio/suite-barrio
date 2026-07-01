@@ -410,6 +410,28 @@ function wpb_accessibility_admin_page()
         $wp_origin  = $parsed_url['scheme'] . '://' . $parsed_url['host']
             . (isset($parsed_url['port']) ? ':' . $parsed_url['port'] : '');
 
+        // Step 0 — default consenso sincrono in <head>, PRIMA di GTM
+        $step0_snippet = "// layout.tsx — dentro <head>, PRIMA del tag GTM\n"
+            . "// Legge il cookie wpb_consent e imposta i default GTM in modo sincrono.\n"
+            . "// Senza questo blocco GTM può attivare GA4/Ads PRIMA che il consenso venga letto.\n"
+            . "<script dangerouslySetInnerHTML={{__html: `\n"
+            . "(function(){\n"
+            . "  var g='granted',d='denied',c=null;\n"
+            . "  try{var m=document.cookie.match(/(?:^|;)\\\\s*wpb_consent=([^;]*)/);if(m)c=JSON.parse(decodeURIComponent(m[1]));}catch(e){}\n"
+            . "  window.dataLayer=window.dataLayer||[];\n"
+            . "  function gtag(){dataLayer.push(arguments);}\n"
+            . "  gtag('consent','default',{\n"
+            . "    security_storage:g,\n"
+            . "    functionality_storage:(c&&c.functional)?g:d,\n"
+            . "    personalization_storage:(c&&c.functional)?g:d,\n"
+            . "    analytics_storage:(c&&c.analytics)?g:d,\n"
+            . "    ad_storage:(c&&c.marketing)?g:d,\n"
+            . "    ad_user_data:(c&&c.marketing)?g:d,\n"
+            . "    ad_personalization:(c&&c.marketing)?g:d,\n"
+            . "  });\n"
+            . "})();\n"
+            . "`}} />";
+
         $step1_snippet = "import Script from 'next/script'\n\n"
             . "// Nel tuo layout.tsx o _app.tsx:\n"
             . "<Script\n"
@@ -417,21 +439,51 @@ function wpb_accessibility_admin_page()
             . "  strategy=\"afterInteractive\"\n"
             . "/>";
 
-        $step2_snippet = "// next.config.js — aggiungi il dominio WordPress alla direttiva script-src\n"
-            . "/** @type {import('next').NextConfig} */\n"
+        $csp_script_src = implode(' ', [
+            "'self' 'unsafe-inline' 'unsafe-eval'",
+            $wp_origin,
+            // GTM + Google
+            'https://www.googletagmanager.com',
+            'https://www.google.com https://www.gstatic.com',
+            'https://region1.google-analytics.com',
+            // Meta Pixel
+            'https://connect.facebook.net',
+            // Google Ads
+            'https://pagead2.googlesyndication.com https://tpc.googlesyndication.com',
+            // PayPal
+            'https://www.paypal.com https://www.paypalobjects.com',
+            // Tawk.to
+            'https://embed.tawk.to https://va.tawk.to',
+            // Ahrefs
+            'https://analytics.ahrefs.com',
+        ]);
+        $csp_connect_src = implode(' ', [
+            "'self'",
+            $wp_origin,
+            'https://region1.google-analytics.com https://analytics.google.com',
+            'https://pagead2.googlesyndication.com',
+            'https://www.facebook.com https://connect.facebook.net',
+            'https://embed.tawk.to https://va.tawk.to',
+        ]);
+        $csp_img_src = implode(' ', [
+            "'self' data: blob:",
+            'https://pagead2.googlesyndication.com',
+            'https://www.google.com https://www.gstatic.com',
+            'https://www.facebook.com',
+        ]);
+
+        $step2_snippet = "/** @type {import('next').NextConfig} */\n"
             . "const nextConfig = {\n"
             . "  async headers() {\n"
+            . "    const csp = [\n"
+            . "      \"script-src " . $csp_script_src . "\",\n"
+            . "      \"connect-src " . $csp_connect_src . "\",\n"
+            . "      \"img-src " . $csp_img_src . "\",\n"
+            . "    ].join('; ')\n\n"
             . "    return [\n"
             . "      {\n"
             . "        source: '/(.*)',\n"
-            . "        headers: [\n"
-            . "          {\n"
-            . "            key: 'Content-Security-Policy',\n"
-            . "            // Aggiungi " . $wp_origin . " alla tua script-src esistente\n"
-            . "            value: \"script-src 'self' 'unsafe-inline' 'unsafe-eval' "
-            .               $wp_origin . " ...;\",\n"
-            . "          },\n"
-            . "        ],\n"
+            . "        headers: [{ key: 'Content-Security-Policy', value: csp }],\n"
             . "      },\n"
             . "    ]\n"
             . "  },\n"
