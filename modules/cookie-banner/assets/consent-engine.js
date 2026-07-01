@@ -218,8 +218,8 @@
   /* ── Preferences drawer ── */
   function openPref(config) {
     if (d.getElementById("wpb-pref-overlay")) return;
-    var b  = (config && config.banner) || {};
-    var bg = b.color_bg   || "#0D1B2E";
+    var b = (config && config.banner) || {};
+    var bg = b.color_bg || "#0D1B2E";
     var fg = b.color_text || "#FFFFFF";
 
     var ov = d.createElement("div");
@@ -240,7 +240,11 @@
     var header = d.createElement("div");
     header.style.cssText =
       "position:sticky;top:0;z-index:1;flex-shrink:0;" +
-      "background:" + bg + ";color:" + fg + ";" +
+      "background:" +
+      bg +
+      ";color:" +
+      fg +
+      ";" +
       "padding:18px 48px 18px 20px;border-bottom:1px solid rgba(255,255,255,.1);";
     var title = d.createElement("strong");
     title.style.cssText = "font-size:15px;display:block;";
@@ -252,21 +256,30 @@
     closeBtn.setAttribute("aria-label", "Chiudi");
     closeBtn.style.cssText =
       "position:absolute;top:14px;right:14px;border:none;background:none;" +
-      "font-size:22px;line-height:1;cursor:pointer;color:" + fg + ";opacity:.8;padding:2px 6px;";
+      "font-size:22px;line-height:1;cursor:pointer;color:" +
+      fg +
+      ";opacity:.8;padding:2px 6px;";
     closeBtn.textContent = "×";
-    closeBtn.addEventListener("click", function () { ov.remove(); });
+    closeBtn.addEventListener("click", function () {
+      ov.remove();
+    });
     header.appendChild(closeBtn);
     drawer.appendChild(header);
 
     var inner = d.createElement("div");
     inner.style.cssText = "padding:20px;flex:1;";
-    inner.innerHTML = '<p style="color:#9ca3af;font-size:14px;">Caricamento…</p>';
+    inner.innerHTML =
+      '<p style="color:#9ca3af;font-size:14px;">Caricamento…</p>';
     drawer.appendChild(inner);
 
     ov.appendChild(drawer);
-    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+    ov.addEventListener("click", function (e) {
+      if (e.target === ov) ov.remove();
+    });
     d.body.appendChild(ov);
-    ov.addEventListener("keydown", function (e) { if (e.key === "Escape") ov.remove(); });
+    ov.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") ov.remove();
+    });
 
     loadPrefHtml(config).then(function (html) {
       inner.innerHTML = html;
@@ -277,7 +290,7 @@
       });
       wirePref(inner, config);
       var first = drawer.querySelector(
-        "button:not([disabled]),input:not([disabled]),[tabindex]"
+        "button:not([disabled]),input:not([disabled]),[tabindex]",
       );
       if (first) first.focus();
     });
@@ -300,11 +313,14 @@
 
     var posStyle = "";
     if (pos === "bottom-left") {
-      posStyle = "bottom:30px;left:30px;top:auto;right:auto;width:min(400px,96vw);border-radius:12px;";
+      posStyle =
+        "bottom:30px;left:30px;top:auto;right:auto;width:min(400px,96vw);border-radius:12px;";
     } else if (pos === "bottom-right") {
-      posStyle = "bottom:30px;right:30px;top:auto;left:auto;width:min(400px,96vw);border-radius:12px;";
+      posStyle =
+        "bottom:30px;right:30px;top:auto;left:auto;width:min(400px,96vw);border-radius:12px;";
     } else {
-      posStyle = "bottom:30px;left:50%;transform:translateX(-50%);top:auto;right:auto;width:min(560px,96vw);border-radius:12px;";
+      posStyle =
+        "bottom:30px;left:50%;transform:translateX(-50%);top:auto;right:auto;width:min(560px,96vw);border-radius:12px;";
     }
 
     el.style.cssText =
@@ -403,18 +419,22 @@
     wBtn.setAttribute("aria-label", "Gestisci preferenze cookie");
     wBtn.title = "Gestisci preferenze cookie";
     var isRight = (b.widget_pos || "bottom-right") === "bottom-right";
-    var wBg  = b.color_bg   || "#0D1B2E";
-    var wFg  = b.color_text || "#FFFFFF";
+    var wBg = b.color_bg || "#0D1B2E";
+    var wFg = b.color_text || "#FFFFFF";
     wBtn.style.cssText =
       "position:fixed;bottom:16px;" +
       (isRight ? "right:16px;" : "left:16px;") +
       "z-index:2147483644;width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;" +
-      "background:" + wBg + ";" +
+      "background:" +
+      wBg +
+      ";" +
       "box-shadow:0 2px 10px rgba(0,0,0,.25);transition:transform .15s;display:flex;align-items:center;justify-content:center;";
     wBtn.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="' + wFg + '" aria-hidden="true">' +
-        '<path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>' +
-      '</svg>';
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="' +
+      wFg +
+      '" aria-hidden="true">' +
+      '<path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>' +
+      "</svg>";
     wBtn.addEventListener("click", function () {
       loadConfig().then(openPref);
     });
@@ -429,8 +449,8 @@
 
   /* ── Wire any [data-wpb-preferences] widgets (present or dynamically injected) ── */
   function wireInlinePrefs(config) {
-    var b  = (config && config.banner) || {};
-    var bg = b.color_bg   || "#0D1B2E";
+    var b = (config && config.banner) || {};
+    var bg = b.color_bg || "#0D1B2E";
     var fg = b.color_text || "#FFFFFF";
 
     function applyToWidget(el) {
@@ -452,7 +472,9 @@
           if (node.hasAttribute("data-wpb-preferences")) {
             applyToWidget(node);
           }
-          node.querySelectorAll("[data-wpb-preferences]").forEach(applyToWidget);
+          node
+            .querySelectorAll("[data-wpb-preferences]")
+            .forEach(applyToWidget);
         });
       });
     }).observe(d.body, { childList: true, subtree: true });
