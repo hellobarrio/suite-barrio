@@ -136,12 +136,7 @@ function wp_alt_ai_process_batch()
             if (!$has_title && !empty($result['title'])) {
                 wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
             }
-            if ((!$has_alt && !empty($result['alt'])) || (!$has_title && !empty($result['title']))) {
-                if (function_exists('invalidate_vercel_cache')) {
-                    $parent_id = wp_get_post_parent_id($id);
-                    invalidate_vercel_cache($parent_id ?: 'wp:global');
-                }
-            }
+            // La cache viene invalidata dagli hook edit_attachment / updated_post_meta.
             $provider = get_option('wp_alt_ai_provider', 'anthropic');
             $saved_fields = implode(' + ', array_filter([
                 !$has_alt ? 'alt' : '',
@@ -664,11 +659,6 @@ add_action('add_attachment', function ($attachment_id) {
 
     update_post_meta($attachment_id, '_wp_attachment_image_alt', $result['alt']);
     wp_update_post(['ID' => $attachment_id, 'post_title' => $result['title']]);
-
-    if (function_exists('invalidate_vercel_cache')) {
-        $parent_id = wp_get_post_parent_id($attachment_id);
-        invalidate_vercel_cache($parent_id ?: 'wp:global');
-    }
 
     wp_alt_ai_log($attachment_id, 'success', $result['alt'], $result['title'], 'Auto-generato su upload');
 });
@@ -1524,11 +1514,6 @@ add_action('wp_ajax_wp_alt_ai_save', function () {
     update_post_meta($id, '_wp_attachment_image_alt', $alt);
     wp_update_post(['ID' => $id, 'post_title' => $title]);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        $parent_id = wp_get_post_parent_id($id);
-        invalidate_vercel_cache($parent_id ?: 'wp:global');
-    }
-
     $status = ($source === 'ai') ? 'success' : 'manual';
     $note = ($source === 'ai') ? 'Generato con AI, salvato dalla revisione' : 'Salvato manualmente dalla revisione';
     wp_alt_ai_log($id, $status, $alt, $title, $note);
@@ -1585,10 +1570,6 @@ add_action('wp_ajax_wp_alt_ai_generate', function () {
     if ($save) {
         update_post_meta($id, '_wp_attachment_image_alt', $result['alt']);
         wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
-        if (function_exists('invalidate_vercel_cache')) {
-            $parent_id = wp_get_post_parent_id($id);
-            invalidate_vercel_cache($parent_id ?: 'wp:global');
-        }
         $note .= ' — auto-salvato';
     }
 
@@ -1806,11 +1787,6 @@ add_action('wp_ajax_wp_alt_ai_generate_force', function () {
     // Salva sovrascrivendo i valori esistenti
     update_post_meta($id, '_wp_attachment_image_alt', $result['alt']);
     wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
-
-    if (function_exists('invalidate_vercel_cache')) {
-        $parent_id = wp_get_post_parent_id($id);
-        invalidate_vercel_cache($parent_id ?: 'wp:global');
-    }
 
     $provider = get_option('wp_alt_ai_provider', 'anthropic');
     $model = get_option('wp_alt_ai_model', '');

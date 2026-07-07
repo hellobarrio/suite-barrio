@@ -156,6 +156,83 @@ if (!function_exists('invalidate_vercel_cache')) {
 }
 
 /* ─────────────────────────────────────────
+   INVALIDAZIONE PER ALLEGATO (immagini)
+   Quando cambia l'alt text (o un campo) di un'immagine, risale a TUTTI i post che
+   la usano e ne invalida la cache. Sempre attivo, indipendente dai moduli, così
+   copre qualsiasi origine: pannello Media, schermata allegato, editor a
+   blocchi/REST, WP-CLI e i moduli AI (es. Auto-Alt, disattivabile).
+   ───────────────────────────────────────── */
+if (!function_exists('invalidate_vercel_cache_for_attachment')) {
+
+    function invalidate_vercel_cache_for_attachment($attachment_id)
+    {
+        $attachment_id = (int) $attachment_id;
+        if (!$attachment_id || !function_exists('invalidate_vercel_cache'))
+            return;
+
+        // Evita lookup/invalidazioni ripetute per lo stesso allegato nella stessa
+        // richiesta: più hook possono scattare insieme (edit_attachment + updated_post_meta).
+        static $done = [];
+        if (isset($done[$attachment_id]))
+            return;
+        $done[$attachment_id] = true;
+
+        global $wpdb;
+        $ids = [];
+
+        // 1. Immagine in evidenza
+        $ids = array_merge($ids, (array) $wpdb->get_col($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_thumbnail_id' AND meta_value = %d",
+            $attachment_id
+        )));
+
+        // 2. Inserita nel contenuto: WordPress marca gli <img> con la classe wp-image-<id>
+        $ids = array_merge($ids, (array) $wpdb->get_col($wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_content LIKE %s",
+            '%wp-image-' . $attachment_id . '%'
+        )));
+
+        // 3. Campi ACF / altri postmeta che referenziano l'ID
+        //    - image singola: meta_value = "123"
+        //    - gallery/repeater serializzati: contengono la stringa "123"
+        $ids = array_merge($ids, (array) $wpdb->get_col($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_value = %d OR meta_value LIKE %s",
+            $attachment_id,
+            '%"' . $attachment_id . '"%'
+        )));
+
+        // 4. post_parent diretto
+        $parent = wp_get_post_parent_id($attachment_id);
+        if ($parent)
+            $ids[] = $parent;
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        // Nessun utilizzo trovato: invalida il tag globale
+        if (empty($ids)) {
+            invalidate_vercel_cache('wp:global');
+            return;
+        }
+
+        // invalidate_vercel_cache ignora già revisioni/autosave/ID non validi
+        foreach ($ids as $post_id)
+            invalidate_vercel_cache($post_id);
+    }
+
+    // 'edit_attachment' copre i salvataggi dal pannello Media e dalla schermata
+    // allegato (passano da wp_update_post); gli hook su _wp_attachment_image_alt
+    // coprono le modifiche al solo alt text (che non passano da wp_update_post).
+    add_action('edit_attachment', 'invalidate_vercel_cache_for_attachment');
+
+    $wpb_invalidate_on_alt_meta = function ($meta_id, $post_id, $meta_key) {
+        if ($meta_key === '_wp_attachment_image_alt')
+            invalidate_vercel_cache_for_attachment((int) $post_id);
+    };
+    add_action('added_post_meta', $wpb_invalidate_on_alt_meta, 10, 3);
+    add_action('updated_post_meta', $wpb_invalidate_on_alt_meta, 10, 3);
+}
+
+/* ─────────────────────────────────────────
    PURGE MANUALE — endpoint AJAX riservato agli amministratori
    ───────────────────────────────────────── */
 if (!function_exists('wpb_cache_purge_ajax')) {
