@@ -80,7 +80,7 @@ if (!function_exists('invalidate_vercel_cache')) {
 
                     if ($is_homepage) {
                         // Tag specifico per homepage
-                        $tags = 'home';
+                        $tags = 'page_2,wp:type:page';
                     } else {
                         // Tag 1: L'URI specifico (es. wp:uri:chi-siamo)
                         // Usiamo wp_make_link_relative per avere solo il path
