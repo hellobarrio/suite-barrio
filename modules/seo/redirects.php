@@ -36,6 +36,7 @@ add_action('admin_head', function () {
 });
 
 add_filter('submenu_file', function ($submenu_file) {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-redirects')
         return 'wp-barrio-seo';
     return $submenu_file;
@@ -88,11 +89,11 @@ add_action('wp_ajax_wpb_redirect_save', function () {
     if (!current_user_can('manage_options'))
         wp_send_json_error('Unauthorized', 403);
 
-    $id = sanitize_text_field($_POST['id'] ?? '');
-    $from = wpb_redirects_normalize_uri(sanitize_text_field($_POST['from'] ?? ''));
-    $to = wpb_redirects_normalize_uri(sanitize_text_field($_POST['to'] ?? ''));
-    $code = (int) ($_POST['code'] ?? 301);
-    $note = sanitize_text_field($_POST['note'] ?? '');
+    $id = sanitize_text_field(wp_unslash($_POST['id'] ?? ''));
+    $from = wpb_redirects_normalize_uri(sanitize_text_field(wp_unslash($_POST['from'] ?? '')));
+    $to = wpb_redirects_normalize_uri(sanitize_text_field(wp_unslash($_POST['to'] ?? '')));
+    $code = absint(wp_unslash($_POST['code'] ?? 301));
+    $note = sanitize_text_field(wp_unslash($_POST['note'] ?? ''));
 
     if (empty($from) || empty($to))
         wp_send_json_error('from e to sono obbligatori');
@@ -143,7 +144,7 @@ add_action('wp_ajax_wpb_redirect_delete', function () {
     if (!current_user_can('manage_options'))
         wp_send_json_error('Unauthorized', 403);
 
-    $id = sanitize_text_field($_POST['id'] ?? '');
+    $id = sanitize_text_field(wp_unslash($_POST['id'] ?? ''));
     $rows = get_option(WPB_REDIRECTS_OPTION, []);
     if (!is_array($rows))
         $rows = [];
@@ -272,7 +273,8 @@ function wpb_redirects_would_loop(string $from, string $to, array $rows): bool
    AUTO-REDIRECT — QUICK EDIT (inline-save)
    ───────────────────────────────────────── */
 add_action('wp_ajax_inline-save', function () {
-    $post_id = (int) ($_POST['post_ID'] ?? 0);
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nessun nonce specifico definito in questo file: l'azione 'wp_ajax_inline-save' è gestita nativamente da WordPress core, che verifica già il proprio nonce prima/dopo questo hook.
+    $post_id = absint(wp_unslash($_POST['post_ID'] ?? 0));
     if (!$post_id)
         return;
     $post = get_post($post_id);
@@ -447,7 +449,7 @@ function wpb_redirects_admin_page()
                                         <span style="color:#9ca3af;font-size:12px;font-style:italic;">rimossa</span>
                                     <?php endif; ?>
                                 </td>
-                                <td><span class="wpb-rd-code wpb-rd-code-<?php echo $code; ?>"><?php echo $code; ?></span></td>
+                                <td><span class="wpb-rd-code wpb-rd-code-<?php echo esc_attr($code); ?>"><?php echo esc_html($code); ?></span></td>
                                 <td><?php if (!empty($row['note'])): ?><span
                                             class="wpb-rd-note"><?php echo esc_html($row['note']); ?></span><?php endif; ?></td>
                                 <td>
@@ -488,7 +490,7 @@ function wpb_redirects_admin_page()
                 <label for="wpb-rd-code">Codice HTTP</label>
                 <select id="wpb-rd-code">
                     <?php foreach ($code_labels as $c => $label): ?>
-                        <option value="<?php echo $c; ?>"><?php echo $label; ?></option>
+                        <option value="<?php echo esc_attr($c); ?>"><?php echo esc_html($label); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>

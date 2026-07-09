@@ -173,7 +173,7 @@ add_action('admin_action_wpb_duplicate_post', function () {
     ]);
 
     if (is_wp_error($new_id))
-        wp_die($new_id->get_error_message());
+        wp_die(esc_html($new_id->get_error_message()));
 
     // Copia post meta
     // Meta interni WP da escludere sempre
@@ -241,7 +241,7 @@ add_action('admin_action_wpb_duplicate_post', function () {
         ? admin_url('edit.php')
         : admin_url('edit.php?post_type=' . $original->post_type);
 
-    wp_redirect(add_query_arg('wpb_duplicated', '1', $list_url));
+    wp_safe_redirect(add_query_arg('wpb_duplicated', '1', $list_url));
     exit;
 });
 
@@ -278,7 +278,7 @@ add_action('admin_action_wpb_duplicate_term', function () {
     );
 
     if (is_wp_error($result))
-        wp_die($result->get_error_message());
+        wp_die(esc_html($result->get_error_message()));
 
     $new_term_id = $result['term_id'];
 
@@ -326,7 +326,7 @@ add_action('admin_action_wpb_duplicate_term', function () {
 
     // Redirect alla lista termini con conferma
     $redirect = admin_url('edit-tags.php?taxonomy=' . $taxonomy . '&wpb_duplicated=1');
-    wp_redirect($redirect);
+    wp_safe_redirect($redirect);
     exit;
 });
 
@@ -334,6 +334,7 @@ add_action('admin_action_wpb_duplicate_term', function () {
    NOTICE "Duplicato con successo"
    ───────────────────────────────────────── */
 add_action('admin_notices', function () {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     if (!isset($_GET['wpb_duplicated']))
         return;
     echo '<div class="notice notice-success is-dismissible"><p>✓ Elemento duplicato con successo come bozza.</p></div>';
@@ -455,8 +456,7 @@ function wpb_duplicate_config_js(): string
     $nonce = wp_create_nonce('wpb_duplicate_nonce');
     $ajax_url = esc_url(admin_url('admin-ajax.php'));
 
-    return <<<JS
-jQuery(function($){
+    return "jQuery(function($){
     var ajaxUrl = '{$ajax_url}';
     var nonce   = '{$nonce}';
 
@@ -512,8 +512,7 @@ jQuery(function($){
             }
         });
     });
-});
-JS;
+});";
 }
 
 /* ─────────────────────────────────────────

@@ -59,16 +59,20 @@ function wp_barrio_dashboard_page()
     }
 
     if (wpb_tools_module_enabled('forms')) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $forms_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_forms");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $subs_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_form_submissions");
     }
 
     if (wpb_tools_module_enabled('popups')) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $popups_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_popups");
         $popup_active = wpb_popups_get_active();
     }
 
     if (wpb_tools_module_enabled('banners')) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $banners_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wpb_banners");
         $banner_active = function_exists('wpb_banners_get_active') ? wpb_banners_get_active() : null;
     }
@@ -112,7 +116,7 @@ function wp_barrio_dashboard_page()
     if (wpb_tools_module_enabled('cookie_privacy')) {
         $cp_domain = function_exists('wpb_cp_get_domain')
             ? wpb_cp_get_domain()
-            : (string) parse_url(home_url(), PHP_URL_HOST);
+            : (string) wp_parse_url(home_url(), PHP_URL_HOST);
         $cp_privacy_page_id = (int) get_option('wpb_cp_privacy_page_id', 0);
         $cp_cookie_page_id = (int) get_option('wpb_cp_cookie_page_id', 0);
         $cp_provider = get_option('wpb_cp_provider', 'gemini');
@@ -136,7 +140,7 @@ function wp_barrio_dashboard_page()
                 </svg>
             </div>
             <div>
-                <h1>WP Barrio <span class="wpb-version-badge">v<?php echo WP_ALT_AI_VERSION; ?></span></h1>
+                <h1>WP Barrio <span class="wpb-version-badge">v<?php echo esc_html(WP_ALT_AI_VERSION); ?></span></h1>
                 <p class="wpb-header-sub">Suite di strumenti AI per WordPress</p>
             </div>
         </div>
@@ -202,7 +206,7 @@ function wp_barrio_dashboard_page()
                                 continue;
                             $url = admin_url('admin.php?page=wp-barrio-wizard&step=' . $n);
                             ?>
-                            <li class="wpb-wizard-todo-item" data-alert-key="step_<?php echo $n; ?>">
+                            <li class="wpb-wizard-todo-item" data-alert-key="step_<?php echo esc_attr($n); ?>">
                                 <span class="dashicons <?php echo esc_attr($step['icon']); ?>"></span>
                                 <span class="wpb-wizard-todo-label">
                                     Passaggio saltato: <strong><?php echo esc_html($step['label']); ?></strong>
@@ -434,7 +438,7 @@ function wp_barrio_dashboard_page()
                             <tr>
                                 <td>Blocchi permessi</td>
                                 <td><?php echo $blocks_enabled && $blocks_count > 0
-                                    ? '<span class="wpb-ok">&#x2713; ' . $blocks_count . '</span>'
+                                    ? '<span class="wpb-ok">&#x2713; ' . esc_html($blocks_count) . '</span>'
                                     : '<span class="wpb-mute">Tutti</span>'; ?></td>
                             </tr>
                         </table>
@@ -516,7 +520,7 @@ function wp_barrio_dashboard_page()
                                 <td>Privacy Policy</td>
                                 <td>
                                     <?php if ($cp_privacy_page instanceof WP_Post) { ?>
-                                        <a href="<?php echo get_the_permalink($cp_privacy_page); ?>">
+                                        <a href="<?php echo esc_url(get_the_permalink($cp_privacy_page)); ?>">
                                             <?php echo esc_html(get_the_title($cp_privacy_page)); ?>
                                         </a>
                                     <?php } else {
@@ -528,7 +532,7 @@ function wp_barrio_dashboard_page()
                                 <td>Cookie Policy</td>
                                 <td>
                                     <?php if ($cp_cookie_page instanceof WP_Post) { ?>
-                                        <a href="<?php echo get_the_permalink($cp_cookie_page); ?>">
+                                        <a href="<?php echo esc_url(get_the_permalink($cp_cookie_page)); ?>">
                                             <?php echo esc_html(get_the_title($cp_cookie_page)); ?>
                                         </a>
                                     <?php } else {
@@ -563,13 +567,13 @@ function wp_barrio_dashboard_page()
                             <tr>
                                 <td>Post type abilitati</td>
                                 <td><?php echo $dup_pt_count > 0
-                                    ? '<span class="wpb-ok">&#x2713; ' . $dup_pt_count . '</span>'
+                                    ? '<span class="wpb-ok">&#x2713; ' . esc_html($dup_pt_count) . '</span>'
                                     : '<span class="wpb-mute">Nessuno</span>'; ?></td>
                             </tr>
                             <tr>
                                 <td>Tassonomie abilitate</td>
                                 <td><?php echo $dup_tax_count > 0
-                                    ? '<span class="wpb-ok">&#x2713; ' . $dup_tax_count . '</span>'
+                                    ? '<span class="wpb-ok">&#x2713; ' . esc_html($dup_tax_count) . '</span>'
                                     : '<span class="wpb-mute">Nessuna</span>'; ?></td>
                             </tr>
                         </table>
@@ -686,13 +690,13 @@ function wp_barrio_dashboard_page()
                             <tr>
                                 <td>Post type ordinati</td>
                                 <td><?php echo $orders_pt_count > 0
-                                    ? '<span class="wpb-ok">&#x2713; ' . $orders_pt_count . '</span>'
+                                    ? '<span class="wpb-ok">&#x2713; ' . esc_html($orders_pt_count) . '</span>'
                                     : '<span class="wpb-mute">Nessuno</span>'; ?></td>
                             </tr>
                             <tr>
                                 <td>Tassonomie ordinate</td>
                                 <td><?php echo $orders_tax_count > 0
-                                    ? '<span class="wpb-ok">&#x2713; ' . $orders_tax_count . '</span>'
+                                    ? '<span class="wpb-ok">&#x2713; ' . esc_html($orders_tax_count) . '</span>'
                                     : '<span class="wpb-mute">Nessuna</span>'; ?></td>
                             </tr>
                         </table>
@@ -761,7 +765,7 @@ function wp_barrio_dashboard_page()
                                 <td><?php
                                 $sitemap_on = wpb_tools_module_enabled('seo_sitemap');
                                 $count = $sitemap_on ? 6 : 5;
-                                echo '<span class="wpb-ok">&#x2713; ' . $count . ' attivi</span>';
+                                echo '<span class="wpb-ok">&#x2713; ' . esc_html($count) . ' attivi</span>';
                                 ?></td>
                             </tr>
                             <tr>

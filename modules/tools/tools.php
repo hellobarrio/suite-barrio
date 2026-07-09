@@ -35,7 +35,7 @@ function wpb_tools_modules_list()
     return [
         'accessibility' => [
             'label' => 'Accessibilità',
-            'desc' => 'Widget di accessibilità frontend: regolazioni di testo, colore e orientamento per gli utenti del sito.',
+            'desc'  => 'Widget di accessibilità frontend: regolazioni di testo, colore e orientamento per gli utenti del sito.',
         ],
         'auto_alt' => [
             'label' => 'Auto Alt',
@@ -59,7 +59,7 @@ function wpb_tools_modules_list()
         ],
         'cookie_banner' => [
             'label' => 'Cookie Banner',
-            'desc' => 'Banner di consenso cookie nativo con Service Registry, scanner automatico e widget preferenze. Compatibile con siti PHP e Next.js headless.',
+            'desc'  => 'Banner di consenso cookie nativo con Service Registry, scanner automatico e widget preferenze. Compatibile con siti PHP e Next.js headless.',
         ],
         'duplicate' => [
             'label' => 'Duplicate',
@@ -272,7 +272,7 @@ add_action('admin_post_wpb_tools_save', function () {
         $options[$key] = isset($_POST['modules'][$key]) ? 1 : 0;
     }
     update_option(WPB_TOOLS_OPTION, $options);
-    wp_redirect(admin_url('admin.php?page=wp-barrio-tools&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-tools&saved=1'));
     exit;
 });
 
@@ -286,6 +286,7 @@ function wpb_tools_admin_page()
     }
 
     $modules = wpb_tools_modules_list();
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
 
     $wpml_active = defined('ICL_SITEPRESS_VERSION');
@@ -414,9 +415,9 @@ function wpb_tools_admin_page()
                 Messa Online
             </p>
             <?php
-            $wiz_complete = function_exists('wpb_wizard_is_complete') && wpb_wizard_is_complete();
-            $wiz_badge = function_exists('wpb_wizard_badge_count') ? wpb_wizard_badge_count() : 0;
-            $wiz_url = admin_url('admin.php?page=wp-barrio-wizard');
+            $wiz_complete  = function_exists('wpb_wizard_is_complete') && wpb_wizard_is_complete();
+            $wiz_badge     = function_exists('wpb_wizard_badge_count') ? wpb_wizard_badge_count() : 0;
+            $wiz_url       = admin_url('admin.php?page=wp-barrio-wizard');
             ?>
             <div class="wpb-wizard-banner">
                 <div class="wpb-wizard-banner-body">
@@ -428,7 +429,7 @@ function wpb_tools_admin_page()
                             <strong>Messa online completata</strong>
                             <span>Tutti i passaggi sono stati completati. Puoi riaprire il wizard in qualsiasi momento.</span>
                         <?php elseif ($wiz_complete && $wiz_badge > 0): ?>
-                            <strong>Messa online — <?php echo $wiz_badge; ?> operazioni in sospeso</strong>
+                            <strong>Messa online — <?php echo esc_html($wiz_badge); ?> operazioni in sospeso</strong>
                             <span>Alcuni passaggi sono stati saltati o non completati. Rientra nel wizard per terminarli.</span>
                         <?php else: ?>
                             <strong>Wizard non ancora completato</strong>

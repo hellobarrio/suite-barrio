@@ -23,6 +23,7 @@ function wpb_banners_install(): void
     global $wpdb;
     $charset = $wpdb->get_charset_collate();
 
+    // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella e charset collate fissi definiti dal plugin/da WP, non input utente; creazione tabella custom in fase di installazione/aggiornamento schema, eseguita una tantum, non un dato di runtime
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_banners` (
             id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -35,8 +36,10 @@ function wpb_banners_install(): void
             PRIMARY KEY (id)
         ) {$charset};"
     );
+    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 
     // Tabella traduzioni banner (title, link, link_target per lingua aggiuntiva)
+    // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella e charset collate fissi definiti dal plugin/da WP, non input utente; creazione tabella custom in fase di installazione/aggiornamento schema, eseguita una tantum, non un dato di runtime
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_banners_translations` (
             id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -50,6 +53,7 @@ function wpb_banners_install(): void
             UNIQUE KEY banner_lang (banner_id, lang)
         ) {$charset};"
     );
+    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 }
 
 register_activation_hook(WP_ALT_AI_PLUGIN_DIR . 'wp-barrio.php', 'wpb_banners_install');
@@ -72,6 +76,7 @@ add_action('plugins_loaded', function () {
 function wpb_banners_get_all(): array
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_results(
         "SELECT id, title, active, created_at FROM {$wpdb->prefix}wpb_banners ORDER BY id DESC"
     ) ?: [];
@@ -80,6 +85,7 @@ function wpb_banners_get_all(): array
 function wpb_banners_get(int $id): ?object
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}wpb_banners WHERE id = %d",
         $id
@@ -89,6 +95,7 @@ function wpb_banners_get(int $id): ?object
 function wpb_banners_get_active(): ?object
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row(
         "SELECT * FROM {$wpdb->prefix}wpb_banners WHERE active = 1 LIMIT 1"
     ) ?: null;
@@ -101,6 +108,7 @@ function wpb_banners_get_active(): ?object
 function wpb_banners_get_translation(int $banner_id, string $lang): ?object
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}wpb_banners_translations
          WHERE banner_id = %d AND lang = %s",
@@ -125,8 +133,10 @@ function wpb_banners_save_translation(int $banner_id, string $lang, array $data)
     $format = ['%d', '%s', '%s', '%s', '%s'];
 
     if ($existing) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->update($table, $row, ['id' => (int) $existing->id], $format, ['%d']);
     } else {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->insert($table, $row, $format);
     }
 
@@ -136,6 +146,7 @@ function wpb_banners_save_translation(int $banner_id, string $lang, array $data)
 function wpb_banners_delete_translations(int $banner_id): void
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete(
         $wpdb->prefix . WPB_BANNERS_TRANS_TABLE,
         ['banner_id' => $banner_id],
@@ -330,8 +341,9 @@ add_action('wp_ajax_wpb_banners_save', function () {
     $id = intval($_POST['banner_id'] ?? 0);
     $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
     $link = sanitize_url(wp_unslash($_POST['link'] ?? ''));
-    $link_target = in_array($_POST['link_target'] ?? '', ['_self', '_blank'], true)
-        ? $_POST['link_target']
+    $link_target_raw = sanitize_text_field(wp_unslash($_POST['link_target'] ?? ''));
+    $link_target = in_array($link_target_raw, ['_self', '_blank'], true)
+        ? $link_target_raw
         : '_self';
 
     if ($title === '')
@@ -341,10 +353,12 @@ add_action('wp_ajax_wpb_banners_save', function () {
     $format = ['%s', '%s', '%s'];
 
     if ($id > 0) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->update($table, $data, ['id' => $id], $format, ['%d']);
     } else {
         $data['active'] = 0;
         $format[] = '%d';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->insert($table, $data, $format);
         $id = (int) $wpdb->insert_id;
     }
@@ -371,9 +385,11 @@ add_action('wp_ajax_wpb_banners_set_active', function () {
     $table = $wpdb->prefix . WPB_BANNERS_TABLE;
     $id = intval($_POST['banner_id'] ?? 0);
 
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- nome tabella fisso definito dal plugin, non input utente; query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->query("UPDATE {$table} SET active = 0");
 
     if ($id > 0) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $wpdb->update($table, ['active' => 1], ['id' => $id], ['%d'], ['%d']);
     }
 
@@ -398,6 +414,7 @@ add_action('wp_ajax_wpb_banners_delete', function () {
         wp_send_json_error('ID non valido.');
 
     wpb_banners_delete_translations($id);
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . WPB_BANNERS_TABLE, ['id' => $id], ['%d']);
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
@@ -429,8 +446,11 @@ add_action('wp_ajax_wpb_banners_save_translation', function () {
     $data = [
         'title' => sanitize_text_field(wp_unslash($_POST['title'] ?? '')),
         'link' => sanitize_url(wp_unslash($_POST['link'] ?? '')),
-        'link_target' => in_array($_POST['link_target'] ?? '', ['_self', '_blank'], true)
-            ? $_POST['link_target'] : '_self',
+        'link_target' => (function () {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce già verificato con check_ajax_referer('wpb_banners_nonce', 'nonce') a inizio di questa stessa callback (riga 429); falso positivo dello scanner dovuto alla closure annidata, che non "vede" il controllo nonce nella funzione esterna
+            $link_target_raw = sanitize_text_field(wp_unslash($_POST['link_target'] ?? ''));
+            return in_array($link_target_raw, ['_self', '_blank'], true) ? $link_target_raw : '_self';
+        })(),
     ];
 
     if ($data['title'] === '')
@@ -535,10 +555,13 @@ function wpb_banners_admin_page(): void
     $active = wpb_banners_get_active();
     $active_id = $active ? (int) $active->id : 0;
     $banner_limit = (int) get_option('wpb_banners_limit', 1);
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $list_tab = isset($_GET['list_tab']) ? sanitize_key($_GET['list_tab']) : 'banners';
 
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $edit_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
     $editing = $edit_id ? wpb_banners_get($edit_id) : null;
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $qs_lang = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
 
     $ml_enabled = wpb_multilang_is_enabled();
@@ -559,8 +582,11 @@ function wpb_banners_admin_page(): void
         </div>
         <hr class="wpb-ban-divider">
 
-        <?php if ($editing || (isset($_GET['edit_id']) && $_GET['edit_id'] === 'new')):
-            $is_new = ($_GET['edit_id'] ?? '') === 'new';
+        <?php
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+        if ($editing || (isset($_GET['edit_id']) && $_GET['edit_id'] === 'new')):
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+            $is_new = (sanitize_text_field(wp_unslash($_GET['edit_id'] ?? ''))) === 'new';
             $banner = $is_new ? null : $editing;
             ?>
 

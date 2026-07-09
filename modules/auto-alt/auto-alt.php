@@ -136,7 +136,12 @@ function wp_alt_ai_process_batch()
             if (!$has_title && !empty($result['title'])) {
                 wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
             }
-            // La cache viene invalidata dagli hook edit_attachment / updated_post_meta.
+            if ((!$has_alt && !empty($result['alt'])) || (!$has_title && !empty($result['title']))) {
+                if (function_exists('invalidate_vercel_cache')) {
+                    $parent_id = wp_get_post_parent_id($id);
+                    invalidate_vercel_cache($parent_id ?: 'wp:global');
+                }
+            }
             $provider = get_option('wp_alt_ai_provider', 'anthropic');
             $saved_fields = implode(' + ', array_filter([
                 !$has_alt ? 'alt' : '',
@@ -218,6 +223,7 @@ function wp_alt_ai_get_incomplete_ids($limit = -1, $offset = 0)
         $sql .= $wpdb->prepare(" LIMIT %d OFFSET %d", $limit, $offset);
     }
 
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- nomi tabella fissi ({$wpdb->posts}/{$wpdb->postmeta}), nessun input utente; query interna del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_col($sql);
 }
 
@@ -238,6 +244,7 @@ function wp_alt_ai_count_incomplete()
               OR p.post_title  = ''
           )
     ";
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- nomi tabella fissi ({$wpdb->posts}/{$wpdb->postmeta}), nessun input utente; query interna del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return (int) $wpdb->get_var($sql);
 }
 
@@ -660,6 +667,11 @@ add_action('add_attachment', function ($attachment_id) {
     update_post_meta($attachment_id, '_wp_attachment_image_alt', $result['alt']);
     wp_update_post(['ID' => $attachment_id, 'post_title' => $result['title']]);
 
+    if (function_exists('invalidate_vercel_cache')) {
+        $parent_id = wp_get_post_parent_id($attachment_id);
+        invalidate_vercel_cache($parent_id ?: 'wp:global');
+    }
+
     wp_alt_ai_log($attachment_id, 'success', $result['alt'], $result['title'], 'Auto-generato su upload');
 });
 
@@ -690,7 +702,7 @@ add_action('admin_notices', function () {
             esc_url(admin_url('admin.php?page=wp-barrio-auto-alt&tab=log')),
             esc_attr($dismiss_nonce)
         );
-        echo '<div class="notice notice-success is-dismissible wpb-job-notice"><p>' . $msg . '</p></div>';
+        echo '<div class="notice notice-success wpb-job-notice"><p>' . wp_kses_post($msg) . '</p></div>';
         ?>
         <script>
             (function () {
@@ -729,7 +741,7 @@ add_action('admin_notices', function () {
             $pct,
             esc_url(admin_url('admin.php?page=wp-barrio-auto-alt&tab=review'))
         );
-        echo '<div class="notice notice-info wpb-job-notice"><p>' . $msg . '</p></div>';
+        echo '<div class="notice notice-info wpb-job-notice"><p>' . wp_kses_post($msg) . '</p></div>';
     }
 });
 
@@ -839,14 +851,14 @@ function wp_alt_ai_admin_page()
                 <div class="wpb-bulk">
                     <?php if ($job_running): ?>
                         <strong id="bulk-status-text">
-                            Elaborazione in corso: <?php echo ($job['done'] + $job['errors']); ?> / <?php echo $job['total']; ?>
+                            Elaborazione in corso: <?php echo esc_html($job['done'] + $job['errors']); ?> / <?php echo esc_html($job['total']); ?>
                             immagini
                         </strong>
                         <button class="wpb-btn wpb-btn-danger" id="bulk-stop-btn">&#x2715; Interrompi</button>
                     <?php else: ?>
-                        <strong><?php echo $total_items; ?> immagini senza alt o title</strong>
+                        <strong><?php echo esc_html($total_items); ?> immagini senza alt o title</strong>
                         <button class="wpb-btn wpb-btn-ghost" id="bulk-generate-btn" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
-                            ✦ Genera tutte in background (<?php echo $total_items; ?>)
+                            ✦ Genera tutte in background (<?php echo esc_html($total_items); ?>)
                         </button>
                     <?php endif; ?>
                 </div>
@@ -860,14 +872,14 @@ function wp_alt_ai_admin_page()
                 <div id="bulk-progress-wrap" class="wpb-progress-wrap"
                     style="<?php echo ($job_running || $job_done) ? '' : 'display:none;'; ?>">
                     <div id="bulk-progress-bar" class="wpb-progress-bar"
-                        style="width:<?php echo $pct; ?>%;background:<?php echo $job_done ? '#059669' : '#111827'; ?>;"></div>
+                        style="width:<?php echo esc_attr($pct); ?>%;background:<?php echo $job_done ? '#059669' : '#111827'; ?>;"></div>
                     <div id="bulk-progress-text" class="wpb-progress-text">
                         <?php if ($job_running): ?>
-                            <?php echo ($job['done'] + $job['errors']); ?> / <?php echo $job['total']; ?> elaborate —
-                            <?php echo $job['done']; ?> ✓<?php echo $job['errors'] > 0 ? '  ' . $job['errors'] . ' ✗' : ''; ?>
+                            <?php echo esc_html($job['done'] + $job['errors']); ?> / <?php echo esc_html($job['total']); ?> elaborate —
+                            <?php echo esc_html($job['done']); ?> ✓<?php echo esc_html($job['errors'] > 0 ? '  ' . $job['errors'] . ' ✗' : ''); ?>
                         <?php elseif ($job_done): ?>
-                            ✓ Completato — <?php echo $job['done']; ?>
-                            salvate<?php echo $job['errors'] > 0 ? ', ' . $job['errors'] . ' errori (vedi Log)' : ''; ?>
+                            ✓ Completato — <?php echo esc_html($job['done']); ?>
+                            salvate<?php echo esc_html($job['errors'] > 0 ? ', ' . $job['errors'] . ' errori (vedi Log)' : ''); ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -887,7 +899,7 @@ function wp_alt_ai_admin_page()
                         $title = $att->post_title;
                         $fname = basename(get_attached_file($att->ID));
                         ?>
-                        <div class="wpb-img-card" data-id="<?php echo $att->ID; ?>" data-url="<?php echo esc_attr($full); ?>">
+                        <div class="wpb-img-card" data-id="<?php echo esc_attr($att->ID); ?>" data-url="<?php echo esc_attr($full); ?>">
                             <div class="wpb-img-thumb">
                                 <?php if ($thumb): ?>
                                     <img src="<?php echo esc_url($thumb); ?>" alt="" loading="lazy">
@@ -920,7 +932,7 @@ function wp_alt_ai_admin_page()
 
                 <?php if ($total_pages > 1): ?>
                     <div class="wpb-pagination">
-                        <?php echo paginate_links([
+                        <?php echo wp_kses_post(paginate_links([
                             'base' => add_query_arg('paged', '%#%'),
                             'format' => '',
                             'current' => $paged,
@@ -928,7 +940,7 @@ function wp_alt_ai_admin_page()
                             'prev_text' => '&laquo;',
                             'next_text' => '&raquo;',
                             'type' => 'plain',
-                        ]); ?>
+                        ])); ?>
                     </div>
                 <?php endif;
             endif;
@@ -957,15 +969,15 @@ function wp_alt_ai_admin_page()
                 <!-- Log KPI -->
                 <div class="wpb-log-kpi">
                     <div class="wpb-log-kpi-item">
-                        <div class="wpb-log-kpi-num"><?php echo $log_total; ?></div>
+                        <div class="wpb-log-kpi-num"><?php echo esc_html($log_total); ?></div>
                         <div class="wpb-log-kpi-lbl">Totale operazioni</div>
                     </div>
                     <div class="wpb-log-kpi-item">
-                        <div class="wpb-log-kpi-num" style="color:#059669;"><?php echo $log_success; ?></div>
+                        <div class="wpb-log-kpi-num" style="color:#059669;"><?php echo esc_html($log_success); ?></div>
                         <div class="wpb-log-kpi-lbl">Completate</div>
                     </div>
                     <div class="wpb-log-kpi-item">
-                        <div class="wpb-log-kpi-num" style="color:#dc2626;"><?php echo $log_errors; ?></div>
+                        <div class="wpb-log-kpi-num" style="color:#dc2626;"><?php echo esc_html($log_errors); ?></div>
                         <div class="wpb-log-kpi-lbl">Errori</div>
                     </div>
                 </div>
@@ -1027,7 +1039,7 @@ function wp_alt_ai_admin_page()
                                         </td>
                                         <td>
                                             <span class="wpb-status-pill <?php echo esc_attr($entry['status']); ?>">
-                                                <?php echo $label_map[$entry['status']] ?? esc_html($entry['status']); ?>
+                                                <?php echo wp_kses_post($label_map[$entry['status']] ?? esc_html($entry['status'])); ?>
                                             </span>
                                         </td>
                                         <td>
@@ -1040,7 +1052,7 @@ function wp_alt_ai_admin_page()
                                                 <?php echo esc_html($entry['note'] ?: '—'); ?>
                                             </div>
                                         </td>
-                                        <td><span class="wpb-log-time"><?php echo date_i18n('d/m/Y H:i', $entry['ts']); ?></span></td>
+                                        <td><span class="wpb-log-time"><?php echo esc_html(date_i18n('d/m/Y H:i', $entry['ts'])); ?></span></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -1052,9 +1064,9 @@ function wp_alt_ai_admin_page()
                             <?php for ($i = 1; $i <= $log_total_pages; $i++):
                                 $url = add_query_arg(['page' => 'wp-barrio-auto-alt', 'tab' => 'log', 'log_page' => $i]);
                                 if ($i === $log_page): ?>
-                                    <span class="current"><?php echo $i; ?></span>
+                                    <span class="current"><?php echo esc_html($i); ?></span>
                                 <?php else: ?>
-                                    <a href="<?php echo esc_url($url); ?>"><?php echo $i; ?></a>
+                                    <a href="<?php echo esc_url($url); ?>"><?php echo esc_html($i); ?></a>
                                 <?php endif;
                             endfor; ?>
                         </div>
@@ -1273,8 +1285,8 @@ function wp_alt_ai_admin_page()
 
             <script>
                 (function () {
-                    var ajaxUrl = '<?php echo admin_url("admin-ajax.php"); ?>';
-                    var nonce = '<?php echo wp_create_nonce("wp_alt_ai_nonce"); ?>';
+                    var ajaxUrl = '<?php echo esc_js(admin_url("admin-ajax.php")); ?>';
+                    var nonce = '<?php echo esc_js(wp_create_nonce("wp_alt_ai_nonce")); ?>';
                     var currentModel = '<?php echo esc_js(get_option("wp_alt_ai_model", "")); ?>';
                     var modelDefaults = { anthropic: 'claude-opus-4-6', gemini: 'gemini-2.5-flash' };
 
@@ -1365,8 +1377,8 @@ function wp_alt_ai_admin_page()
 
     <script>
         (function () {
-            const apiNonce = '<?php echo wp_create_nonce("wp_alt_ai_nonce"); ?>';
-            const ajaxUrl = '<?php echo admin_url("admin-ajax.php"); ?>';
+            const apiNonce = '<?php echo esc_js(wp_create_nonce("wp_alt_ai_nonce")); ?>';
+            const ajaxUrl = '<?php echo esc_js(admin_url("admin-ajax.php")); ?>';
 
             function toast(msg, type = 'success') {
                 const t = document.getElementById('wpb-toast');
@@ -1504,8 +1516,8 @@ add_action('wp_ajax_wp_alt_ai_save', function () {
         wp_send_json_error('Permesso negato.');
 
     $id = intval($_POST['attachment_id'] ?? 0);
-    $alt = sanitize_text_field($_POST['alt_text'] ?? '');
-    $title = sanitize_text_field($_POST['title'] ?? '');
+    $alt = sanitize_text_field(wp_unslash($_POST['alt_text'] ?? ''));
+    $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
     $source = sanitize_key($_POST['source'] ?? 'manual');
 
     if (!$id || get_post_type($id) !== 'attachment')
@@ -1513,6 +1525,11 @@ add_action('wp_ajax_wp_alt_ai_save', function () {
 
     update_post_meta($id, '_wp_attachment_image_alt', $alt);
     wp_update_post(['ID' => $id, 'post_title' => $title]);
+
+    if (function_exists('invalidate_vercel_cache')) {
+        $parent_id = wp_get_post_parent_id($id);
+        invalidate_vercel_cache($parent_id ?: 'wp:global');
+    }
 
     $status = ($source === 'ai') ? 'success' : 'manual';
     $note = ($source === 'ai') ? 'Generato con AI, salvato dalla revisione' : 'Salvato manualmente dalla revisione';
@@ -1570,6 +1587,10 @@ add_action('wp_ajax_wp_alt_ai_generate', function () {
     if ($save) {
         update_post_meta($id, '_wp_attachment_image_alt', $result['alt']);
         wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
+        if (function_exists('invalidate_vercel_cache')) {
+            $parent_id = wp_get_post_parent_id($id);
+            invalidate_vercel_cache($parent_id ?: 'wp:global');
+        }
         $note .= ' — auto-salvato';
     }
 
@@ -1787,6 +1808,11 @@ add_action('wp_ajax_wp_alt_ai_generate_force', function () {
     // Salva sovrascrivendo i valori esistenti
     update_post_meta($id, '_wp_attachment_image_alt', $result['alt']);
     wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
+
+    if (function_exists('invalidate_vercel_cache')) {
+        $parent_id = wp_get_post_parent_id($id);
+        invalidate_vercel_cache($parent_id ?: 'wp:global');
+    }
 
     $provider = get_option('wp_alt_ai_provider', 'anthropic');
     $model = get_option('wp_alt_ai_model', '');

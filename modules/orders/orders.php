@@ -151,7 +151,7 @@ add_action('wp_ajax_wpb_orders_toggle_pt', function () {
         wp_send_json_error('Permessi insufficienti.');
 
     $pt = sanitize_key($_POST['post_type'] ?? '');
-    $enabled = (bool) ($_POST['enabled'] ?? false);
+    $enabled = isset($_POST['enabled']) ? (bool) sanitize_text_field(wp_unslash($_POST['enabled'])) : false;
 
     if (!$pt)
         wp_send_json_error('Post type mancante.');
@@ -165,6 +165,7 @@ add_action('wp_ajax_wpb_orders_toggle_pt', function () {
         $list = array_values(array_diff($list, [$pt]));
         // Azzera anche i menu_order esistenti
         global $wpdb;
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- query interna del plugin su tabella core WP, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $wpdb->update($wpdb->posts, ['menu_order' => 0], ['post_type' => $pt], ['%d'], ['%s']);
     }
 
@@ -182,7 +183,7 @@ add_action('wp_ajax_wpb_orders_toggle_tax', function () {
         wp_send_json_error('Permessi insufficienti.');
 
     $tax = sanitize_key($_POST['taxonomy'] ?? '');
-    $enabled = (bool) ($_POST['enabled'] ?? false);
+    $enabled = isset($_POST['enabled']) ? (bool) sanitize_text_field(wp_unslash($_POST['enabled'])) : false;
 
     if (!$tax)
         wp_send_json_error('Tassonomia mancante.');
@@ -215,7 +216,7 @@ add_action('wp_ajax_wpb_orders_save_posts', function () {
     if (!current_user_can('edit_posts'))
         wp_send_json_error('Permessi insufficienti.');
 
-    $items = isset($_POST['items']) ? (array) $_POST['items'] : [];
+    $items = isset($_POST['items']) ? array_map('absint', wp_unslash((array) $_POST['items'])) : [];
     $post_type = sanitize_key($_POST['post_type'] ?? '');
 
     if (!in_array($post_type, wpb_orders_enabled_post_types(), true))
@@ -241,7 +242,7 @@ add_action('wp_ajax_wpb_orders_save_terms', function () {
     if (!current_user_can('edit_posts'))
         wp_send_json_error('Permessi insufficienti.');
 
-    $items = isset($_POST['items']) ? (array) $_POST['items'] : [];
+    $items = isset($_POST['items']) ? array_map('absint', wp_unslash((array) $_POST['items'])) : [];
     $taxonomy = sanitize_key($_POST['taxonomy'] ?? '');
 
     if (!in_array($taxonomy, wpb_orders_enabled_taxonomies(), true))
@@ -378,59 +379,58 @@ function wpb_orders_config_js(): string
     $nonce = wp_create_nonce('wpb_orders_nonce');
     $ajax_url = esc_url(admin_url('admin-ajax.php'));
 
-    return <<<JS
-jQuery(function($){
-    var ajaxUrl = '{$ajax_url}';
-    var nonce   = '{$nonce}';
+    return 'jQuery(function($){
+    var ajaxUrl = \'' . $ajax_url . '\';
+    var nonce   = \'' . $nonce . '\';
 
     // Tab switching
-    $(document).on('click', '.wpb-orders-tab', function(){
-        var tab = $(this).data('tab');
-        $('.wpb-orders-tab').removeClass('active');
-        $(this).addClass('active');
-        $('.wpb-orders-panel').removeClass('active');
-        $('#wpb-orders-panel-' + tab).addClass('active');
+    $(document).on(\'click\', \'.wpb-orders-tab\', function(){
+        var tab = $(this).data(\'tab\');
+        $(\'.wpb-orders-tab\').removeClass(\'active\');
+        $(this).addClass(\'active\');
+        $(\'.wpb-orders-panel\').removeClass(\'active\');
+        $(\'#wpb-orders-panel-\' + tab).addClass(\'active\');
     });
 
     // Toggle post type
-    $(document).on('change', '.wpb-pt-toggle', function(){
+    $(document).on(\'change\', \'.wpb-pt-toggle\', function(){
         var input   = $(this);
-        var row     = input.closest('.wpb-orders-row');
-        var label   = row.find('.wpb-toggle');
-        var pt      = input.data('pt');
-        var enabled = input.is(':checked') ? 1 : 0;
+        var row     = input.closest(\'.wpb-orders-row\');
+        var label   = row.find(\'.wpb-toggle\');
+        var pt      = input.data(\'pt\');
+        var enabled = input.is(\':checked\') ? 1 : 0;
 
-        label.addClass('wpb-toggle-saving');
-        $.post(ajaxUrl, { action:'wpb_orders_toggle_pt', nonce:nonce, post_type:pt, enabled:enabled },
+        label.addClass(\'wpb-toggle-saving\');
+        $.post(ajaxUrl, { action:\'wpb_orders_toggle_pt\', nonce:nonce, post_type:pt, enabled:enabled },
         function(res){
-            label.removeClass('wpb-toggle-saving');
-            if (!res.success) { input.prop('checked', !enabled); alert('Errore nel salvataggio.'); }
+            label.removeClass(\'wpb-toggle-saving\');
+            if (!res.success) { input.prop(\'checked\', !enabled); alert(\'Errore nel salvataggio.\'); }
             else {
                 // mostra/nascondi nota "Riordina apparirà nel menu"
-                if (enabled) row.find('.wpb-pt-hint').fadeIn(150);
-                else         row.find('.wpb-pt-hint').fadeOut(150);
+                if (enabled) row.find(\'.wpb-pt-hint\').fadeIn(150);
+                else         row.find(\'.wpb-pt-hint\').fadeOut(150);
             }
         });
     });
 
     // Toggle tassonomia — e carica/scarica il blocco di riordino inline
-    $(document).on('change', '.wpb-tax-toggle', function(){
+    $(document).on(\'change\', \'.wpb-tax-toggle\', function(){
         var input   = $(this);
-        var row     = input.closest('.wpb-orders-row');
-        var label   = row.find('.wpb-toggle');
-        var tax     = input.data('tax');
-        var enabled = input.is(':checked') ? 1 : 0;
+        var row     = input.closest(\'.wpb-orders-row\');
+        var label   = row.find(\'.wpb-toggle\');
+        var tax     = input.data(\'tax\');
+        var enabled = input.is(\':checked\') ? 1 : 0;
 
-        label.addClass('wpb-toggle-saving');
-        $.post(ajaxUrl, { action:'wpb_orders_toggle_tax', nonce:nonce, taxonomy:tax, enabled:enabled },
+        label.addClass(\'wpb-toggle-saving\');
+        $.post(ajaxUrl, { action:\'wpb_orders_toggle_tax\', nonce:nonce, taxonomy:tax, enabled:enabled },
         function(res){
-            label.removeClass('wpb-toggle-saving');
-            if (!res.success) { input.prop('checked', !enabled); alert('Errore nel salvataggio.'); return; }
+            label.removeClass(\'wpb-toggle-saving\');
+            if (!res.success) { input.prop(\'checked\', !enabled); alert(\'Errore nel salvataggio.\'); return; }
 
-            var reorderBlock = row.find('.wpb-orders-tax-reorder');
+            var reorderBlock = row.find(\'.wpb-orders-tax-reorder\');
             if (enabled) {
                 reorderBlock.slideDown(200);
-                loadTermsInline(tax, reorderBlock.find('.wpb-tax-inline-list'));
+                loadTermsInline(tax, reorderBlock.find(\'.wpb-tax-inline-list\'));
             } else {
                 reorderBlock.slideUp(200);
             }
@@ -439,68 +439,67 @@ jQuery(function($){
 
     // Carica termini nel blocco inline
     function loadTermsInline(taxonomy, wrap) {
-        wrap.html('<div class="wpb-orders-loading">Caricamento...</div>');
-        $.post(ajaxUrl, { action:'wpb_orders_get_terms', nonce:nonce, taxonomy:taxonomy },
+        wrap.html(\'<div class="wpb-orders-loading">Caricamento...</div>\');
+        $.post(ajaxUrl, { action:\'wpb_orders_get_terms\', nonce:nonce, taxonomy:taxonomy },
         function(res){
-            if (!res.success) { wrap.html('<div class="wpb-orders-empty">Errore.</div>'); return; }
+            if (!res.success) { wrap.html(\'<div class="wpb-orders-empty">Errore.</div>\'); return; }
             var items = res.data;
-            if (!items.length) { wrap.html('<div class="wpb-orders-empty">Nessun termine.</div>'); return; }
+            if (!items.length) { wrap.html(\'<div class="wpb-orders-empty">Nessun termine.</div>\'); return; }
 
-            var html = '<ul class="wpb-orders-list wpb-tax-sortable" data-tax="' + taxonomy + '">';
+            var html = \'<ul class="wpb-orders-list wpb-tax-sortable" data-tax="\' + taxonomy + \'">\';
             $.each(items, function(i, item){
-                html += '<li class="wpb-orders-item" data-id="' + item.id + '">';
-                html += '<span class="wpb-orders-handle dashicons dashicons-menu"></span>';
-                html += '<span class="wpb-orders-item-title">' + $('<div>').text(item.name).html() + '</span>';
-                html += '<span class="wpb-orders-item-meta">' + item.count + ' elem.</span>';
-                html += '</li>';
+                html += \'<li class="wpb-orders-item" data-id="\' + item.id + \'">\';
+                html += \'<span class="wpb-orders-handle dashicons dashicons-menu"></span>\';
+                html += \'<span class="wpb-orders-item-title">\' + $(\'<div>\').text(item.name).html() + \'</span>\';
+                html += \'<span class="wpb-orders-item-meta">\' + item.count + \' elem.</span>\';
+                html += \'</li>\';
             });
-            html += '</ul>';
-            html += '<div class="wpb-orders-actions">';
-            html += '<button class="button button-primary wpb-save-terms-inline">Salva ordine</button>';
-            html += '<span class="wpb-orders-saved-badge wpb-terms-inline-saved"><span class="dashicons dashicons-yes" style="color:#00a32a;font-size:16px;width:16px;height:16px;"></span> Ordine salvato</span>';
-            html += '</div>';
+            html += \'</ul>\';
+            html += \'<div class="wpb-orders-actions">\';
+            html += \'<button class="button button-primary wpb-save-terms-inline">Salva ordine</button>\';
+            html += \'<span class="wpb-orders-saved-badge wpb-terms-inline-saved"><span class="dashicons dashicons-yes" style="color:#00a32a;font-size:16px;width:16px;height:16px;"></span> Ordine salvato</span>\';
+            html += \'</div>\';
             wrap.html(html);
 
-            wrap.find('.wpb-tax-sortable').sortable({
-                handle:      '.wpb-orders-handle',
-                placeholder: 'wpb-orders-item wpb-orders-placeholder',
-                axis:        'y',
-                tolerance:   'pointer'
+            wrap.find(\'.wpb-tax-sortable\').sortable({
+                handle:      \'.wpb-orders-handle\',
+                placeholder: \'wpb-orders-item wpb-orders-placeholder\',
+                axis:        \'y\',
+                tolerance:   \'pointer\'
             });
         });
     }
 
     // Salva termini inline (pagina config tassonomie)
-    $(document).on('click', '.wpb-save-terms-inline', function(){
+    $(document).on(\'click\', \'.wpb-save-terms-inline\', function(){
         var btn      = $(this);
-        var actionsDiv = btn.closest('.wpb-orders-actions');
-        var sortable = btn.closest('.wpb-orders-tax-reorder').find('.wpb-tax-sortable');
-        var taxonomy = sortable.data('tax');
+        var actionsDiv = btn.closest(\'.wpb-orders-actions\');
+        var sortable = btn.closest(\'.wpb-orders-tax-reorder\').find(\'.wpb-tax-sortable\');
+        var taxonomy = sortable.data(\'tax\');
         var items    = [];
-        sortable.find('.wpb-orders-item').each(function(i){ items.push($(this).data('id')); });
+        sortable.find(\'.wpb-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
         if (!items.length) return;
 
-        btn.prop('disabled', true).text('Salvataggio...');
-        $.post(ajaxUrl, { action:'wpb_orders_save_terms', nonce:nonce, taxonomy:taxonomy, items:items },
+        btn.prop(\'disabled\', true).text(\'Salvataggio...\');
+        $.post(ajaxUrl, { action:\'wpb_orders_save_terms\', nonce:nonce, taxonomy:taxonomy, items:items },
         function(res){
-            btn.prop('disabled', false).text('Salva ordine');
+            btn.prop(\'disabled\', false).text(\'Salva ordine\');
             if (res.success) {
-                var badge = actionsDiv.find('.wpb-terms-inline-saved');
-                badge.addClass('show');
-                setTimeout(function(){ badge.removeClass('show'); }, 2500);
+                var badge = actionsDiv.find(\'.wpb-terms-inline-saved\');
+                badge.addClass(\'show\');
+                setTimeout(function(){ badge.removeClass(\'show\'); }, 2500);
             }
         });
     });
 
-    // Inizializza i blocchi tassonomia già abilitati all'apertura
-    $('.wpb-tax-toggle:checked').each(function(){
-        var tax  = $(this).data('tax');
-        var wrap = $(this).closest('.wpb-orders-row').find('.wpb-orders-tax-reorder');
+    // Inizializza i blocchi tassonomia già abilitati all\'apertura
+    $(\'.wpb-tax-toggle:checked\').each(function(){
+        var tax  = $(this).data(\'tax\');
+        var wrap = $(this).closest(\'.wpb-orders-row\').find(\'.wpb-orders-tax-reorder\');
         wrap.show();
-        loadTermsInline(tax, wrap.find('.wpb-tax-inline-list'));
+        loadTermsInline(tax, wrap.find(\'.wpb-tax-inline-list\'));
     });
-});
-JS;
+});';
 }
 
 /* ─────────────────────────────────────────
@@ -511,128 +510,126 @@ function wpb_orders_sortable_js(): string
     $nonce = wp_create_nonce('wpb_orders_nonce');
     $ajax_url = esc_url(admin_url('admin-ajax.php'));
 
-    return <<<JS
-jQuery(function($){
-    var ajaxUrl = '{$ajax_url}';
-    var nonce   = '{$nonce}';
+    return 'jQuery(function($){
+    var ajaxUrl = \'' . $ajax_url . '\';
+    var nonce   = \'' . $nonce . '\';
 
     // ── Carica post ────────────────────────────────────────
     function loadPosts(postType) {
-        var wrap = $('#wpb-reorder-list');
-        wrap.html('<div class="wpb-orders-loading">Caricamento...</div>');
+        var wrap = $(\'#wpb-reorder-list\');
+        wrap.html(\'<div class="wpb-orders-loading">Caricamento...</div>\');
 
-        $.post(ajaxUrl, { action:'wpb_orders_get_posts', nonce:nonce, post_type:postType },
+        $.post(ajaxUrl, { action:\'wpb_orders_get_posts\', nonce:nonce, post_type:postType },
         function(res){
-            if (!res.success) { wrap.html('<div class="wpb-orders-empty">Errore nel caricamento.</div>'); return; }
+            if (!res.success) { wrap.html(\'<div class="wpb-orders-empty">Errore nel caricamento.</div>\'); return; }
             var items = res.data;
-            if (!items.length) { wrap.html('<div class="wpb-orders-empty">Nessun post trovato.</div>'); return; }
+            if (!items.length) { wrap.html(\'<div class="wpb-orders-empty">Nessun post trovato.</div>\'); return; }
 
-            var html = '<ul class="wpb-orders-list" id="wpb-sortable-posts">';
+            var html = \'<ul class="wpb-orders-list" id="wpb-sortable-posts">\';
             $.each(items, function(i, item){
-                var statusLabel = item.status === 'publish' ? 'Pubblicato' : (item.status === 'draft' ? 'Bozza' : item.status);
-                html += '<li class="wpb-orders-item" data-id="' + item.id + '">';
-                html += '<span class="wpb-orders-handle dashicons dashicons-menu"></span>';
-                html += '<span class="wpb-orders-item-title">' + $('<div>').text(item.title).html() + '</span>';
-                html += '<span class="wpb-orders-item-meta"><span class="wpb-orders-status ' + item.status + '">' + statusLabel + '</span></span>';
-                html += '</li>';
+                var statusLabel = item.status === \'publish\' ? \'Pubblicato\' : (item.status === \'draft\' ? \'Bozza\' : item.status);
+                html += \'<li class="wpb-orders-item" data-id="\' + item.id + \'">\';
+                html += \'<span class="wpb-orders-handle dashicons dashicons-menu"></span>\';
+                html += \'<span class="wpb-orders-item-title">\' + $(\'<div>\').text(item.title).html() + \'</span>\';
+                html += \'<span class="wpb-orders-item-meta"><span class="wpb-orders-status \' + item.status + \'">\' + statusLabel + \'</span></span>\';
+                html += \'</li>\';
             });
-            html += '</ul>';
+            html += \'</ul>\';
             wrap.html(html);
 
-            $('#wpb-sortable-posts').sortable({
-                handle:      '.wpb-orders-handle',
-                placeholder: 'wpb-orders-item wpb-orders-placeholder',
-                axis:        'y',
-                tolerance:   'pointer'
+            $(\'#wpb-sortable-posts\').sortable({
+                handle:      \'.wpb-orders-handle\',
+                placeholder: \'wpb-orders-item wpb-orders-placeholder\',
+                axis:        \'y\',
+                tolerance:   \'pointer\'
             });
         });
     }
 
     // ── Carica termini ─────────────────────────────────────
     function loadTerms(taxonomy) {
-        var wrap = $('#wpb-reorder-list');
-        wrap.html('<div class="wpb-orders-loading">Caricamento...</div>');
+        var wrap = $(\'#wpb-reorder-list\');
+        wrap.html(\'<div class="wpb-orders-loading">Caricamento...</div>\');
 
-        $.post(ajaxUrl, { action:'wpb_orders_get_terms', nonce:nonce, taxonomy:taxonomy },
+        $.post(ajaxUrl, { action:\'wpb_orders_get_terms\', nonce:nonce, taxonomy:taxonomy },
         function(res){
-            if (!res.success) { wrap.html('<div class="wpb-orders-empty">Errore nel caricamento.</div>'); return; }
+            if (!res.success) { wrap.html(\'<div class="wpb-orders-empty">Errore nel caricamento.</div>\'); return; }
             var items = res.data;
-            if (!items.length) { wrap.html('<div class="wpb-orders-empty">Nessun termine trovato.</div>'); return; }
+            if (!items.length) { wrap.html(\'<div class="wpb-orders-empty">Nessun termine trovato.</div>\'); return; }
 
-            var html = '<ul class="wpb-orders-list" id="wpb-sortable-terms">';
+            var html = \'<ul class="wpb-orders-list" id="wpb-sortable-terms">\';
             $.each(items, function(i, item){
-                html += '<li class="wpb-orders-item" data-id="' + item.id + '">';
-                html += '<span class="wpb-orders-handle dashicons dashicons-menu"></span>';
-                html += '<span class="wpb-orders-item-title">' + $('<div>').text(item.name).html() + '</span>';
-                html += '<span class="wpb-orders-item-meta">' + item.count + ' elementi</span>';
-                html += '</li>';
+                html += \'<li class="wpb-orders-item" data-id="\' + item.id + \'">\';
+                html += \'<span class="wpb-orders-handle dashicons dashicons-menu"></span>\';
+                html += \'<span class="wpb-orders-item-title">\' + $(\'<div>\').text(item.name).html() + \'</span>\';
+                html += \'<span class="wpb-orders-item-meta">\' + item.count + \' elementi</span>\';
+                html += \'</li>\';
             });
-            html += '</ul>';
+            html += \'</ul>\';
             wrap.html(html);
 
-            $('#wpb-sortable-terms').sortable({
-                handle:      '.wpb-orders-handle',
-                placeholder: 'wpb-orders-item wpb-orders-placeholder',
-                axis:        'y',
-                tolerance:   'pointer'
+            $(\'#wpb-sortable-terms\').sortable({
+                handle:      \'.wpb-orders-handle\',
+                placeholder: \'wpb-orders-item wpb-orders-placeholder\',
+                axis:        \'y\',
+                tolerance:   \'pointer\'
             });
         });
     }
 
     // ── Caricamento iniziale ───────────────────────────────
-    var initPt  = $('#wpb-reorder-post-type').val();
-    var initTax = $('#wpb-reorder-taxonomy').val();
+    var initPt  = $(\'#wpb-reorder-post-type\').val();
+    var initTax = $(\'#wpb-reorder-taxonomy\').val();
     if (initPt)  loadPosts(initPt);
     if (initTax) loadTerms(initTax);
 
     // ── Cambio select tassonomia ───────────────────────────
-    $(document).on('change', '#wpb-reorder-taxonomy', function(){
+    $(document).on(\'change\', \'#wpb-reorder-taxonomy\', function(){
         var val = $(this).val();
         if (val) loadTerms(val);
-        else $('#wpb-reorder-list').html('');
+        else $(\'#wpb-reorder-list\').html(\'\');
     });
 
     // ── Salva ordine post ──────────────────────────────────
-    $(document).on('click', '#wpb-save-posts', function(){
+    $(document).on(\'click\', \'#wpb-save-posts\', function(){
         var btn      = $(this);
-        var postType = $('#wpb-reorder-post-type').val();
+        var postType = $(\'#wpb-reorder-post-type\').val();
         var items    = [];
-        $('#wpb-sortable-posts .wpb-orders-item').each(function(i){ items.push($(this).data('id')); });
+        $(\'#wpb-sortable-posts .wpb-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
         if (!items.length || !postType) return;
 
-        btn.prop('disabled', true).text('Salvataggio...');
-        $.post(ajaxUrl, { action:'wpb_orders_save_posts', nonce:nonce, post_type:postType, items:items },
+        btn.prop(\'disabled\', true).text(\'Salvataggio...\');
+        $.post(ajaxUrl, { action:\'wpb_orders_save_posts\', nonce:nonce, post_type:postType, items:items },
         function(res){
-            btn.prop('disabled', false).text('Salva ordine');
+            btn.prop(\'disabled\', false).text(\'Salva ordine\');
             if (res.success) {
-                var badge = $('#wpb-posts-saved');
-                badge.addClass('show');
-                setTimeout(function(){ badge.removeClass('show'); }, 2500);
+                var badge = $(\'#wpb-posts-saved\');
+                badge.addClass(\'show\');
+                setTimeout(function(){ badge.removeClass(\'show\'); }, 2500);
             }
         });
     });
 
     // ── Salva ordine termini ───────────────────────────────
-    $(document).on('click', '#wpb-save-terms', function(){
+    $(document).on(\'click\', \'#wpb-save-terms\', function(){
         var btn      = $(this);
-        var taxonomy = $('#wpb-reorder-taxonomy').val();
+        var taxonomy = $(\'#wpb-reorder-taxonomy\').val();
         var items    = [];
-        $('#wpb-sortable-terms .wpb-orders-item').each(function(i){ items.push($(this).data('id')); });
+        $(\'#wpb-sortable-terms .wpb-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
         if (!items.length || !taxonomy) return;
 
-        btn.prop('disabled', true).text('Salvataggio...');
-        $.post(ajaxUrl, { action:'wpb_orders_save_terms', nonce:nonce, taxonomy:taxonomy, items:items },
+        btn.prop(\'disabled\', true).text(\'Salvataggio...\');
+        $.post(ajaxUrl, { action:\'wpb_orders_save_terms\', nonce:nonce, taxonomy:taxonomy, items:items },
         function(res){
-            btn.prop('disabled', false).text('Salva ordine');
+            btn.prop(\'disabled\', false).text(\'Salva ordine\');
             if (res.success) {
-                var badge = $('#wpb-terms-saved');
-                badge.addClass('show');
-                setTimeout(function(){ badge.removeClass('show'); }, 2500);
+                var badge = $(\'#wpb-terms-saved\');
+                badge.addClass(\'show\');
+                setTimeout(function(){ badge.removeClass(\'show\'); }, 2500);
             }
         });
     });
-});
-JS;
+});';
 }
 
 /* ─────────────────────────────────────────

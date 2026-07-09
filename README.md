@@ -1,170 +1,187 @@
-# WP Barrio
+=== Suite Barrio ===
+Contributors: hellobarrio
+Requires at least: 6.0
+Tested up to: 7.0
+Requires PHP: 8.0
+Stable tag: 7.8.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Suite di strumenti per WordPress sviluppata da **HelloBarrio**. Il plugin raccoglie tre moduli indipendenti pensati per velocizzare il workflow di sviluppo di siti headless WordPress + Next.js.
+AI-powered toolkit for WordPress: automatic image alt text, drag-and-drop forms, SEO tools, cookie consent, popups and banners.
 
-- **Auto Alt** — Genera automaticamente alt text e title delle immagini con AI
-- **Forms** — Builder drag & drop per form di contatto, con supporto GraphQL
-- **Auto Fields** — Crea gruppi di campi ACF e query GraphQL partendo dall'HTML di una pagina
+== Description ==
 
----
-
-## Requisiti
-
-| Requisito | Versione minima |
-| --------- | --------------- |
-| WordPress | 6.0             |
-| PHP       | 8.0             |
-
-### Dipendenze opzionali
-
-| Plugin                                                                | Richiesto da                |
-| --------------------------------------------------------------------- | --------------------------- |
-| [WPGraphQL](https://www.wpgraphql.com/)                               | Forms (esposizione GraphQL) |
-| [Advanced Custom Fields (ACF)](https://www.advancedcustomfields.com/) | Auto Fields                 |
+Suite Barrio is a suite of independent tools for WordPress developed by HelloBarrio, built to speed up the development workflow of headless WordPress + Next.js websites. It includes AI-generated image alt text, a drag-and-drop contact form builder with GraphQL support, an ACF field group generator, SEO utilities, a cookie consent banner, popups, banners, and more.
 
 ---
 
-## Installazione
+# Suite Barrio
 
-1. Copia la cartella `wp-barrio` nella directory `wp-content/plugins/` del tuo WordPress.
-2. Attiva il plugin dalla pagina **Plugin** dell'admin.
-3. Accedi alla voce **WP Barrio** nel menu laterale per configurare i moduli.
+A suite of WordPress tools developed by **HelloBarrio**. This plugin bundles three independent modules designed to streamline the development workflow for headless WordPress + Next.js websites.
+
+- **Auto Alt** — Automatically generates image alt text and titles using AI.
+- **Forms** — A drag-and-drop contact form builder with full GraphQL support.
+- **Auto Fields** — Automatically creates ACF field groups and GraphQL queries directly from a page's HTML structure.
 
 ---
 
-## Moduli
+## Requirements
+
+| Requirement | Minimum Version |
+| ----------- | --------------- |
+| WordPress   | 6.0             |
+| PHP         | 8.0             |
+
+### Optional Dependencies
+
+| Plugin                                                                | Required By                  |
+| --------------------------------------------------------------------- | ---------------------------- |
+| [WPGraphQL](https://www.wpgraphql.com/)                               | Forms (GraphQL exposition)   |
+| [Advanced Custom Fields (ACF)](https://www.advancedcustomfields.com/) | Auto Fields                  |
+
+---
+
+## Installation
+
+1. Copy the `wp-barrio` folder into your WordPress installation's `wp-content/plugins/` directory.
+2. Activate the plugin via the **Plugins** page in the WordPress admin dashboard.
+3. Access the **Suite Barrio** item in the sidebar menu to configure the modules.
+
+---
+
+## Modules
 
 ### 1. Auto Alt
 
-Genera automaticamente **alt text** e **title** delle immagini caricate nella Libreria Media, sfruttando modelli AI vision.
+Automatically generates **alt text** and **titles** for images uploaded to the Media Library by leveraging AI vision models.
 
-#### Provider supportati
+#### Supported Providers
 
-| Provider             | Modelli                            |
+| Provider             | Models                             |
 | -------------------- | ---------------------------------- |
-| **Google Gemini**    | Modelli Gemini con supporto vision |
-| **Anthropic Claude** | Modelli Claude con supporto vision |
+| **Google Gemini**    | Gemini models with vision support  |
+| **Anthropic Claude** | Claude models with vision support  |
 
-#### Funzionalità
+#### Features
 
-- **Auto-generazione all'upload**: quando attivata, ogni nuova immagine caricata riceve automaticamente alt e title generati dall'AI.
-- **Elaborazione in batch**: processa in background le immagini già presenti nella libreria che hanno alt o title mancanti, a lotti di 5 alla volta tramite WP Cron.
-- **Revisione manuale**: interfaccia admin per visualizzare e modificare gli alt/title generati prima della pubblicazione.
-- **Personalizzazione del prompt**: tono (neutro, professionale, amichevole, tecnico, creativo, SEO), stile (descrittivo, contestuale, evocativo, giornalistico), contesto del sito e parole chiave opzionali.
-- **Multilingua**: supporto per italiano, inglese, spagnolo, francese e tedesco.
-- **Log attività**: registro delle ultime 200 operazioni (successi, errori, modifiche manuali).
+- **Auto-generation on upload**: When enabled, every newly uploaded image automatically receives an AI-generated alt text and title.
+- **Batch processing**: Automatically processes existing images in the library that have missing alt or title texts in the background (runs in batches of 5 via WP Cron).
+- **Manual review**: An admin interface allows you to view and modify the AI-generated alt/title texts before saving.
+- **Prompt customization**: Fine-tune the tone (neutral, professional, friendly, technical, creative, SEO), style (descriptive, contextual, evocative, journalistic), site context, and optional keywords.
+- **Multilingual**: Supports English, Italian, Spanish, French, and German.
+- **Activity log**: Keeps a record of the last 200 operations (successes, errors, manual edits).
 
-#### Configurazione
+#### Configuration
 
-Dalla pagina **WP Barrio → Auto Alt → Impostazioni**:
+Navigate to **Suite Barrio → Auto Alt → Settings**:
 
-1. Seleziona il provider AI (Gemini o Anthropic).
-2. Inserisci la chiave API del provider scelto.
-3. Scegli il modello da utilizzare.
-4. Configura tono, stile e lingua.
-5. (Opzionale) Attiva l'auto-generazione all'upload.
+1. Select your AI provider (Gemini or Anthropic).
+2. Enter the API key for the chosen provider.
+3. Select the model you want to use.
+4. Configure the tone, style, and language.
+5. (Optional) Activate auto-generation on upload.
 
 ---
 
 ### 2. Forms
 
-Builder drag & drop per creare **form di contatto** personalizzati, salvare le submission e opzionalmente esporre tutto via **WPGraphQL** per il frontend headless.
+A drag-and-drop builder to create custom **contact forms**, save submissions, and optionally expose everything via **WPGraphQL** for headless frontends.
 
-#### Tipi di campo supportati
+#### Supported Field Types
 
 `text`, `email`, `textarea`, `tel`, `number`, `datepicker`, `select`, `radio`, `checkbox`, `file`
 
-#### Funzionalità
+#### Features
 
-- **Builder visuale**: crea e modifica form con drag & drop direttamente dal pannello admin.
-- **Shortcode**: inserisci qualsiasi form nelle pagine WP con `[wpb_form id="X"]`.
-- **Submission**: le risposte vengono salvate nel database con IP, user agent e timestamp. Consultabili dalla pagina admin del form.
-- **Logica condizionale**: mostra/nascondi campi in base al valore di altri campi, con operatori (`=`, `!=`, `contains`, `empty`, `notempty`) e relazioni (`AND`/`OR`).
-- **Comportamento post-invio**: messaggio di successo personalizzato oppure redirect a URL.
-- **Info pagina**: opzione per registrare URL, titolo e referrer della pagina in cui il form è stato compilato.
+- **Visual builder**: Create and edit forms seamlessly with drag-and-drop mechanics inside the admin panel.
+- **Shortcode**: Insert any form into your WP pages using `[wpb_form id="X"]`.
+- **Submissions**: Form entries are saved securely in the database along with the user's IP, user agent, and timestamp. These can be reviewed from the form's admin page.
+- **Conditional logic**: Show or hide fields dynamically based on other field values using operators (`=`, `!=`, `contains`, `empty`, `notempty`) and logical relations (`AND`/`OR`).
+- **Post-submission behavior**: Display a custom success message or redirect users to a specific URL.
+- **Page insights**: Optional feature to track the URL, page title, and referrer of the page where the form was submitted.
 
-#### GraphQL (richiede WPGraphQL)
+#### GraphQL (Requires WPGraphQL)
 
-Quando WPGraphQL è attivo, il modulo registra automaticamente:
+When WPGraphQL is active, the module automatically registers:
 
-**Query**
+**Queries**
 
-- `hbForm(id: Int)` → restituisce un form completo (campi, impostazioni, validazioni)
-- `hbForms` → lista di tutti i form
+- `hbForm(id: Int)` → Returns a complete form structure (fields, settings, validations)
+- `hbForms` → Returns a list of all available forms
 
-**Mutation**
+**Mutations**
 
-- `hbSubmitForm(input: { formId, fields, pageUrl?, pageTitle?, pageReferrer? })` → invia una submission
+- `hbSubmitForm(input: { formId, fields, pageUrl?, pageTitle?, pageReferrer? })` → Handles form submissions
 
-#### CORS per frontend headless
+#### CORS for Headless Frontends
 
-Per permettere mutation GraphQL da un dominio esterno (es. Next.js), definisci in `wp-config.php`:
+To allow GraphQL mutations from an external domain (e.g., Next.js), define the following in your `wp-config.php`:
 
 ```php
-define('WPB_GRAPHQL_ALLOWED_ORIGINS', 'https://www.miosito.it,https://staging.miosito.it');
+define('WPB_GRAPHQL_ALLOWED_ORIGINS', 'https://www.mysite.com,https://staging.mysite.com');
 ```
 
 ---
 
 ### 3. Auto Fields
 
-Analizza la struttura HTML di una pagina web (tramite URL) e genera automaticamente una **bozza di gruppo campi ACF** con la relativa **query GraphQL** pronta all'uso.
+Analyzes the HTML structure of a web page (via URL) and automatically generates an **ACF field group draft** alongside its corresponding, ready-to-use **GraphQL query**.
 
-#### Come funziona
+#### How it works
 
-1. Inserisci l'URL di una pagina (es. un mockup statico o un sito di riferimento).
-2. Il parser HTML analizza la struttura DOM ed estrae le sezioni (`<section>`) e i contenuti al loro interno.
-3. Viene mostrata un'anteprima dei campi rilevati, organizzati per sezione.
-4. Conferma il nome del gruppo e la location rule (post type, pagina, template).
-5. Il modulo crea il gruppo di campi ACF tramite `acf_import_field_group()` e genera la query GraphQL corrispondente.
+1. Enter the URL of a page (e.g., a static mockup or a reference website).
+2. The HTML parser analyzes the DOM structure, extracting sections (`<section>`) and the content within them.
+3. A live preview of the detected fields, organized by section, is presented.
+4. Confirm the group name and location rules (post type, page, template).
+5. The module creates the ACF field group programmatically via `acf_import_field_group()` and generates the matching GraphQL query.
 
-#### Elementi rilevati dal parser
+#### Elements Detected by the Parser
 
-| Elemento HTML                    | Tipo campo ACF generato |
-| -------------------------------- | ----------------------- |
-| `<h1>`–`<h6>`                    | Text                    |
-| `<p>` (breve)                    | Text                    |
-| `<p>` (lungo, >200 caratteri)    | Textarea                |
-| `<p>` con formattazione inline   | WYSIWYG                 |
-| `<img>`, `<picture>`, `<figure>` | Image                   |
-| `<figcaption>`                   | Text                    |
-| `<blockquote>`                   | Textarea                |
-| `<video>`                        | URL / File              |
-| `<ul>`, `<ol>` con >3 voci       | Repeater                |
-| `<a>` (link)                     | Link / URL              |
+| HTML Element                     | Generated ACF Field Type |
+| -------------------------------- | ------------------------ |
+| `<h1>`–`<h6>`                    | Text                     |
+| `<p>` (short)                    | Text                     |
+| `<p>` (long, >200 characters)    | Textarea                 |
+| `<p>` with inline formatting     | WYSIWYG                  |
+| `<img>`, `<picture>`, `<figure>` | Image                    |
+| `<figcaption>`                   | Text                     |
+| `<blockquote>`                   | Textarea                 |
+| `<video>`                        | URL / File               |
+| `<ul>`, `<ol>` with >3 items     | Repeater                 |
+| `<a>` (link)                     | Link / URL               |
 
-#### Requisiti
+#### Requirements
 
-- **ACF** deve essere installato e attivo per la generazione dei gruppi di campi.
+- **ACF** must be installed and active to handle field group generation.
 
 ---
 
-## Struttura del plugin
+## Plugin Structure
 
 ```
 wp-barrio/
-├── wp-barrio.php                    # Entry point, costanti globali, caricamento moduli
+├── wp-barrio.php                    # Entry point, global constants, module loader
 ├── modules/
 │   ├── dashboard/
-│   │   └── dashboard.php            # Dashboard principale con card dei moduli
+│   │   └── dashboard.php            # Main dashboard featuring module overview cards
 │   ├── auto-alt/
-│   │   └── auto-alt.php             # Logica Auto Alt (API AI, batch, log)
+│   │   └── auto-alt.php             # Auto Alt logic (AI APIs, batching, logging)
 │   ├── auto-fields/
-│   │   └── auto-fields.php          # Parser HTML e generazione ACF + GraphQL
+│   │   └── auto-fields.php          # HTML parser and ACF + GraphQL generation
 │   └── forms/
-│       ├── forms.php                # Builder form, shortcode, submission
-│       └── graphql.php              # Schema WPGraphQL per i form
+│       ├── forms.php                # Form builder, shortcodes, and submissions
+│       └── graphql.php              # WPGraphQL schema integration for forms
 └── README.md
 ```
 
 ---
 
-## Autore
+## Author
 
-Sviluppato da **[HelloBarrio](https://www.hellobarrio.com/)**.
+Developed by **[HelloBarrio](https://www.hellobarrio.com/)**.
 
 ---
 
-## Licenza
+## License
 
-Uso interno — tutti i diritti riservati.
+GPLv2 or later — https://www.gnu.org/licenses/gpl-2.0.html

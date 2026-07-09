@@ -37,6 +37,7 @@ add_action('admin_head', function () {
 });
 
 add_filter('submenu_file', function ($submenu_file) {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-schema')
         return 'wp-barrio-seo';
     return $submenu_file;
@@ -51,34 +52,34 @@ add_action('admin_post_wpb_schema_save', function () {
     check_admin_referer('wpb_schema_save');
 
     $settings = [
-        'business_type' => sanitize_text_field($_POST['business_type'] ?? 'LocalBusiness'),
-        'business_name' => sanitize_text_field($_POST['business_name'] ?? ''),
-        'description' => sanitize_textarea_field($_POST['description'] ?? ''),
-        'url' => esc_url_raw($_POST['url'] ?? ''),
-        'logo' => esc_url_raw($_POST['logo'] ?? ''),
-        'image' => esc_url_raw($_POST['image'] ?? ''),
-        'telephone' => sanitize_text_field($_POST['telephone'] ?? ''),
-        'email' => sanitize_email($_POST['email'] ?? ''),
-        'vat_id' => sanitize_text_field($_POST['vat_id'] ?? ''),
-        'street_address' => sanitize_text_field($_POST['street_address'] ?? ''),
-        'postal_code' => sanitize_text_field($_POST['postal_code'] ?? ''),
-        'locality' => sanitize_text_field($_POST['locality'] ?? ''),
-        'region' => sanitize_text_field($_POST['region'] ?? ''),
-        'country' => sanitize_text_field($_POST['country'] ?? 'IT'),
-        'latitude' => sanitize_text_field($_POST['latitude'] ?? ''),
-        'longitude' => sanitize_text_field($_POST['longitude'] ?? ''),
-        'facebook' => esc_url_raw($_POST['facebook'] ?? ''),
-        'instagram' => esc_url_raw($_POST['instagram'] ?? ''),
-        'twitter' => esc_url_raw($_POST['twitter'] ?? ''),
-        'linkedin' => esc_url_raw($_POST['linkedin'] ?? ''),
-        'language' => sanitize_text_field($_POST['language'] ?? 'it-IT'),
+        'business_type' => sanitize_text_field(wp_unslash($_POST['business_type'] ?? 'LocalBusiness')),
+        'business_name' => sanitize_text_field(wp_unslash($_POST['business_name'] ?? '')),
+        'description' => sanitize_textarea_field(wp_unslash($_POST['description'] ?? '')),
+        'url' => esc_url_raw(wp_unslash($_POST['url'] ?? '')),
+        'logo' => esc_url_raw(wp_unslash($_POST['logo'] ?? '')),
+        'image' => esc_url_raw(wp_unslash($_POST['image'] ?? '')),
+        'telephone' => sanitize_text_field(wp_unslash($_POST['telephone'] ?? '')),
+        'email' => sanitize_email(wp_unslash($_POST['email'] ?? '')),
+        'vat_id' => sanitize_text_field(wp_unslash($_POST['vat_id'] ?? '')),
+        'street_address' => sanitize_text_field(wp_unslash($_POST['street_address'] ?? '')),
+        'postal_code' => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
+        'locality' => sanitize_text_field(wp_unslash($_POST['locality'] ?? '')),
+        'region' => sanitize_text_field(wp_unslash($_POST['region'] ?? '')),
+        'country' => sanitize_text_field(wp_unslash($_POST['country'] ?? 'IT')),
+        'latitude' => sanitize_text_field(wp_unslash($_POST['latitude'] ?? '')),
+        'longitude' => sanitize_text_field(wp_unslash($_POST['longitude'] ?? '')),
+        'facebook' => esc_url_raw(wp_unslash($_POST['facebook'] ?? '')),
+        'instagram' => esc_url_raw(wp_unslash($_POST['instagram'] ?? '')),
+        'twitter' => esc_url_raw(wp_unslash($_POST['twitter'] ?? '')),
+        'linkedin' => esc_url_raw(wp_unslash($_POST['linkedin'] ?? '')),
+        'language' => sanitize_text_field(wp_unslash($_POST['language'] ?? 'it-IT')),
     ];
 
     update_option(WPB_SCHEMA_OPTION, $settings);
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
     }
-    wp_redirect(admin_url('admin.php?page=wp-barrio-schema&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-schema&saved=1'));
     exit;
 });
 
@@ -452,6 +453,7 @@ add_action('graphql_register_types', function () {
    ───────────────────────────────────────── */
 function wpb_schema_admin_page()
 {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione (notice "salvato"), nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
     $s = get_option(WPB_SCHEMA_OPTION, []);
 
@@ -684,8 +686,8 @@ function wpb_schema_admin_page()
                             'linkedin' => ['LinkedIn', 'https://www.linkedin.com/…'],
                         ] as $field => [$label, $ph]): ?>
                                 <div class="wpb-sf-row">
-                                    <div class="wpb-sf-label"><?php echo $label; ?></div>
-                                    <div class="wpb-sf-input"><input type="url" name="<?php echo $field; ?>"
+                                    <div class="wpb-sf-label"><?php echo esc_html($label); ?></div>
+                                    <div class="wpb-sf-input"><input type="url" name="<?php echo esc_attr($field); ?>"
                                             value="<?php echo esc_attr($s[$field] ?? ''); ?>"
                                             placeholder="<?php echo esc_attr($ph); ?>"></div>
                                 </div>
@@ -711,7 +713,7 @@ function wpb_schema_admin_page()
                     htmlspecialchars($json)
                 );
                 ?>
-                <div class="wpb-schema-preview"><?php echo $json_hl; ?></div>
+                <div class="wpb-schema-preview"><?php echo wp_kses_post($json_hl); ?></div>
             </div>
         </div>
         <?php

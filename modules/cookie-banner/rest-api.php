@@ -23,6 +23,7 @@ add_action('rest_api_init', function () {
     register_rest_route($ns, '/scan', [
         'methods'             => 'POST',
         'callback'            => function (WP_REST_Request $req) {
+            // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
             if (function_exists('set_time_limit')) @set_time_limit(120);
             $results = WPB_Scanner::run();
             return isset($results['error'])
@@ -67,7 +68,7 @@ add_action('rest_api_init', function () {
 function wpb_cb_handle_consent_log(WP_REST_Request $req): WP_REST_Response {
     $params = $req->get_json_params() ?: [];
 
-    $ip_raw  = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+    $ip_raw  = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''));
     $ip_anon = WPB_Consent_Log::anonymize_ip($ip_raw);
 
     if (WPB_Consent_Log::is_throttled($ip_anon)) {
@@ -89,7 +90,7 @@ function wpb_cb_handle_consent_log(WP_REST_Request $req): WP_REST_Response {
     $categories = array_diff($categories, ['necessary']);
 
     $url = substr(sanitize_text_field($params['url'] ?? ''), 0, 2048);
-    $user_agent = substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 512);
+    $user_agent = substr(sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? '')), 0, 512);
 
     $banner_config = wpb_cb_build_frontend_config();
     $consent_text  = $banner_config['banner']['text_body'] ?? '';
@@ -116,6 +117,7 @@ function wpb_cb_engine_url(): string {
 
 /* ── Genera snippet GTM ── */
 function wpb_cb_build_gtm_snippet(string $engine_url, string $rest_base): string {
+    // phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedScript -- non è markup di pagina: è testo generato per essere copiato/incollato dall'admin in Google Tag Manager (Custom HTML Tag), un sistema esterno che richiede letteralmente il tag <script> come stringa. wp_enqueue_script() non è applicabile: non viene mai stampato in una pagina WP.
     return '<script>
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
@@ -146,6 +148,7 @@ function gtag(){dataLayer.push(arguments);}
 window.WpbRestBase = "' . esc_js($rest_base) . '";
 </script>
 <script src="' . esc_url($engine_url) . '" async></script>';
+    // phpcs:enable WordPress.WP.EnqueuedResources.NonEnqueuedScript
 }
 
 /* ── Genera HTML widget preferenze ── */
@@ -200,7 +203,7 @@ function wpb_cb_generate_preferences_html(): string {
                 <tr>
                     <td><?php echo esc_html($s['name']); ?></td>
                     <td><?php echo esc_html($s['provider']); ?></td>
-                    <td><?php echo implode(' ', array_map(fn($c) => '<code>' . esc_html($c) . '</code>', $s['cookies'])); ?></td>
+                    <td><?php echo wp_kses_post(implode(' ', array_map(fn($c) => '<code>' . esc_html($c) . '</code>', $s['cookies']))); ?></td>
                     <td><?php if (!empty($s['privacy_url'])): ?>
                         <a href="<?php echo esc_url($s['privacy_url']); ?>" target="_blank" rel="noopener noreferrer" style="color:#1A56DB;">&#x2197;</a>
                     <?php endif; ?></td>

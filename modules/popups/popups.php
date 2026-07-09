@@ -24,6 +24,7 @@ function wpb_popups_install(): void
     $charset = $wpdb->get_charset_collate();
 
     // Tabella principale popup
+    // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella/charset fissi (non input utente); creazione tabella in fase di installazione, una tantum, nessun object-cache group dedicato
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_popups` (
             id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -40,8 +41,10 @@ function wpb_popups_install(): void
             PRIMARY KEY (id)
         ) {$charset};"
     );
+    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 
     // Tabella traduzioni popup (contenuti testuali per lingua aggiuntiva)
+    // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella/charset fissi (non input utente); creazione tabella in fase di installazione, una tantum, nessun object-cache group dedicato
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_popups_translations` (
             id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -57,6 +60,7 @@ function wpb_popups_install(): void
             UNIQUE KEY popup_lang (popup_id, lang)
         ) {$charset};"
     );
+    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 }
 
 register_activation_hook(WP_ALT_AI_PLUGIN_DIR . 'wp-barrio.php', 'wpb_popups_install');
@@ -69,11 +73,14 @@ add_action('plugins_loaded', function () {
     // Migrazione v1.0: aggiunge le colonne link_title e link_target se mancano
     global $wpdb;
     $table = $wpdb->prefix . WPB_POPUPS_TABLE;
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- nome tabella fisso, non input utente; query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$table}`", 0);
     if ($columns && !in_array('link_title', $columns, true)) {
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella fisso, non input utente; aggiornamento schema in fase di installazione, una tantum, nessun object-cache group dedicato
         $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN `link_title` VARCHAR(255) NOT NULL DEFAULT '' AFTER `link`");
     }
     if ($columns && !in_array('link_target', $columns, true)) {
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella fisso, non input utente; aggiornamento schema in fase di installazione, una tantum, nessun object-cache group dedicato
         $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN `link_target` VARCHAR(10) NOT NULL DEFAULT '_self' AFTER `link_title`");
     }
 
@@ -90,6 +97,7 @@ add_action('plugins_loaded', function () {
 function wpb_popups_get_all(): array
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_results(
         "SELECT id, title, active, created_at FROM {$wpdb->prefix}wpb_popups ORDER BY id DESC"
     ) ?: [];
@@ -98,6 +106,7 @@ function wpb_popups_get_all(): array
 function wpb_popups_get(int $id): ?object
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}wpb_popups WHERE id = %d",
         $id
@@ -107,6 +116,7 @@ function wpb_popups_get(int $id): ?object
 function wpb_popups_get_active(): ?object
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row(
         "SELECT * FROM {$wpdb->prefix}wpb_popups WHERE active = 1 LIMIT 1"
     ) ?: null;
@@ -123,6 +133,7 @@ function wpb_popups_get_active(): ?object
 function wpb_popups_get_translation(int $popup_id, string $lang): ?object
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}wpb_popups_translations
          WHERE popup_id = %d AND lang = %s",
@@ -153,8 +164,10 @@ function wpb_popups_save_translation(int $popup_id, string $lang, array $data): 
     $format = ['%d', '%s', '%s', '%s', '%s', '%s', '%s'];
 
     if ($existing) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->update($table, $row, ['id' => (int) $existing->id], $format, ['%d']);
     } else {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->insert($table, $row, $format);
     }
 
@@ -167,6 +180,7 @@ function wpb_popups_save_translation(int $popup_id, string $lang, array $data): 
 function wpb_popups_delete_translations(int $popup_id): void
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete(
         $wpdb->prefix . WPB_POPUPS_TRANS_TABLE,
         ['popup_id' => $popup_id],
@@ -533,8 +547,9 @@ add_action('wp_ajax_wpb_popups_save', function () {
     $content = wp_kses_post(wp_unslash($_POST['content'] ?? ''));
     $link = sanitize_url(wp_unslash($_POST['link'] ?? ''));
     $link_title = sanitize_text_field(wp_unslash($_POST['link_title'] ?? ''));
-    $link_target = in_array($_POST['link_target'] ?? '', ['_self', '_blank'], true)
-        ? $_POST['link_target']
+    $link_target_input = sanitize_text_field(wp_unslash($_POST['link_target'] ?? ''));
+    $link_target = in_array($link_target_input, ['_self', '_blank'], true)
+        ? $link_target_input
         : '_self';
     $image_url = sanitize_url(wp_unslash($_POST['image_url'] ?? ''));
     $image_id = intval($_POST['image_id'] ?? 0);
@@ -546,10 +561,12 @@ add_action('wp_ajax_wpb_popups_save', function () {
     $format = ['%s', '%s', '%s', '%s', '%s', '%s', '%d'];
 
     if ($id > 0) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->update($table, $data, ['id' => $id], $format, ['%d']);
     } else {
         $data['active'] = 0;
         $format[] = '%d';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->insert($table, $data, $format);
         $id = (int) $wpdb->insert_id;
     }
@@ -577,10 +594,12 @@ add_action('wp_ajax_wpb_popups_set_active', function () {
     $id = intval($_POST['popup_id'] ?? 0);
 
     // Disattiva tutti
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- nome tabella fisso, non input utente; query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->query("UPDATE {$table} SET active = 0");
 
     // Attiva quello richiesto (se id = 0 vuol dire "nessuno attivo")
     if ($id > 0) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $wpdb->update($table, ['active' => 1], ['id' => $id], ['%d'], ['%d']);
     }
 
@@ -606,6 +625,7 @@ add_action('wp_ajax_wpb_popups_delete', function () {
 
     // Elimina prima le traduzioni collegate
     wpb_popups_delete_translations($id);
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . WPB_POPUPS_TABLE, ['id' => $id], ['%d']);
 
     if (function_exists('invalidate_vercel_cache')) {
@@ -637,13 +657,15 @@ add_action('wp_ajax_wpb_popups_save_translation', function () {
     if (!in_array($lang, $allowed_langs, true))
         wp_send_json_error('Lingua non consentita.');
 
+    $link_target_input = sanitize_text_field(wp_unslash($_POST['link_target'] ?? ''));
+
     $data = [
         'title' => sanitize_text_field(wp_unslash($_POST['title'] ?? '')),
         'content' => wp_kses_post(wp_unslash($_POST['content'] ?? '')),
         'link' => sanitize_url(wp_unslash($_POST['link'] ?? '')),
         'link_title' => sanitize_text_field(wp_unslash($_POST['link_title'] ?? '')),
-        'link_target' => in_array($_POST['link_target'] ?? '', ['_self', '_blank'], true)
-            ? $_POST['link_target'] : '_self',
+        'link_target' => in_array($link_target_input, ['_self', '_blank'], true)
+            ? $link_target_input : '_self',
     ];
 
     if ($data['title'] === '')
@@ -754,6 +776,7 @@ function wpb_popups_admin_page(): void
     $active = wpb_popups_get_active();
     $active_id = $active ? (int) $active->id : 0;
     $popup_limit = (int) get_option('wpb_popups_limit', 1);
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $list_tab = isset($_GET['list_tab']) ? sanitize_key($_GET['list_tab']) : 'popups';
 
     $ml_enabled = wpb_multilang_is_enabled();
@@ -762,8 +785,10 @@ function wpb_popups_admin_page(): void
     $ml_languages = wpb_multilang_languages_with_flags();
     $ml_active = $ml_enabled && !empty($ml_trans);
 
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $edit_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
     $editing = $edit_id ? wpb_popups_get($edit_id) : null;
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $qs_lang = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
     ?>
     <div id="wpb-popups-wrap" class="wrap wpb-wrap">
@@ -778,8 +803,11 @@ function wpb_popups_admin_page(): void
         </div>
         <hr class="wpb-pop-divider">
 
-        <?php if ($editing || (isset($_GET['edit_id']) && $_GET['edit_id'] === 'new')):
-            $is_new = ($_GET['edit_id'] ?? '') === 'new';
+        <?php
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+        if ($editing || (isset($_GET['edit_id']) && $_GET['edit_id'] === 'new')):
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Recommended -- confronto con stringa fissa 'new', sanitizzare rischierebbe di alterare il match; lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+            $is_new = wp_unslash($_GET['edit_id'] ?? '') === 'new';
             $popup = $is_new ? null : $editing;
             ?>
 

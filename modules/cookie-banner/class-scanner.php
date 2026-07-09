@@ -160,7 +160,7 @@ class WPB_Scanner {
             if ($scanned >= self::MAX_PAGES) break;
 
             $page_result = self::scan_page($url);
-            $path        = parse_url($url, PHP_URL_PATH) ?: '/';
+            $path        = wp_parse_url($url, PHP_URL_PATH) ?: '/';
 
             foreach ($page_result['providers'] as $pattern => $match) {
                 if (!isset($found[$pattern])) {

@@ -59,7 +59,7 @@ if (!defined('ABSPATH')) exit;
             <?php if ('' !== $link): ?>
                 <a class="wpb-popup__cta"
                    href="<?php echo esc_url($link); ?>"
-                   target="<?php echo esc_attr($link_target); ?>"<?php echo $rel; ?>>
+                   target="<?php echo esc_attr($link_target); ?>"<?php echo wp_kses_post($rel); ?>>
                     <?php echo esc_html('' !== $link_title ? $link_title : __('Scopri di più', 'wp-barrio')); ?>
                 </a>
             <?php endif; ?>

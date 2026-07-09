@@ -35,6 +35,7 @@ add_action('admin_head', function () {
 });
 
 add_filter('submenu_file', function ($submenu_file) {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-sitemap')
         return 'wp-barrio-seo';
     return $submenu_file;
@@ -65,7 +66,7 @@ add_action('admin_post_wpb_sitemap_save', function () {
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
     }
-    wp_redirect(admin_url('admin.php?page=wp-barrio-sitemap&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-sitemap&saved=1'));
     exit;
 });
 
@@ -259,6 +260,7 @@ function wpb_sitemap_build_entries()
    ───────────────────────────────────────── */
 function wpb_sitemap_admin_page()
 {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione (notice "salvato"), nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
     $settings = get_option(WPB_SITEMAP_OPTION, []);
     $content = get_option(WPB_META_CONTENT_OPTION, []);
@@ -277,7 +279,7 @@ function wpb_sitemap_admin_page()
                 <div>
                     <h1>WP Barrio <span class="wpb-sm-breadcrumb">/ SEO / Sitemap</span></h1>
                     <p class="wpb-sm-sub">Configura quali contenuti includere nella sitemap XML<?php if ($total_url > 0): ?>
-                            &mdash; <strong><?php echo $total_url; ?> URL</strong> totali<?php endif; ?></p>
+                            &mdash; <strong><?php echo esc_html($total_url); ?> URL</strong> totali<?php endif; ?></p>
                 </div>
             </div>
             <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-seo')); ?>"
@@ -318,7 +320,7 @@ function wpb_sitemap_admin_page()
                                     $pt_on++;
                             }
                             ?>
-                            <span class="wpb-panel-header-count"><?php echo $pt_on; ?> /
+                            <span class="wpb-panel-header-count"><?php echo esc_html($pt_on); ?> /
                                 <?php echo count($post_types); ?></span>
                         </div>
                         <?php foreach ($post_types as $pt_obj):
@@ -366,7 +368,7 @@ function wpb_sitemap_admin_page()
                                     $tax_on++;
                             }
                             ?>
-                            <span class="wpb-panel-header-count"><?php echo $tax_on; ?> /
+                            <span class="wpb-panel-header-count"><?php echo esc_html($tax_on); ?> /
                                 <?php echo count($taxonomies); ?></span>
                         </div>
                         <?php foreach ($taxonomies as $tax_obj):
@@ -413,7 +415,7 @@ function wpb_sitemap_admin_page()
                     <div class="wpb-panel-header">
                         <span class="dashicons dashicons-list-view"></span>
                         <span class="wpb-panel-header-title">Anteprima sitemap</span>
-                        <span class="wpb-panel-header-count" id="wpb-preview-count"><?php echo $total_url; ?> URL</span>
+                        <span class="wpb-panel-header-count" id="wpb-preview-count"><?php echo esc_html($total_url); ?> URL</span>
                     </div>
                     <div class="wpb-sitemap-entries" id="wpb-sitemap-entries">
                         <?php if (empty($entries)): ?>

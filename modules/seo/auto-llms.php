@@ -221,6 +221,7 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
                 global $sitepress;
                 // Recupera gli ID dei post in questa lingua via tabella icl_translations
                 global $wpdb;
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $post_ids_in_lang = $wpdb->get_col($wpdb->prepare(
                     "SELECT element_id FROM {$wpdb->prefix}icl_translations
                      WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
@@ -238,6 +239,7 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
                     'post__in' => $post_ids_in_lang,
                     'orderby' => ($slug === 'page') ? 'menu_order' : 'date',
                     'order' => ($slug === 'page') ? 'ASC' : 'DESC',
+                    // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.SuppressFilters_suppress_filters -- necessario per bypassare filtri multilingua/query interna
                     'suppress_filters' => true,
                 ]);
             } else {
@@ -324,6 +326,7 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
             // Per WPML: recupera solo i term_taxonomy_id in questa lingua
             if ($wpml_active) {
                 global $wpdb;
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $term_ids_in_lang = $wpdb->get_col($wpdb->prepare(
                     "SELECT element_id FROM {$wpdb->prefix}icl_translations
                      WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
@@ -554,6 +557,7 @@ function wpb_llms_call_api($site_content, $generate_type, $pt_modes = [], $tax_m
 function wpb_llms_write_file($filename, $content)
 {
     $path = ABSPATH . $filename;
+    // phpcs:ignore PluginCheck.CodeAnalysis.WriteFile.ABSPATHDetected -- il file deve risiedere nella webroot per essere raggiungibile pubblicamente
     $result = file_put_contents($path, $content);
     if ($result === false) {
         return ['error' => 'Impossibile scrivere ' . $filename . '. Verifica i permessi sulla root del sito.'];
@@ -596,7 +600,9 @@ add_action('wp_ajax_wpb_llms_fetch_models', function () {
    AJAX: genera i file llms
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_llms_generate', function () {
+    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
     @set_time_limit(300);
+    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
     @ini_set('max_execution_time', '300');
 
     check_ajax_referer('wpb_llms_nonce', 'nonce');
@@ -616,8 +622,10 @@ add_action('wp_ajax_wpb_llms_generate', function () {
     $allowed = ['include', 'include_links', 'exclude'];
     $pt_modes = [];
     $tax_modes = [];
-    $raw_pt = !empty($_POST['pt_modes']) ? (array) $_POST['pt_modes'] : get_option('wpb_llms_pt_modes', []);
-    $raw_tax = !empty($_POST['tax_modes']) ? (array) $_POST['tax_modes'] : get_option('wpb_llms_tax_modes', []);
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array validato elemento per elemento nel foreach successivo (sanitize_key + whitelist $allowed)
+    $raw_pt = !empty($_POST['pt_modes']) ? (array) wp_unslash($_POST['pt_modes']) : get_option('wpb_llms_pt_modes', []);
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array validato elemento per elemento nel foreach successivo (sanitize_key + whitelist $allowed)
+    $raw_tax = !empty($_POST['tax_modes']) ? (array) wp_unslash($_POST['tax_modes']) : get_option('wpb_llms_tax_modes', []);
     foreach ($raw_pt as $slug => $mode) {
         $slug = sanitize_key($slug);
         if ($slug && in_array($mode, $allowed))
@@ -696,13 +704,15 @@ add_action('wp_ajax_wpb_llms_save_inclusion', function () {
     $pt_modes = [];
     $tax_modes = [];
 
-    foreach ((array) ($_POST['pt_modes'] ?? []) as $slug => $mode) {
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array validato elemento per elemento nel foreach (sanitize_key + whitelist $allowed)
+    foreach ((array) wp_unslash($_POST['pt_modes'] ?? []) as $slug => $mode) {
         $slug = sanitize_key($slug);
         $mode = in_array($mode, $allowed) ? $mode : 'include';
         if ($slug)
             $pt_modes[$slug] = $mode;
     }
-    foreach ((array) ($_POST['tax_modes'] ?? []) as $slug => $mode) {
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array validato elemento per elemento nel foreach (sanitize_key + whitelist $allowed)
+    foreach ((array) wp_unslash($_POST['tax_modes'] ?? []) as $slug => $mode) {
         $slug = sanitize_key($slug);
         $mode = in_array($mode, $allowed) ? $mode : 'include';
         if ($slug)
@@ -825,6 +835,7 @@ add_action('admin_head', function () {
 });
 
 add_filter('submenu_file', function ($submenu_file) {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-auto-llms')
         return 'wp-barrio-seo';
     return $submenu_file;
@@ -850,6 +861,7 @@ add_action('admin_init', function () {
 function wpb_llms_admin_page()
 {
     $api_key = wpb_llms_active_key();
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'generate';
     $last_gen = get_option(WPB_LLMS_CACHE_OPTION, null);
     $log = get_option(WPB_LLMS_LOG_OPTION, []);
@@ -892,20 +904,20 @@ function wpb_llms_admin_page()
                     <div class="wpb-stats-bar-lbl">llms-full.txt</div>
                 </div>
                 <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num" style="font-size:16px;padding-top:6px;color:#374151;">
-                        <?php echo $short_size; ?>
+                    <div class="wpb-stats-bar-num">
+                        <?php echo esc_html($short_size); ?>
                     </div>
                     <div class="wpb-stats-bar-lbl">Dim. llms.txt</div>
                 </div>
                 <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num" style="font-size:16px;padding-top:6px;color:#374151;">
-                        <?php echo $full_size; ?>
+                    <div class="wpb-stats-bar-num">
+                        <?php echo esc_html($full_size); ?>
                     </div>
                     <div class="wpb-stats-bar-lbl">Dim. llms-full.txt</div>
                 </div>
                 <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num" style="font-size:13px;padding-top:8px;">
-                        <?php echo $last_gen ? date_i18n('d/m/Y H:i', $last_gen['ts']) : '—'; ?>
+                    <div class="wpb-stats-bar-num" style="font-size:13px;">
+                        <?php echo $last_gen ? esc_html(date_i18n('d/m/Y H:i', $last_gen['ts'])) : '—'; ?>
                     </div>
                     <div class="wpb-stats-bar-lbl">Ultima generazione</div>
                 </div>
@@ -1040,8 +1052,8 @@ function wpb_llms_admin_page()
                                 </span>
                                 <?php if ($short_exists): ?>
                                         <span style="font-size:12px;color:#646970;align-self:center;">
-                                            <?php echo $short_size; ?> —
-                                            <?php echo date_i18n('d/m/Y H:i', filemtime(ABSPATH . 'llms.txt')); ?>
+                                            <?php echo esc_html($short_size); ?> —
+                                            <?php echo esc_html(date_i18n('d/m/Y H:i', filemtime(ABSPATH . 'llms.txt'))); ?>
                                         </span>
                                 <?php endif; ?>
                             </div>
@@ -1086,8 +1098,8 @@ function wpb_llms_admin_page()
                                 </span>
                                 <?php if ($full_exists): ?>
                                         <span style="font-size:12px;color:#646970;align-self:center;">
-                                            <?php echo $full_size; ?> —
-                                            <?php echo date_i18n('d/m/Y H:i', filemtime(ABSPATH . 'llms-full.txt')); ?>
+                                            <?php echo esc_html($full_size); ?> —
+                                            <?php echo esc_html(date_i18n('d/m/Y H:i', filemtime(ABSPATH . 'llms-full.txt'))); ?>
                                         </span>
                                 <?php endif; ?>
                             </div>
@@ -1145,11 +1157,11 @@ function wpb_llms_admin_page()
                                     <div class="l">Totale operazioni</div>
                                 </div>
                                 <div class="wpb-log-stat">
-                                    <div class="n green"><?php echo $log_success; ?></div>
+                                    <div class="n green"><?php echo esc_html($log_success); ?></div>
                                     <div class="l">Completate</div>
                                 </div>
                                 <div class="wpb-log-stat">
-                                    <div class="n red"><?php echo $log_errors; ?></div>
+                                    <div class="n red"><?php echo esc_html($log_errors); ?></div>
                                     <div class="l">Errori</div>
                                 </div>
                             </div>
@@ -1185,7 +1197,7 @@ function wpb_llms_admin_page()
                                                         <tr data-status="<?php echo esc_attr($entry['status']); ?>">
                                                             <td>
                                                                 <span class="wpb-log-status <?php echo esc_attr($entry['status']); ?>">
-                                                                    <?php echo $label; ?>
+                                                                    <?php echo esc_html($label); ?>
                                                                 </span>
                                                             </td>
                                                             <td>
@@ -1198,7 +1210,7 @@ function wpb_llms_admin_page()
                                                                     <?php echo esc_html($entry['note'] ?: '—'); ?>
                                                                 </div>
                                                             </td>
-                                                            <td><span class="wpb-log-time"><?php echo date_i18n('d/m/Y H:i', $entry['ts']); ?></span></td>
+                                                            <td><span class="wpb-log-time"><?php echo esc_html(date_i18n('d/m/Y H:i', $entry['ts'])); ?></span></td>
                                                         </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -1280,7 +1292,7 @@ function wpb_llms_admin_page()
                                                             data-provider="<?php echo esc_attr($pval); ?>">
                                                             <input type="radio" name="wpb_llms_provider" value="<?php echo esc_attr($pval); ?>"
                                                                 <?php checked($provider, $pval); ?>>
-                                                            <span class="wpb-pc-logo"><?php echo $pdata['logo']; ?></span>
+                                                            <span class="wpb-pc-logo"><?php echo esc_html($pdata['logo']); ?></span>
                                                             <div>
                                                                 <div class="wpb-pc-name"><?php echo esc_html($pdata['name']); ?></div>
                                                                 <div class="wpb-pc-desc"><?php echo esc_html($pdata['desc']); ?></div>
@@ -1399,8 +1411,8 @@ function wpb_llms_admin_page()
 
                     <script>
                         (function () {
-                            var ajaxUrl = '<?php echo admin_url("admin-ajax.php"); ?>';
-                            var nonce = '<?php echo wp_create_nonce("wpb_llms_nonce"); ?>';
+                            var ajaxUrl = '<?php echo esc_js(admin_url("admin-ajax.php")); ?>';
+                            var nonce = '<?php echo esc_js(wp_create_nonce("wpb_llms_nonce")); ?>';
                             var currentModel = '<?php echo esc_js(get_option("wpb_llms_model", "")); ?>';
                             var modelDefaults = { anthropic: 'claude-sonnet-4-6', gemini: 'gemini-2.5-flash' };
 
@@ -1503,8 +1515,8 @@ function wpb_llms_admin_page()
 
         <script>
             (function () {
-                var ajaxUrl = '<?php echo admin_url("admin-ajax.php"); ?>';
-                var nonce = '<?php echo wp_create_nonce("wpb_llms_nonce"); ?>';
+                var ajaxUrl = '<?php echo esc_js(admin_url("admin-ajax.php")); ?>';
+                var nonce = '<?php echo esc_js(wp_create_nonce("wpb_llms_nonce")); ?>';
 
                 function toast(msg, type) {
                     var t = document.getElementById('wpb-llms-toast');

@@ -19,6 +19,7 @@ class WPB_Consent_Log {
         $table   = self::table();
         $charset = $wpdb->get_charset_collate();
 
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella e charset fissi definiti dal plugin, non input utente; operazione di installazione/aggiornamento schema, eseguita una tantum, non un dato di runtime
         $wpdb->query(
             "CREATE TABLE IF NOT EXISTS `{$table}` (
                 id           VARCHAR(36)   NOT NULL,
@@ -33,6 +34,7 @@ class WPB_Consent_Log {
                 KEY created_at (created_at)
             ) {$charset};"
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
     }
 
     public static function maybe_upgrade(): void {
@@ -74,6 +76,7 @@ class WPB_Consent_Log {
     /* ── Insert (created_at è affidato al DEFAULT CURRENT_TIMESTAMP della tabella) ── */
     public static function insert(array $row): bool {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- insert su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->insert(self::table(), [
             'id'           => $row['id'],
             'status'       => $row['status'],
@@ -84,7 +87,6 @@ class WPB_Consent_Log {
             'consent_text' => $row['consent_text'],
         ]);
         if ($ok === false) {
-            error_log('[WPB_Consent_Log] insert fallito: ' . $wpdb->last_error);
             return false;
         }
         return true;
@@ -94,6 +96,7 @@ class WPB_Consent_Log {
     public static function get_range(string $from, string $to): array {
         global $wpdb;
         $table = self::table();
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- nome tabella fisso definito dal plugin, non input utente; query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         return $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT id, status, ip_address, created_at, url, user_agent, categories, consent_text
@@ -105,6 +108,7 @@ class WPB_Consent_Log {
             ),
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     }
 }
 

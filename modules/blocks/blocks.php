@@ -92,7 +92,8 @@ add_action('enqueue_block_editor_assets', function () {
         'wpb-blocks-no-h1',
         WP_ALT_AI_PLUGIN_URL . 'modules/blocks/editor.js',
         ['wp-hooks', 'wp-compose', 'wp-element', 'wp-data', 'wp-dom-ready'],
-        WP_ALT_AI_VERSION
+        WP_ALT_AI_VERSION,
+        false
     );
 });
 
@@ -143,8 +144,8 @@ add_action('admin_post_wpb_blocks_save', function () {
 
     $allowed = [];
     if (isset($_POST['allowed_blocks']) && is_array($_POST['allowed_blocks'])) {
-        foreach ($_POST['allowed_blocks'] as $raw) {
-            $name = sanitize_text_field(wp_unslash($raw));
+        $raw_allowed_blocks = array_map('sanitize_text_field', wp_unslash($_POST['allowed_blocks']));
+        foreach ($raw_allowed_blocks as $name) {
             if (preg_match('/^[a-z0-9\-]+\/[a-z0-9\-]+$/', $name)) {
                 $allowed[] = $name;
             }
@@ -153,8 +154,8 @@ add_action('admin_post_wpb_blocks_save', function () {
 
     $gutenberg_post_types = [];
     if (isset($_POST['gutenberg_post_types']) && is_array($_POST['gutenberg_post_types'])) {
-        foreach ($_POST['gutenberg_post_types'] as $raw) {
-            $pt = sanitize_key(wp_unslash($raw));
+        $raw_gutenberg_post_types = array_map('sanitize_key', wp_unslash($_POST['gutenberg_post_types']));
+        foreach ($raw_gutenberg_post_types as $pt) {
             if ($pt) $gutenberg_post_types[] = $pt;
         }
     }
@@ -177,6 +178,7 @@ function wpb_blocks_admin_page()
     $settings             = wpb_blocks_get_settings();
     $enabled              = !empty($settings['enabled']);
     $allowed              = isset($settings['allowed']) && is_array($settings['allowed']) ? $settings['allowed'] : [];
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $saved                = isset($_GET['saved']);
 
     // null = mai configurato = tutti attivi; array = quelli selezionati
@@ -323,7 +325,7 @@ function wpb_blocks_admin_page()
                             Deseleziona tutti
                         </button>
                         <span class="wpb-blocks-count" id="wpb-blocks-count">
-                            <?php echo count($allowed); ?> / <?php echo $total_blocks; ?> selezionati
+                            <?php echo count($allowed); ?> / <?php echo esc_html($total_blocks); ?> selezionati
                         </span>
                     </div>
                 </div>
@@ -341,7 +343,7 @@ function wpb_blocks_admin_page()
                         <strong class="wpb-blocks-group-label"><?php echo esc_html($ns_label); ?></strong>
                         <code class="wpb-blocks-group-ns"><?php echo esc_html($ns); ?></code>
                         <span class="wpb-blocks-group-count">
-                            <span class="wpb-blocks-group-sel"><?php echo $group_sel; ?></span> / <?php echo $group_total; ?>
+                            <span class="wpb-blocks-group-sel"><?php echo esc_html($group_sel); ?></span> / <?php echo esc_html($group_total); ?>
                         </span>
                         <div class="wpb-blocks-group-actions">
                             <button type="button" class="wpb-blocks-group-all wpb-btn wpb-btn-ghost wpb-btn-small">tutti</button>

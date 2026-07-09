@@ -40,11 +40,17 @@ function wpb_cb_check_ajax(): void {
 add_action('wp_ajax_wpb_cb_service_add', function () {
     wpb_cb_check_ajax();
     $service = [
-        'name'        => sanitize_text_field($_POST['name'] ?? ''),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'name'        => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
         'category'    => sanitize_key($_POST['category'] ?? 'necessary'),
-        'provider'    => sanitize_text_field($_POST['provider'] ?? ''),
-        'privacy_url' => esc_url_raw($_POST['privacy_url'] ?? ''),
-        'cookies'     => array_filter(array_map('trim', explode(',', sanitize_text_field($_POST['cookies'] ?? '')))),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'provider'    => sanitize_text_field(wp_unslash($_POST['provider'] ?? '')),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'privacy_url' => esc_url_raw(wp_unslash($_POST['privacy_url'] ?? '')),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'cookies'     => array_filter(array_map('trim', explode(',', sanitize_text_field(wp_unslash($_POST['cookies'] ?? ''))))),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verificato da wpb_cb_check_ajax() a inizio funzione; campo script contiene markup/script intenzionale, sanitize_text_field lo corromperebbe
         'script'      => wp_unslash($_POST['script'] ?? ''),
         'active'      => true,
         'source'      => 'manual',
@@ -57,14 +63,21 @@ add_action('wp_ajax_wpb_cb_service_add', function () {
 /* ── AJAX: aggiorna servizio ── */
 add_action('wp_ajax_wpb_cb_service_update', function () {
     wpb_cb_check_ajax();
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
     $id = sanitize_key($_POST['id'] ?? '');
     if (!$id) wp_send_json_error('ID mancante.');
     $data = [
-        'name'        => sanitize_text_field($_POST['name'] ?? ''),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'name'        => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
         'category'    => sanitize_key($_POST['category'] ?? 'necessary'),
-        'provider'    => sanitize_text_field($_POST['provider'] ?? ''),
-        'privacy_url' => esc_url_raw($_POST['privacy_url'] ?? ''),
-        'cookies'     => array_filter(array_map('trim', explode(',', sanitize_text_field($_POST['cookies'] ?? '')))),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'provider'    => sanitize_text_field(wp_unslash($_POST['provider'] ?? '')),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'privacy_url' => esc_url_raw(wp_unslash($_POST['privacy_url'] ?? '')),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        'cookies'     => array_filter(array_map('trim', explode(',', sanitize_text_field(wp_unslash($_POST['cookies'] ?? ''))))),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verificato da wpb_cb_check_ajax() a inizio funzione; campo script contiene markup/script intenzionale, sanitize_text_field lo corromperebbe
         'script'      => wp_unslash($_POST['script'] ?? ''),
     ];
     WPB_Service_Registry::update_service($id, $data);
@@ -74,6 +87,7 @@ add_action('wp_ajax_wpb_cb_service_update', function () {
 /* ── AJAX: elimina servizio ── */
 add_action('wp_ajax_wpb_cb_service_delete', function () {
     wpb_cb_check_ajax();
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
     $id = sanitize_key($_POST['id'] ?? '');
     if (!$id) wp_send_json_error('ID mancante.');
     WPB_Service_Registry::delete_service($id);
@@ -83,8 +97,10 @@ add_action('wp_ajax_wpb_cb_service_delete', function () {
 /* ── AJAX: toggle attivo/inattivo ── */
 add_action('wp_ajax_wpb_cb_service_toggle', function () {
     wpb_cb_check_ajax();
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
     $id = sanitize_key($_POST['id'] ?? '');
     if (!$id) wp_send_json_error('ID mancante.');
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
     $active = !empty($_POST['active']) && $_POST['active'] !== 'false';
     WPB_Service_Registry::toggle_service($id, $active);
     wp_send_json_success();
@@ -96,8 +112,10 @@ add_action('wp_ajax_wpb_cb_banner_save', function () {
     $allowed_fields = ['position','color_bg','color_text','color_accent','text_title','text_body','text_accept','text_reject','text_manage','widget_pos'];
     $config = [];
     foreach ($allowed_fields as $f) {
-        $config[$f] = sanitize_text_field($_POST[$f] ?? '');
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+        $config[$f] = sanitize_text_field(wp_unslash($_POST[$f] ?? ''));
     }
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
     $config['show_widget'] = !empty($_POST['show_widget']);
     update_option('wpb_cb_banner_config', $config, false);
     if (function_exists('invalidate_vercel_cache')) {
@@ -153,7 +171,7 @@ function wpb_cb_render_tab_servizi(): void {
             </div>
             <div>
                 <label>Categoria</label>
-                <select id="wpb-cb-f-cat"><?php echo $cat_options; ?></select>
+                <select id="wpb-cb-f-cat"><?php echo wp_kses_post($cat_options); ?></select>
             </div>
             <div>
                 <label>Provider</label>
@@ -169,6 +187,7 @@ function wpb_cb_render_tab_servizi(): void {
             </div>
             <div class="wpb-cb-form-full">
                 <label>Script (opzionale)</label>
+                <?php // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- testo placeholder statico, non uno script realmente inline ?>
                 <textarea id="wpb-cb-f-script" rows="2" style="font-family:monospace;font-size:12px;" placeholder="<script src='...'></script>"></textarea>
             </div>
         </div>
@@ -215,7 +234,7 @@ function wpb_cb_render_tab_servizi(): void {
     <div class="wpb-cb-section">
         <div class="wpb-cb-section-head"><span>Servizi registrati</span></div>
         <div id="wpb-cb-services-table">
-            <?php echo wpb_cb_services_table_html($services, $categories); ?>
+            <?php echo wp_kses_post(wpb_cb_services_table_html($services, $categories)); ?>
         </div>
     </div>
 
@@ -411,6 +430,7 @@ add_action('wp_ajax_wpb_cb_service_list', function () {
 /* ── AJAX: avvia scansione manuale (sincrona con time limit esteso) ── */
 add_action('wp_ajax_wpb_cb_run_scan', function () {
     wpb_cb_check_ajax();
+    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
     if (function_exists('set_time_limit')) @set_time_limit(120);
     $results = WPB_Scanner::run();
     if (isset($results['error'])) {
@@ -434,7 +454,8 @@ add_action('wp_ajax_wpb_cb_scan_status', function () {
 /* ── AJAX: promuovi servizio scanner → registry ── */
 add_action('wp_ajax_wpb_cb_confirm_service', function () {
     wpb_cb_check_ajax();
-    $pattern = sanitize_text_field($_POST['pattern'] ?? '');
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da wpb_cb_check_ajax() a inizio funzione
+    $pattern = sanitize_text_field(wp_unslash($_POST['pattern'] ?? ''));
     if (!$pattern) wp_send_json_error('Pattern mancante.');
     // Cerca il provider nei risultati della scansione
     $results = WPB_Scanner::get_results();
@@ -620,23 +641,23 @@ function wpb_cb_render_tab_banner(): void {
         <div class="wpb-cb-banner-grid">
             <div>
                 <label>Titolo banner</label>
-                <input type="text" id="wpb-cb-b-text_title" value="<?php echo $f('text_title','Utilizziamo i cookie'); ?>">
+                <input type="text" id="wpb-cb-b-text_title" value="<?php echo $f('text_title','Utilizziamo i cookie'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- valore già escapato con esc_attr() dentro la closure $f() definita sopra ?>">
             </div>
             <div>
                 <label>Testo breve</label>
-                <input type="text" id="wpb-cb-b-text_body" value="<?php echo $f('text_body','Usiamo cookie per migliorare la tua esperienza...'); ?>">
+                <input type="text" id="wpb-cb-b-text_body" value="<?php echo $f('text_body','Usiamo cookie per migliorare la tua esperienza...'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- valore già escapato con esc_attr() dentro la closure $f() definita sopra ?>">
             </div>
             <div>
                 <label>Label "Accetta tutti"</label>
-                <input type="text" id="wpb-cb-b-text_accept" value="<?php echo $f('text_accept','Accetta tutti'); ?>">
+                <input type="text" id="wpb-cb-b-text_accept" value="<?php echo $f('text_accept','Accetta tutti'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- valore già escapato con esc_attr() dentro la closure $f() definita sopra ?>">
             </div>
             <div>
                 <label>Label "Rifiuta tutti"</label>
-                <input type="text" id="wpb-cb-b-text_reject" value="<?php echo $f('text_reject','Rifiuta tutti'); ?>">
+                <input type="text" id="wpb-cb-b-text_reject" value="<?php echo $f('text_reject','Rifiuta tutti'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- valore già escapato con esc_attr() dentro la closure $f() definita sopra ?>">
             </div>
             <div>
                 <label>Label "Gestisci preferenze"</label>
-                <input type="text" id="wpb-cb-b-text_manage" value="<?php echo $f('text_manage','Gestisci preferenze'); ?>">
+                <input type="text" id="wpb-cb-b-text_manage" value="<?php echo $f('text_manage','Gestisci preferenze'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- valore già escapato con esc_attr() dentro la closure $f() definita sopra ?>">
             </div>
             <div>
                 <label>Posizione banner</label>
@@ -662,8 +683,8 @@ function wpb_cb_render_tab_banner(): void {
             <div>
                 <label><?php echo esc_html($label); ?></label>
                 <div class="wpb-cb-color-row">
-                    <input type="text" id="wpb-cb-b-<?php echo esc_attr($key); ?>-text" value="<?php echo $f($key, $default); ?>">
-                    <input type="color" id="wpb-cb-b-<?php echo esc_attr($key); ?>" value="<?php echo $f($key, $default); ?>">
+                    <input type="text" id="wpb-cb-b-<?php echo esc_attr($key); ?>-text" value="<?php echo $f($key, $default); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- valore già escapato con esc_attr() dentro la closure $f() definita sopra ?>">
+                    <input type="color" id="wpb-cb-b-<?php echo esc_attr($key); ?>" value="<?php echo $f($key, $default); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- valore già escapato con esc_attr() dentro la closure $f() definita sopra ?>">
                 </div>
             </div>
             <?php endforeach; ?>
@@ -730,7 +751,7 @@ function wpb_cb_render_tab_banner(): void {
 /* ── Render: tab Consensi — export CSV del log ── */
 function wpb_cb_render_tab_consensi(): void {
     $today = current_time('Y-m-d');
-    $from  = date('Y-m-d', strtotime('-30 days', strtotime($today)));
+    $from  = wp_date('Y-m-d', strtotime('-30 days', strtotime($today)));
     $nonce = wp_create_nonce('wpb_cb_export_consent_log');
     ?>
     <div class="wpb-cb-section">
@@ -763,10 +784,10 @@ add_action('admin_post_wpb_cb_export_consent_log', function () {
     if (!current_user_can('manage_options')) wp_die('Permesso negato.', 403);
     check_admin_referer('wpb_cb_export_consent_log');
 
-    $from = sanitize_text_field($_GET['from'] ?? '');
-    $to   = sanitize_text_field($_GET['to'] ?? '');
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = date('Y-m-d', strtotime('-30 days'));
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   $to   = date('Y-m-d');
+    $from = sanitize_text_field(wp_unslash($_GET['from'] ?? ''));
+    $to   = sanitize_text_field(wp_unslash($_GET['to'] ?? ''));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = wp_date('Y-m-d', strtotime('-30 days'));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   $to   = wp_date('Y-m-d');
     if ($from > $to) [$from, $to] = [$to, $from];
 
     $rows = WPB_Consent_Log::get_range($from, $to);
@@ -788,6 +809,7 @@ add_action('admin_post_wpb_cb_export_consent_log', function () {
             $row['consent_text'],
         ]);
     }
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- stream php://output per download diretto del CSV in risposta HTTP, non un file reale gestibile con WP_Filesystem
     fclose($out);
     exit;
 });

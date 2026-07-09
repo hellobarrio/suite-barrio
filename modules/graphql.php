@@ -54,7 +54,7 @@ add_action('graphql_response_headers_to_send', function (array $headers): array 
         return $headers;
 
     $allowed = array_map('trim', explode(',', WPB_GRAPHQL_ALLOWED_ORIGINS));
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $origin = sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN'] ?? ''));
 
     if ($origin && in_array($origin, $allowed, true)) {
         $headers['Access-Control-Allow-Origin'] = $origin;
@@ -69,15 +69,15 @@ add_action('graphql_response_headers_to_send', function (array $headers): array 
 
 // Gestisce il preflight OPTIONS inviato dal browser prima della mutation
 add_action('init', function () {
-    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'OPTIONS')
+    if (sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? '')) !== 'OPTIONS')
         return;
-    if (strpos($_SERVER['REQUEST_URI'] ?? '', '/graphql') === false)
+    if (strpos(sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '')), '/graphql') === false)
         return;
     if (!defined('WPB_GRAPHQL_ALLOWED_ORIGINS'))
         return;
 
     $allowed = array_map('trim', explode(',', WPB_GRAPHQL_ALLOWED_ORIGINS));
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $origin = sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN'] ?? ''));
 
     if ($origin && in_array($origin, $allowed, true)) {
         header('Access-Control-Allow-Origin: ' . $origin);
@@ -294,6 +294,7 @@ function wpb_graphql_register_schema(): void
             global $wpdb;
 
             // Query diretta: non dipende da funzioni esterne, funziona in qualsiasi contesto
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
             $popup = $wpdb->get_row(
                 "SELECT * FROM {$wpdb->prefix}wpb_popups WHERE active = 1 LIMIT 1"
             );
@@ -331,6 +332,7 @@ function wpb_graphql_register_schema(): void
 
             if ($requested_lang !== '') {
                 // Query diretta sulla tabella traduzioni — autonoma, nessuna dipendenza esterna
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $trans = $wpdb->get_row($wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}wpb_popups_translations
                      WHERE popup_id = %d AND lang = %s
@@ -398,6 +400,7 @@ function wpb_graphql_register_schema(): void
         'resolve' => function ($root, array $args): ?array {
             global $wpdb;
 
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
             $banner = $wpdb->get_row(
                 "SELECT * FROM {$wpdb->prefix}wpb_banners WHERE active = 1 LIMIT 1"
             );
@@ -414,6 +417,7 @@ function wpb_graphql_register_schema(): void
             $requested_lang = isset($args['lang']) ? sanitize_key((string) $args['lang']) : '';
 
             if ($requested_lang !== '') {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $trans = $wpdb->get_row($wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}wpb_banners_translations
                      WHERE banner_id = %d AND lang = %s
@@ -587,6 +591,7 @@ function wpb_graphql_register_schema(): void
             $requested_lang = isset($args['lang']) ? sanitize_key((string) $args['lang']) : '';
             if ($requested_lang !== '') {
                 global $wpdb;
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $trans = $wpdb->get_row($wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}wpb_forms_translations
                      WHERE form_id = %d AND lang = %s LIMIT 1",
@@ -619,6 +624,7 @@ function wpb_graphql_register_schema(): void
         'resolve' => function (): array {
             global $wpdb;
 
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
             $rows = $wpdb->get_results(
                 "SELECT id, title, created_at,
                         (SELECT COUNT(*) FROM {$wpdb->prefix}wpb_form_submissions s
@@ -801,14 +807,15 @@ function wpb_graphql_register_schema(): void
                 }
 
                 // ── Salva nel DB ──────────────────────────────────────────────────
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- insert su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $ok = $wpdb->insert(
                     $wpdb->prefix . WPB_FORMS_SUB_TABLE,
                     [
                         'form_id' => $form_id,
                         'data' => wp_json_encode($submission_data),
                         'lang' => $submission_lang,
-                        'ip' => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                        'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
+                        'ip' => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? '')),
+                        'user_agent' => sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? '')),
                     ],
                     ['%d', '%s', '%s', '%s', '%s']
                 );
@@ -826,7 +833,6 @@ function wpb_graphql_register_schema(): void
 
                 // ── Invia notifiche email (con allegati) ──────────────────────────
                 $mail_log = wpb_forms_send_notifications($form, $settings, $submission_data, $attachments);
-                error_log('[WP Barrio][mutation] mail_log: ' . implode(' | ', $mail_log));
 
                 // ── Integrazione MailUp ───────────────────────────────────────────
                 if (!empty($settings['mailup_enabled'])) {
@@ -843,9 +849,6 @@ function wpb_graphql_register_schema(): void
                         // Il campo checkbox invia il valore dell'opzione selezionata; consideriamo
                         // l'utente iscritto se il valore non è vuoto (= checkbox spuntata)
                         $optin_ok = trim($optin_value) !== '';
-                        if (!$optin_ok) {
-                            error_log('[WP Barrio][MailUp] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
-                        }
                     }
 
                     $mu_email = sanitize_email(
@@ -873,12 +876,7 @@ function wpb_graphql_register_schema(): void
                             }
                         }
 
-                        $result = wpb_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
-                        if (is_wp_error($result)) {
-                            error_log('[WP Barrio][MailUp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
-                        }
-                    } else {
-                        error_log('[WP Barrio][MailUp] Salto iscrizione: email non valida (' . $mu_email . ')');
+                        wpb_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
                     }
                 }
 

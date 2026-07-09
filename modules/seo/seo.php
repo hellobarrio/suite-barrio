@@ -71,7 +71,7 @@ function wpb_seo_page()
             <div>
                 <h1>WP Barrio <span class="wpb-seo-breadcrumb">/ SEO</span></h1>
                 <p class="wpb-seo-sub">Strumenti per l'ottimizzazione sui motori di ricerca &mdash;
-                    v<?php echo WP_ALT_AI_VERSION; ?></p>
+                    v<?php echo esc_html(WP_ALT_AI_VERSION); ?></p>
             </div>
         </div>
         <hr class="wpb-seo-divider">
@@ -96,11 +96,11 @@ function wpb_seo_page()
                             </tr>
                             <tr>
                                 <td>Post type indicizzabili</td>
-                                <td><?php echo $pt_count; ?></td>
+                                <td><?php echo esc_html($pt_count); ?></td>
                             </tr>
                             <tr>
                                 <td>Tassonomie indicizzabili</td>
-                                <td><?php echo $tax_count; ?></td>
+                                <td><?php echo esc_html($tax_count); ?></td>
                             </tr>
                         </table>
                     </div>
@@ -177,11 +177,11 @@ function wpb_seo_page()
                     <table class="wpb-seo-stats">
                         <tr>
                             <td>Redirect totali</td>
-                            <td><?php echo $rd_total; ?></td>
+                            <td><?php echo esc_html($rd_total); ?></td>
                         </tr>
                         <tr>
                             <td>301 Permanenti</td>
-                            <td><?php echo $rd_301; ?></td>
+                            <td><?php echo esc_html($rd_301); ?></td>
                         </tr>
                     </table>
                 </div>
@@ -208,7 +208,7 @@ function wpb_seo_page()
                         </tr>
                         <tr>
                             <td>Generazioni riuscite</td>
-                            <td><?php echo $adv_success; ?></td>
+                            <td><?php echo esc_html($adv_success); ?></td>
                         </tr>
                     </table>
                 </div>

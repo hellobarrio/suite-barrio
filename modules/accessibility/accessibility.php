@@ -144,16 +144,14 @@ function wpb_accessibility_embed_handler(): void
             'content' => $s['declaration_content'] ?? '',
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
-    $embed    = <<<JS
-(function(){if(document.getElementById('wpb-a11y-style'))return;var s=document.createElement('style');s.id='wpb-a11y-style';s.textContent={$css_json};(document.head||document.documentElement).appendChild(s);})();
-window.__wpbA11yConfig={$config_json};
-{$js}
-JS;
+    $embed    = "(function(){if(document.getElementById('wpb-a11y-style'))return;var s=document.createElement('style');s.id='wpb-a11y-style';s.textContent={$css_json};(document.head||document.documentElement).appendChild(s);})();\n"
+        . "window.__wpbA11yConfig={$config_json};\n"
+        . "{$js}";
 
     // Cache basata sull'hash delle impostazioni correnti
     $etag = '"' . md5($embed) . '"';
     $if_none_match = isset($_SERVER['HTTP_IF_NONE_MATCH'])
-        ? trim(wp_unslash($_SERVER['HTTP_IF_NONE_MATCH']))
+        ? trim(sanitize_text_field(wp_unslash($_SERVER['HTTP_IF_NONE_MATCH'])))
         : '';
 
     header('Content-Type: application/javascript; charset=utf-8');
@@ -229,6 +227,7 @@ add_action('wp_enqueue_scripts', function () {
 function wpb_accessibility_admin_page()
 {
     $s     = wpb_accessibility_settings();
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
     ?>
     <div class="wrap wpb-wrap">

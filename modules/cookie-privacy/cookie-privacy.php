@@ -36,8 +36,10 @@ add_action('admin_init', function () {
     ) {
         // Il nonce viene verificato da options.php subito dopo, ma
         // noi verifichiamo preventivamente per non salvare su richieste invalide.
-        if (wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wpb_cp_content_settings-options')) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- il valore è verificato da wp_verify_nonce() nella stessa riga, non necessita sanitizzazione aggiuntiva
+        if (wp_verify_nonce(wp_unslash($_POST['_wpnonce'] ?? ''), 'wpb_cp_content_settings-options')) {
             $raw = isset($_POST['wpb_cp_cookie_report_script'])
+                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- script grezzo del provider cookie, salvato in base64 per non farlo strippare da kses/WAF (vedi commento sopra add_action)
                 ? trim(wp_unslash($_POST['wpb_cp_cookie_report_script']))
                 : '';
             update_option(
@@ -130,7 +132,7 @@ function wpb_cp_get_domain(): string
     }
 
     if ($url !== '') {
-        $host = parse_url($url, PHP_URL_HOST);
+        $host = wp_parse_url($url, PHP_URL_HOST);
         if (!$host) {
             // L'utente potrebbe aver scritto "example.com" senza schema
             $host = preg_replace('#^https?://#i', '', $url);
@@ -141,7 +143,7 @@ function wpb_cp_get_domain(): string
         }
     }
 
-    return (string) parse_url(home_url(), PHP_URL_HOST);
+    return (string) wp_parse_url(home_url(), PHP_URL_HOST);
 }
 
 /* ─────────────────────────────────────────
@@ -371,6 +373,7 @@ function wpb_cp_ajax_generate(string $policy_type): void
 
     // Tentativo di estendere il time limit (best-effort, alcuni host lo proibiscono).
     if (function_exists('set_time_limit')) {
+        // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
         @set_time_limit(180);
     }
 
@@ -547,32 +550,30 @@ function wpb_cp_policy_prompt(string $policy_type, string $domain, WP_Post $page
         . "basi giuridiche, durata, come revocare il consenso e come gestire le preferenze dal browser.\n"
         : '';
 
-    return <<<PROMPT
-Sei un consulente GDPR per siti web. Genera una $title completa e distinta.
-
-Sito: $site_name
-Dominio: $domain
-Lingua sito: $lang
-Pagina di destinazione: {$page->post_title}
-
-$company_section
-$services_section
-Regole inderogabili sui dati:
-- Quando devi citare l'azienda, il titolare, l'indirizzo, una P.IVA, un'email, un telefono o qualsiasi dato anagrafico, usa ESCLUSIVAMENTE i valori della sezione "DATI AZIENDALI VERIFICATI" qui sopra.
-- NON inventare email, numeri di telefono, indirizzi, P.IVA o ragioni sociali.
-- Se un dato non è presente in "DATI AZIENDALI VERIFICATI", ometti quella menzione: non scrivere placeholder tipo "[inserire qui]" né "esempio@esempio.it".
-
-$privacy_specific$cookie_specific
-Scrivi SOLO il contenuto della $title, senza includere l'altra policy.
-Focus obbligatorio: $focus.
-
-Formato:
-- restituisci HTML pulito adatto al campo post_content di WordPress
-- usa h2, h3, p, ul, li
-- non usare markdown
-- non racchiudere la risposta in backtick o blocchi codice
-- non aggiungere introduzioni sul fatto che sei un'AI
-PROMPT;
+    return "Sei un consulente GDPR per siti web. Genera una $title completa e distinta.\n"
+        . "\n"
+        . "Sito: $site_name\n"
+        . "Dominio: $domain\n"
+        . "Lingua sito: $lang\n"
+        . "Pagina di destinazione: {$page->post_title}\n"
+        . "\n"
+        . "$company_section\n"
+        . "$services_section\n"
+        . "Regole inderogabili sui dati:\n"
+        . "- Quando devi citare l'azienda, il titolare, l'indirizzo, una P.IVA, un'email, un telefono o qualsiasi dato anagrafico, usa ESCLUSIVAMENTE i valori della sezione \"DATI AZIENDALI VERIFICATI\" qui sopra.\n"
+        . "- NON inventare email, numeri di telefono, indirizzi, P.IVA o ragioni sociali.\n"
+        . "- Se un dato non è presente in \"DATI AZIENDALI VERIFICATI\", ometti quella menzione: non scrivere placeholder tipo \"[inserire qui]\" né \"esempio@esempio.it\".\n"
+        . "\n"
+        . "$privacy_specific$cookie_specific\n"
+        . "Scrivi SOLO il contenuto della $title, senza includere l'altra policy.\n"
+        . "Focus obbligatorio: $focus.\n"
+        . "\n"
+        . "Formato:\n"
+        . "- restituisci HTML pulito adatto al campo post_content di WordPress\n"
+        . "- usa h2, h3, p, ul, li\n"
+        . "- non usare markdown\n"
+        . "- non racchiudere la risposta in backtick o blocchi codice\n"
+        . "- non aggiungere introduzioni sul fatto che sei un'AI";
 }
 
 function wpb_cp_clean_generated_html(string $text): string
@@ -646,6 +647,7 @@ add_action('wp_ajax_wpb_cp_fetch_models', function () {
 
 function wpb_cp_admin_page()
 {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = sanitize_key($_GET['tab'] ?? 'generate');
     $nonce = wp_create_nonce('wpb_cp_nonce');
     $provider = get_option('wpb_cp_provider', 'gemini');
@@ -686,6 +688,7 @@ function wpb_cp_admin_page()
         </div>
 
         <?php if ($tab === 'settings'): ?>
+            <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione ?>
             <?php if (isset($_GET['settings-updated'])): ?>
                 <div class="wpb-cp-notice-success"><span class="dashicons dashicons-yes-alt"></span>
                     <div>Impostazioni salvate.</div>
@@ -812,6 +815,7 @@ function wpb_cp_admin_page()
                     <div><?php echo wp_kses_post($notice['message']); ?></div>
                 </div>
             <?php endif; ?>
+            <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione ?>
             <?php if (isset($_GET['settings-updated'])): ?>
                 <div class="wpb-cp-notice-success"><span class="dashicons dashicons-yes-alt"></span>
                     <div>Configurazione salvata. Ora puoi generare i contenuti.</div>

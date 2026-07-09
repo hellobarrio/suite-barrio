@@ -23,16 +23,16 @@ $items = str_repeat($item, 15);
 
     <?php if ('' !== $link): ?>
         <a href="<?php echo esc_url($link); ?>"
-           target="<?php echo esc_attr($link_target); ?>"<?php echo $rel; ?>
+           target="<?php echo esc_attr($link_target); ?>"<?php echo wp_kses_post($rel); ?>
            id="<?php echo esc_attr($uid); ?>-inner"
            class="wpb-banner__inner">
-            <div id="<?php echo esc_attr($uid); ?>-t1" class="wpb-banner__track"><?php echo $items; ?></div>
-            <div id="<?php echo esc_attr($uid); ?>-t2" class="wpb-banner__track"><?php echo $items; ?></div>
+            <div id="<?php echo esc_attr($uid); ?>-t1" class="wpb-banner__track"><?php echo wp_kses_post($items); ?></div>
+            <div id="<?php echo esc_attr($uid); ?>-t2" class="wpb-banner__track"><?php echo wp_kses_post($items); ?></div>
         </a>
     <?php else: ?>
         <div id="<?php echo esc_attr($uid); ?>-inner" class="wpb-banner__inner">
-            <div id="<?php echo esc_attr($uid); ?>-t1" class="wpb-banner__track"><?php echo $items; ?></div>
-            <div id="<?php echo esc_attr($uid); ?>-t2" class="wpb-banner__track"><?php echo $items; ?></div>
+            <div id="<?php echo esc_attr($uid); ?>-t1" class="wpb-banner__track"><?php echo wp_kses_post($items); ?></div>
+            <div id="<?php echo esc_attr($uid); ?>-t2" class="wpb-banner__track"><?php echo wp_kses_post($items); ?></div>
         </div>
     <?php endif; ?>
 

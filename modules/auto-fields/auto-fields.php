@@ -97,6 +97,7 @@ function wpb_af_ajax_generate()
     }
 
     $title = sanitize_text_field(wp_unslash($_POST['group_title'] ?? ''));
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON array di sezioni/campi generato dal wizard JS, decodificato subito dopo con json_decode(); una sanitizzazione testuale corromperebbe la struttura dati.
     $sections = json_decode(wp_unslash($_POST['sections'] ?? '[]'), true);
     $loc_type = sanitize_text_field(wp_unslash($_POST['location_type'] ?? 'post_type'));
     $loc_val = sanitize_text_field(wp_unslash($_POST['location_value'] ?? 'page'));

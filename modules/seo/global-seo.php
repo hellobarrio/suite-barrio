@@ -43,6 +43,7 @@ add_action('admin_head', function () {
 
 // Evidenzia "SEO" come voce attiva quando si è in Seo Globale
 add_filter('submenu_file', function ($submenu_file) {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-global-seo')
         return 'wp-barrio-seo';
     return $submenu_file;
@@ -95,7 +96,7 @@ add_action('admin_post_wpb_meta_content_save', function () {
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
     }
-    wp_redirect(admin_url('admin.php?page=wp-barrio-global-seo&tab=content&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-global-seo&tab=content&saved=1'));
     exit;
 });
 
@@ -118,12 +119,12 @@ add_action('admin_post_wpb_meta_settings_save', function () {
     $favicon_id = isset($_POST['wpb_meta_favicon_id']) ? absint($_POST['wpb_meta_favicon_id']) : 0;
 
     $settings = [
-        'site_title' => sanitize_text_field($_POST['wpb_meta_site_title'] ?? ''),
-        'separator' => sanitize_text_field($_POST['wpb_meta_separator'] ?? '—'),
-        'title_order' => sanitize_text_field($_POST['wpb_meta_title_order'] ?? 'page_site'),
+        'site_title' => sanitize_text_field(wp_unslash($_POST['wpb_meta_site_title'] ?? '')),
+        'separator' => sanitize_text_field(wp_unslash($_POST['wpb_meta_separator'] ?? '—')),
+        'title_order' => sanitize_text_field(wp_unslash($_POST['wpb_meta_title_order'] ?? 'page_site')),
         'og_image_id' => $og_image_id,
         'favicon_id' => $favicon_id,
-        'default_desc' => sanitize_textarea_field($_POST['wpb_meta_default_desc'] ?? ''),
+        'default_desc' => sanitize_textarea_field(wp_unslash($_POST['wpb_meta_default_desc'] ?? '')),
     ];
 
     update_option(WPB_META_OPTION, $settings);
@@ -142,7 +143,7 @@ add_action('admin_post_wpb_meta_settings_save', function () {
         invalidate_vercel_cache('wp:global');
     }
 
-    wp_redirect(admin_url('admin.php?page=wp-barrio-global-seo&tab=settings&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-global-seo&tab=settings&saved=1'));
     exit;
 });
 
@@ -394,7 +395,7 @@ function wpb_meta_render_post_metabox($post)
                 <input type="text" id="wpb-mb-title" name="_wpb_seo_title" value="<?php echo esc_attr($custom_title); ?>"
                     placeholder="<?php echo esc_attr($default_title); ?>">
                 <span class="wpb-seo-counter" id="wpb-mb-title-ctr">
-                    <span id="wpb-mb-title-len"><?php echo mb_strlen($display_title); ?></span>/60
+                    <span id="wpb-mb-title-len"><?php echo esc_html(mb_strlen($display_title)); ?></span>/60
                 </span>
             </div>
 
@@ -404,7 +405,7 @@ function wpb_meta_render_post_metabox($post)
                 <textarea id="wpb-mb-desc" name="_wpb_seo_description" rows="3"
                     placeholder="<?php echo esc_attr($default_desc ?: 'Estratto del post…'); ?>"><?php echo esc_textarea($custom_desc); ?></textarea>
                 <span class="wpb-seo-counter" id="wpb-mb-desc-ctr">
-                    <span id="wpb-mb-desc-len"><?php echo mb_strlen($display_desc); ?></span>/160
+                    <span id="wpb-mb-desc-len"><?php echo esc_html(mb_strlen($display_desc)); ?></span>/160
                 </span>
             </div>
 
@@ -981,7 +982,7 @@ add_action('save_post', function ($post_id) {
         return;
     if (!isset($_POST['_wpb_seo_nonce']))
         return;
-    if (!wp_verify_nonce($_POST['_wpb_seo_nonce'], 'wpb_seo_post_meta_save_' . $post_id))
+    if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpb_seo_nonce'])), 'wpb_seo_post_meta_save_' . $post_id))
         return;
     if (!current_user_can('edit_post', $post_id))
         return;
@@ -992,7 +993,7 @@ add_action('save_post', function ($post_id) {
             continue;
         $val = $field === '_wpb_seo_og_image_id'
             ? absint($_POST[$field])
-            : sanitize_textarea_field($_POST[$field]);
+            : sanitize_textarea_field(wp_unslash($_POST[$field]));
         if ($val === '' || $val === 0)
             delete_post_meta($post_id, $field);
         else
@@ -1001,6 +1002,7 @@ add_action('save_post', function ($post_id) {
 
     // Keywords
     if (isset($_POST['_wpb_seo_keywords'])) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON array, valori sanificati singolarmente con sanitize_text_field subito sotto
         $kws = json_decode(wp_unslash($_POST['_wpb_seo_keywords']), true);
         if (is_array($kws)) {
             $kws = array_values(array_filter(array_map('sanitize_text_field', $kws)));
@@ -1212,7 +1214,7 @@ function wpb_meta_render_term_edit_fields($term, $taxonomy)
     $custom_og_url = $custom_og_id ? wp_get_attachment_image_url($custom_og_id, 'thumbnail') : '';
 
     $default_title = $term->name;
-    $default_desc = strip_tags($term->description);
+    $default_desc = wp_strip_all_tags($term->description);
 
     $s = get_option(WPB_META_OPTION, []);
     $sep = $s['separator'] ?? '—';
@@ -1230,7 +1232,7 @@ function wpb_meta_render_term_edit_fields($term, $taxonomy)
                 Lascia vuoto per usare il nome del termine (<em><?php echo esc_html($default_title); ?></em>).
                 Max 60 caratteri consigliati.
                 <span id="wpb-term-title-counter" style="color:#a7aaad;margin-left:6px;">
-                    <span id="wpb-term-title-len"><?php echo mb_strlen($custom_title ?: $default_title); ?></span>/60
+                    <span id="wpb-term-title-len"><?php echo esc_html(mb_strlen($custom_title ?: $default_title)); ?></span>/60
                 </span>
             </p>
             <div id="wpb-term-title-preview"
@@ -1240,7 +1242,7 @@ function wpb_meta_render_term_edit_fields($term, $taxonomy)
                 $pt = '<span style="color:#1d4ed8;font-weight:600;">' . esc_html($display) . '</span>';
                 $s_ = ' <span style="color:#c3c4c7;">' . esc_html($sep) . '</span> ';
                 $site = esc_html($site_name);
-                echo $order === 'site_page' ? $site . $s_ . $pt : $pt . $s_ . $site;
+                echo wp_kses_post($order === 'site_page' ? $site . $s_ . $pt : $pt . $s_ . $site);
                 ?>
             </div>
         </td>
@@ -1256,7 +1258,7 @@ function wpb_meta_render_term_edit_fields($term, $taxonomy)
                 Lascia vuoto per usare la descrizione del termine.
                 Max 160 caratteri consigliati.
                 <span id="wpb-term-desc-counter" style="color:#a7aaad;margin-left:6px;">
-                    <span id="wpb-term-desc-len"><?php echo mb_strlen($custom_desc ?: $default_desc); ?></span>/160
+                    <span id="wpb-term-desc-len"><?php echo esc_html(mb_strlen($custom_desc ?: $default_desc)); ?></span>/160
                 </span>
             </p>
         </td>
@@ -1637,7 +1639,7 @@ function wpb_meta_save_term_fields($term_id)
 {
     if (!isset($_POST['_wpb_seo_term_nonce']))
         return;
-    if (!wp_verify_nonce($_POST['_wpb_seo_term_nonce'], 'wpb_seo_term_meta_save'))
+    if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpb_seo_term_nonce'])), 'wpb_seo_term_meta_save'))
         return;
     if (!current_user_can('manage_categories'))
         return;
@@ -1648,7 +1650,7 @@ function wpb_meta_save_term_fields($term_id)
             continue;
         $val = $field === '_wpb_seo_og_image_id'
             ? absint($_POST[$field])
-            : sanitize_textarea_field($_POST[$field]);
+            : sanitize_textarea_field(wp_unslash($_POST[$field]));
         if ($val === '' || $val === 0)
             delete_term_meta($term_id, $field);
         else
@@ -1665,6 +1667,7 @@ function wpb_meta_save_term_fields($term_id)
 
     // Keywords
     if (isset($_POST['_wpb_seo_keywords'])) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON array, valori sanificati singolarmente con sanitize_text_field subito sotto
         $kws = json_decode(wp_unslash($_POST['_wpb_seo_keywords']), true);
         if (is_array($kws)) {
             $kws = array_values(array_filter(array_map('sanitize_text_field', $kws)));
@@ -1730,7 +1733,9 @@ foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $_wpb_dup_
    ───────────────────────────────────────── */
 function wpb_meta_admin_page()
 {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione (tab attivo), nessun nonce esistente per questa azione
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'content';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione (notice "salvato"), nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
     $s = get_option(WPB_META_OPTION, []);
     $content = get_option(WPB_META_CONTENT_OPTION, []);

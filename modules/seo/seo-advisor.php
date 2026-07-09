@@ -40,6 +40,7 @@ add_action('admin_head', function () {
 });
 
 add_filter('submenu_file', function ($submenu_file) {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-seo-advisor')
         return 'wp-barrio-seo';
     return $submenu_file;
@@ -182,25 +183,7 @@ function wpb_advisor_generate(array $content_data): array
         $extra_lines .= "Parole chiave da includere se pertinenti: {$keywords_str}\n";
     }
 
-    $prompt = <<<PROMPT
-Sei un esperto SEO. Analizza il contenuto e genera elementi SEO ottimizzati.
-
-Sito: $site
-Lingua: $lang
-Registro linguistico: $tone_str
-Stile: $style_str
-{$extra_lines}Titolo: $title
-Excerpt: $excerpt
-Contenuto: $content
-
-Genera in $lang:
-1. SEO Title: max 60 caratteri, keyword primaria inclusa.
-2. SEO Description: 120-160 caratteri, keyword inclusa.
-3. Keywords: 5-8 keyword, la PRIMA e' la primaria.
-
-Rispondi SOLO con JSON su UNA SOLA RIGA senza newline interni ne markdown:
-{"title":"...","description":"...","keywords":["kw1","kw2"]}
-PROMPT;
+    $prompt = "Sei un esperto SEO. Analizza il contenuto e genera elementi SEO ottimizzati.\n\nSito: $site\nLingua: $lang\nRegistro linguistico: $tone_str\nStile: $style_str\n{$extra_lines}Titolo: $title\nExcerpt: $excerpt\nContenuto: $content\n\nGenera in $lang:\n1. SEO Title: max 60 caratteri, keyword primaria inclusa.\n2. SEO Description: 120-160 caratteri, keyword inclusa.\n3. Keywords: 5-8 keyword, la PRIMA e' la primaria.\n\nRispondi SOLO con JSON su UNA SOLA RIGA senza newline interni ne markdown:\n{\"title\":\"...\",\"description\":\"...\",\"keywords\":[\"kw1\",\"kw2\"]}";
 
 
     if ($provider === 'anthropic') {
@@ -409,13 +392,14 @@ add_action('wp_ajax_wpb_advisor_fetch_models', function () {
    AJAX: genera meta SEO
    ───────────────────────────────────────── */
 add_action('wp_ajax_wpb_advisor_generate', function () {
+    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
     @set_time_limit(120);
     check_ajax_referer('wpb_advisor_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
 
     $obj_type = sanitize_key($_POST['obj_type'] ?? 'post'); // 'post' | 'term'
-    $obj_id = (int) ($_POST['obj_id'] ?? 0);
+    $obj_id = absint( wp_unslash( $_POST['obj_id'] ?? 0 ) );
     if (!$obj_id)
         wp_send_json_error('ID mancante.');
 
@@ -451,9 +435,10 @@ add_action('wp_ajax_wpb_advisor_save', function () {
         wp_send_json_error('Permesso negato.', 403);
 
     $obj_type = sanitize_key($_POST['obj_type'] ?? 'post');
-    $obj_id = (int) ($_POST['obj_id'] ?? 0);
-    $title = sanitize_text_field($_POST['seo_title'] ?? '');
-    $desc = sanitize_text_field($_POST['seo_description'] ?? '');
+    $obj_id = absint( wp_unslash( $_POST['obj_id'] ?? 0 ) );
+    $title = sanitize_text_field( wp_unslash( $_POST['seo_title'] ?? '' ) );
+    $desc = sanitize_text_field( wp_unslash( $_POST['seo_description'] ?? '' ) );
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- contenuto JSON, passato a json_decode() subito dopo
     $kw_raw = wp_unslash($_POST['seo_keywords'] ?? '[]');
     $kws = json_decode($kw_raw, true);
     if (!is_array($kws))
@@ -507,7 +492,7 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
         wp_send_json_error('Permesso negato.', 403);
 
     $source = sanitize_key($_POST['source'] ?? '');
-    $search = sanitize_text_field($_POST['search'] ?? '');
+    $search = sanitize_text_field( wp_unslash( $_POST['search'] ?? '' ) );
 
     // Determina se WPML è attivo con lingue di traduzione
     $wpml_active = defined('ICL_SITEPRESS_VERSION')
@@ -534,6 +519,7 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
             // Post type
             if ($wpml_active) {
                 global $wpdb;
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $ids = $wpdb->get_col($wpdb->prepare(
                     "SELECT element_id FROM {$wpdb->prefix}icl_translations
                      WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
@@ -551,6 +537,7 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
                     'orderby' => 'title',
                     'order' => 'ASC',
                     'post__in' => $ids,
+                    // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.SuppressFilters_suppress_filters -- necessario per bypassare filtri multilingua/query interna
                     'suppress_filters' => true,
                 ];
                 if ($search)
@@ -579,6 +566,7 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
             // Tassonomia
             if ($wpml_active) {
                 global $wpdb;
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $tt_ids = $wpdb->get_col($wpdb->prepare(
                     "SELECT element_id FROM {$wpdb->prefix}icl_translations
                      WHERE element_type = %s AND language_code = %s AND element_id IS NOT NULL",
@@ -640,6 +628,7 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
    ───────────────────────────────────────── */
 function wpb_advisor_admin_page()
 {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'generate';
     $api_key = wpb_advisor_active_key();
     $provider = get_option('wpb_advisor_provider', 'anthropic');
@@ -866,6 +855,7 @@ function wpb_advisor_admin_page()
 
         <?php elseif ($tab === 'settings'): ?>
 
+            <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione ?>
             <?php if (isset($_GET['settings-updated'])): ?>
                 <div class="wpb-adv-notice-success"><span class="dashicons dashicons-yes-alt"></span>
                     <div>Impostazioni salvate.</div>

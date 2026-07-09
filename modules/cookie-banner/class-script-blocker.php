@@ -98,7 +98,8 @@ class WPB_Script_Blocker {
      * Ritorna array vuoto se il cookie non esiste (nuovo visitatore = tutto negato).
      */
     public static function read_consent(): array {
-        $raw = $_COOKIE['wpb_consent'] ?? '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- valore JSON urlencoded, validato subito sotto con json_decode() e is_array()
+        $raw = wp_unslash( $_COOKIE['wpb_consent'] ?? '' );
         if ($raw === '') return [];
         $c = json_decode(urldecode($raw), true);
         return is_array($c) ? $c : [];

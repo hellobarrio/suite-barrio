@@ -1,19 +1,21 @@
 <?php
 /**
- * Plugin Name:  WP Barrio
- * Description:  WP Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      8.1.1
+ * Plugin Name:  Suite Barrio
+ * Description:  Suite Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
+ * Version:      7.8.0
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Text Domain:  wp-barrio
+ * License:      GPLv2 or later
+ * License URI:  https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 if (!defined('ABSPATH'))
    exit;
 
 /* ─────────────────────────────────────────
-   CSS CONDIVISO: caricato su tutte le pagine WP Barrio
+   CSS CONDIVISO: caricato su tutte le pagine Suite Barrio
    ───────────────────────────────────────── */
 add_action('admin_enqueue_scripts', function ($hook) {
    // if (strpos($hook, 'wp-barrio') === false)
@@ -29,7 +31,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('WP_ALT_AI_VERSION', '8.1.1');
+define('WP_ALT_AI_VERSION', '7.8.0');
 define('WP_ALT_AI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_ALT_AI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WP_ALT_AI_LOG_OPTION', 'wp_alt_ai_log');

@@ -184,9 +184,6 @@ function wpb_stats_run_report(
     $parsed = json_decode(wp_remote_retrieve_body($response), true);
 
     if ($http_code !== 200 || isset($parsed['error'])) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[WPB Stats] API error ' . $http_code . ': ' . wp_json_encode($parsed['error'] ?? $parsed));
-        }
         // Token revocato: pulisci i token salvati
         if ($http_code === 401) {
             delete_option(WPB_STATS_TOKEN_OPTION);
@@ -345,28 +342,29 @@ add_action('admin_init', function () {
     if (!current_user_can('manage_options'))
         return;
 
-    // Errore restituito da Google
+    // Errore restituito da Google.
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- callback OAuth di Google: la verifica CSRF avviene tramite il parametro 'state' (nonce 'wpb_stats_oauth_state') controllato subito sotto; questo ramo si limita a rilanciare l'errore ricevuto, nessuna azione di stato.
     if (!empty($_GET['error'])) {
-        wp_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=' . urlencode($_GET['error'])));
+        wp_safe_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=' . urlencode(sanitize_text_field(wp_unslash($_GET['error'])))));
         exit;
     }
 
-    // Verifica state anti-CSRF
-    $state = sanitize_text_field($_GET['state'] ?? '');
+    // Verifica state anti-CSRF (funge da nonce per l'intero callback OAuth)
+    $state = sanitize_text_field(wp_unslash($_GET['state'] ?? ''));
     if (!wp_verify_nonce($state, 'wpb_stats_oauth_state')) {
-        wp_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=state_mismatch'));
+        wp_safe_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=state_mismatch'));
         exit;
     }
 
-    $code = sanitize_text_field($_GET['code'] ?? '');
+    $code = sanitize_text_field(wp_unslash($_GET['code'] ?? ''));
     if (!$code) {
-        wp_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=no_code'));
+        wp_safe_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=no_code'));
         exit;
     }
 
     $ok = wpb_stats_exchange_code($code);
     if (!$ok) {
-        wp_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=exchange_failed'));
+        wp_safe_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_error=exchange_failed'));
         exit;
     }
 
@@ -375,7 +373,7 @@ add_action('admin_init', function () {
     if (!empty($s['property_id'])) {
         delete_transient('wpb_stats_dash_' . $s['property_id']);
     }
-    wp_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_success=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-stats&oauth_success=1'));
     exit;
 });
 
@@ -390,7 +388,8 @@ add_action('admin_post_wpb_stats_save', function () {
     $existing = wpb_stats_settings();
     $client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
     $client_secret = sanitize_text_field(wp_unslash($_POST['client_secret'] ?? ''));
-    $property_id = preg_replace('/[^0-9]/', '', $_POST['property_id'] ?? '');
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato: preg_replace filtra solo caratteri numerici.
+    $property_id = preg_replace('/[^0-9]/', '', wp_unslash($_POST['property_id'] ?? ''));
     $replace = !empty($_POST['replace_dashboard']);
 
     // Mantieni valori esistenti se i campi sono vuoti
@@ -418,7 +417,7 @@ add_action('admin_post_wpb_stats_save', function () {
         delete_transient('wpb_stats_dash_' . $property_id);
     }
 
-    wp_redirect(admin_url('admin.php?page=wp-barrio-stats&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-stats&saved=1'));
     exit;
 });
 
@@ -436,7 +435,7 @@ add_action('admin_post_wpb_stats_disconnect', function () {
         delete_transient('wpb_stats_dash_' . $s['property_id']);
     }
 
-    wp_redirect(admin_url('admin.php?page=wp-barrio-stats&disconnected=1'));
+    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-stats&disconnected=1'));
     exit;
 });
 
@@ -482,8 +481,8 @@ add_action('wp_ajax_wpb_stats_fetch_period', function () {
         wp_send_json_error('Property ID mancante.');
 
     $period = sanitize_key($_POST['period'] ?? 'month');
-    $custom_from = sanitize_text_field($_POST['date_from'] ?? '');
-    $custom_to = sanitize_text_field($_POST['date_to'] ?? '');
+    $custom_from = sanitize_text_field(wp_unslash($_POST['date_from'] ?? ''));
+    $custom_to = sanitize_text_field(wp_unslash($_POST['date_to'] ?? ''));
 
     if ($period === 'custom') {
         // Valida formato YYYY-MM-DD
@@ -495,14 +494,14 @@ add_action('wp_ajax_wpb_stats_fetch_period', function () {
         }
         $start = $custom_from;
         $end = $custom_to;
-        $label = date('d/m/Y', strtotime($start)) . ' – ' . date('d/m/Y', strtotime($end));
+        $label = wp_date('d/m/Y', strtotime($start)) . ' – ' . wp_date('d/m/Y', strtotime($end));
     } else {
         [$start, $end, $label] = wpb_stats_period_range($period);
     }
 
     // Numero di giorni — determina la granularità del grafico
-    $start_ts = strtotime($start === 'today' ? date('Y-m-d') : $start);
-    $end_ts = strtotime($end === 'today' ? date('Y-m-d') : $end);
+    $start_ts = strtotime($start === 'today' ? wp_date('Y-m-d') : $start);
+    $end_ts = strtotime($end === 'today' ? wp_date('Y-m-d') : $end);
     $days = (int) round(($end_ts - $start_ts) / 86400) + 1;
 
     $result = [];
@@ -587,7 +586,7 @@ add_action('wp_ajax_wpb_stats_fetch_period', function () {
             $date = $row['dimensionValues'][0]['value']; // YYYYMMDD
             $ts = mktime(0, 0, 0, (int) substr($date, 4, 2), (int) substr($date, 6, 2), (int) substr($date, 0, 4));
             // Lunedì della settimana
-            $mon = date('Y-m-d', strtotime('monday this week', $ts));
+            $mon = wp_date('Y-m-d', strtotime('monday this week', $ts));
             $key = $mon;
             $buckets[$key]['pv'] = ($buckets[$key]['pv'] ?? 0) + (int) ($row['metricValues'][0]['value'] ?? 0);
             $buckets[$key]['users'] = ($buckets[$key]['users'] ?? 0) + (int) ($row['metricValues'][1]['value'] ?? 0);
@@ -740,9 +739,9 @@ add_action('admin_enqueue_scripts', function ($hook) {
     if ($is_dash && wpb_stats_replace_active()) {
         wp_enqueue_script(
             'wpb-stats-chartjs',
-            'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+            WP_ALT_AI_PLUGIN_URL . 'assets/js/chart.umd.min.js',
             [],
-            null,
+            '4.4.0',
             true
         );
         wp_add_inline_script('wpb-stats-chartjs', wpb_stats_dashboard_js());
@@ -1322,10 +1321,14 @@ function wpb_stats_admin_page()
     $property_id = $s['property_id'] ?? '';
     $replace = !empty($s['replace_dashboard']);
 
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di soli flag informativi per mostrare notice dopo un redirect (nessuna azione di stato eseguita qui).
     $saved = isset($_GET['saved']);
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $disconnected = isset($_GET['disconnected']);
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $oauth_ok = isset($_GET['oauth_success']);
-    $oauth_err = isset($_GET['oauth_error']) ? sanitize_text_field($_GET['oauth_error']) : '';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+    $oauth_err = isset($_GET['oauth_error']) ? sanitize_text_field(wp_unslash($_GET['oauth_error'])) : '';
 
     $oauth_url = '';
     if ($configured && !$connected) {

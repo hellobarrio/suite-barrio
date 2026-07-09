@@ -157,6 +157,7 @@ add_action('admin_post_wpb_company_info_save', function () {
 
     $clean = [];
     foreach (wpb_company_info_flat_keys() as $key => $meta) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitizzato subito sotto in base al tipo di campo (switch $meta['type'])
         $raw = isset($_POST['company'][$key]) ? wp_unslash($_POST['company'][$key]) : '';
         switch ($meta['type']) {
             case 'bool':
@@ -184,8 +185,9 @@ add_action('admin_post_wpb_company_info_save', function () {
 
     // Mantieni la tab attiva nel redirect
     $tabs = array_keys(wpb_company_info_tabs());
-    $active = isset($_POST['active_tab']) && in_array($_POST['active_tab'], $tabs, true)
-        ? $_POST['active_tab']
+    $posted_active_tab = isset($_POST['active_tab']) ? sanitize_key(wp_unslash($_POST['active_tab'])) : '';
+    $active = in_array($posted_active_tab, $tabs, true)
+        ? $posted_active_tab
         : 'dati';
 
     wp_safe_redirect(admin_url('admin.php?page=wp-barrio-info-azienda&saved=1&tab=' . $active));
@@ -203,7 +205,9 @@ function wpb_company_info_admin_page()
 
     $tabs = wpb_company_info_tabs();
     $data = wpb_company_info_get();
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $active_tab = isset($_GET['tab']) && isset($tabs[$_GET['tab']]) ? sanitize_key($_GET['tab']) : 'dati';
     ?>
     <div id="wpb-company-wrap" class="wrap wpb-wrap">

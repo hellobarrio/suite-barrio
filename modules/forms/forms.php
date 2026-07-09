@@ -24,6 +24,8 @@ function wpb_forms_install()
     $charset = $wpdb->get_charset_collate();
 
     // CREATE TABLE IF NOT EXISTS — non dipende da dbDelta
+    // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$charset} viene da $wpdb->get_charset_collate(), valore fisso non da input utente
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- operazione di installazione/aggiornamento schema, eseguita una tantum in attivazione plugin; nessun object-cache group dedicato, il caching non ha senso su una CREATE TABLE
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_forms` (
             id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -36,6 +38,7 @@ function wpb_forms_install()
         ) {$charset};"
     );
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- operazione di installazione/aggiornamento schema, eseguita una tantum in attivazione plugin; nessun object-cache group dedicato, il caching non ha senso su una CREATE TABLE
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_form_submissions` (
             id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -48,6 +51,7 @@ function wpb_forms_install()
             KEY form_id (form_id)
         ) {$charset};"
     );
+    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 }
 
 add_action('plugins_loaded', 'wpb_forms_install');
@@ -66,10 +70,15 @@ add_action('admin_init', function () {
 function wpb_forms_get_all()
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_results(
         "SELECT id, title, created_at,
-                (SELECT COUNT(*) FROM {$wpdb->prefix}" . WPB_FORMS_SUB_TABLE . " s WHERE s.form_id = f.id) AS submissions
-         FROM {$wpdb->prefix}" . WPB_FORMS_TABLE . " f
+                (SELECT COUNT(*) FROM {$wpdb->prefix}"
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nome tabella fisso (costante di plugin), non input utente
+        . WPB_FORMS_SUB_TABLE . " s WHERE s.form_id = f.id) AS submissions
+         FROM {$wpdb->prefix}"
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nome tabella fisso (costante di plugin), non input utente
+        . WPB_FORMS_TABLE . " f
          ORDER BY id DESC"
     );
 }
@@ -77,7 +86,9 @@ function wpb_forms_get_all()
 function wpb_forms_get($id)
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nome tabella fisso (costante di plugin), non input utente
         "SELECT * FROM {$wpdb->prefix}" . WPB_FORMS_TABLE . " WHERE id = %d",
         intval($id)
     ));
@@ -86,7 +97,9 @@ function wpb_forms_get($id)
 function wpb_forms_get_submissions($form_id, $limit = 50, $offset = 0)
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_results($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nome tabella fisso (costante di plugin), non input utente
         "SELECT * FROM {$wpdb->prefix}" . WPB_FORMS_SUB_TABLE . "
          WHERE form_id = %d ORDER BY created_at DESC LIMIT %d OFFSET %d",
         intval($form_id),
@@ -98,7 +111,9 @@ function wpb_forms_get_submissions($form_id, $limit = 50, $offset = 0)
 function wpb_forms_count_submissions($form_id)
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return (int) $wpdb->get_var($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nome tabella fisso (costante di plugin), non input utente
         "SELECT COUNT(*) FROM {$wpdb->prefix}" . WPB_FORMS_SUB_TABLE . " WHERE form_id = %d",
         intval($form_id)
     ));
@@ -107,7 +122,9 @@ function wpb_forms_count_submissions($form_id)
 function wpb_forms_get_submission($id)
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     return $wpdb->get_row($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nome tabella fisso (costante di plugin), non input utente
         "SELECT * FROM {$wpdb->prefix}" . WPB_FORMS_SUB_TABLE . " WHERE id = %d",
         intval($id)
     ));
@@ -145,7 +162,9 @@ function wpb_forms_shortcode($atts)
                 <input type="hidden" name="_page_title" id="<?php echo esc_attr($form_id_css); ?>-page-title">
             <?php endif; ?>
 
-            <?php foreach ($fields as $field):
+            <?php
+            // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- $fid/$label/$placeholder/$req_attr sono già passati per esc_attr()/esc_html() all'assegnazione qui sotto; un secondo escaping raddoppierebbe l'encoding delle entità e altererebbe l'output per caratteri speciali. $req_star è markup HTML intenzionale (tag <span>) e non va escapato.
+            foreach ($fields as $field):
                 $type = $field['type'] ?? 'text';
                 if ($type === 'page_break')
                     continue; // separatore multistep, non un campo HTML
@@ -209,7 +228,10 @@ function wpb_forms_shortcode($atts)
                             placeholder="<?php echo $placeholder; ?>" <?php echo $extra_attrs; ?>             <?php echo $req_attr; ?>>
                     <?php endif; ?>
                 </div>
-            <?php endforeach; ?>
+            <?php
+            endforeach;
+            // phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+            ?>
 
             <div class="wpb-field-wrap wpb-field-submit">
                 <button type="submit" class="wpb-submit-btn">
@@ -343,7 +365,7 @@ function wpb_forms_shortcode($atts)
                     document.getElementById('<?php echo esc_js($form_id_css); ?>-page-title').value = document.title;
                 <?php endif; ?>
 
-                fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
                     method: 'POST',
                     body: new FormData(form)
                 })
@@ -701,21 +723,10 @@ function wpb_forms_send_notifications(object $form, array $settings, array $subm
 
     $log[] = 'form_id=' . $form->id . ' notifications_count=' . count($notifications)
         . ' settings_keys=' . implode(',', array_keys($settings));
-    error_log('[WP Barrio][send_notifications] ' . end($log));
 
     if (empty($notifications)) {
         $log[] = 'SKIP: nessuna notifica configurata per questo form.';
-        error_log('[WP Barrio][send_notifications] ' . end($log));
         return $log;
-    }
-
-    // Logga eventuali errori di wp_mail senza far crashare il flusso
-    static $mail_failed_hooked = false;
-    if (!$mail_failed_hooked) {
-        add_action('wp_mail_failed', function ($error) {
-            error_log('[WP Barrio] wp_mail_failed: ' . $error->get_error_message());
-        });
-        $mail_failed_hooked = true;
     }
 
     $default_subject = sprintf('[%s] Nuova registrazione: %s', get_bloginfo('name'), $form->title);
@@ -725,7 +736,6 @@ function wpb_forms_send_notifications(object $form, array $settings, array $subm
         // ── Destinatario ─────────────────────────────────────────────────────
         $to_email_raw = wpb_interpolate_field_vars(trim($notif['to_email'] ?? ''), $submission_data);
         $to_email = sanitize_email($to_email_raw);
-        error_log('[WP Barrio] notifica to_email_raw="' . $to_email_raw . '" sanitized="' . $to_email . '"');
         if (!$to_email)
             continue;
 
@@ -877,7 +887,6 @@ function wpb_forms_send_notifications(object $form, array $settings, array $subm
         }
 
         $result = $method . ' to="' . $to . '" subject="' . $subject . '" → ' . ($sent ? 'INVIATA' : 'FALLITA');
-        error_log('[WP Barrio] ' . $result);
         $log[] = $result;
     }
 
@@ -997,7 +1006,6 @@ function wpb_mailjet_send(
     );
 
     if (is_wp_error($response)) {
-        error_log('[WP Barrio][Mailjet] WP_Error: ' . $response->get_error_message());
         return false;
     }
 
@@ -1005,10 +1013,7 @@ function wpb_mailjet_send(
     $body_decoded = json_decode(wp_remote_retrieve_body($response), true);
     $status = $body_decoded['Messages'][0]['Status'] ?? 'unknown';
 
-    error_log('[WP Barrio][Mailjet] HTTP ' . $code . ' status=' . $status);
-
     if ($code !== 200) {
-        error_log('[WP Barrio][Mailjet] Response: ' . wp_remote_retrieve_body($response));
         return false;
     }
 
@@ -1049,10 +1054,12 @@ function wpb_forms_handle_submit()
         $type = $field['type'] ?? 'text';
 
         if ($type === 'file') {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $_FILES è un array strutturato gestito da wp_handle_upload(), non sanitizzabile con sanitize_text_field
             $uploaded = $_FILES[$fid] ?? null;
             $missing = !$uploaded || empty($uploaded['name']) || $uploaded['error'] === UPLOAD_ERR_NO_FILE;
         } else {
-            $val = $_POST[$fid] ?? '';
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- usato solo per il controllo di campo obbligatorio (vuoto/non vuoto), non salvato né stampato; la sanitizzazione reale avviene al momento del salvataggio più sotto
+            $val = wp_unslash($_POST[$fid] ?? '');
             $missing = '' === trim(is_array($val) ? implode(',', $val) : $val);
         }
 
@@ -1078,6 +1085,7 @@ function wpb_forms_handle_submit()
 
         if ($type === 'file') {
             // Gestisci upload: salva in wp-content/uploads con wp_handle_upload
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $_FILES è un array strutturato gestito da wp_handle_upload(), non sanitizzabile con sanitize_text_field
             $uploaded = $_FILES[$fid] ?? null;
             if (!$uploaded || empty($uploaded['name']) || $uploaded['error'] !== UPLOAD_ERR_OK)
                 continue;
@@ -1103,7 +1111,6 @@ function wpb_forms_handle_submit()
             $moved = wp_handle_upload($uploaded, $overrides);
 
             if (isset($moved['error'])) {
-                error_log('[WP Barrio][file] upload error for ' . $fid . ': ' . $moved['error']);
                 continue;
             }
 
@@ -1122,7 +1129,8 @@ function wpb_forms_handle_submit()
             $attachments[] = $file_path;
 
         } else {
-            $val = $_POST[$fid] ?? '';
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- valore sanitizzato nella riga immediatamente successiva (array_map('sanitize_text_field', ...) o sanitize_textarea_field()) prima di qualsiasi uso; wp_unslash() qui rimuove solo gli slash aggiunti da WP e non introduce un utilizzo non sanitizzato del dato
+            $val = wp_unslash($_POST[$fid] ?? '');
             $val = is_array($val)
                 ? array_map('sanitize_text_field', $val)
                 : sanitize_textarea_field($val);
@@ -1133,21 +1141,22 @@ function wpb_forms_handle_submit()
     if (!empty($settings['display_page_info'])) {
         $submission_data['_page_url'] = [
             'label' => 'URL pagina',
-            'value' => sanitize_url($_POST['_page_url'] ?? ''),
+            'value' => sanitize_url(wp_unslash($_POST['_page_url'] ?? '')),
         ];
         $submission_data['_page_title'] = [
             'label' => 'Titolo pagina',
-            'value' => sanitize_text_field($_POST['_page_title'] ?? ''),
+            'value' => sanitize_text_field(wp_unslash($_POST['_page_title'] ?? '')),
         ];
     }
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->insert(
         $wpdb->prefix . WPB_FORMS_SUB_TABLE,
         [
             'form_id' => $form_id,
             'data' => wp_json_encode($submission_data),
-            'ip' => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-            'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
+            'ip' => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? '')),
+            'user_agent' => sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? '')),
         ],
         ['%d', '%s', '%s', '%s']
     );
@@ -1172,9 +1181,6 @@ function wpb_forms_handle_submit()
             // Il campo checkbox invia il valore dell'opzione selezionata; consideriamo
             // l'utente iscritto se il valore non è vuoto (= checkbox spuntata)
             $optin_ok = trim($optin_value) !== '';
-            if (!$optin_ok) {
-                error_log('[WP Barrio][MailUp] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
-            }
         }
 
         $mu_email = sanitize_email(
@@ -1202,12 +1208,7 @@ function wpb_forms_handle_submit()
                 }
             }
 
-            $result = wpb_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
-            if (is_wp_error($result)) {
-                error_log('[WP Barrio][MailUp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
-            }
-        } else {
-            error_log('[WP Barrio][MailUp] Salto iscrizione: email non valida (' . $mu_email . ')');
+            wpb_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
         }
     }
 
@@ -1276,40 +1277,27 @@ function wpb_mailup_subscribe(
     $params['csvFldValues'] = rtrim($params['csvFldValues'], ";");
 
     $urlNewsletter = 'https://a9c1g2.mailupclient.com/frontend/xmlSubscribe.aspx?' . http_build_query($params);
-    error_log($urlNewsletter);
 
-    $curl = curl_init();
-    curl_setopt_array($curl, [
-        CURLOPT_URL => $urlNewsletter,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'GET',
-        CURLOPT_HTTPHEADER => [
-            'Cookie: BIGipServercu_front_80_pool=!SZdQ+v1gd8oQ8VNyTiB5XWD/TCWaDTD7AeDqgydX491rNiByeurG+QWHNKLmufuzRVmHW51J5iseiX0=',
+    $curl_response = wp_remote_get($urlNewsletter, [
+        'timeout' => 15,
+        'redirection' => 10,
+        'headers' => [
+            'Cookie' => 'BIGipServercu_front_80_pool=!SZdQ+v1gd8oQ8VNyTiB5XWD/TCWaDTD7AeDqgydX491rNiByeurG+QWHNKLmufuzRVmHW51J5iseiX0=',
         ],
     ]);
 
-    $response = curl_exec($curl);
-    $curl_errno = curl_errno($curl);
-    $curl_error = curl_error($curl);
-    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
-
-    // Errore di trasporto cURL
-    if ($curl_errno !== 0 || $response === false) {
-        $err = "MailUp xmlSubscribe: errore cURL #{$curl_errno} — {$curl_error}";
-        error_log('[WP Barrio][MailUp] ' . $err);
+    // Errore di trasporto
+    if (is_wp_error($curl_response)) {
+        $err = 'MailUp xmlSubscribe: errore HTTP — ' . $curl_response->get_error_message();
         return new WP_Error('mailup_curl', $err);
     }
+
+    $http_code = wp_remote_retrieve_response_code($curl_response);
+    $response = wp_remote_retrieve_body($curl_response);
 
     // Errore HTTP
     if ($http_code < 200 || $http_code >= 300) {
         $err = "MailUp xmlSubscribe: risposta HTTP {$http_code} — " . wp_strip_all_tags($response);
-        error_log('[WP Barrio][MailUp] ' . $err);
         return new WP_Error('mailup_http', $err);
     }
 
@@ -1324,12 +1312,10 @@ function wpb_mailup_subscribe(
                 $detail = $m[1];
             }
             $err = "MailUp xmlSubscribe: esito errore (Code={$code})" . ($detail ? " — {$detail}" : '');
-            error_log('[WP Barrio][MailUp] ' . $err);
             return new WP_Error('mailup_subscribe', $err);
         }
     }
 
-    error_log("[WP Barrio][MailUp] Iscrizione OK — email={$email} list={$list_id} group={$group_id} http={$http_code} response=" . wp_strip_all_tags($response));
     return true;
 }
 
@@ -1341,13 +1327,7 @@ function wpb_forms_revalidate_cache(int $form_id): void
     $tag = 'form_' . $form_id;
     $url = 'https://hb-st-25.vercel.app/api/revalidate/?' . http_build_query(['tag' => $tag]);
 
-    $response = wp_remote_get($url, ['timeout' => 10, 'blocking' => false]);
-
-    if (is_wp_error($response)) {
-        error_log('[WP Barrio][Revalidate] Errore per tag "' . $tag . '": ' . $response->get_error_message());
-    } else {
-        error_log('[WP Barrio][Revalidate] Richiesta inviata per tag "' . $tag . '"');
-    }
+    wp_remote_get($url, ['timeout' => 10, 'blocking' => false]);
 }
 
 /* ─────────────────────────────────────────
@@ -1361,8 +1341,10 @@ add_action('wp_ajax_wpb_forms_save', function () {
     global $wpdb;
 
     $id = intval($_POST['form_id'] ?? 0);
-    $title = sanitize_text_field($_POST['title'] ?? '');
+    $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON grezzo del form, decodificato con json_decode più sotto; sanitize_text_field corromperebbe il JSON
     $fields = wp_unslash($_POST['fields'] ?? '[]');
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON grezzo delle impostazioni, decodificato con json_decode più sotto; sanitize_text_field corromperebbe il JSON
     $settings = wp_unslash($_POST['settings'] ?? '{}');
 
     if (empty($title))
@@ -1455,6 +1437,7 @@ add_action('wp_ajax_wpb_forms_save', function () {
     $table = $wpdb->prefix . WPB_FORMS_TABLE;
 
     if ($id) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->update(
             $table,
             ['title' => $title, 'fields' => $fields, 'settings' => $settings],
@@ -1470,6 +1453,7 @@ add_action('wp_ajax_wpb_forms_save', function () {
         }
         wp_send_json_success(['id' => $id, 'message' => 'Form salvato.']);
     } else {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->insert(
             $table,
             ['title' => $title, 'fields' => $fields, 'settings' => $settings],
@@ -1497,7 +1481,9 @@ add_action('wp_ajax_wpb_forms_delete', function () {
     $id = intval($_POST['form_id'] ?? 0);
     if (!$id)
         wp_send_json_error('ID non valido.');
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . WPB_FORMS_TABLE, ['id' => $id], ['%d']);
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . WPB_FORMS_SUB_TABLE, ['form_id' => $id], ['%d']);
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
@@ -1566,6 +1552,7 @@ add_action('wp_ajax_wpb_forms_delete_all_submissions', function () {
     if (!$form_id)
         wp_send_json_error('ID form non valido.');
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . WPB_FORMS_SUB_TABLE, ['form_id' => $form_id], ['%d']);
     wp_send_json_success('Registrazioni eliminate.');
 });
@@ -1577,6 +1564,7 @@ add_action('wp_ajax_wpb_forms_delete_submission', function () {
     $id = intval($_POST['submission_id'] ?? 0);
     if (!$id)
         wp_send_json_error('ID non valido.');
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . WPB_FORMS_SUB_TABLE, ['id' => $id], ['%d']);
     wp_send_json_success('Risposta eliminata.');
 });
@@ -1591,7 +1579,7 @@ add_action('wp_ajax_wpb_forms_resend_notification', function () {
 
     $submission_id = intval($_POST['submission_id'] ?? 0);
     $notif_index = intval($_POST['notification_index'] ?? -1);
-    $override_email = sanitize_email($_POST['override_email'] ?? '');
+    $override_email = sanitize_email(wp_unslash($_POST['override_email'] ?? ''));
 
     if (!$submission_id)
         wp_send_json_error('ID registrazione non valido.');
@@ -1646,6 +1634,7 @@ add_action('wp_ajax_wpb_forms_preview_notification', function () {
         wp_send_json_error('Form non trovato.');
 
     $settings = json_decode($form->settings, true) ?: [];
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON grezzo del template di notifica, già passato per wp_unslash() e poi json_decode(); sanitize_text_field corromperebbe il JSON
     $notif_data = json_decode(wp_unslash($_POST['notif_data'] ?? '{}'), true) ?: [];
 
     $message_mode = $notif_data['message_mode'] ?? 'auto';
@@ -1660,6 +1649,7 @@ add_action('wp_ajax_wpb_forms_preview_notification', function () {
             : '<em style="color:#a7aaad;">Corpo del messaggio vuoto.</em>';
     } else {
         // Usa i campi passati dal JS (stato live dell'editor), con fallback a quelli salvati nel DB
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON grezzo dei campi form dallo stato live dell'editor, già passato per wp_unslash() e poi json_decode(); sanitize_text_field corromperebbe il JSON
         $live_fields = json_decode(wp_unslash($_POST['fields_data'] ?? '[]'), true);
         $form_fields = is_array($live_fields) && !empty($live_fields)
             ? $live_fields
@@ -1727,9 +1717,13 @@ function wpb_forms_admin_page()
     $nonce = wp_create_nonce('wpb_forms_nonce');
 
     $forms = wpb_forms_get_all();
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'list';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $edit_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $view_id = isset($_GET['view_id']) ? intval($_GET['view_id']) : 0;
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $sub_id = isset($_GET['sub_id']) ? intval($_GET['sub_id']) : 0;
 
     $edit_form = $edit_id ? wpb_forms_get($edit_id) : null;
@@ -3211,7 +3205,7 @@ function wpb_forms_admin_page()
                                         <p>
                                             <?php
                                             $ip = file_get_contents('https://api4.ipify.org'); // forza IPv4
-                                            echo $ip;
+                                            echo esc_html($ip);
                                             ?>
                                             <br>
                                             <span style="margin:0 0 16px;font-size:12px;color:#a7aaad;">Inserisci questo
@@ -3337,7 +3331,7 @@ function wpb_forms_admin_page()
                                         </a>
                                     </td>
                                     <td style="font-size:12px;color:#6b7280;">
-                                        <?php echo date_i18n('d/m/Y', strtotime($f->created_at)); ?>
+                                        <?php echo esc_html(date_i18n('d/m/Y', strtotime($f->created_at))); ?>
                                     </td>
                                     <td>
                                         <a href="<?php echo esc_url($edit_url); ?>"
@@ -3396,7 +3390,7 @@ function wpb_forms_admin_page()
                         ];
                         foreach ($field_types as $type => $data): ?>
                             <button class="wpb-field-type-btn" data-type="<?php echo esc_attr($type); ?>">
-                                <span class="wpb-ft-icon"><?php echo $data['icon']; ?></span>
+                                <span class="wpb-ft-icon"><?php echo esc_html($data['icon']); ?></span>
                                 <?php echo esc_html($data['label']); ?>
                             </button>
                         <?php endforeach; ?>
@@ -5536,6 +5530,7 @@ function wpb_forms_submissions_page()
 
     $nonce = wp_create_nonce('wpb_forms_nonce');
     $forms = wpb_forms_get_all();
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $view_id = isset($_GET['view_id']) ? intval($_GET['view_id']) : 0;
     $view_form = $view_id ? wpb_forms_get($view_id) : null;
     ?>
@@ -5915,7 +5910,7 @@ function wpb_forms_submissions_page()
                         </span>
                     </td>
                     <td style="font-size:12px;color:#646970;">
-                        <?php echo date_i18n('d/m/Y', strtotime($f->created_at)); ?>
+                        <?php echo esc_html(date_i18n('d/m/Y', strtotime($f->created_at))); ?>
                     </td>
                     <td>
                         <a href="<?php echo esc_url($subs_url); ?>" class="wpb-btn wpb-btn-ghost wpb-btn-sm">Vedi
