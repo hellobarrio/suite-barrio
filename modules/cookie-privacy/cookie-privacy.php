@@ -81,14 +81,12 @@ function wpb_cp_get_cookie_report_script(): string
 function wpb_cp_sync_report_script_to_page(): void
 {
     $cookie_id = absint(get_option('wpb_cp_cookie_page_id', 0));
-    if (!$cookie_id)
-        return;
+    if (!$cookie_id) return;
 
     $page = get_post($cookie_id);
-    if (!$page || $page->post_type !== 'page')
-        return;
+    if (!$page || $page->post_type !== 'page') return;
 
-    $script = wpb_cp_get_cookie_report_script();
+    $script  = wpb_cp_get_cookie_report_script();
     $content = $page->post_content;
 
     // Pattern: heading "Cookie utilizzati su questo sito" + blocco wp:html
@@ -107,8 +105,7 @@ function wpb_cp_sync_report_script_to_page(): void
         $new_content = rtrim((string) preg_replace($pattern, '', $content));
     }
 
-    if ($new_content === null || $new_content === $content)
-        return;
+    if ($new_content === null || $new_content === $content) return;
 
     kses_remove_filters();
     wp_update_post(['ID' => $cookie_id, 'post_content' => $new_content]);
@@ -522,7 +519,7 @@ function wpb_cp_policy_prompt(string $policy_type, string $domain, WP_Post $page
         ? "DATI AZIENDALI VERIFICATI (unica fonte di verità per qualsiasi riferimento al titolare/azienda):\n$company_block\n"
         : '';
 
-    $services_block = function_exists('wpb_cb_get_services_for_prompt')
+    $services_block   = function_exists('wpb_cb_get_services_for_prompt')
         ? wpb_cb_get_services_for_prompt()
         : '';
     $services_section = $services_block !== ''
@@ -661,7 +658,7 @@ function wpb_cp_admin_page()
     $selected_cookie_page_id = absint(get_option('wpb_cp_cookie_page_id', 0));
     $cookie_report_script = wpb_cp_get_cookie_report_script();
     ?>
-    <div id="wpb-cp-wrap" class="wrap wpb-wrap">
+<div id="wpb-cp-wrap" class="wrap wpb-wrap">
         <div class="wpb-cp-header">
             <div class="wpb-cp-header-icon"><span class="dashicons dashicons-shield"></span></div>
             <div>
@@ -673,15 +670,15 @@ function wpb_cp_admin_page()
 
         <?php
         $registered_tabs = apply_filters('wpb_cp_tabs', [
-            'generate' => ['label' => 'Genera', 'icon' => 'media-text'],
-            'log' => ['label' => 'Log', 'icon' => 'list-view'],
+            'generate' => ['label' => 'Genera',       'icon' => 'media-text'],
+            'log'      => ['label' => 'Log',          'icon' => 'list-view'],
             'settings' => ['label' => 'Impostazioni', 'icon' => 'admin-generic'],
         ]);
         ?>
         <div class="wpb-cp-tabs">
             <?php foreach ($registered_tabs as $tab_key => $tab_def): ?>
                 <a class="wpb-cp-tab <?php echo $tab === $tab_key ? 'active' : ''; ?>"
-                    href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-cookie-privacy&tab=' . urlencode($tab_key))); ?>">
+                   href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-cookie-privacy&tab=' . urlencode($tab_key))); ?>">
                     <span class="dashicons dashicons-<?php echo esc_attr($tab_def['icon']); ?>"></span>
                     <?php echo esc_html($tab_def['label']); ?>
                 </a>
@@ -891,18 +888,19 @@ function wpb_cp_admin_page()
                                 <textarea id="wpb_cp_cookie_report_script" name="wpb_cp_cookie_report_script" rows="6"
                                     placeholder="&lt;script type=&quot;text/javascript&quot; src=&quot;https://...&quot;&gt;&lt;/script&gt;"
                                     style="width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:10px 12px;border:1px solid #d1d5db;border-radius:7px;resize:vertical;"><?php echo esc_textarea($cookie_report_script); ?></textarea>
-                                <button type="button" class="button" id="wpb-cp-use-endpoint" style="margin-top:6px;">
+                                <button type="button" class="button" id="wpb-cp-use-endpoint"
+                                    style="margin-top:6px;">
                                     &#x21BA; Usa endpoint WP Barrio (sostituisce il contenuto)
                                 </button>
                                 <script>
-                                    document.getElementById('wpb-cp-use-endpoint').addEventListener('click', function () {
-                                        if (!confirm('Sovrascrivere il Cookie report script con l\'endpoint WP Barrio?')) return;
-                                        document.getElementById('wpb_cp_cookie_report_script').value =
-                                            '<script>\nfetch(\'' + <?php echo wp_json_encode(rest_url('wpb/v1/cookie-banner/preferences-html')); ?> + '\')\n'
-                                            + '  .then(function(r){ return r.json(); })\n'
-                                            + '  .then(function(res){ document.getElementById(\'wpb-cookie-preferences\').innerHTML = res.html || \'\'; });\n'
-                                            + '<\/script>\n<div id="wpb-cookie-preferences"></div>';
-                                    });
+                                document.getElementById('wpb-cp-use-endpoint').addEventListener('click', function(){
+                                    if (!confirm('Sovrascrivere il Cookie report script con l\'endpoint WP Barrio?')) return;
+                                    document.getElementById('wpb_cp_cookie_report_script').value =
+                                        '<script>\nfetch(\'' + <?php echo wp_json_encode(rest_url('wpb/v1/cookie-banner/preferences-html')); ?> + '\')\n'
+                                        + '  .then(function(r){ return r.json(); })\n'
+                                        + '  .then(function(res){ document.getElementById(\'wpb-cookie-preferences\').innerHTML = res.html || \'\'; });\n'
+                                        + '<\/script>\n<div id="wpb-cookie-preferences"></div>';
+                                });
                                 </script>
                             </div>
                         </div>

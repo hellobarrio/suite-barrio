@@ -55,7 +55,57 @@ add_action('rest_api_init', function () {
         },
         'permission_callback' => fn() => current_user_can('manage_options'),
     ]);
+
+    register_rest_route($ns, '/consent-log', [
+        'methods'             => 'POST',
+        'callback'            => 'wpb_cb_handle_consent_log',
+        'permission_callback' => '__return_true',
+    ]);
 });
+
+/* ── Salva un evento di consenso nel log DB (chiamato dal consent-engine) ── */
+function wpb_cb_handle_consent_log(WP_REST_Request $req): WP_REST_Response {
+    $params = $req->get_json_params() ?: [];
+
+    $ip_raw  = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+    $ip_anon = WPB_Consent_Log::anonymize_ip($ip_raw);
+
+    if (WPB_Consent_Log::is_throttled($ip_anon)) {
+        return new WP_REST_Response(['ok' => true], 200);
+    }
+
+    $id = sanitize_text_field($params['id'] ?? '');
+    if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+        $id = wp_generate_uuid4();
+    }
+
+    $status = ($params['status'] ?? '') === 'accept' ? 'accept' : 'reject';
+
+    $valid_categories = array_keys(WPB_Service_Registry::get_categories());
+    $categories = array_values(array_intersect(
+        array_map('sanitize_key', (array) ($params['categories'] ?? [])),
+        $valid_categories
+    ));
+    $categories = array_diff($categories, ['necessary']);
+
+    $url = substr(sanitize_text_field($params['url'] ?? ''), 0, 2048);
+    $user_agent = substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 512);
+
+    $banner_config = wpb_cb_build_frontend_config();
+    $consent_text  = $banner_config['banner']['text_body'] ?? '';
+
+    WPB_Consent_Log::insert([
+        'id'           => $id,
+        'status'       => $status,
+        'ip_address'   => $ip_anon,
+        'url'          => $url,
+        'user_agent'   => $user_agent,
+        'categories'   => implode(',', $categories),
+        'consent_text' => $consent_text,
+    ]);
+
+    return new WP_REST_Response(['ok' => true], 200);
+}
 
 /* ── URL del consent engine con cache-busting da filemtime ── */
 function wpb_cb_engine_url(): string {

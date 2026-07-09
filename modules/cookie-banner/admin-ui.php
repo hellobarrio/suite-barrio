@@ -4,9 +4,10 @@ if (!defined('ABSPATH')) exit;
 /* ── Registra tab nell'admin di cookie-privacy ── */
 add_filter('wpb_cp_tabs', function (array $tabs): array {
     $new = [
-        'servizi' => ['label' => 'Servizi',             'icon' => 'admin-plugins'],
-        'banner'  => ['label' => 'Banner',              'icon' => 'megaphone'],
-        'gtm'     => ['label' => 'Google Tag Manager',  'icon' => 'tag'],
+        'servizi'  => ['label' => 'Servizi',             'icon' => 'admin-plugins'],
+        'banner'   => ['label' => 'Banner',              'icon' => 'megaphone'],
+        'gtm'      => ['label' => 'Google Tag Manager',  'icon' => 'tag'],
+        'consensi' => ['label' => 'Consensi',            'icon' => 'privacy'],
     ];
     // Inserisci dopo 'generate', prima di 'log'
     $result = [];
@@ -20,9 +21,10 @@ add_filter('wpb_cp_tabs', function (array $tabs): array {
 });
 
 /* ── Render tab ── */
-add_action('wpb_cp_render_tab_servizi', 'wpb_cb_render_tab_servizi');
-add_action('wpb_cp_render_tab_banner',  'wpb_cb_render_tab_banner');
-add_action('wpb_cp_render_tab_gtm',     'wpb_cb_render_tab_gtm');
+add_action('wpb_cp_render_tab_servizi',  'wpb_cb_render_tab_servizi');
+add_action('wpb_cp_render_tab_banner',   'wpb_cb_render_tab_banner');
+add_action('wpb_cp_render_tab_gtm',      'wpb_cb_render_tab_gtm');
+add_action('wpb_cp_render_tab_consensi', 'wpb_cb_render_tab_consensi');
 
 /* ── AJAX: nonce condiviso ── */
 function wpb_cb_nonce(): string {
@@ -724,3 +726,68 @@ function wpb_cb_render_tab_banner(): void {
     </script>
     <?php
 }
+
+/* ── Render: tab Consensi — export CSV del log ── */
+function wpb_cb_render_tab_consensi(): void {
+    $today = current_time('Y-m-d');
+    $from  = date('Y-m-d', strtotime('-30 days', strtotime($today)));
+    $nonce = wp_create_nonce('wpb_cb_export_consent_log');
+    ?>
+    <div class="wpb-cb-section">
+        <div class="wpb-cb-section-head"><span>Esporta log dei consensi</span></div>
+        <div style="padding:16px 18px;">
+            <p style="font-size:13px;color:#374151;margin:0 0 16px;">
+                Scarica in CSV tutti gli eventi di consenso (accetta/rifiuta/preferenze) registrati
+                dai visitatori nell'intervallo di date selezionato.
+            </p>
+            <form method="get" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+                <input type="hidden" name="action" value="wpb_cb_export_consent_log">
+                <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>">
+                <div>
+                    <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Da</label>
+                    <input type="date" name="from" value="<?php echo esc_attr($from); ?>" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px;">A</label>
+                    <input type="date" name="to" value="<?php echo esc_attr($today); ?>" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                </div>
+                <button type="submit" class="wpb-cp-btn wpb-cp-btn-primary">Esporta CSV</button>
+            </form>
+        </div>
+    </div>
+    <?php
+}
+
+/* ── Export CSV del log consensi ── */
+add_action('admin_post_wpb_cb_export_consent_log', function () {
+    if (!current_user_can('manage_options')) wp_die('Permesso negato.', 403);
+    check_admin_referer('wpb_cb_export_consent_log');
+
+    $from = sanitize_text_field($_GET['from'] ?? '');
+    $to   = sanitize_text_field($_GET['to'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = date('Y-m-d', strtotime('-30 days'));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   $to   = date('Y-m-d');
+    if ($from > $to) [$from, $to] = [$to, $from];
+
+    $rows = WPB_Consent_Log::get_range($from, $to);
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="consensi-' . $from . '_' . $to . '.csv"');
+    header('Cache-Control: no-store');
+
+    $out = fopen('php://output', 'w');
+    foreach ($rows as $row) {
+        fputcsv($out, [
+            $row['id'],
+            $row['status'],
+            $row['ip_address'],
+            $row['created_at'],
+            $row['url'],
+            $row['user_agent'],
+            $row['categories'],
+            $row['consent_text'],
+        ]);
+    }
+    fclose($out);
+    exit;
+});

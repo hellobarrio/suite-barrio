@@ -8,6 +8,7 @@ require_once WPB_CB_DIR . 'class-service-registry.php';
 require_once WPB_CB_DIR . 'class-scanner.php';
 require_once WPB_CB_DIR . 'class-script-blocker.php';
 require_once WPB_CB_DIR . 'class-cron.php';
+require_once WPB_CB_DIR . 'class-consent-log.php';
 require_once WPB_CB_DIR . 'rest-api.php';
 require_once WPB_CB_DIR . 'frontend.php';
 require_once WPB_CB_DIR . 'admin-ui.php';
