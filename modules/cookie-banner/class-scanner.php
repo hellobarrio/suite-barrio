@@ -1,13 +1,13 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class WPB_Scanner {
+class SUITE_BARRIO_Scanner {
 
     const RESULTS_OPTION     = 'wpb_cb_scan_results';
     const PROGRESS_TRANSIENT = 'wpb_cb_scan_progress';
     const MAX_PAGES          = 15;
 
-    /* ── Provider database (pubblico per WPB_Script_Blocker) ── */
+    /* ── Provider database (pubblico per SUITE_BARRIO_Script_Blocker) ── */
     public static function get_provider_db(): array { return self::provider_db(); }
 
     /* ── Provider database (rilevamento diretto nella pagina) ── */
@@ -160,7 +160,7 @@ class WPB_Scanner {
             if ($scanned >= self::MAX_PAGES) break;
 
             $page_result = self::scan_page($url);
-            $path        = parse_url($url, PHP_URL_PATH) ?: '/';
+            $path        = wp_parse_url($url, PHP_URL_PATH) ?: '/';
 
             foreach ($page_result['providers'] as $pattern => $match) {
                 if (!isset($found[$pattern])) {
@@ -201,7 +201,7 @@ class WPB_Scanner {
 
         // Auto-aggiungi al registry i servizi trovati non ancora presenti;
         // se già presenti con cookies vuoti, aggiorna solo i cookie.
-        $all_services     = WPB_Service_Registry::get_services();
+        $all_services     = SUITE_BARRIO_Service_Registry::get_services();
         $registered_names = array_column($all_services, 'name');
         foreach ($found as $item) {
             $known_cookies = $item['cookies'] ?? [];
@@ -210,14 +210,14 @@ class WPB_Scanner {
                 if (!empty($known_cookies)) {
                     foreach ($all_services as $s) {
                         if ($s['name'] === $item['name'] && empty($s['cookies'])) {
-                            WPB_Service_Registry::update_service($s['id'], ['cookies' => $known_cookies]);
+                            SUITE_BARRIO_Service_Registry::update_service($s['id'], ['cookies' => $known_cookies]);
                             break;
                         }
                     }
                 }
                 continue;
             }
-            WPB_Service_Registry::add_service([
+            SUITE_BARRIO_Service_Registry::add_service([
                 'name'        => $item['name'],
                 'category'    => $item['category'],
                 'provider'    => $item['provider'] ?? '',
@@ -256,12 +256,12 @@ class WPB_Scanner {
 
     /**
      * Resolve the site base URL.
-     * Requires wpb_company_info_get()['sito_web'] to be configured.
+     * Requires suite_barrio_company_info_get()['sito_web'] to be configured.
      * Returns empty string if not configured, signaling run() to return an error.
      */
     private static function get_base_url(): string {
-        if (function_exists('wpb_company_info_get')) {
-            $info = wpb_company_info_get();
+        if (function_exists('suite_barrio_company_info_get')) {
+            $info = suite_barrio_company_info_get();
             $url  = trim((string) ($info['sito_web'] ?? ''));
             if ($url !== '') {
                 if (!preg_match('#^https?://#i', $url)) {
@@ -287,7 +287,7 @@ class WPB_Scanner {
         // Attempt sitemap.xml
         $sitemap_response = wp_remote_get(
             $base_url . '/sitemap.xml',
-            ['timeout' => 10, 'user-agent' => 'WPBarrio-Scanner/1.0 (+https://hellobarrio.it)']
+            ['timeout' => 10, 'user-agent' => 'SuiteBarrio-Scanner/1.0 (+https://hellobarrio.it)']
         );
 
         if (
@@ -308,7 +308,7 @@ class WPB_Scanner {
         // Fallback: extract internal links from homepage HTML
         $home_response = wp_remote_get(
             $base_url,
-            ['timeout' => 15, 'user-agent' => 'WPBarrio-Scanner/1.0 (+https://hellobarrio.it)']
+            ['timeout' => 15, 'user-agent' => 'SuiteBarrio-Scanner/1.0 (+https://hellobarrio.it)']
         );
 
         if (
@@ -340,7 +340,7 @@ class WPB_Scanner {
     private static function scan_page(string $url): array {
         $response = wp_remote_get(
             $url,
-            ['timeout' => 15, 'user-agent' => 'WPBarrio-Scanner/1.0 (+https://hellobarrio.it)']
+            ['timeout' => 15, 'user-agent' => 'SuiteBarrio-Scanner/1.0 (+https://hellobarrio.it)']
         );
 
         if (
@@ -376,7 +376,7 @@ class WPB_Scanner {
     private static function scan_gtm_container(string $container_id): array {
         $response = wp_remote_get(
             'https://www.googletagmanager.com/gtm.js?id=' . urlencode($container_id),
-            ['timeout' => 15, 'user-agent' => 'WPBarrio-Scanner/1.0 (+https://hellobarrio.it)']
+            ['timeout' => 15, 'user-agent' => 'SuiteBarrio-Scanner/1.0 (+https://hellobarrio.it)']
         );
 
         if (

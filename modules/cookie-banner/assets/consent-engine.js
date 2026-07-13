@@ -1,4 +1,4 @@
-/* WP Barrio Consent Engine v1 — standalone, no dependencies */
+/* Suite Barrio Consent Engine v1 — standalone, no dependencies */
 (function (w, d) {
   "use strict";
 
@@ -89,6 +89,7 @@
     consent = data;
     gtmUpdate(prefs);
     activate(prefs);
+    logConsent(prefs);
     emit("change", Object.assign({}, prefs));
     d.dispatchEvent(
       new CustomEvent("wpb:consent-change", {
@@ -97,11 +98,59 @@
     );
   }
 
+  /* ── UUID v4 ── */
+  function uuidv4() {
+    if (typeof w.crypto !== "undefined" && w.crypto.randomUUID) {
+      return w.crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        var r = (Math.random() * 16) | 0;
+        var v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      },
+    );
+  }
+
+  /* ── Rest base (stessa logica di loadConfig) ── */
+  function restBase() {
+    return (
+      w.SuiteBarrioRestBase ||
+      (d.currentScript && d.currentScript.src
+        ? new URL(d.currentScript.src).origin + "/wp-json"
+        : location.origin + "/wp-json")
+    );
+  }
+
+  /* ── Log consenso lato server (fire-and-forget) ── */
+  function logConsent(prefs) {
+    var categories = ["functional", "analytics", "marketing"].filter(
+      function (cat) {
+        return !!prefs[cat];
+      },
+    );
+    var status = categories.length > 0 ? "accept" : "reject";
+    try {
+      fetch(restBase() + "/wpb/v1/cookie-banner/consent-log", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: uuidv4(),
+          status: status,
+          categories: categories,
+          url: location.href,
+        }),
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   function activate(prefs) {
     ["functional", "analytics", "marketing"].forEach(function (cat) {
       if (!prefs[cat]) return;
       d.querySelectorAll(
-        'script[type="text/plain"][data-wpb-category="' + cat + '"]',
+        'script[type="text/plain"][data-suite-barrio-category="' + cat + '"]',
       ).forEach(function (el) {
         var clone = d.createElement("script");
         Array.from(el.attributes).forEach(function (a) {
@@ -140,12 +189,12 @@
   /* ── Config ── */
   function loadConfig() {
     if (cfg) return Promise.resolve(cfg);
-    if (w.WpbConfig) {
-      cfg = w.WpbConfig;
+    if (w.SuiteBarrioConfig) {
+      cfg = w.SuiteBarrioConfig;
       return Promise.resolve(cfg);
     }
     var base =
-      w.WpbRestBase ||
+      w.SuiteBarrioRestBase ||
       (d.currentScript && d.currentScript.src
         ? new URL(d.currentScript.src).origin + "/wp-json"
         : location.origin + "/wp-json");
@@ -178,14 +227,14 @@
   /* ── Wire preferences widget ── */
   function wirePref(container, config) {
     var cur = consent ? Object.assign({}, consent) : defaults();
-    container.querySelectorAll("[data-wpb-toggle]").forEach(function (cb) {
-      var cat = cb.getAttribute("data-wpb-toggle");
+    container.querySelectorAll("[data-suite-barrio-toggle]").forEach(function (cb) {
+      var cat = cb.getAttribute("data-suite-barrio-toggle");
       cb.checked = !!cur[cat];
       cb.disabled = cat === "necessary";
     });
-    container.querySelectorAll("[data-wpb-action]").forEach(function (btn) {
+    container.querySelectorAll("[data-suite-barrio-action]").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var action = btn.getAttribute("data-wpb-action");
+        var action = btn.getAttribute("data-suite-barrio-action");
         var prefs;
         if (action === "accept-all") {
           prefs = {
@@ -199,16 +248,16 @@
         } else {
           prefs = { necessary: true };
           container
-            .querySelectorAll("[data-wpb-toggle]")
+            .querySelectorAll("[data-suite-barrio-toggle]")
             .forEach(function (cb) {
-              var cat = cb.getAttribute("data-wpb-toggle");
+              var cat = cb.getAttribute("data-suite-barrio-toggle");
               if (cat !== "necessary") prefs[cat] = cb.checked;
             });
         }
         save(prefs);
-        var ov = d.getElementById("wpb-pref-overlay");
+        var ov = d.getElementById("suite-barrio-pref-overlay");
         if (ov) ov.remove();
-        var b = d.getElementById("wpb-banner");
+        var b = d.getElementById("suite-barrio-banner");
         if (b) b.remove();
         renderWidget(config);
       });
@@ -217,13 +266,13 @@
 
   /* ── Preferences drawer ── */
   function openPref(config) {
-    if (d.getElementById("wpb-pref-overlay")) return;
-    var b = (config && config.banner) || {};
-    var bg = b.color_bg || "#0D1B2E";
+    if (d.getElementById("suite-barrio-pref-overlay")) return;
+    var b  = (config && config.banner) || {};
+    var bg = b.color_bg   || "#0D1B2E";
     var fg = b.color_text || "#FFFFFF";
 
     var ov = d.createElement("div");
-    ov.id = "wpb-pref-overlay";
+    ov.id = "suite-barrio-pref-overlay";
     ov.style.cssText =
       "position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.5)";
 
@@ -240,11 +289,7 @@
     var header = d.createElement("div");
     header.style.cssText =
       "position:sticky;top:0;z-index:1;flex-shrink:0;" +
-      "background:" +
-      bg +
-      ";color:" +
-      fg +
-      ";" +
+      "background:" + bg + ";color:" + fg + ";" +
       "padding:18px 48px 18px 20px;border-bottom:1px solid rgba(255,255,255,.1);";
     var title = d.createElement("strong");
     title.style.cssText = "font-size:15px;display:block;";
@@ -256,41 +301,32 @@
     closeBtn.setAttribute("aria-label", "Chiudi");
     closeBtn.style.cssText =
       "position:absolute;top:14px;right:14px;border:none;background:none;" +
-      "font-size:22px;line-height:1;cursor:pointer;color:" +
-      fg +
-      ";opacity:.8;padding:2px 6px;";
+      "font-size:22px;line-height:1;cursor:pointer;color:" + fg + ";opacity:.8;padding:2px 6px;";
     closeBtn.textContent = "×";
-    closeBtn.addEventListener("click", function () {
-      ov.remove();
-    });
+    closeBtn.addEventListener("click", function () { ov.remove(); });
     header.appendChild(closeBtn);
     drawer.appendChild(header);
 
     var inner = d.createElement("div");
     inner.style.cssText = "padding:20px;flex:1;";
-    inner.innerHTML =
-      '<p style="color:#9ca3af;font-size:14px;">Caricamento…</p>';
+    inner.innerHTML = '<p style="color:#9ca3af;font-size:14px;">Caricamento…</p>';
     drawer.appendChild(inner);
 
     ov.appendChild(drawer);
-    ov.addEventListener("click", function (e) {
-      if (e.target === ov) ov.remove();
-    });
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
     d.body.appendChild(ov);
-    ov.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") ov.remove();
-    });
+    ov.addEventListener("keydown", function (e) { if (e.key === "Escape") ov.remove(); });
 
     loadPrefHtml(config).then(function (html) {
       inner.innerHTML = html;
       /* Pulsante primario sempre scuro: usa il colore di sfondo del banner */
-      inner.querySelectorAll(".wpb-pref-btn-primary").forEach(function (btn) {
+      inner.querySelectorAll(".suite-barrio-pref-btn-primary").forEach(function (btn) {
         btn.style.background = bg;
         btn.style.color = fg;
       });
       wirePref(inner, config);
       var first = drawer.querySelector(
-        "button:not([disabled]),input:not([disabled]),[tabindex]",
+        "button:not([disabled]),input:not([disabled]),[tabindex]"
       );
       if (first) first.focus();
     });
@@ -298,7 +334,7 @@
 
   /* ── Banner ── */
   function renderBanner(config) {
-    if (d.getElementById("wpb-banner")) return;
+    if (d.getElementById("suite-barrio-banner")) return;
     var b = (config && config.banner) || {};
     var bg = b.color_bg || "#0D1B2E";
     var fg = b.color_text || "#FFFFFF";
@@ -306,21 +342,18 @@
     var pos = b.position || "bottom";
 
     var el = d.createElement("div");
-    el.id = "wpb-banner";
+    el.id = "suite-barrio-banner";
     el.setAttribute("role", "dialog");
     el.setAttribute("aria-live", "polite");
     el.setAttribute("aria-label", b.text_title || "Gestione cookie");
 
     var posStyle = "";
     if (pos === "bottom-left") {
-      posStyle =
-        "bottom:30px;left:30px;top:auto;right:auto;width:min(400px,96vw);border-radius:12px;";
+      posStyle = "bottom:30px;left:30px;top:auto;right:auto;width:min(400px,96vw);border-radius:12px;";
     } else if (pos === "bottom-right") {
-      posStyle =
-        "bottom:30px;right:30px;top:auto;left:auto;width:min(400px,96vw);border-radius:12px;";
+      posStyle = "bottom:30px;right:30px;top:auto;left:auto;width:min(400px,96vw);border-radius:12px;";
     } else {
-      posStyle =
-        "bottom:30px;left:50%;transform:translateX(-50%);top:auto;right:auto;width:min(560px,96vw);border-radius:12px;";
+      posStyle = "bottom:30px;left:50%;transform:translateX(-50%);top:auto;right:auto;width:min(560px,96vw);border-radius:12px;";
     }
 
     el.style.cssText =
@@ -410,31 +443,27 @@
 
   /* ── Floating widget ── */
   function renderWidget(config) {
-    if (d.getElementById("wpb-widget")) return;
+    if (d.getElementById("suite-barrio-widget")) return;
     var b = (config && config.banner) || {};
     if (!b.show_widget) return;
     var wBtn = d.createElement("button");
-    wBtn.id = "wpb-widget";
+    wBtn.id = "suite-barrio-widget";
     wBtn.type = "button";
     wBtn.setAttribute("aria-label", "Gestisci preferenze cookie");
     wBtn.title = "Gestisci preferenze cookie";
     var isRight = (b.widget_pos || "bottom-right") === "bottom-right";
-    var wBg = b.color_bg || "#0D1B2E";
-    var wFg = b.color_text || "#FFFFFF";
+    var wBg  = b.color_bg   || "#0D1B2E";
+    var wFg  = b.color_text || "#FFFFFF";
     wBtn.style.cssText =
       "position:fixed;bottom:16px;" +
       (isRight ? "right:16px;" : "left:16px;") +
       "z-index:2147483644;width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;" +
-      "background:" +
-      wBg +
-      ";" +
+      "background:" + wBg + ";" +
       "box-shadow:0 2px 10px rgba(0,0,0,.25);transition:transform .15s;display:flex;align-items:center;justify-content:center;";
     wBtn.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="' +
-      wFg +
-      '" aria-hidden="true">' +
-      '<path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>' +
-      "</svg>";
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="' + wFg + '" aria-hidden="true">' +
+        '<path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>' +
+      '</svg>';
     wBtn.addEventListener("click", function () {
       loadConfig().then(openPref);
     });
@@ -447,34 +476,32 @@
     d.body.appendChild(wBtn);
   }
 
-  /* ── Wire any [data-wpb-preferences] widgets (present or dynamically injected) ── */
+  /* ── Wire any [data-suite-barrio-preferences] widgets (present or dynamically injected) ── */
   function wireInlinePrefs(config) {
-    var b = (config && config.banner) || {};
-    var bg = b.color_bg || "#0D1B2E";
+    var b  = (config && config.banner) || {};
+    var bg = b.color_bg   || "#0D1B2E";
     var fg = b.color_text || "#FFFFFF";
 
     function applyToWidget(el) {
       wirePref(el, config);
-      el.querySelectorAll(".wpb-pref-btn-primary").forEach(function (btn) {
+      el.querySelectorAll(".suite-barrio-pref-btn-primary").forEach(function (btn) {
         btn.style.background = bg;
         btn.style.color = fg;
       });
     }
 
     // Widget già nel DOM al momento del boot
-    d.querySelectorAll("[data-wpb-preferences]").forEach(applyToWidget);
+    d.querySelectorAll("[data-suite-barrio-preferences]").forEach(applyToWidget);
 
     // Widget inseriti dinamicamente (es. via fetch nel cookie report script)
     new MutationObserver(function (mutations) {
       mutations.forEach(function (m) {
         m.addedNodes.forEach(function (node) {
           if (node.nodeType !== 1) return;
-          if (node.hasAttribute("data-wpb-preferences")) {
+          if (node.hasAttribute("data-suite-barrio-preferences")) {
             applyToWidget(node);
           }
-          node
-            .querySelectorAll("[data-wpb-preferences]")
-            .forEach(applyToWidget);
+          node.querySelectorAll("[data-suite-barrio-preferences]").forEach(applyToWidget);
         });
       });
     }).observe(d.body, { childList: true, subtree: true });
@@ -511,7 +538,7 @@
   }
 
   /* ── Public API ── */
-  w.WpbConsent = {
+  w.SuiteBarrioConsent = {
     getConsent: function () {
       return consent ? Object.assign({}, consent) : null;
     },
@@ -525,19 +552,19 @@
         analytics: true,
         marketing: true,
       });
-      var banner = d.getElementById("wpb-banner");
+      var banner = d.getElementById("suite-barrio-banner");
       if (banner) banner.remove();
       loadConfig().then(renderWidget);
     },
     rejectAll: function () {
       save(defaults());
-      var banner = d.getElementById("wpb-banner");
+      var banner = d.getElementById("suite-barrio-banner");
       if (banner) banner.remove();
       loadConfig().then(renderWidget);
     },
     setConsent: function (prefs) {
       save(Object.assign(defaults(), prefs));
-      var banner = d.getElementById("wpb-banner");
+      var banner = d.getElementById("suite-barrio-banner");
       if (banner) banner.remove();
       loadConfig().then(renderWidget);
     },
@@ -550,6 +577,6 @@
   loadConfig()
     .then(boot)
     .catch(function (e) {
-      console.warn("[WpbConsent] Config non disponibile:", e);
+      console.warn("[SuiteBarrioConsent] Config non disponibile:", e);
     });
 })(window, document);

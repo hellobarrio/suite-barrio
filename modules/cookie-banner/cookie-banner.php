@@ -1,28 +1,29 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-define('WPB_CB_DIR', plugin_dir_path(__FILE__));
-define('WPB_CB_URL', plugin_dir_url(__FILE__));
+define('SUITE_BARRIO_CB_DIR', plugin_dir_path(__FILE__));
+define('SUITE_BARRIO_CB_URL', plugin_dir_url(__FILE__));
 
-require_once WPB_CB_DIR . 'class-service-registry.php';
-require_once WPB_CB_DIR . 'class-scanner.php';
-require_once WPB_CB_DIR . 'class-script-blocker.php';
-require_once WPB_CB_DIR . 'class-cron.php';
-require_once WPB_CB_DIR . 'rest-api.php';
-require_once WPB_CB_DIR . 'frontend.php';
-require_once WPB_CB_DIR . 'admin-ui.php';
+require_once SUITE_BARRIO_CB_DIR . 'class-service-registry.php';
+require_once SUITE_BARRIO_CB_DIR . 'class-scanner.php';
+require_once SUITE_BARRIO_CB_DIR . 'class-script-blocker.php';
+require_once SUITE_BARRIO_CB_DIR . 'class-cron.php';
+require_once SUITE_BARRIO_CB_DIR . 'class-consent-log.php';
+require_once SUITE_BARRIO_CB_DIR . 'rest-api.php';
+require_once SUITE_BARRIO_CB_DIR . 'frontend.php';
+require_once SUITE_BARRIO_CB_DIR . 'admin-ui.php';
 
-WPB_Script_Blocker::init();
+SUITE_BARRIO_Script_Blocker::init();
 
 /* ── Funzione standalone chiamata da cookie-privacy.php tramite function_exists ── */
-function wpb_cb_get_services_for_prompt(): string {
-    return WPB_Service_Registry::get_services_for_prompt();
+function suite_barrio_cb_get_services_for_prompt(): string {
+    return SUITE_BARRIO_Service_Registry::get_services_for_prompt();
 }
 
 /* ── Config condivisa tra frontend.php e rest-api.php ── */
-function wpb_cb_build_frontend_config(): array {
+function suite_barrio_cb_build_frontend_config(): array {
     $banner  = get_option('wpb_cb_banner_config', []);
-    $cats    = WPB_Service_Registry::get_categories();
+    $cats    = SUITE_BARRIO_Service_Registry::get_categories();
 
     return [
         'categories'     => array_values(array_map(fn($c) => [
@@ -49,8 +50,8 @@ function wpb_cb_build_frontend_config(): array {
 }
 
 register_deactivation_hook(
-    WP_ALT_AI_PLUGIN_DIR . 'wp-barrio.php',
+    SUITE_BARRIO_PLUGIN_DIR . 'suite-barrio.php',
     function () {
-        if (class_exists('WPB_Cron')) WPB_Cron::deactivate();
+        if (class_exists('SUITE_BARRIO_Cron')) SUITE_BARRIO_Cron::deactivate();
     }
 );

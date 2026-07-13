@@ -1,7 +1,7 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class WPB_Cron {
+class SUITE_BARRIO_Cron {
     const HOOK         = 'wpb_cb_monthly_scan';
     const SCHEDULE_KEY = 'wpb_cb_monthly';
 
@@ -31,8 +31,8 @@ class WPB_Cron {
     }
 
     public static function run(): void {
-        WPB_Scanner::run();
+        SUITE_BARRIO_Scanner::run();
     }
 }
 
-WPB_Cron::init();
+SUITE_BARRIO_Cron::init();

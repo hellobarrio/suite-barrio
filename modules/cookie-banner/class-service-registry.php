@@ -1,7 +1,7 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class WPB_Service_Registry {
+class SUITE_BARRIO_Service_Registry {
 
     const CATEGORIES_OPTION = 'wpb_cb_categories';
     const SERVICES_OPTION   = 'wpb_cb_services';

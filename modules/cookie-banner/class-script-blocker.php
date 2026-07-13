@@ -6,12 +6,12 @@ if (!defined('ABSPATH')) exit;
  *
  * Intercetta l'output HTML prima che venga inviato al browser, converte
  * i <script> di tracciamento non consentiti in type="text/plain"
- * data-wpb-category="..." e li rimette in gioco quando il consent engine
+ * data-suite-barrio-category="..." e li rimette in gioco quando il consent engine
  * riceve il consenso (activate() nel JS già gestisce questo pattern).
  *
  * GTM è escluso dal blocco perché è il veicolo del consent engine stesso.
  */
-class WPB_Script_Blocker {
+class SUITE_BARRIO_Script_Blocker {
 
     // Script che non vanno mai bloccati (veicolo del consent engine)
     private const GTM_BYPASS = [
@@ -43,7 +43,7 @@ class WPB_Script_Blocker {
         // Se tutto è già consentito non modifichiamo nulla
         if (self::all_granted($consent)) return $html;
 
-        $db = WPB_Scanner::get_provider_db();
+        $db = SUITE_BARRIO_Scanner::get_provider_db();
 
         return preg_replace_callback(
             '#<script(\s[^>]*)?>(.*?)</script>#si',
@@ -85,7 +85,7 @@ class WPB_Script_Blocker {
                 // Blocca: rimuovi type esistente e imposta text/plain
                 $safe_attrs = preg_replace('#\s+type=["\'][^"\']*["\']#i', '', $attrs);
                 return '<script' . $safe_attrs
-                    . ' type="text/plain" data-wpb-category="' . esc_attr($category) . '">'
+                    . ' type="text/plain" data-suite-barrio-category="' . esc_attr($category) . '">'
                     . $content
                     . '</script>';
             },
@@ -98,7 +98,8 @@ class WPB_Script_Blocker {
      * Ritorna array vuoto se il cookie non esiste (nuovo visitatore = tutto negato).
      */
     public static function read_consent(): array {
-        $raw = $_COOKIE['wpb_consent'] ?? '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- valore JSON urlencoded, validato subito sotto con json_decode() e is_array()
+        $raw = wp_unslash( $_COOKIE['wpb_consent'] ?? '' );
         if ($raw === '') return [];
         $c = json_decode(urldecode($raw), true);
         return is_array($c) ? $c : [];

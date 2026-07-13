@@ -31,7 +31,7 @@
   var state = loadState();
 
   /* -- PHP-injected config (declaration etc.) -- */
-  var CFG = (typeof window.__wpbA11yConfig !== 'undefined') ? window.__wpbA11yConfig : {};
+  var CFG = (typeof window.__suiteBarrioA11yConfig !== 'undefined') ? window.__suiteBarrioA11yConfig : {};
 
   function loadState() {
     try {

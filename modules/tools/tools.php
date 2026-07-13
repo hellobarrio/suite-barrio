@@ -1,10 +1,10 @@
 <?php
 /**
- * WP Barrio — Strumenti
+ * Suite Barrio — Strumenti
  * Pagina di amministrazione riservata a support@hellobarrio.it
  * Permette di attivare/disattivare i singoli moduli del plugin.
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
@@ -13,29 +13,29 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI
    ───────────────────────────────────────── */
-define('WPB_TOOLS_OPTION', 'wpb_tools_modules');
-define('WPB_TOOLS_ALLOWED_EMAIL', 'support@hellobarrio.it');
+define('SUITE_BARRIO_TOOLS_OPTION', 'wpb_tools_modules');
+define('SUITE_BARRIO_TOOLS_ALLOWED_EMAIL', 'support@hellobarrio.it');
 
 /* ─────────────────────────────────────────
    HELPER: l'utente corrente può accedere?
    ───────────────────────────────────────── */
-function wpb_tools_can_access()
+function suite_barrio_tools_can_access()
 {
     if (!is_user_logged_in())
         return false;
     $user = wp_get_current_user();
-    return strtolower($user->user_email) === WPB_TOOLS_ALLOWED_EMAIL;
+    return strtolower($user->user_email) === SUITE_BARRIO_TOOLS_ALLOWED_EMAIL;
 }
 
 /* ─────────────────────────────────────────
    HELPER: elenco moduli con label e slug opzione
    ───────────────────────────────────────── */
-function wpb_tools_modules_list()
+function suite_barrio_tools_modules_list()
 {
     return [
         'accessibility' => [
             'label' => 'Accessibilità',
-            'desc' => 'Widget di accessibilità frontend: regolazioni di testo, colore e orientamento per gli utenti del sito.',
+            'desc'  => 'Widget di accessibilità frontend: regolazioni di testo, colore e orientamento per gli utenti del sito.',
         ],
         'auto_alt' => [
             'label' => 'Auto Alt',
@@ -59,7 +59,7 @@ function wpb_tools_modules_list()
         ],
         'cookie_banner' => [
             'label' => 'Cookie Banner',
-            'desc' => 'Banner di consenso cookie nativo con Service Registry, scanner automatico e widget preferenze. Compatibile con siti PHP e Next.js headless.',
+            'desc'  => 'Banner di consenso cookie nativo con Service Registry, scanner automatico e widget preferenze. Compatibile con siti PHP e Next.js headless.',
         ],
         'duplicate' => [
             'label' => 'Duplicate',
@@ -91,26 +91,26 @@ function wpb_tools_modules_list()
 /* ─────────────────────────────────────────
    HELPER: il modulo è attivo?
    ───────────────────────────────────────── */
-function wpb_tools_module_enabled($key)
+function suite_barrio_tools_module_enabled($key)
 {
-    $options = get_option(WPB_TOOLS_OPTION, []);
+    $options = get_option(SUITE_BARRIO_TOOLS_OPTION, []);
     return isset($options[$key]) ? (bool) $options[$key] : true;
 }
 
 /* ─────────────────────────────────────────
    HELPER MULTILINGUA — rilevamento automatico WPML
    ───────────────────────────────────────── */
-function wpb_multilang_is_enabled(): bool
+function suite_barrio_multilang_is_enabled(): bool
 {
     if (!defined('ICL_SITEPRESS_VERSION'))
         return false;
     global $sitepress;
     if (!isset($sitepress) || !is_object($sitepress))
         return false;
-    return count(wpb_multilang_translation_languages()) > 0;
+    return count(suite_barrio_multilang_translation_languages()) > 0;
 }
 
-function wpb_multilang_primary_language(): string
+function suite_barrio_multilang_primary_language(): string
 {
     if (!defined('ICL_SITEPRESS_VERSION'))
         return 'en';
@@ -120,7 +120,7 @@ function wpb_multilang_primary_language(): string
     return (string) $sitepress->get_default_language();
 }
 
-function wpb_multilang_translation_languages(): array
+function suite_barrio_multilang_translation_languages(): array
 {
     if (!defined('ICL_SITEPRESS_VERSION'))
         return [];
@@ -140,7 +140,7 @@ function wpb_multilang_translation_languages(): array
     return $translations;
 }
 
-function wpb_multilang_languages(): array
+function suite_barrio_multilang_languages(): array
 {
     if (!defined('ICL_SITEPRESS_VERSION'))
         return [];
@@ -158,7 +158,7 @@ function wpb_multilang_languages(): array
     return $result;
 }
 
-function wpb_multilang_flag(string $lang_code): string
+function suite_barrio_multilang_flag(string $lang_code): string
 {
     $map = [
         'it' => 'IT',
@@ -218,12 +218,12 @@ function wpb_multilang_flag(string $lang_code): string
     return $flag;
 }
 
-function wpb_multilang_languages_with_flags(): array
+function suite_barrio_multilang_languages_with_flags(): array
 {
-    $langs = wpb_multilang_languages();
+    $langs = suite_barrio_multilang_languages();
     $result = [];
     foreach ($langs as $code => $label) {
-        $flag = wpb_multilang_flag($code);
+        $flag = suite_barrio_multilang_flag($code);
         $result[$code] = $flag ? $flag . ' ' . $label : $label;
     }
     return $result;
@@ -232,156 +232,157 @@ function wpb_multilang_languages_with_flags(): array
 /* ─────────────────────────────────────────
    WPML: nasconde lo switch lingua nella admin bar
    ───────────────────────────────────────── */
-add_action('admin_head', function () {
-    if (!wpb_multilang_is_enabled())
+add_action('admin_enqueue_scripts', function () {
+    if (!suite_barrio_multilang_is_enabled())
         return;
     $screen = get_current_screen();
     if (!$screen)
         return;
-    if (strpos($screen->id, 'wp-barrio') === false)
+    if (strpos($screen->id, 'suite-barrio') === false)
         return;
-    echo '<style>#wp-admin-bar-WPML_ALS { display: none !important; }</style>';
+    wp_add_inline_style('suite-barrio-admin', '#wp-admin-bar-WPML_ALS { display: none !important; }');
 });
 
 /* ─────────────────────────────────────────
    1. MENU
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    if (!wpb_tools_can_access())
+    if (!suite_barrio_tools_can_access())
         return;
     add_submenu_page(
-        'wp-barrio',
-        'Strumenti — WP Barrio',
+        'suite-barrio',
+        'Strumenti — Suite Barrio',
         'Strumenti',
         'manage_options',
-        'wp-barrio-tools',
-        'wpb_tools_admin_page'
+        'suite-barrio-tools',
+        'suite_barrio_tools_admin_page'
     );
 }, 20);
 
 /* ─────────────────────────────────────────
    2. SALVATAGGIO IMPOSTAZIONI
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_tools_save', function () {
-    if (!wpb_tools_can_access())
+add_action('admin_post_suite_barrio_tools_save', function () {
+    if (!suite_barrio_tools_can_access())
         wp_die('Accesso negato.');
-    check_admin_referer('wpb_tools_save');
-    $modules = wpb_tools_modules_list();
+    check_admin_referer('suite_barrio_tools_save');
+    $modules = suite_barrio_tools_modules_list();
     $options = [];
     foreach ($modules as $key => $data) {
         $options[$key] = isset($_POST['modules'][$key]) ? 1 : 0;
     }
-    update_option(WPB_TOOLS_OPTION, $options);
-    wp_redirect(admin_url('admin.php?page=wp-barrio-tools&saved=1'));
+    update_option(SUITE_BARRIO_TOOLS_OPTION, $options);
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-tools&saved=1'));
     exit;
 });
 
 /* ─────────────────────────────────────────
    3. PAGINA ADMIN
    ───────────────────────────────────────── */
-function wpb_tools_admin_page()
+function suite_barrio_tools_admin_page()
 {
-    if (!wpb_tools_can_access()) {
+    if (!suite_barrio_tools_can_access()) {
         wp_die('Accesso riservato.');
     }
 
-    $modules = wpb_tools_modules_list();
+    $modules = suite_barrio_tools_modules_list();
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
 
     $wpml_active = defined('ICL_SITEPRESS_VERSION');
-    $ml_enabled = wpb_multilang_is_enabled();
-    $ml_primary = wpb_multilang_primary_language();
-    $ml_trans = wpb_multilang_translation_languages();
-    $ml_languages = wpb_multilang_languages_with_flags();
+    $ml_enabled = suite_barrio_multilang_is_enabled();
+    $ml_primary = suite_barrio_multilang_primary_language();
+    $ml_trans = suite_barrio_multilang_translation_languages();
+    $ml_languages = suite_barrio_multilang_languages_with_flags();
     ?>
-    <div id="wpb-tools-wrap" class="wrap wpb-wrap">
+    <div id="suite-barrio-tools-wrap" class="wrap suite-barrio-wrap">
 
-        <div class="wpb-tools-header">
-            <div class="wpb-tools-header-icon">
+        <div class="suite-barrio-tools-header">
+            <div class="suite-barrio-tools-header-icon">
                 <span class="dashicons dashicons-admin-tools"></span>
             </div>
             <div>
-                <h1>WP Barrio <span style="font-size:14px;font-weight:400;color:#9ca3af;">/ Strumenti</span></h1>
-                <p class="wpb-tools-header-sub">Gestione moduli e configurazione</p>
+                <h1>Suite Barrio <span style="font-size:14px;font-weight:400;color:#9ca3af;">/ Strumenti</span></h1>
+                <p class="suite-barrio-tools-header-sub">Gestione moduli e configurazione</p>
             </div>
         </div>
 
-        <hr class="wpb-tools-divider">
+        <hr class="suite-barrio-tools-divider">
 
         <?php if ($saved): ?>
-            <div class="wpb-tools-notice wpb-notice-success">
+            <div class="suite-barrio-tools-notice suite-barrio-notice-success">
                 <span class="dashicons dashicons-yes-alt"></span>
                 <span>Impostazioni salvate.</span>
             </div>
         <?php endif; ?>
 
-        <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-info-azienda')); ?>" class="wpb-company-link">
-            <div class="wpb-company-link-icon">
+        <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-info-azienda')); ?>" class="suite-barrio-company-link">
+            <div class="suite-barrio-company-link-icon">
                 <span class="dashicons dashicons-id-alt"></span>
             </div>
-            <div class="wpb-company-link-text">
-                <p class="wpb-company-link-title">Info Azienda</p>
-                <p class="wpb-company-link-desc">
+            <div class="suite-barrio-company-link-text">
+                <p class="suite-barrio-company-link-title">Info Azienda</p>
+                <p class="suite-barrio-company-link-desc">
                     Gestisci ragione sociale, dati fiscali, contatti, indirizzo e social media dell'azienda.
                 </p>
             </div>
-            <span class="dashicons dashicons-arrow-right-alt2 wpb-company-link-arrow"></span>
+            <span class="dashicons dashicons-arrow-right-alt2 suite-barrio-company-link-arrow"></span>
         </a>
 
-        <?php if (function_exists('wpb_cache_purge_render')) {
-            wpb_cache_purge_render();
+        <?php if (function_exists('suite_barrio_cache_purge_render')) {
+            suite_barrio_cache_purge_render();
         } ?>
 
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-            <?php wp_nonce_field('wpb_tools_save'); ?>
-            <input type="hidden" name="action" value="wpb_tools_save">
+            <?php wp_nonce_field('suite_barrio_tools_save'); ?>
+            <input type="hidden" name="action" value="suite_barrio_tools_save">
 
-            <p class="wpb-tools-section-title">Moduli attivi</p>
-            <p class="wpb-tools-section-desc">
+            <p class="suite-barrio-tools-section-title">Moduli attivi</p>
+            <p class="suite-barrio-tools-section-desc">
                 Attiva o disattiva i singoli moduli del plugin. Un modulo disattivato non carica
                 nessun hook, script o impostazione.
             </p>
 
-            <div class="wpb-modules-list">
+            <div class="suite-barrio-modules-list">
                 <?php foreach ($modules as $key => $data):
-                    $enabled = wpb_tools_module_enabled($key);
+                    $enabled = suite_barrio_tools_module_enabled($key);
                     ?>
-                    <div class="wpb-module-row">
-                        <div class="wpb-module-info">
-                            <div class="wpb-module-label"><?php echo esc_html($data['label']); ?></div>
-                            <div class="wpb-module-desc"><?php echo esc_html($data['desc']); ?></div>
+                    <div class="suite-barrio-module-row">
+                        <div class="suite-barrio-module-info">
+                            <div class="suite-barrio-module-label"><?php echo esc_html($data['label']); ?></div>
+                            <div class="suite-barrio-module-desc"><?php echo esc_html($data['desc']); ?></div>
                         </div>
-                        <label class="wpb-toggle"
+                        <label class="suite-barrio-toggle"
                             title="<?php echo $enabled ? 'Disattiva' : 'Attiva'; ?> <?php echo esc_attr($data['label']); ?>">
                             <input type="checkbox" name="modules[<?php echo esc_attr($key); ?>]" value="1" <?php checked($enabled, true); ?>>
-                            <span class="wpb-toggle-track"></span>
+                            <span class="suite-barrio-toggle-track"></span>
                         </label>
                     </div>
                 <?php endforeach; ?>
             </div>
 
-            <button type="submit" class="wpb-save-btn">
+            <button type="submit" class="suite-barrio-save-btn">
                 <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;margin-top:1px;"></span>
                 Salva impostazioni
             </button>
         </form>
 
         <!-- Stato Multilingua -->
-        <div class="wpb-ml-section">
-            <p class="wpb-ml-section-title">
+        <div class="suite-barrio-ml-section">
+            <p class="suite-barrio-ml-section-title">
                 <span class="dashicons dashicons-translation"></span>
                 Multilingua
             </p>
 
             <?php if (!$wpml_active): ?>
-                <div class="wpb-ml-status wpb-ml-neutral">
+                <div class="suite-barrio-ml-status suite-barrio-ml-neutral">
                     <span class="dashicons dashicons-info-outline"></span>
                     <span>WPML non rilevato. Il supporto multilingua si attiva automaticamente quando WPML è installato e
                         configurato.</span>
                 </div>
 
             <?php elseif (!$ml_enabled): ?>
-                <div class="wpb-ml-status wpb-ml-warning">
+                <div class="suite-barrio-ml-status suite-barrio-ml-warning">
                     <span class="dashicons dashicons-warning"></span>
                     <span>WPML è attivo ma non ha lingue di traduzione configurate. Aggiungi almeno una lingua in
                         <a href="<?php echo esc_url(admin_url('admin.php?page=wpml-language-switcher')); ?>">WPML → Lingue</a>
@@ -389,7 +390,7 @@ function wpb_tools_admin_page()
                 </div>
 
             <?php else: ?>
-                <div class="wpb-ml-status wpb-ml-active">
+                <div class="suite-barrio-ml-status suite-barrio-ml-active">
                     <span class="dashicons dashicons-yes-alt"></span>
                     <div>
                         <strong>Multilingua attivo</strong> tramite WPML <?php echo esc_html(ICL_SITEPRESS_VERSION); ?>.<br>
@@ -408,27 +409,27 @@ function wpb_tools_admin_page()
         </div>
 
         <!-- Messa Online -->
-        <div class="wpb-ml-section">
-            <p class="wpb-ml-section-title">
+        <div class="suite-barrio-ml-section">
+            <p class="suite-barrio-ml-section-title">
                 <span class="dashicons dashicons-migrate"></span>
                 Messa Online
             </p>
             <?php
-            $wiz_complete = function_exists('wpb_wizard_is_complete') && wpb_wizard_is_complete();
-            $wiz_badge = function_exists('wpb_wizard_badge_count') ? wpb_wizard_badge_count() : 0;
-            $wiz_url = admin_url('admin.php?page=wp-barrio-wizard');
+            $wiz_complete  = function_exists('suite_barrio_wizard_is_complete') && suite_barrio_wizard_is_complete();
+            $wiz_badge     = function_exists('suite_barrio_wizard_badge_count') ? suite_barrio_wizard_badge_count() : 0;
+            $wiz_url       = admin_url('admin.php?page=suite-barrio-wizard');
             ?>
-            <div class="wpb-wizard-banner">
-                <div class="wpb-wizard-banner-body">
-                    <div class="wpb-wizard-banner-icon">
+            <div class="suite-barrio-wizard-banner">
+                <div class="suite-barrio-wizard-banner-body">
+                    <div class="suite-barrio-wizard-banner-icon">
                         <span class="dashicons dashicons-migrate"></span>
                     </div>
-                    <div class="wpb-wizard-banner-text">
+                    <div class="suite-barrio-wizard-banner-text">
                         <?php if ($wiz_complete && $wiz_badge === 0): ?>
                             <strong>Messa online completata</strong>
                             <span>Tutti i passaggi sono stati completati. Puoi riaprire il wizard in qualsiasi momento.</span>
                         <?php elseif ($wiz_complete && $wiz_badge > 0): ?>
-                            <strong>Messa online — <?php echo $wiz_badge; ?> operazioni in sospeso</strong>
+                            <strong>Messa online — <?php echo esc_html($wiz_badge); ?> operazioni in sospeso</strong>
                             <span>Alcuni passaggi sono stati saltati o non completati. Rientra nel wizard per terminarli.</span>
                         <?php else: ?>
                             <strong>Wizard non ancora completato</strong>
@@ -436,7 +437,7 @@ function wpb_tools_admin_page()
                         <?php endif; ?>
                     </div>
                 </div>
-                <a href="<?php echo esc_url($wiz_url); ?>" class="wpb-btn wpb-btn-small wpb-btn-launch">
+                <a href="<?php echo esc_url($wiz_url); ?>" class="suite-barrio-btn suite-barrio-btn-small suite-barrio-btn-launch">
                     Controlla messa online &rarr;
                 </a>
             </div>

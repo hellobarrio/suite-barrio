@@ -3,7 +3,7 @@
  * Cache invalidation per Vercel.
  *
  * Invalida la cache Vercel ad ogni modifica di post, menu o opzioni ACF.
- * Il dominio viene letto dal "Sito web" configurato in WP Barrio → Info Azienda.
+ * Il dominio viene letto dal "Sito web" configurato in Suite Barrio → Info Azienda.
  */
 
 if (!defined('ABSPATH'))
@@ -32,8 +32,8 @@ if (!function_exists('invalidate_vercel_cache')) {
 
         // 2. Recupera il dominio dal modulo Info Azienda
         $site_domain = '';
-        if (function_exists('wpb_company_info_get')) {
-            $company = wpb_company_info_get();
+        if (function_exists('suite_barrio_company_info_get')) {
+            $company = suite_barrio_company_info_get();
             $sito_web = isset($company['sito_web']) ? trim((string) $company['sito_web']) : '';
 
             if ($sito_web !== '') {
@@ -50,7 +50,6 @@ if (!function_exists('invalidate_vercel_cache')) {
 
         // Senza dominio configurato non possiamo invalidare nulla
         if ($site_domain === '') {
-            error_log('invalidate_vercel_cache: dominio "Sito web" non configurato in Info Azienda.');
             return;
         }
 
@@ -118,34 +117,17 @@ if (!function_exists('invalidate_vercel_cache')) {
                 ],
                 'timeout' => 5,
             ]);
-            if (is_wp_error($response)) {
-                error_log('Vercel revalidate error: ' . $response->get_error_message());
-            } else {
-                error_log('Vercel revalidate response: ' . wp_remote_retrieve_body($response));
-            }
             return;
         }
 
-        // Invia la richiesta GET utilizzando cURL
-        $ch = curl_init($full_url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer YOUR_TOKEN',
-            'Content-Type: application/json',
+        // Invia la richiesta GET (segue i reindirizzamenti come CURLOPT_FOLLOWLOCATION,
+        // il body della risposta è sempre disponibile come con CURLOPT_RETURNTRANSFER)
+        $response = wp_remote_get($full_url, [
+            'headers' => [
+                'Authorization' => 'Bearer YOUR_TOKEN',
+                'Content-Type' => 'application/json',
+            ],
         ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Segui i reindirizzamenti
-
-        $response = curl_exec($ch);
-
-        // Controlla eventuali errori
-        if (curl_errno($ch)) {
-            $error_msg = curl_error($ch);
-            error_log('cURL Error: ' . $error_msg);
-        } else {
-            // Logga il risultato per il debug
-            error_log('cURL Response: ' . $response);
-        }
-        curl_close($ch);
     }
 
     add_action('acf/save_post', 'invalidate_vercel_cache');
@@ -158,10 +140,10 @@ if (!function_exists('invalidate_vercel_cache')) {
 /* ─────────────────────────────────────────
    PURGE MANUALE — endpoint AJAX riservato agli amministratori
    ───────────────────────────────────────── */
-if (!function_exists('wpb_cache_purge_ajax')) {
-    function wpb_cache_purge_ajax()
+if (!function_exists('suite_barrio_cache_purge_ajax')) {
+    function suite_barrio_cache_purge_ajax()
     {
-        check_ajax_referer('wpb_cache_purge', 'nonce');
+        check_ajax_referer('suite_barrio_cache_purge', 'nonce');
 
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permesso negato.'], 403);
@@ -179,98 +161,117 @@ if (!function_exists('wpb_cache_purge_ajax')) {
         invalidate_vercel_cache($tag);
         wp_send_json_success(['message' => 'Richiesta di invalidazione inviata per il tag: ' . $tag]);
     }
-    add_action('wp_ajax_wpb_cache_purge', 'wpb_cache_purge_ajax');
+    add_action('wp_ajax_suite_barrio_cache_purge', 'suite_barrio_cache_purge_ajax');
+}
+
+/* ─────────────────────────────────────────
+   PURGE MANUALE — asset JS del box (solo admin)
+   Registrato/enqueued via admin_enqueue_scripts e iniettato con
+   wp_add_inline_script(), mai echoed inline in HTML.
+   ───────────────────────────────────────── */
+if (!function_exists('suite_barrio_cache_purge_enqueue_assets')) {
+    function suite_barrio_cache_purge_enqueue_assets($hook)
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        wp_register_script('suite-barrio-cache-purge', '', [], SUITE_BARRIO_VERSION, true);
+        wp_enqueue_script('suite-barrio-cache-purge');
+
+        $js = '(function () {
+    document.querySelectorAll(\'.suite-barrio-cache-purge\').forEach(function (box) {
+        var btn = box.querySelector(\'.suite-barrio-cache-purge-btn\');
+        var input = box.querySelector(\'.suite-barrio-cache-purge-input\');
+        var status = box.querySelector(\'.suite-barrio-cache-purge-status\');
+        if (!btn || btn.dataset.bound === \'1\') return;
+        btn.dataset.bound = \'1\';
+
+        function setStatus(msg, cls) {
+            status.textContent = msg;
+            status.className = \'suite-barrio-cache-purge-status\' + (cls ? \' \' + cls : \'\');
+        }
+
+        function send() {
+            var tag = (input.value || \'\').trim();
+            if (!tag) {
+                setStatus(\'Inserisci un tag.\', \'err\');
+                input.focus();
+                return;
+            }
+            btn.disabled = true;
+            setStatus(\'Invalidazione in corso…\', \'pending\');
+            var body = new URLSearchParams({
+                action: \'suite_barrio_cache_purge\',
+                nonce: box.dataset.nonce,
+                tag: tag
+            });
+            fetch(box.dataset.ajax, { method: \'POST\', body: body, credentials: \'same-origin\' })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    btn.disabled = false;
+                    if (j && j.success) {
+                        setStatus((j.data && j.data.message) || \'Cache invalidata.\', \'ok\');
+                        input.value = \'\';
+                    } else {
+                        setStatus((j && j.data && j.data.message) || "Errore durante l\'invalidazione.", \'err\');
+                    }
+                })
+                .catch(function () {
+                    btn.disabled = false;
+                    setStatus(\'Errore di rete.\', \'err\');
+                });
+        }
+
+        btn.addEventListener(\'click\', send);
+        input.addEventListener(\'keydown\', function (e) {
+            if (e.key === \'Enter\') {
+                e.preventDefault();
+                send();
+            }
+        });
+    });
+})();';
+
+        wp_add_inline_script('suite-barrio-cache-purge', $js);
+    }
+    add_action('admin_enqueue_scripts', 'suite_barrio_cache_purge_enqueue_assets');
 }
 
 /* ─────────────────────────────────────────
    PURGE MANUALE — render del box (solo admin)
    Chiamato da dashboard.php e tools.php sotto il link "Info Azienda".
    ───────────────────────────────────────── */
-if (!function_exists('wpb_cache_purge_render')) {
-    function wpb_cache_purge_render()
+if (!function_exists('suite_barrio_cache_purge_render')) {
+    function suite_barrio_cache_purge_render()
     {
         if (!current_user_can('manage_options')) {
             return;
         }
 
-        $nonce = wp_create_nonce('wpb_cache_purge');
+        $nonce = wp_create_nonce('suite_barrio_cache_purge');
         $ajax_url = admin_url('admin-ajax.php');
         ?>
-        <div class="wpb-cache-purge" data-ajax="<?php echo esc_url($ajax_url); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
-            <div class="wpb-cache-purge-icon">
+        <div class="suite-barrio-cache-purge" data-ajax="<?php echo esc_url($ajax_url); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
+            <div class="suite-barrio-cache-purge-icon">
                 <span class="dashicons dashicons-trash"></span>
             </div>
-            <div class="wpb-cache-purge-text">
-                <p class="wpb-cache-purge-title">Svuota cache Vercel</p>
-                <p class="wpb-cache-purge-desc">
+            <div class="suite-barrio-cache-purge-text">
+                <p class="suite-barrio-cache-purge-title">Svuota cache Vercel</p>
+                <p class="suite-barrio-cache-purge-desc">
                     Invalida manualmente la cache passando un tag specifico
                     (es. <code>wp:global</code>, <code>home</code>, <code>form_3</code>, <code>wp:option</code>).
                 </p>
-                <div class="wpb-cache-purge-form">
-                    <input type="text" class="wpb-cache-purge-input" placeholder="Inserisci un tag…" required>
-                    <button type="button" class="wpb-cache-purge-btn">
+                <div class="suite-barrio-cache-purge-form">
+                    <input type="text" class="suite-barrio-cache-purge-input" placeholder="Inserisci un tag…" required>
+                    <button type="button" class="suite-barrio-cache-purge-btn">
                         <span class="dashicons dashicons-update"></span>
-                        <span class="wpb-cache-purge-btn-label">Svuota cache</span>
+                        <span class="suite-barrio-cache-purge-btn-label">Svuota cache</span>
                     </button>
                 </div>
-                <p class="wpb-cache-purge-status" aria-live="polite"></p>
+                <p class="suite-barrio-cache-purge-status" aria-live="polite"></p>
             </div>
         </div>
-        <script>
-            (function () {
-                document.querySelectorAll('.wpb-cache-purge').forEach(function (box) {
-                    var btn = box.querySelector('.wpb-cache-purge-btn');
-                    var input = box.querySelector('.wpb-cache-purge-input');
-                    var status = box.querySelector('.wpb-cache-purge-status');
-                    if (!btn || btn.dataset.bound === '1') return;
-                    btn.dataset.bound = '1';
-
-                    function setStatus(msg, cls) {
-                        status.textContent = msg;
-                        status.className = 'wpb-cache-purge-status' + (cls ? ' ' + cls : '');
-                    }
-
-                    function send() {
-                        var tag = (input.value || '').trim();
-                        if (!tag) {
-                            setStatus('Inserisci un tag.', 'err');
-                            input.focus();
-                            return;
-                        }
-                        btn.disabled = true;
-                        setStatus('Invalidazione in corso…', 'pending');
-                        var body = new URLSearchParams({
-                            action: 'wpb_cache_purge',
-                            nonce: box.dataset.nonce,
-                            tag: tag
-                        });
-                        fetch(box.dataset.ajax, { method: 'POST', body: body, credentials: 'same-origin' })
-                            .then(function (r) { return r.json(); })
-                            .then(function (j) {
-                                btn.disabled = false;
-                                if (j && j.success) {
-                                    setStatus((j.data && j.data.message) || 'Cache invalidata.', 'ok');
-                                    input.value = '';
-                                } else {
-                                    setStatus((j && j.data && j.data.message) || "Errore durante l'invalidazione.", 'err');
-                                }
-                            })
-                            .catch(function () {
-                                btn.disabled = false;
-                                setStatus('Errore di rete.', 'err');
-                            });
-                    }
-
-                    btn.addEventListener('click', send);
-                    input.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            send();
-                        }
-                    });
-                });
-            })();
-        </script>
         <?php
     }
 }

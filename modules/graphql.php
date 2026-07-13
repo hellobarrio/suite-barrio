@@ -1,6 +1,6 @@
 <?php
 /**
- * WP Barrio — GraphQL
+ * Suite Barrio — GraphQL
  *
  * Estende lo schema WPGraphQL con tutti i tipi e le query del plugin.
  * Viene caricato sempre (indipendentemente dai moduli attivi) ma i singoli
@@ -18,21 +18,21 @@
  *   hbSubmitForm(input: { formId, fields: [HbFormFieldInput], pageUrl?, pageTitle?, pageReferrer? })
  *     → { success, message, submissionId, errors }
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
     exit;
 
-if (!defined('WPB_META_OPTION')) {
-    define('WPB_META_OPTION', 'wpb_meta_settings');
+if (!defined('SUITE_BARRIO_META_OPTION')) {
+    define('SUITE_BARRIO_META_OPTION', 'wpb_meta_settings');
 }
-if (!defined('WPB_META_CONTENT_OPTION')) {
-    define('WPB_META_CONTENT_OPTION', 'wpb_meta_content');
+if (!defined('SUITE_BARRIO_META_CONTENT_OPTION')) {
+    define('SUITE_BARRIO_META_CONTENT_OPTION', 'wpb_meta_content');
 }
 // Serve anche questa per i form
-if (!defined('WPB_FORMS_SUB_TABLE')) {
-    define('WPB_FORMS_SUB_TABLE', 'wpb_form_submissions');
+if (!defined('SUITE_BARRIO_FORMS_SUB_TABLE')) {
+    define('SUITE_BARRIO_FORMS_SUB_TABLE', 'wpb_form_submissions');
 }
 
 /* ─────────────────────────────────────────
@@ -40,21 +40,21 @@ if (!defined('WPB_FORMS_SUB_TABLE')) {
    frontend Next.js su dominio esterno.
 
    Configura i domini consentiti tramite la
-   costante WPB_GRAPHQL_ALLOWED_ORIGINS definita
+   costante SUITE_BARRIO_GRAPHQL_ALLOWED_ORIGINS definita
    in wp-config.php, ad es.:
 
-     define( 'WPB_GRAPHQL_ALLOWED_ORIGINS', 'https://www.miosito.it,https://staging.miosito.it' );
+     define( 'SUITE_BARRIO_GRAPHQL_ALLOWED_ORIGINS', 'https://www.miosito.it,https://staging.miosito.it' );
 
    Se la costante non è definita, l'header non
    viene aggiunto (ambiente non-headless).
    ───────────────────────────────────────── */
 add_action('graphql_response_headers_to_send', function (array $headers): array {
 
-    if (!defined('WPB_GRAPHQL_ALLOWED_ORIGINS'))
+    if (!defined('SUITE_BARRIO_GRAPHQL_ALLOWED_ORIGINS'))
         return $headers;
 
-    $allowed = array_map('trim', explode(',', WPB_GRAPHQL_ALLOWED_ORIGINS));
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowed = array_map('trim', explode(',', SUITE_BARRIO_GRAPHQL_ALLOWED_ORIGINS));
+    $origin = sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN'] ?? ''));
 
     if ($origin && in_array($origin, $allowed, true)) {
         $headers['Access-Control-Allow-Origin'] = $origin;
@@ -69,15 +69,15 @@ add_action('graphql_response_headers_to_send', function (array $headers): array 
 
 // Gestisce il preflight OPTIONS inviato dal browser prima della mutation
 add_action('init', function () {
-    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'OPTIONS')
+    if (sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? '')) !== 'OPTIONS')
         return;
-    if (strpos($_SERVER['REQUEST_URI'] ?? '', '/graphql') === false)
+    if (strpos(sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '')), '/graphql') === false)
         return;
-    if (!defined('WPB_GRAPHQL_ALLOWED_ORIGINS'))
+    if (!defined('SUITE_BARRIO_GRAPHQL_ALLOWED_ORIGINS'))
         return;
 
-    $allowed = array_map('trim', explode(',', WPB_GRAPHQL_ALLOWED_ORIGINS));
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowed = array_map('trim', explode(',', SUITE_BARRIO_GRAPHQL_ALLOWED_ORIGINS));
+    $origin = sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN'] ?? ''));
 
     if ($origin && in_array($origin, $allowed, true)) {
         header('Access-Control-Allow-Origin: ' . $origin);
@@ -92,7 +92,7 @@ add_action('init', function () {
 /* ─────────────────────────────────────────
    CONTROLLO DISPONIBILITÀ WPGRAPHQL
    ───────────────────────────────────────── */
-function wpb_graphql_is_available(): bool
+function suite_barrio_graphql_is_available(): bool
 {
     return function_exists('register_graphql_field')
         && function_exists('register_graphql_object_type');
@@ -102,16 +102,16 @@ function wpb_graphql_is_available(): bool
    ADMIN NOTICE — WPGraphQL mancante
    ───────────────────────────────────────── */
 add_action('admin_notices', function () {
-    if (wpb_graphql_is_available())
+    if (suite_barrio_graphql_is_available())
         return;
 
     $screen = get_current_screen();
-    if (!$screen || strpos($screen->id, 'wp-barrio') === false)
+    if (!$screen || strpos($screen->id, 'suite-barrio') === false)
         return;
     ?>
     <div class="notice notice-warning">
         <p>
-            <strong>WP Barrio — Forms GraphQL:</strong>
+            <strong>Suite Barrio — Forms GraphQL:</strong>
             per esporre i form tramite GraphQL è necessario installare e attivare il plugin
             <a href="<?php echo esc_url(admin_url('plugin-install.php?s=wpgraphql&tab=search&type=term')); ?>">
                 WPGraphQL
@@ -124,9 +124,9 @@ add_action('admin_notices', function () {
 /* ─────────────────────────────────────────
    REGISTRAZIONE SCHEMA
    ───────────────────────────────────────── */
-add_action('graphql_register_types', 'wpb_graphql_register_schema');
+add_action('graphql_register_types', 'suite_barrio_graphql_register_schema');
 
-function wpb_graphql_register_schema(): void
+function suite_barrio_graphql_register_schema(): void
 {
 
     // ── 1. HBFormOption ──────────────────────────────────────────────────────
@@ -294,6 +294,7 @@ function wpb_graphql_register_schema(): void
             global $wpdb;
 
             // Query diretta: non dipende da funzioni esterne, funziona in qualsiasi contesto
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
             $popup = $wpdb->get_row(
                 "SELECT * FROM {$wpdb->prefix}wpb_popups WHERE active = 1 LIMIT 1"
             );
@@ -331,6 +332,7 @@ function wpb_graphql_register_schema(): void
 
             if ($requested_lang !== '') {
                 // Query diretta sulla tabella traduzioni — autonoma, nessuna dipendenza esterna
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $trans = $wpdb->get_row($wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}wpb_popups_translations
                      WHERE popup_id = %d AND lang = %s
@@ -398,6 +400,7 @@ function wpb_graphql_register_schema(): void
         'resolve' => function ($root, array $args): ?array {
             global $wpdb;
 
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
             $banner = $wpdb->get_row(
                 "SELECT * FROM {$wpdb->prefix}wpb_banners WHERE active = 1 LIMIT 1"
             );
@@ -414,6 +417,7 @@ function wpb_graphql_register_schema(): void
             $requested_lang = isset($args['lang']) ? sanitize_key((string) $args['lang']) : '';
 
             if ($requested_lang !== '') {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $trans = $wpdb->get_row($wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}wpb_banners_translations
                      WHERE banner_id = %d AND lang = %s
@@ -533,7 +537,7 @@ function wpb_graphql_register_schema(): void
             };
 
             // ── lettura dati dal DB ───────────────────────────────────────────
-            $data_option = defined('WPB_ORARI_DATA_OPTION') ? WPB_ORARI_DATA_OPTION : 'wpb_orari_data';
+            $data_option = defined('SUITE_BARRIO_ORARI_DATA_OPTION') ? SUITE_BARRIO_ORARI_DATA_OPTION : 'wpb_orari_data';
             $data = get_option($data_option, []);
 
             // ── costruzione risposta localizzata ──────────────────────────────
@@ -579,7 +583,7 @@ function wpb_graphql_register_schema(): void
             if (empty($args['id']))
                 return null;
 
-            $form = wpb_forms_get(intval($args['id']));
+            $form = suite_barrio_forms_get(intval($args['id']));
             if (!$form)
                 return null;
 
@@ -587,16 +591,17 @@ function wpb_graphql_register_schema(): void
             $requested_lang = isset($args['lang']) ? sanitize_key((string) $args['lang']) : '';
             if ($requested_lang !== '') {
                 global $wpdb;
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $trans = $wpdb->get_row($wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}wpb_forms_translations
                      WHERE form_id = %d AND lang = %s LIMIT 1",
                     (int) $form->id,
                     $requested_lang
                 ));
-                if ($trans && function_exists('wpb_forms_apply_translation')) {
+                if ($trans && function_exists('suite_barrio_forms_apply_translation')) {
                     $orig_fields = json_decode($form->fields, true) ?: [];
                     $orig_settings = json_decode($form->settings, true) ?: [];
-                    [$merged_fields, $merged_settings] = wpb_forms_apply_translation(
+                    [$merged_fields, $merged_settings] = suite_barrio_forms_apply_translation(
                         $orig_fields,
                         $orig_settings,
                         $trans
@@ -608,7 +613,7 @@ function wpb_graphql_register_schema(): void
                 }
             }
 
-            return wpb_graphql_format_form($form);
+            return suite_barrio_graphql_format_form($form);
         },
     ]);
 
@@ -619,6 +624,7 @@ function wpb_graphql_register_schema(): void
         'resolve' => function (): array {
             global $wpdb;
 
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
             $rows = $wpdb->get_results(
                 "SELECT id, title, created_at,
                         (SELECT COUNT(*) FROM {$wpdb->prefix}wpb_form_submissions s
@@ -674,7 +680,7 @@ function wpb_graphql_register_schema(): void
                     return ['success' => false, 'message' => 'ID form non valido.', 'submissionId' => null, 'errors' => ['ID form non valido.']];
                 }
 
-                $form = wpb_forms_get($form_id);
+                $form = suite_barrio_forms_get($form_id);
                 if (!$form) {
                     return ['success' => false, 'message' => 'Form non trovato.', 'submissionId' => null, 'errors' => ['Form non trovato.']];
                 }
@@ -793,7 +799,7 @@ function wpb_graphql_register_schema(): void
                     $submission_lang = sanitize_key(apply_filters('wpml_current_language', ''));
                 }
                 if ($submission_lang) {
-                    $lang_labels = function_exists('wpb_multilang_languages') ? wpb_multilang_languages() : [];
+                    $lang_labels = function_exists('suite_barrio_multilang_languages') ? suite_barrio_multilang_languages() : [];
                     $submission_data['_lang'] = [
                         'label' => 'Lingua',
                         'value' => $lang_labels[$submission_lang] ?? strtoupper($submission_lang),
@@ -801,14 +807,15 @@ function wpb_graphql_register_schema(): void
                 }
 
                 // ── Salva nel DB ──────────────────────────────────────────────────
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- insert su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
                 $ok = $wpdb->insert(
-                    $wpdb->prefix . WPB_FORMS_SUB_TABLE,
+                    $wpdb->prefix . SUITE_BARRIO_FORMS_SUB_TABLE,
                     [
                         'form_id' => $form_id,
                         'data' => wp_json_encode($submission_data),
                         'lang' => $submission_lang,
-                        'ip' => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                        'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
+                        'ip' => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? '')),
+                        'user_agent' => sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? '')),
                     ],
                     ['%d', '%s', '%s', '%s', '%s']
                 );
@@ -825,8 +832,7 @@ function wpb_graphql_register_schema(): void
                 $submission_id = (int) $wpdb->insert_id;
 
                 // ── Invia notifiche email (con allegati) ──────────────────────────
-                $mail_log = wpb_forms_send_notifications($form, $settings, $submission_data, $attachments);
-                error_log('[WP Barrio][mutation] mail_log: ' . implode(' | ', $mail_log));
+                $mail_log = suite_barrio_forms_send_notifications($form, $settings, $submission_data, $attachments);
 
                 // ── Integrazione MailUp ───────────────────────────────────────────
                 if (!empty($settings['mailup_enabled'])) {
@@ -843,9 +849,6 @@ function wpb_graphql_register_schema(): void
                         // Il campo checkbox invia il valore dell'opzione selezionata; consideriamo
                         // l'utente iscritto se il valore non è vuoto (= checkbox spuntata)
                         $optin_ok = trim($optin_value) !== '';
-                        if (!$optin_ok) {
-                            error_log('[WP Barrio][MailUp] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
-                        }
                     }
 
                     $mu_email = sanitize_email(
@@ -873,12 +876,7 @@ function wpb_graphql_register_schema(): void
                             }
                         }
 
-                        $result = wpb_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
-                        if (is_wp_error($result)) {
-                            error_log('[WP Barrio][MailUp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
-                        }
-                    } else {
-                        error_log('[WP Barrio][MailUp] Salto iscrizione: email non valida (' . $mu_email . ')');
+                        suite_barrio_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
                     }
                 }
 
@@ -905,7 +903,7 @@ function wpb_graphql_register_schema(): void
 
     // ── Tipo: dati SEO di un singolo post ────────────────────────────────
     register_graphql_object_type('HBSeoPost', [
-        'description' => 'Dati SEO di un post calcolati da WP Barrio Meta Tags',
+        'description' => 'Dati SEO di un post calcolati da Suite Barrio Meta Tags',
         'fields' => [
             'title' => ['type' => 'String', 'description' => 'Meta title completo (custom o generato dal titolo del post)'],
             'description' => ['type' => 'String', 'description' => 'Meta description (custom, excerpt o default globale)'],
@@ -930,7 +928,7 @@ function wpb_graphql_register_schema(): void
     // Es: Post → post { seo { ... } }
     //     Page → page { seo { ... } }
     //     CPT  → mioTipo { seo { ... } }
-    $content = get_option(WPB_META_CONTENT_OPTION, []);
+    $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
 
     foreach (get_post_types(['public' => true, 'show_in_graphql' => true], 'objects') as $pt_obj) {
         $pt_slug = $pt_obj->name;
@@ -950,7 +948,7 @@ function wpb_graphql_register_schema(): void
 
         register_graphql_field($graphql_type, 'seo', [
             'type' => 'HBSeoPost',
-            'description' => 'Dati SEO calcolati da WP Barrio Meta Tags',
+            'description' => 'Dati SEO calcolati da Suite Barrio Meta Tags',
             'resolve' => function ($post_obj) use ($pt_slug) {
                 // $post_obj è il model WPGraphQL — recupera il WP_Post
                 $post_id = $post_obj->databaseId ?? ($post_obj->ID ?? null);
@@ -961,8 +959,8 @@ function wpb_graphql_register_schema(): void
                 if (!$post || $post->post_status !== 'publish')
                     return null;
 
-                $s = get_option(WPB_META_OPTION, []);
-                $content = get_option(WPB_META_CONTENT_OPTION, []);
+                $s = get_option(SUITE_BARRIO_META_OPTION, []);
+                $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
 
                 $sep = $s['separator'] ?? '—';
                 $site_name = $s['site_title'] ?? get_bloginfo('name');
@@ -1028,7 +1026,7 @@ function wpb_graphql_register_schema(): void
 
     // ── Tipo: impostazioni SEO globali del sito ──────────────────────────
     register_graphql_object_type('HBSeoSite', [
-        'description' => 'Impostazioni SEO globali del sito configurate in WP Barrio',
+        'description' => 'Impostazioni SEO globali del sito configurate in Suite Barrio',
         'fields' => [
             'siteTitle' => ['type' => 'String', 'description' => 'Titolo del sito'],
             'separator' => ['type' => 'String', 'description' => 'Separatore usato nel title tag (es. —)'],
@@ -1043,9 +1041,9 @@ function wpb_graphql_register_schema(): void
     // ── Query: hbSeoSite ─────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbSeoSite', [
         'type' => 'HBSeoSite',
-        'description' => 'Restituisce le impostazioni SEO globali del sito configurate in WP Barrio',
+        'description' => 'Restituisce le impostazioni SEO globali del sito configurate in Suite Barrio',
         'resolve' => function () {
-            $s = get_option(WPB_META_OPTION, []);
+            $s = get_option(SUITE_BARRIO_META_OPTION, []);
 
             $og_image_url = '';
             if (!empty($s['og_image_id']))
@@ -1069,7 +1067,7 @@ function wpb_graphql_register_schema(): void
 
     // ── Tipo: singolo redirect ────────────────────────────────────────────
     register_graphql_object_type('HBRedirect', [
-        'description' => 'Un redirect configurato in WP Barrio SEO',
+        'description' => 'Un redirect configurato in Suite Barrio SEO',
         'fields' => [
             'id' => ['type' => ['non_null' => 'String'], 'description' => 'UUID univoco del redirect'],
             'from' => ['type' => ['non_null' => 'String'], 'description' => 'URI relativo di origine (es. /vecchio-path/)'],
@@ -1082,9 +1080,9 @@ function wpb_graphql_register_schema(): void
     // ── Query: hbRedirects ───────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbRedirects', [
         'type' => ['list_of' => 'HBRedirect'],
-        'description' => 'Restituisce tutti i redirect configurati in WP Barrio SEO come URI relativi',
+        'description' => 'Restituisce tutti i redirect configurati in Suite Barrio SEO come URI relativi',
         'resolve' => function () {
-            if (!function_exists('wpb_redirects_get_all'))
+            if (!function_exists('suite_barrio_redirects_get_all'))
                 return [];
 
             return array_map(function ($row) {
@@ -1095,13 +1093,13 @@ function wpb_graphql_register_schema(): void
                     'code' => (int) ($row['code'] ?? 301),
                     'note' => $row['note'] ?? null,
                 ];
-            }, wpb_redirects_get_all());
+            }, suite_barrio_redirects_get_all());
         },
     ]);
 
     // ── Tipo: singola entry della sitemap ────────────────────────────────
     register_graphql_object_type('HBSitemapEntry', [
-        'description' => 'Una singola URL nella sitemap di WP Barrio',
+        'description' => 'Una singola URL nella sitemap di Suite Barrio',
         'fields' => [
             'loc' => ['type' => ['non_null' => 'String'], 'description' => 'URL assoluto'],
             'lastmod' => ['type' => 'String', 'description' => 'Data ultima modifica in formato ISO 8601 (solo per i post)'],
@@ -1116,12 +1114,12 @@ function wpb_graphql_register_schema(): void
     // ── Query: hbSitemap ─────────────────────────────────────────────────
     register_graphql_field('RootQuery', 'hbSitemap', [
         'type' => ['list_of' => 'HBSitemapEntry'],
-        'description' => 'Restituisce tutte le URL incluse nella sitemap di WP Barrio',
+        'description' => 'Restituisce tutte le URL incluse nella sitemap di Suite Barrio',
         'resolve' => function () {
-            if (!function_exists('wpb_sitemap_build_entries'))
+            if (!function_exists('suite_barrio_sitemap_build_entries'))
                 return [];
 
-            $entries = wpb_sitemap_build_entries();
+            $entries = suite_barrio_sitemap_build_entries();
             $result = [];
 
             foreach ($entries as $entry) {
@@ -1171,7 +1169,7 @@ function wpb_graphql_register_schema(): void
 
     // ── 14c. HBCompanyInfo ───────────────────────────────────────────────────
     register_graphql_object_type('HBCompanyInfo', [
-        'description' => 'Informazioni anagrafiche dell\'azienda salvate in WP Barrio → Info Azienda.',
+        'description' => 'Informazioni anagrafiche dell\'azienda salvate in Suite Barrio → Info Azienda.',
         'fields' => [
             // Anagrafica & contatti
             'ragioneSociale' => ['type' => 'String', 'description' => 'Ragione sociale.'],
@@ -1204,10 +1202,10 @@ function wpb_graphql_register_schema(): void
         'description' => 'Restituisce le informazioni anagrafiche dell\'azienda. '
             . 'Tutti i campi stringa sono nullabili: una stringa vuota è esposta come null.',
         'resolve' => function (): ?array {
-            if (!function_exists('wpb_company_info_get')) {
+            if (!function_exists('suite_barrio_company_info_get')) {
                 return null;
             }
-            $d = wpb_company_info_get();
+            $d = suite_barrio_company_info_get();
 
             // Helper: stringa trimmata, oppure null se vuota
             $s = function ($v) {
@@ -1264,7 +1262,7 @@ function wpb_graphql_register_schema(): void
 /* ─────────────────────────────────────────
    HELPER: formatta un form per GraphQL
    ───────────────────────────────────────── */
-function wpb_graphql_format_form(object $form): array
+function suite_barrio_graphql_format_form(object $form): array
 {
     $raw_fields = json_decode($form->fields, true) ?: [];
     $raw_settings = json_decode($form->settings, true) ?: [];
@@ -1277,30 +1275,30 @@ function wpb_graphql_format_form(object $form): array
     $current_step_fields = [];
     foreach ($raw_fields as $f) {
         if (($f['type'] ?? '') === 'page_break') {
-            $steps[] = ['fields' => array_map('wpb_graphql_format_field', $current_step_fields)];
+            $steps[] = ['fields' => array_map('suite_barrio_graphql_format_field', $current_step_fields)];
             $current_step_fields = [];
         } else {
             $current_step_fields[] = $f;
         }
     }
     // Ultimo step (o unico se nessun page_break)
-    $steps[] = ['fields' => array_map('wpb_graphql_format_field', $current_step_fields)];
+    $steps[] = ['fields' => array_map('suite_barrio_graphql_format_field', $current_step_fields)];
 
     return [
         'id' => (int) $form->id,
         'title' => $form->title,
         'createdAt' => $form->created_at,
         'updatedAt' => $form->updated_at ?? $form->created_at,
-        'fields' => array_map('wpb_graphql_format_field', $real_fields),
+        'fields' => array_map('suite_barrio_graphql_format_field', $real_fields),
         'steps' => $steps,
-        'settings' => wpb_graphql_format_settings($raw_settings),
+        'settings' => suite_barrio_graphql_format_settings($raw_settings),
     ];
 }
 
 /* ─────────────────────────────────────────
    HELPER: formatta un singolo campo
    ───────────────────────────────────────── */
-function wpb_graphql_format_field(array $f): array
+function suite_barrio_graphql_format_field(array $f): array
 {
     // Normalizza opzioni: stringa semplice -> {value, label}
     $options = [];
@@ -1374,7 +1372,7 @@ function wpb_graphql_format_field(array $f): array
 /* ─────────────────────────────────────────
    HELPER: formatta le impostazioni del form
    ───────────────────────────────────────── */
-function wpb_graphql_format_settings(array $s): array
+function suite_barrio_graphql_format_settings(array $s): array
 {
     return [
         'submitText' => (string) ($s['submit_text'] ?? 'Invia'),
