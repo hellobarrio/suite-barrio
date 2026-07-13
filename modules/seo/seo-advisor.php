@@ -1,10 +1,10 @@
 <?php
 /**
- * WP Barrio — SEO Advisor
+ * Suite Barrio — SEO Advisor
  * Genera title, description e keywords tramite AI (Gemini o Anthropic)
  * analizzando il contenuto di qualsiasi post type o tassonomia.
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
@@ -13,36 +13,256 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI
    ───────────────────────────────────────── */
-if (!defined('WPB_ADVISOR_LOG_OPTION'))
-    define('WPB_ADVISOR_LOG_OPTION', 'wpb_advisor_log');
-if (!defined('WPB_ADVISOR_LOG_MAX'))
-    define('WPB_ADVISOR_LOG_MAX', 100);
+if (!defined('SUITE_BARRIO_ADVISOR_LOG_OPTION'))
+    define('SUITE_BARRIO_ADVISOR_LOG_OPTION', 'wpb_advisor_log');
+if (!defined('SUITE_BARRIO_ADVISOR_LOG_MAX'))
+    define('SUITE_BARRIO_ADVISOR_LOG_MAX', 100);
 
 /* ─────────────────────────────────────────
    MENU
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    if (!wpb_tools_module_enabled('seo'))
+    if (!suite_barrio_tools_module_enabled('seo'))
         return;
 
     add_submenu_page(
-        'wp-barrio',
-        'SEO Advisor — WP Barrio',
+        'suite-barrio',
+        'SEO Advisor — Suite Barrio',
         'SEO Advisor',
         'manage_options',
-        'wp-barrio-seo-advisor',
-        'wpb_advisor_admin_page'
+        'suite-barrio-seo-advisor',
+        'suite_barrio_advisor_admin_page'
     );
 }, 16);
 
-add_action('admin_head', function () {
-    echo '<style>#adminmenu a[href="admin.php?page=wp-barrio-seo-advisor"]{display:none!important}</style>';
+add_action('admin_enqueue_scripts', function ($hook) {
+    // Nasconde la voce "SEO Advisor" dal menu (pagina raggiungibile solo da link diretto, mai dal menu).
+    // Applicato su ogni pagina admin, esattamente come il precedente echo su admin_head.
+    wp_add_inline_style('suite-barrio-admin', '#adminmenu a[href="admin.php?page=suite-barrio-seo-advisor"]{display:none!important}');
+
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+    if (!isset($_GET['page']) || $_GET['page'] !== 'suite-barrio-seo-advisor')
+        return;
+
+    $s = get_option(SUITE_BARRIO_META_OPTION, []);
+    $sep = $s['separator'] ?? '—';
+    $site_name = $s['site_title'] ?? get_bloginfo('name');
+    $order = $s['title_order'] ?? 'page_site';
+
+    wp_register_script('suite-barrio-seo-advisor', '', [], SUITE_BARRIO_VERSION, true);
+    wp_enqueue_script('suite-barrio-seo-advisor');
+
+    $nonce_json = wp_json_encode(wp_create_nonce('suite_barrio_advisor_nonce'));
+    $ajax_url_json = wp_json_encode(admin_url('admin-ajax.php'));
+    $sep_json = wp_json_encode($sep);
+    $site_name_json = wp_json_encode($site_name);
+    $order_json = wp_json_encode($order);
+
+    $js = '(function () {
+    var nonce = __SUITE_BARRIO_ADVISOR_NONCE__;
+    var ajaxUrl = __SUITE_BARRIO_ADVISOR_AJAX_URL__;
+    var sep = __SUITE_BARRIO_ADVISOR_SEP__;
+    var siteName = __SUITE_BARRIO_ADVISOR_SITE_NAME__;
+    var titleOrder = __SUITE_BARRIO_ADVISOR_ORDER__;
+
+    var sourceSelect = document.getElementById(\'suite-barrio-adv-source\');
+    var searchWrap = document.getElementById(\'suite-barrio-adv-search-wrap\');
+    var searchInput = document.getElementById(\'suite-barrio-adv-search\');
+    var itemsWrap = document.getElementById(\'suite-barrio-adv-items\');
+    var genBar = document.getElementById(\'suite-barrio-adv-generate-bar\');
+    var placeholder = document.getElementById(\'suite-barrio-adv-placeholder\');
+    var resultDiv = document.getElementById(\'suite-barrio-adv-result\');
+    var genBtn = document.getElementById(\'suite-barrio-adv-gen-btn\');
+    var regenBtn = document.getElementById(\'suite-barrio-adv-regen-btn\');
+    var spinner = document.getElementById(\'suite-barrio-adv-spinner\');
+    var genStatus = document.getElementById(\'suite-barrio-adv-gen-status\');
+    var genError = document.getElementById(\'suite-barrio-adv-gen-error\');
+
+    var selectedObjType = \'\';
+    var selectedObjId = 0;
+    var selectedEditUrl = \'\';
+    var currentSource = \'\';
+
+    function loadItems(source, search) {
+        itemsWrap.innerHTML = \'<div class="suite-barrio-adv-empty">Caricamento…</div>\';
+        var fd = new FormData();
+        fd.append(\'action\', \'suite_barrio_advisor_get_items\');
+        fd.append(\'nonce\', nonce);
+        fd.append(\'source\', source);
+        if (search) fd.append(\'search\', search);
+        fetch(ajaxUrl, { method: \'POST\', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (!res.success) { itemsWrap.innerHTML = \'<div class="suite-barrio-adv-empty">Errore nel caricamento.</div>\'; return; }
+                var data = res.data; var groups = data.groups || []; var isWpml = data.wpml || false;
+                var html = \'\'; var hasAny = false;
+                groups.forEach(function (group) {
+                    if (!group.items || !group.items.length) return;
+                    hasAny = true;
+                    if (isWpml && group.lang_label) {
+                        html += \'<div class="suite-barrio-adv-lang-sep"><span class="dashicons dashicons-translation"></span>\' + esc(group.lang_label) + (group.is_primary ? \' <span class="suite-barrio-adv-lang-sep-primary-badge">principale</span>\' : \'\') + \'</div>\';
+                    }
+                    group.items.forEach(function (item) {
+                        html += \'<div class="suite-barrio-adv-item" data-id="\' + item.id + \'" data-type="\' + item.obj_type + \'" data-edit="\' + esc(item.edit_url || \'\') + \'"><span class="suite-barrio-adv-item-title">\' + esc(item.title) + \'</span></div>\';
+                    });
+                });
+                if (!hasAny) { itemsWrap.innerHTML = \'<div class="suite-barrio-adv-empty">Nessun contenuto trovato.</div>\'; return; }
+                itemsWrap.innerHTML = html;
+                if (selectedObjId) { var sel = itemsWrap.querySelector(\'[data-id="\' + selectedObjId + \'"][data-type="\' + selectedObjType + \'"]\'); if (sel) sel.classList.add(\'selected\'); }
+            });
+    }
+
+    if (sourceSelect) {
+        sourceSelect.addEventListener(\'change\', function () {
+            currentSource = this.value; selectedObjId = 0; selectedObjType = \'\'; genBar.style.display = \'none\';
+            if (!currentSource) { itemsWrap.innerHTML = \'<div class="suite-barrio-adv-empty">Seleziona un tipo di contenuto.</div>\'; searchWrap.style.display = \'none\'; return; }
+            searchWrap.style.display = \'\'; searchInput.value = \'\'; loadItems(currentSource, \'\');
+        });
+    }
+
+    var searchTimer;
+    if (searchInput) {
+        searchInput.addEventListener(\'input\', function () {
+            clearTimeout(searchTimer); var val = this.value;
+            searchTimer = setTimeout(function () { loadItems(currentSource, val); }, 350);
+        });
+    }
+
+    if (itemsWrap) {
+        itemsWrap.addEventListener(\'click\', function (e) {
+            var item = e.target.closest(\'.suite-barrio-adv-item\'); if (!item) return;
+            itemsWrap.querySelectorAll(\'.suite-barrio-adv-item\').forEach(function (i) { i.classList.remove(\'selected\'); });
+            item.classList.add(\'selected\');
+            selectedObjId = parseInt(item.dataset.id); selectedObjType = item.dataset.type; selectedEditUrl = item.dataset.edit || \'\';
+            genBar.style.display = \'\'; genError.style.display = \'none\';
+        });
+    }
+
+    function doGenerate() {
+        if (!selectedObjId) return;
+        genBtn.disabled = true; if (regenBtn) regenBtn.disabled = true;
+        spinner.style.display = \'block\'; genStatus.textContent = \'Generazione in corso…\'; genError.style.display = \'none\';
+        var fd = new FormData();
+        fd.append(\'action\', \'suite_barrio_advisor_generate\'); fd.append(\'nonce\', nonce); fd.append(\'obj_type\', selectedObjType); fd.append(\'obj_id\', selectedObjId);
+        fetch(ajaxUrl, { method: \'POST\', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (!res.success) { genError.textContent = res.data || \'Errore sconosciuto.\'; genError.style.display = \'block\'; return; }
+                renderResult(res.data);
+            })
+            .catch(function () { genError.textContent = \'Errore di rete.\'; genError.style.display = \'block\'; })
+            .finally(function () { genBtn.disabled = false; if (regenBtn) regenBtn.disabled = false; spinner.style.display = \'none\'; genStatus.textContent = \'\'; });
+    }
+    if (genBtn) genBtn.addEventListener(\'click\', doGenerate);
+    if (regenBtn) regenBtn.addEventListener(\'click\', doGenerate);
+
+    function renderResult(data) {
+        placeholder.style.display = \'none\'; resultDiv.style.display = \'\';
+        var titleInput = document.getElementById(\'suite-barrio-adv-title\'); var descInput = document.getElementById(\'suite-barrio-adv-desc\');
+        var kwWrap = document.getElementById(\'suite-barrio-adv-kw-wrap\'); var kwJson = document.getElementById(\'suite-barrio-adv-kw-json\');
+        var objTypeInp = document.getElementById(\'suite-barrio-adv-obj-type\'); var objIdInp = document.getElementById(\'suite-barrio-adv-obj-id\');
+        var contentLbl = document.getElementById(\'suite-barrio-adv-content-label\'); var editLink = document.getElementById(\'suite-barrio-adv-edit-link\');
+        titleInput.value = data.title || \'\'; descInput.value = data.description || \'\';
+        objTypeInp.value = data.obj_type || \'\'; objIdInp.value = data.obj_id || \'\';
+        if (contentLbl) contentLbl.textContent = data.content_title || \'\';
+        if (editLink && selectedEditUrl) editLink.href = selectedEditUrl;
+        var kws = data.keywords || []; kwJson.value = JSON.stringify(kws); kwWrap.innerHTML = \'\';
+        kws.forEach(function (kw, i) {
+            var pill = document.createElement(\'span\');
+            pill.className = \'suite-barrio-adv-kw-pill \' + (i === 0 ? \'suite-barrio-adv-kw-pill-primary\' : \'suite-barrio-adv-kw-pill-secondary\');
+            pill.textContent = kw; kwWrap.appendChild(pill);
+        });
+        updateSerp(); updateCounters(); updateSerpLive();
+        document.getElementById(\'suite-barrio-adv-save-error\').style.display = \'none\';
+        document.getElementById(\'suite-barrio-adv-save-success\').style.display = \'none\';
+    }
+
+    function updateSerp() {
+        var titleInput = document.getElementById(\'suite-barrio-adv-title\'); var descInput = document.getElementById(\'suite-barrio-adv-desc\');
+        var serpTitle = document.getElementById(\'suite-barrio-adv-serp-title\'); var serpDesc = document.getElementById(\'suite-barrio-adv-serp-desc\'); var serpUrl = document.getElementById(\'suite-barrio-adv-serp-url\');
+        if (!serpTitle) return;
+        var t = titleInput ? titleInput.value.trim() : \'\';
+        var full = titleOrder === \'site_page\' ? siteName + \' \' + sep + \' \' + t : t + \' \' + sep + \' \' + siteName;
+        serpTitle.textContent = full || \'—\';
+        var d = descInput ? descInput.value.trim() : \'\';
+        serpDesc.textContent = d || \'—\'; serpDesc.className = \'suite-barrio-adv-serp-desc\' + (d ? \'\' : \' empty\');
+        if (serpUrl) serpUrl.textContent = selectedEditUrl ? new URL(selectedEditUrl).hostname : \'\';
+    }
+    function updateSerpLive() { var ti = document.getElementById(\'suite-barrio-adv-title\'); var di = document.getElementById(\'suite-barrio-adv-desc\'); if (ti) ti.addEventListener(\'input\', updateSerp); if (di) di.addEventListener(\'input\', updateSerp); }
+    function updateCounters() {
+        function refreshCtr(input, ctr, max, w1, w2) {
+            if (!input || !ctr) return;
+            input.addEventListener(\'input\', function () { var l = this.value.length; ctr.textContent = l + \'/\' + max; ctr.style.color = l > w2 ? \'#dc2626\' : l >= w1 ? \'#059669\' : \'#9ca3af\'; });
+            var l = input.value.length; ctr.textContent = l + \'/\' + max; ctr.style.color = l > w2 ? \'#dc2626\' : l >= w1 ? \'#059669\' : \'#9ca3af\';
+        }
+        refreshCtr(document.getElementById(\'suite-barrio-adv-title\'), document.getElementById(\'suite-barrio-adv-title-ctr\'), 60, 30, 60);
+        refreshCtr(document.getElementById(\'suite-barrio-adv-desc\'), document.getElementById(\'suite-barrio-adv-desc-ctr\'), 160, 120, 160);
+    }
+
+    var saveBtn = document.getElementById(\'suite-barrio-adv-save-btn\');
+    if (saveBtn) {
+        saveBtn.addEventListener(\'click\', function () {
+            var title = document.getElementById(\'suite-barrio-adv-title\').value.trim(), desc = document.getElementById(\'suite-barrio-adv-desc\').value.trim();
+            var kwJson = document.getElementById(\'suite-barrio-adv-kw-json\').value, objType = document.getElementById(\'suite-barrio-adv-obj-type\').value, objId = document.getElementById(\'suite-barrio-adv-obj-id\').value;
+            var errEl = document.getElementById(\'suite-barrio-adv-save-error\'), okEl = document.getElementById(\'suite-barrio-adv-save-success\');
+            this.disabled = true; errEl.style.display = \'none\'; okEl.style.display = \'none\';
+            var fd = new FormData(); fd.append(\'action\', \'suite_barrio_advisor_save\'); fd.append(\'nonce\', nonce);
+            fd.append(\'obj_type\', objType); fd.append(\'obj_id\', objId); fd.append(\'seo_title\', title); fd.append(\'seo_description\', desc); fd.append(\'seo_keywords\', kwJson);
+            var btn = this;
+            fetch(ajaxUrl, { method: \'POST\', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
+                if (res.success) { okEl.style.display = \'block\'; setTimeout(function () { okEl.style.display = \'none\'; }, 4000); }
+                else { errEl.textContent = res.data || \'Errore nel salvataggio.\'; errEl.style.display = \'block\'; }
+            }).catch(function () { errEl.textContent = \'Errore di rete.\'; errEl.style.display = \'block\'; }).finally(function () { btn.disabled = false; });
+        });
+    }
+
+    var clearLogBtn = document.getElementById(\'suite-barrio-adv-clear-log\');
+    if (clearLogBtn) {
+        clearLogBtn.addEventListener(\'click\', function () {
+            if (!confirm(\'Svuotare il log?\')) return;
+            var fd = new FormData(); fd.append(\'action\', \'suite_barrio_advisor_clear_log\'); fd.append(\'nonce\', nonce);
+            fetch(ajaxUrl, { method: \'POST\', body: fd }).then(function () { window.location.reload(); });
+        });
+    }
+
+    var provSel = document.getElementById(\'suite-barrio-adv-provider-sel\');
+    if (provSel) {
+        provSel.addEventListener(\'change\', function () {
+            var ant = document.getElementById(\'suite-barrio-adv-anthropic-row\'), gem = document.getElementById(\'suite-barrio-adv-gemini-row\');
+            if (this.value === \'gemini\') { ant.style.display = \'none\'; gem.style.display = \'\'; } else { ant.style.display = \'\'; gem.style.display = \'none\'; }
+        });
+    }
+
+    var loadModelsBtn = document.getElementById(\'suite-barrio-adv-load-models\');
+    if (loadModelsBtn) {
+        loadModelsBtn.addEventListener(\'click\', function () {
+            var prov = document.getElementById(\'suite-barrio-adv-provider-sel\').value, sel = document.getElementById(\'suite-barrio-adv-model-sel\');
+            this.disabled = true; this.textContent = \'Caricamento…\';
+            var fd = new FormData(); fd.append(\'action\', \'suite_barrio_advisor_fetch_models\'); fd.append(\'nonce\', nonce); fd.append(\'provider\', prov); fd.append(\'force\', \'1\');
+            var btn = this;
+            fetch(ajaxUrl, { method: \'POST\', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
+                if (!res.success || res.data.error) { alert(res.data.error || \'Impossibile caricare i modelli.\'); return; }
+                var current = sel.value; while (sel.options.length > 1) sel.remove(1);
+                (res.data || []).forEach(function (m) { var opt = document.createElement(\'option\'); opt.value = m; opt.textContent = m; if (m === current) opt.selected = true; sel.appendChild(opt); });
+            }).finally(function () { btn.disabled = false; btn.textContent = \'Carica modelli\'; });
+        });
+    }
+
+    function esc(s) { return String(s).replace(/&/g, \'&amp;\').replace(/</g, \'&lt;\').replace(/>/g, \'&gt;\').replace(/"/g, \'&quot;\'); }
+})();';
+    $js = str_replace(
+        ['__SUITE_BARRIO_ADVISOR_NONCE__', '__SUITE_BARRIO_ADVISOR_AJAX_URL__', '__SUITE_BARRIO_ADVISOR_SEP__', '__SUITE_BARRIO_ADVISOR_SITE_NAME__', '__SUITE_BARRIO_ADVISOR_ORDER__'],
+        [$nonce_json, $ajax_url_json, $sep_json, $site_name_json, $order_json],
+        $js
+    );
+
+    wp_add_inline_script('suite-barrio-seo-advisor', $js);
 });
 
 add_filter('submenu_file', function ($submenu_file) {
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
-    if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-seo-advisor')
-        return 'wp-barrio-seo';
+    if (isset($_GET['page']) && $_GET['page'] === 'suite-barrio-seo-advisor')
+        return 'suite-barrio-seo';
     return $submenu_file;
 });
 
@@ -66,7 +286,7 @@ add_action('admin_init', function () {
 /* ─────────────────────────────────────────
    HELPER: chiave API attiva
    ───────────────────────────────────────── */
-function wpb_advisor_active_key(): string
+function suite_barrio_advisor_active_key(): string
 {
     $provider = get_option('wpb_advisor_provider', 'anthropic');
     return $provider === 'gemini'
@@ -77,26 +297,26 @@ function wpb_advisor_active_key(): string
 /* ─────────────────────────────────────────
    HELPER: log
    ───────────────────────────────────────── */
-function wpb_advisor_log(string $status, string $target, string $note): void
+function suite_barrio_advisor_log(string $status, string $target, string $note): void
 {
     if (!get_option('wpb_advisor_log_enabled', 1))
         return;
-    $log = get_option(WPB_ADVISOR_LOG_OPTION, []);
+    $log = get_option(SUITE_BARRIO_ADVISOR_LOG_OPTION, []);
     array_unshift($log, [
         'ts' => current_time('timestamp'),
         'status' => $status,
         'target' => $target,
         'note' => $note,
     ]);
-    if (count($log) > WPB_ADVISOR_LOG_MAX)
-        $log = array_slice($log, 0, WPB_ADVISOR_LOG_MAX);
-    update_option(WPB_ADVISOR_LOG_OPTION, $log, false);
+    if (count($log) > SUITE_BARRIO_ADVISOR_LOG_MAX)
+        $log = array_slice($log, 0, SUITE_BARRIO_ADVISOR_LOG_MAX);
+    update_option(SUITE_BARRIO_ADVISOR_LOG_OPTION, $log, false);
 }
 
 /* ─────────────────────────────────────────
    HELPER: costruisce il contenuto da analizzare
    ───────────────────────────────────────── */
-function wpb_advisor_get_content(string $type, int $id): array
+function suite_barrio_advisor_get_content(string $type, int $id): array
 {
     if ($type === 'post') {
         $post = get_post($id);
@@ -126,12 +346,12 @@ function wpb_advisor_get_content(string $type, int $id): array
 /* ─────────────────────────────────────────
    HELPER: chiama l'API AI e ottiene i meta SEO
    ───────────────────────────────────────── */
-function wpb_advisor_generate(array $content_data): array
+function suite_barrio_advisor_generate(array $content_data): array
 {
     $provider = get_option('wpb_advisor_provider', 'anthropic');
-    $api_key = wpb_advisor_active_key();
+    $api_key = suite_barrio_advisor_active_key();
     $model = get_option('wpb_advisor_model', '');
-    $s = get_option(WPB_META_OPTION, []);
+    $s = get_option(SUITE_BARRIO_META_OPTION, []);
     $sep = $s['separator'] ?? '—';
     $site = $s['site_title'] ?? get_bloginfo('name');
 
@@ -335,8 +555,8 @@ function wpb_advisor_generate(array $content_data): array
 /* ─────────────────────────────────────────
    AJAX: fetch modelli
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_advisor_fetch_models', function () {
-    check_ajax_referer('wpb_advisor_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_advisor_fetch_models', function () {
+    check_ajax_referer('suite_barrio_advisor_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
 
@@ -391,10 +611,10 @@ add_action('wp_ajax_wpb_advisor_fetch_models', function () {
 /* ─────────────────────────────────────────
    AJAX: genera meta SEO
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_advisor_generate', function () {
+add_action('wp_ajax_suite_barrio_advisor_generate', function () {
     // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
     @set_time_limit(120);
-    check_ajax_referer('wpb_advisor_nonce', 'nonce');
+    check_ajax_referer('suite_barrio_advisor_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
 
@@ -403,20 +623,20 @@ add_action('wp_ajax_wpb_advisor_generate', function () {
     if (!$obj_id)
         wp_send_json_error('ID mancante.');
 
-    $content_data = wpb_advisor_get_content($obj_type, $obj_id);
+    $content_data = suite_barrio_advisor_get_content($obj_type, $obj_id);
     if (isset($content_data['error'])) {
-        wpb_advisor_log('error', $obj_type . ':' . $obj_id, $content_data['error']);
+        suite_barrio_advisor_log('error', $obj_type . ':' . $obj_id, $content_data['error']);
         wp_send_json_error($content_data['error']);
     }
 
-    $result = wpb_advisor_generate($content_data);
+    $result = suite_barrio_advisor_generate($content_data);
     if (isset($result['error'])) {
-        wpb_advisor_log('error', $content_data['title'], $result['error']);
+        suite_barrio_advisor_log('error', $content_data['title'], $result['error']);
         wp_send_json_error($result['error']);
     }
 
     $target_label = $content_data['title'];
-    wpb_advisor_log('success', $target_label, 'Title: ' . $result['title']);
+    suite_barrio_advisor_log('success', $target_label, 'Title: ' . $result['title']);
 
     wp_send_json_success(array_merge($result, [
         'content_title' => $content_data['title'],
@@ -429,8 +649,8 @@ add_action('wp_ajax_wpb_advisor_generate', function () {
 /* ─────────────────────────────────────────
    AJAX: salva i meta SEO generati
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_advisor_save', function () {
-    check_ajax_referer('wpb_advisor_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_advisor_save', function () {
+    check_ajax_referer('suite_barrio_advisor_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
 
@@ -475,19 +695,19 @@ add_action('wp_ajax_wpb_advisor_save', function () {
 /* ─────────────────────────────────────────
    AJAX: svuota log
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_advisor_clear_log', function () {
-    check_ajax_referer('wpb_advisor_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_advisor_clear_log', function () {
+    check_ajax_referer('suite_barrio_advisor_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
-    delete_option(WPB_ADVISOR_LOG_OPTION);
+    delete_option(SUITE_BARRIO_ADVISOR_LOG_OPTION);
     wp_send_json_success();
 });
 
 /* ─────────────────────────────────────────
    AJAX: lista contenuti (post type o tassonomia)
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_advisor_get_items', function () {
-    check_ajax_referer('wpb_advisor_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_advisor_get_items', function () {
+    check_ajax_referer('suite_barrio_advisor_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
 
@@ -496,12 +716,12 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
 
     // Determina se WPML è attivo con lingue di traduzione
     $wpml_active = defined('ICL_SITEPRESS_VERSION')
-        && function_exists('wpb_multilang_is_enabled')
-        && wpb_multilang_is_enabled();
-    $languages = $wpml_active ? wpb_multilang_languages() : [null => null];
-    $lang_flags = $wpml_active && function_exists('wpb_multilang_languages_with_flags') ? wpb_multilang_languages_with_flags() : [];
-    $primary = $wpml_active && function_exists('wpb_multilang_primary_language')
-        ? wpb_multilang_primary_language() : null;
+        && function_exists('suite_barrio_multilang_is_enabled')
+        && suite_barrio_multilang_is_enabled();
+    $languages = $wpml_active ? suite_barrio_multilang_languages() : [null => null];
+    $lang_flags = $wpml_active && function_exists('suite_barrio_multilang_languages_with_flags') ? suite_barrio_multilang_languages_with_flags() : [];
+    $primary = $wpml_active && function_exists('suite_barrio_multilang_primary_language')
+        ? suite_barrio_multilang_primary_language() : null;
 
     $groups = []; // [ ['lang_code'=>, 'lang_label'=>, 'items'=>[...]] ]
 
@@ -626,16 +846,16 @@ add_action('wp_ajax_wpb_advisor_get_items', function () {
 /* ─────────────────────────────────────────
    PAGINA ADMIN
    ───────────────────────────────────────── */
-function wpb_advisor_admin_page()
+function suite_barrio_advisor_admin_page()
 {
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'generate';
-    $api_key = wpb_advisor_active_key();
+    $api_key = suite_barrio_advisor_active_key();
     $provider = get_option('wpb_advisor_provider', 'anthropic');
     $model = get_option('wpb_advisor_model', '');
-    $log = get_option(WPB_ADVISOR_LOG_OPTION, []);
+    $log = get_option(SUITE_BARRIO_ADVISOR_LOG_OPTION, []);
 
-    $s = get_option(WPB_META_OPTION, []);
+    $s = get_option(SUITE_BARRIO_META_OPTION, []);
     $sep = $s['separator'] ?? '—';
     $site_name = $s['site_title'] ?? get_bloginfo('name');
     $order = $s['title_order'] ?? 'page_site';
@@ -652,52 +872,52 @@ function wpb_advisor_admin_page()
         $sources[$tax] = ['label' => $obj->labels->name ?? $tax, 'type' => 'taxonomy'];
     }
     ?>
-<div id="wpb-advisor-wrap" class="wrap wpb-wrap">
+<div id="suite-barrio-advisor-wrap" class="wrap suite-barrio-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-            <div class="wpb-adv-header">
-                <div class="wpb-adv-header-icon"><span class="dashicons dashicons-chart-line"></span></div>
+            <div class="suite-barrio-adv-header">
+                <div class="suite-barrio-adv-header-icon"><span class="dashicons dashicons-chart-line"></span></div>
                 <div>
-                    <h1>WP Barrio <span class="wpb-adv-breadcrumb">/ SEO / SEO Advisor</span></h1>
-                    <p class="wpb-adv-sub">Genera title, description e keywords SEO con l'AI</p>
+                    <h1>Suite Barrio <span class="suite-barrio-adv-breadcrumb">/ SEO / SEO Advisor</span></h1>
+                    <p class="suite-barrio-adv-sub">Genera title, description e keywords SEO con l'AI</p>
                 </div>
             </div>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-seo')); ?>"
+            <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-seo')); ?>"
                 style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:12.5px;font-weight:600;background:#f3f4f6;color:#374151 !important;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none !important;white-space:nowrap;flex-shrink:0;align-self:flex-start;">
                 <span class="dashicons dashicons-arrow-left-alt2"
                     style="font-size:14px;width:14px;height:14px;margin-top:1px;"></span>
                 Strumenti SEO
             </a>
         </div>
-        <hr class="wpb-adv-divider">
+        <hr class="suite-barrio-adv-divider">
 
-        <div class="wpb-adv-tabs">
-            <a href="?page=wp-barrio-seo-advisor&tab=generate"
-                class="wpb-adv-tab <?php echo $tab === 'generate' ? 'active' : ''; ?>">Genera</a>
-            <a href="?page=wp-barrio-seo-advisor&tab=log"
-                class="wpb-adv-tab <?php echo $tab === 'log' ? 'active' : ''; ?>">Log</a>
-            <a href="?page=wp-barrio-seo-advisor&tab=settings"
-                class="wpb-adv-tab <?php echo $tab === 'settings' ? 'active' : ''; ?>">Impostazioni</a>
+        <div class="suite-barrio-adv-tabs">
+            <a href="?page=suite-barrio-seo-advisor&tab=generate"
+                class="suite-barrio-adv-tab <?php echo $tab === 'generate' ? 'active' : ''; ?>">Genera</a>
+            <a href="?page=suite-barrio-seo-advisor&tab=log"
+                class="suite-barrio-adv-tab <?php echo $tab === 'log' ? 'active' : ''; ?>">Log</a>
+            <a href="?page=suite-barrio-seo-advisor&tab=settings"
+                class="suite-barrio-adv-tab <?php echo $tab === 'settings' ? 'active' : ''; ?>">Impostazioni</a>
         </div>
 
         <?php if ($tab === 'generate'): ?>
 
             <?php if (!$api_key): ?>
-                <div class="wpb-adv-notice-warning">
+                <div class="suite-barrio-adv-notice-warning">
                     <span class="dashicons dashicons-warning"></span>
-                    <div>Chiave API non configurata. <a href="?page=wp-barrio-seo-advisor&tab=settings">Vai alle impostazioni
+                    <div>Chiave API non configurata. <a href="?page=suite-barrio-seo-advisor&tab=settings">Vai alle impostazioni
                             &rarr;</a></div>
                 </div>
             <?php endif; ?>
 
-            <div class="wpb-adv-layout">
+            <div class="suite-barrio-adv-layout">
                 <!-- Colonna sinistra -->
-                <div class="wpb-adv-panel">
-                    <div class="wpb-adv-panel-header">
+                <div class="suite-barrio-adv-panel">
+                    <div class="suite-barrio-adv-panel-header">
                         <span class="dashicons dashicons-admin-post"></span>
-                        <span class="wpb-adv-panel-title">Seleziona contenuto</span>
+                        <span class="suite-barrio-adv-panel-title">Seleziona contenuto</span>
                     </div>
-                    <div class="wpb-adv-source-select">
-                        <select id="wpb-adv-source">
+                    <div class="suite-barrio-adv-source-select">
+                        <select id="suite-barrio-adv-source">
                             <option value="">— Tipo di contenuto —</option>
                             <optgroup label="Post Type">
                                 <?php foreach ($sources as $key => $src):
@@ -715,32 +935,32 @@ function wpb_advisor_admin_page()
                             </optgroup>
                         </select>
                     </div>
-                    <div class="wpb-adv-search" id="wpb-adv-search-wrap" style="display:none;">
-                        <input type="search" id="wpb-adv-search" placeholder="Cerca…">
+                    <div class="suite-barrio-adv-search" id="suite-barrio-adv-search-wrap" style="display:none;">
+                        <input type="search" id="suite-barrio-adv-search" placeholder="Cerca…">
                     </div>
-                    <div class="wpb-adv-items" id="wpb-adv-items">
-                        <div class="wpb-adv-empty">Seleziona un tipo di contenuto.</div>
+                    <div class="suite-barrio-adv-items" id="suite-barrio-adv-items">
+                        <div class="suite-barrio-adv-empty">Seleziona un tipo di contenuto.</div>
                     </div>
                 </div>
 
                 <!-- Colonna destra -->
-                <div id="wpb-adv-result-col">
-                    <div class="wpb-adv-placeholder" id="wpb-adv-placeholder">
+                <div id="suite-barrio-adv-result-col">
+                    <div class="suite-barrio-adv-placeholder" id="suite-barrio-adv-placeholder">
                         <span class="dashicons dashicons-chart-line"></span>
                         <p>Seleziona un contenuto e clicca su <strong>Genera con AI</strong>.</p>
                     </div>
 
-                    <div id="wpb-adv-result" style="display:none;">
+                    <div id="suite-barrio-adv-result" style="display:none;">
                         <!-- SERP preview -->
-                        <div class="wpb-adv-panel" style="margin-bottom:16px;">
-                            <div class="wpb-adv-panel-header">
+                        <div class="suite-barrio-adv-panel" style="margin-bottom:16px;">
+                            <div class="suite-barrio-adv-panel-header">
                                 <span class="dashicons dashicons-search"></span>
-                                <span class="wpb-adv-panel-title">Anteprima Google</span>
+                                <span class="suite-barrio-adv-panel-title">Anteprima Google</span>
                             </div>
                             <div style="padding:16px;">
-                                <div class="wpb-adv-serp">
-                                    <div class="wpb-adv-serp-site">
-                                        <div class="wpb-adv-serp-favicon" id="wpb-adv-serp-fav">
+                                <div class="suite-barrio-adv-serp">
+                                    <div class="suite-barrio-adv-serp-site">
+                                        <div class="suite-barrio-adv-serp-favicon" id="suite-barrio-adv-serp-fav">
                                             <?php $fav_id = (int) ($s['favicon_id'] ?? 0);
                                             $fav_url = $fav_id ? wp_get_attachment_image_url($fav_id, 'thumbnail') : ''; ?>
                                             <?php if ($fav_url): ?><img src="<?php echo esc_url($fav_url); ?>"
@@ -749,68 +969,68 @@ function wpb_advisor_admin_page()
                                             <?php endif; ?>
                                         </div>
                                         <div>
-                                            <div class="wpb-adv-serp-site-name"><?php echo esc_html($site_name); ?></div>
-                                            <div class="wpb-adv-serp-url" id="wpb-adv-serp-url"></div>
+                                            <div class="suite-barrio-adv-serp-site-name"><?php echo esc_html($site_name); ?></div>
+                                            <div class="suite-barrio-adv-serp-url" id="suite-barrio-adv-serp-url"></div>
                                         </div>
                                     </div>
-                                    <div class="wpb-adv-serp-title" id="wpb-adv-serp-title">—</div>
-                                    <div class="wpb-adv-serp-desc" id="wpb-adv-serp-desc">—</div>
+                                    <div class="suite-barrio-adv-serp-title" id="suite-barrio-adv-serp-title">—</div>
+                                    <div class="suite-barrio-adv-serp-desc" id="suite-barrio-adv-serp-desc">—</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Campi editabili -->
-                        <div class="wpb-adv-panel">
-                            <div class="wpb-adv-panel-header">
+                        <div class="suite-barrio-adv-panel">
+                            <div class="suite-barrio-adv-panel-header">
                                 <span class="dashicons dashicons-edit"></span>
-                                <span class="wpb-adv-panel-title">Meta SEO generati</span>
-                                <span style="margin-left:auto;font-size:12px;color:#6b7280;" id="wpb-adv-content-label"></span>
+                                <span class="suite-barrio-adv-panel-title">Meta SEO generati</span>
+                                <span style="margin-left:auto;font-size:12px;color:#6b7280;" id="suite-barrio-adv-content-label"></span>
                             </div>
                             <div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
-                                <div class="wpb-adv-field">
-                                    <span class="wpb-adv-field-label">SEO Title <span class="wpb-adv-counter"
-                                            id="wpb-adv-title-ctr">0/60</span></span>
-                                    <input type="text" id="wpb-adv-title" maxlength="100">
+                                <div class="suite-barrio-adv-field">
+                                    <span class="suite-barrio-adv-field-label">SEO Title <span class="suite-barrio-adv-counter"
+                                            id="suite-barrio-adv-title-ctr">0/60</span></span>
+                                    <input type="text" id="suite-barrio-adv-title" maxlength="100">
                                 </div>
-                                <div class="wpb-adv-field">
-                                    <span class="wpb-adv-field-label">SEO Description <span class="wpb-adv-counter"
-                                            id="wpb-adv-desc-ctr">0/160</span></span>
-                                    <textarea id="wpb-adv-desc" rows="3"></textarea>
+                                <div class="suite-barrio-adv-field">
+                                    <span class="suite-barrio-adv-field-label">SEO Description <span class="suite-barrio-adv-counter"
+                                            id="suite-barrio-adv-desc-ctr">0/160</span></span>
+                                    <textarea id="suite-barrio-adv-desc" rows="3"></textarea>
                                 </div>
-                                <div class="wpb-adv-field">
-                                    <span class="wpb-adv-field-label">Keywords</span>
-                                    <div class="wpb-adv-kw-wrap" id="wpb-adv-kw-wrap"></div>
+                                <div class="suite-barrio-adv-field">
+                                    <span class="suite-barrio-adv-field-label">Keywords</span>
+                                    <div class="suite-barrio-adv-kw-wrap" id="suite-barrio-adv-kw-wrap"></div>
                                 </div>
-                                <input type="hidden" id="wpb-adv-obj-type" value="">
-                                <input type="hidden" id="wpb-adv-obj-id" value="">
-                                <input type="hidden" id="wpb-adv-kw-json" value="[]">
-                                <div class="wpb-adv-error" id="wpb-adv-save-error"></div>
-                                <div class="wpb-adv-success" id="wpb-adv-save-success">&#x2713; Meta SEO salvati con successo.
+                                <input type="hidden" id="suite-barrio-adv-obj-type" value="">
+                                <input type="hidden" id="suite-barrio-adv-obj-id" value="">
+                                <input type="hidden" id="suite-barrio-adv-kw-json" value="[]">
+                                <div class="suite-barrio-adv-error" id="suite-barrio-adv-save-error"></div>
+                                <div class="suite-barrio-adv-success" id="suite-barrio-adv-save-success">&#x2713; Meta SEO salvati con successo.
                                 </div>
                                 <div style="display:flex;gap:8px;padding-top:4px;border-top:1px solid #f3f4f6;">
-                                    <button class="wpb-adv-save-btn" id="wpb-adv-save-btn">
+                                    <button class="suite-barrio-adv-save-btn" id="suite-barrio-adv-save-btn">
                                         <span class="dashicons dashicons-yes"
                                             style="font-size:16px;width:16px;height:16px;"></span>
                                         Salva meta SEO
                                     </button>
-                                    <button class="wpb-adv-btn-ghost" id="wpb-adv-regen-btn">&#x21BB; Rigenera</button>
-                                    <a href="#" class="wpb-adv-btn-ghost" id="wpb-adv-edit-link" target="_blank"
+                                    <button class="suite-barrio-adv-btn-ghost" id="suite-barrio-adv-regen-btn">&#x21BB; Rigenera</button>
+                                    <a href="#" class="suite-barrio-adv-btn-ghost" id="suite-barrio-adv-edit-link" target="_blank"
                                         style="margin-left:auto;">Apri in editor &rarr;</a>
                                 </div>
                             </div>
                         </div>
-                    </div><!-- #wpb-adv-result -->
+                    </div><!-- #suite-barrio-adv-result -->
 
                     <!-- Genera button -->
-                    <div id="wpb-adv-generate-bar" style="display:none;margin-top:12px;">
-                        <div class="wpb-adv-error" id="wpb-adv-gen-error" style="margin-bottom:10px;"></div>
-                        <div class="wpb-adv-generate-row">
-                            <button class="wpb-adv-btn-primary" id="wpb-adv-gen-btn" style="font-size:14px;padding:11px 24px;"
+                    <div id="suite-barrio-adv-generate-bar" style="display:none;margin-top:12px;">
+                        <div class="suite-barrio-adv-error" id="suite-barrio-adv-gen-error" style="margin-bottom:10px;"></div>
+                        <div class="suite-barrio-adv-generate-row">
+                            <button class="suite-barrio-adv-btn-primary" id="suite-barrio-adv-gen-btn" style="font-size:14px;padding:11px 24px;"
                                 <?php echo !$api_key ? 'disabled' : ''; ?>>
                                 &#x2728; Genera con AI
                             </button>
-                            <div class="wpb-adv-spinner" id="wpb-adv-spinner"></div>
-                            <span id="wpb-adv-gen-status" style="font-size:13px;color:#6b7280;"></span>
+                            <div class="suite-barrio-adv-spinner" id="suite-barrio-adv-spinner"></div>
+                            <span id="suite-barrio-adv-gen-status" style="font-size:13px;color:#6b7280;"></span>
                         </div>
                     </div>
                 </div>
@@ -821,14 +1041,14 @@ function wpb_advisor_admin_page()
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <span style="font-size:13px;color:#6b7280;font-weight:500;"><?php echo count($log); ?> operazioni
                     registrate</span>
-                <button class="wpb-adv-btn-ghost" id="wpb-adv-clear-log">🗑 Svuota log</button>
+                <button class="suite-barrio-adv-btn-ghost" id="suite-barrio-adv-clear-log">🗑 Svuota log</button>
             </div>
             <?php if (empty($log)): ?>
                 <div
                     style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:40px;text-align:center;color:#6b7280;font-size:13px;">
                     Nessuna operazione registrata.</div>
             <?php else: ?>
-                <table class="wpb-log-table">
+                <table class="suite-barrio-log-table">
                     <thead>
                         <tr>
                             <th style="width:160px;">Data</th>
@@ -843,7 +1063,7 @@ function wpb_advisor_admin_page()
                                 <td style="color:#9ca3af;font-size:12px;">
                                     <?php echo esc_html(date_i18n('d/m/Y H:i', $entry['ts'] ?? 0)); ?></td>
                                 <td><span
-                                        class="wpb-log-badge <?php echo esc_attr($entry['status'] ?? 'error'); ?>"><?php echo $entry['status'] === 'success' ? '&#x2713; OK' : '&#x2715; Errore'; ?></span>
+                                        class="suite-barrio-log-badge <?php echo esc_attr($entry['status'] ?? 'error'); ?>"><?php echo $entry['status'] === 'success' ? '&#x2713; OK' : '&#x2715; Errore'; ?></span>
                                 </td>
                                 <td><?php echo esc_html($entry['target'] ?? ''); ?></td>
                                 <td style="color:#9ca3af;font-size:12px;"><?php echo esc_html($entry['note'] ?? ''); ?></td>
@@ -857,7 +1077,7 @@ function wpb_advisor_admin_page()
 
             <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione ?>
             <?php if (isset($_GET['settings-updated'])): ?>
-                <div class="wpb-adv-notice-success"><span class="dashicons dashicons-yes-alt"></span>
+                <div class="suite-barrio-adv-notice-success"><span class="dashicons dashicons-yes-alt"></span>
                     <div>Impostazioni salvate.</div>
                 </div>
             <?php endif; ?>
@@ -865,48 +1085,48 @@ function wpb_advisor_admin_page()
             <form method="post" action="options.php" style="max-width:640px;">
                 <?php settings_fields('wpb_advisor_settings'); ?>
 
-                <div class="wpb-settings-card">
-                    <div class="wpb-settings-card-header">Provider AI</div>
-                    <div class="wpb-settings-card-body">
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Provider<small>Seleziona il servizio AI</small></div>
-                            <div class="wpb-settings-input">
-                                <select name="wpb_advisor_provider" id="wpb-adv-provider-sel">
+                <div class="suite-barrio-settings-card">
+                    <div class="suite-barrio-settings-card-header">Provider AI</div>
+                    <div class="suite-barrio-settings-card-body">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Provider<small>Seleziona il servizio AI</small></div>
+                            <div class="suite-barrio-settings-input">
+                                <select name="wpb_advisor_provider" id="suite-barrio-adv-provider-sel">
                                     <option value="anthropic" <?php selected($provider, 'anthropic'); ?>>Anthropic Claude
                                     </option>
                                     <option value="gemini" <?php selected($provider, 'gemini'); ?>>Google Gemini</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="wpb-settings-row" id="wpb-adv-anthropic-row"
+                        <div class="suite-barrio-settings-row" id="suite-barrio-adv-anthropic-row"
                             style="<?php echo $provider === 'gemini' ? 'display:none;' : ''; ?>">
-                            <div class="wpb-settings-label">Chiave API Anthropic<small>sk-ant-…</small></div>
-                            <div class="wpb-settings-input">
+                            <div class="suite-barrio-settings-label">Chiave API Anthropic<small>sk-ant-…</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <input type="password" name="wpb_advisor_api_key"
                                     value="<?php echo esc_attr(get_option('wpb_advisor_api_key', '')); ?>"
                                     placeholder="sk-ant-api03-…" autocomplete="off">
                             </div>
                         </div>
-                        <div class="wpb-settings-row" id="wpb-adv-gemini-row"
+                        <div class="suite-barrio-settings-row" id="suite-barrio-adv-gemini-row"
                             style="<?php echo $provider !== 'gemini' ? 'display:none;' : ''; ?>">
-                            <div class="wpb-settings-label">Chiave API Gemini<small>AIza…</small></div>
-                            <div class="wpb-settings-input">
+                            <div class="suite-barrio-settings-label">Chiave API Gemini<small>AIza…</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <input type="password" name="wpb_advisor_gemini_key"
                                     value="<?php echo esc_attr(get_option('wpb_advisor_gemini_key', '')); ?>"
                                     placeholder="AIzaSy…" autocomplete="off">
                             </div>
                         </div>
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Modello<small>Lascia vuoto per il default</small></div>
-                            <div class="wpb-settings-input">
-                                <div class="wpb-model-row">
-                                    <select name="wpb_advisor_model" id="wpb-adv-model-sel">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Modello<small>Lascia vuoto per il default</small></div>
+                            <div class="suite-barrio-settings-input">
+                                <div class="suite-barrio-model-row">
+                                    <select name="wpb_advisor_model" id="suite-barrio-adv-model-sel">
                                         <option value="">— Default —</option>
                                         <?php if ($model): ?>
                                             <option value="<?php echo esc_attr($model); ?>" selected><?php echo esc_html($model); ?>
                                             </option><?php endif; ?>
                                     </select>
-                                    <button type="button" class="wpb-adv-btn-ghost" id="wpb-adv-load-models">Carica
+                                    <button type="button" class="suite-barrio-adv-btn-ghost" id="suite-barrio-adv-load-models">Carica
                                         modelli</button>
                                 </div>
                             </div>
@@ -914,12 +1134,12 @@ function wpb_advisor_admin_page()
                     </div>
                 </div>
 
-                <div class="wpb-settings-card">
-                    <div class="wpb-settings-card-header">Lingua output</div>
-                    <div class="wpb-settings-card-body">
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Lingua<small>Lingua dei testi generati</small></div>
-                            <div class="wpb-settings-input">
+                <div class="suite-barrio-settings-card">
+                    <div class="suite-barrio-settings-card-header">Lingua output</div>
+                    <div class="suite-barrio-settings-card-body">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Lingua<small>Lingua dei testi generati</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <?php $adv_lang = get_option('wpb_advisor_language', 'it'); ?>
                                 <select name="wpb_advisor_language">
                                     <option value="it" <?php selected($adv_lang, 'it'); ?>>🇮🇹 Italiano</option>
@@ -933,12 +1153,12 @@ function wpb_advisor_admin_page()
                     </div>
                 </div>
 
-                <div class="wpb-settings-card">
-                    <div class="wpb-settings-card-header">Impostazioni prompt</div>
-                    <div class="wpb-settings-card-body">
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Registro linguistico<small>Tono dei testi generati</small></div>
-                            <div class="wpb-settings-input">
+                <div class="suite-barrio-settings-card">
+                    <div class="suite-barrio-settings-card-header">Impostazioni prompt</div>
+                    <div class="suite-barrio-settings-card-body">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Registro linguistico<small>Tono dei testi generati</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <?php $adv_tone = get_option('wpb_advisor_tone', 'seo'); ?>
                                 <select name="wpb_advisor_tone">
                                     <option value="neutral" <?php selected($adv_tone, 'neutral'); ?>>Neutro e oggettivo</option>
@@ -950,9 +1170,9 @@ function wpb_advisor_admin_page()
                                 </select>
                             </div>
                         </div>
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Stile descrittivo<small>Approccio dell'AI</small></div>
-                            <div class="wpb-settings-input">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Stile descrittivo<small>Approccio dell'AI</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <?php $adv_style = get_option('wpb_advisor_style', 'contextual'); ?>
                                 <select name="wpb_advisor_style">
                                     <option value="descriptive" <?php selected($adv_style, 'descriptive'); ?>>Descrittivo — elenca gli elementi</option>
@@ -962,18 +1182,18 @@ function wpb_advisor_admin_page()
                                 </select>
                             </div>
                         </div>
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Contesto del sito<small>Fornisce contesto all'AI</small></div>
-                            <div class="wpb-settings-input">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Contesto del sito<small>Fornisce contesto all'AI</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <input type="text" name="wpb_advisor_context"
                                     value="<?php echo esc_attr(get_option('wpb_advisor_context', '')); ?>"
                                     placeholder="es. e-commerce di moda sostenibile, blog di cucina italiana…"
                                     style="width:100%;">
                             </div>
                         </div>
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Parole chiave SEO<small>Separate da virgola</small></div>
-                            <div class="wpb-settings-input">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Parole chiave SEO<small>Separate da virgola</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <input type="text" name="wpb_advisor_keywords"
                                     value="<?php echo esc_attr(get_option('wpb_advisor_keywords', '')); ?>"
                                     placeholder="es. scarpe artigianali, pelle italiana, handmade…"
@@ -983,12 +1203,12 @@ function wpb_advisor_admin_page()
                     </div>
                 </div>
 
-                <div class="wpb-settings-card">
-                    <div class="wpb-settings-card-header">Log</div>
-                    <div class="wpb-settings-card-body">
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Abilita log<small>Registra operazioni</small></div>
-                            <div class="wpb-settings-input">
+                <div class="suite-barrio-settings-card">
+                    <div class="suite-barrio-settings-card-header">Log</div>
+                    <div class="suite-barrio-settings-card-body">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Abilita log<small>Registra operazioni</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                                     <input type="checkbox" name="wpb_advisor_log_enabled" value="1" <?php checked(get_option('wpb_advisor_log_enabled', 1)); ?>>
                                     <span style="font-size:13px;color:#374151;">Attivo</span>
@@ -998,7 +1218,7 @@ function wpb_advisor_admin_page()
                     </div>
                 </div>
 
-                <button type="submit" class="wpb-adv-btn-primary">
+                <button type="submit" class="suite-barrio-adv-btn-primary">
                     <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
                     Salva impostazioni
                 </button>
@@ -1006,200 +1226,6 @@ function wpb_advisor_admin_page()
 
         <?php endif; ?>
     </div>
-
-    <script>
-        (function () {
-            var nonce = <?php echo wp_json_encode(wp_create_nonce('wpb_advisor_nonce')); ?>;
-            var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
-            var sep = <?php echo wp_json_encode($sep); ?>;
-            var siteName = <?php echo wp_json_encode($site_name); ?>;
-            var titleOrder = <?php echo wp_json_encode($order); ?>;
-
-            var sourceSelect = document.getElementById('wpb-adv-source');
-            var searchWrap = document.getElementById('wpb-adv-search-wrap');
-            var searchInput = document.getElementById('wpb-adv-search');
-            var itemsWrap = document.getElementById('wpb-adv-items');
-            var genBar = document.getElementById('wpb-adv-generate-bar');
-            var placeholder = document.getElementById('wpb-adv-placeholder');
-            var resultDiv = document.getElementById('wpb-adv-result');
-            var genBtn = document.getElementById('wpb-adv-gen-btn');
-            var regenBtn = document.getElementById('wpb-adv-regen-btn');
-            var spinner = document.getElementById('wpb-adv-spinner');
-            var genStatus = document.getElementById('wpb-adv-gen-status');
-            var genError = document.getElementById('wpb-adv-gen-error');
-
-            var selectedObjType = '';
-            var selectedObjId = 0;
-            var selectedEditUrl = '';
-            var currentSource = '';
-
-            function loadItems(source, search) {
-                itemsWrap.innerHTML = '<div class="wpb-adv-empty">Caricamento…</div>';
-                var fd = new FormData();
-                fd.append('action', 'wpb_advisor_get_items');
-                fd.append('nonce', nonce);
-                fd.append('source', source);
-                if (search) fd.append('search', search);
-                fetch(ajaxUrl, { method: 'POST', body: fd })
-                    .then(function (r) { return r.json(); })
-                    .then(function (res) {
-                        if (!res.success) { itemsWrap.innerHTML = '<div class="wpb-adv-empty">Errore nel caricamento.</div>'; return; }
-                        var data = res.data; var groups = data.groups || []; var isWpml = data.wpml || false;
-                        var html = ''; var hasAny = false;
-                        groups.forEach(function (group) {
-                            if (!group.items || !group.items.length) return;
-                            hasAny = true;
-                            if (isWpml && group.lang_label) {
-                                html += '<div class="wpb-adv-lang-sep"><span class="dashicons dashicons-translation"></span>' + esc(group.lang_label) + (group.is_primary ? ' <span class="wpb-adv-lang-sep-primary-badge">principale</span>' : '') + '</div>';
-                            }
-                            group.items.forEach(function (item) {
-                                html += '<div class="wpb-adv-item" data-id="' + item.id + '" data-type="' + item.obj_type + '" data-edit="' + esc(item.edit_url || '') + '"><span class="wpb-adv-item-title">' + esc(item.title) + '</span></div>';
-                            });
-                        });
-                        if (!hasAny) { itemsWrap.innerHTML = '<div class="wpb-adv-empty">Nessun contenuto trovato.</div>'; return; }
-                        itemsWrap.innerHTML = html;
-                        if (selectedObjId) { var sel = itemsWrap.querySelector('[data-id="' + selectedObjId + '"][data-type="' + selectedObjType + '"]'); if (sel) sel.classList.add('selected'); }
-                    });
-            }
-
-            if (sourceSelect) {
-                sourceSelect.addEventListener('change', function () {
-                    currentSource = this.value; selectedObjId = 0; selectedObjType = ''; genBar.style.display = 'none';
-                    if (!currentSource) { itemsWrap.innerHTML = '<div class="wpb-adv-empty">Seleziona un tipo di contenuto.</div>'; searchWrap.style.display = 'none'; return; }
-                    searchWrap.style.display = ''; searchInput.value = ''; loadItems(currentSource, '');
-                });
-            }
-
-            var searchTimer;
-            if (searchInput) {
-                searchInput.addEventListener('input', function () {
-                    clearTimeout(searchTimer); var val = this.value;
-                    searchTimer = setTimeout(function () { loadItems(currentSource, val); }, 350);
-                });
-            }
-
-            if (itemsWrap) {
-                itemsWrap.addEventListener('click', function (e) {
-                    var item = e.target.closest('.wpb-adv-item'); if (!item) return;
-                    itemsWrap.querySelectorAll('.wpb-adv-item').forEach(function (i) { i.classList.remove('selected'); });
-                    item.classList.add('selected');
-                    selectedObjId = parseInt(item.dataset.id); selectedObjType = item.dataset.type; selectedEditUrl = item.dataset.edit || '';
-                    genBar.style.display = ''; genError.style.display = 'none';
-                });
-            }
-
-            function doGenerate() {
-                if (!selectedObjId) return;
-                genBtn.disabled = true; if (regenBtn) regenBtn.disabled = true;
-                spinner.style.display = 'block'; genStatus.textContent = 'Generazione in corso…'; genError.style.display = 'none';
-                var fd = new FormData();
-                fd.append('action', 'wpb_advisor_generate'); fd.append('nonce', nonce); fd.append('obj_type', selectedObjType); fd.append('obj_id', selectedObjId);
-                fetch(ajaxUrl, { method: 'POST', body: fd })
-                    .then(function (r) { return r.json(); })
-                    .then(function (res) {
-                        if (!res.success) { genError.textContent = res.data || 'Errore sconosciuto.'; genError.style.display = 'block'; return; }
-                        renderResult(res.data);
-                    })
-                    .catch(function () { genError.textContent = 'Errore di rete.'; genError.style.display = 'block'; })
-                    .finally(function () { genBtn.disabled = false; if (regenBtn) regenBtn.disabled = false; spinner.style.display = 'none'; genStatus.textContent = ''; });
-            }
-            if (genBtn) genBtn.addEventListener('click', doGenerate);
-            if (regenBtn) regenBtn.addEventListener('click', doGenerate);
-
-            function renderResult(data) {
-                placeholder.style.display = 'none'; resultDiv.style.display = '';
-                var titleInput = document.getElementById('wpb-adv-title'); var descInput = document.getElementById('wpb-adv-desc');
-                var kwWrap = document.getElementById('wpb-adv-kw-wrap'); var kwJson = document.getElementById('wpb-adv-kw-json');
-                var objTypeInp = document.getElementById('wpb-adv-obj-type'); var objIdInp = document.getElementById('wpb-adv-obj-id');
-                var contentLbl = document.getElementById('wpb-adv-content-label'); var editLink = document.getElementById('wpb-adv-edit-link');
-                titleInput.value = data.title || ''; descInput.value = data.description || '';
-                objTypeInp.value = data.obj_type || ''; objIdInp.value = data.obj_id || '';
-                if (contentLbl) contentLbl.textContent = data.content_title || '';
-                if (editLink && selectedEditUrl) editLink.href = selectedEditUrl;
-                var kws = data.keywords || []; kwJson.value = JSON.stringify(kws); kwWrap.innerHTML = '';
-                kws.forEach(function (kw, i) {
-                    var pill = document.createElement('span');
-                    pill.className = 'wpb-adv-kw-pill ' + (i === 0 ? 'wpb-adv-kw-pill-primary' : 'wpb-adv-kw-pill-secondary');
-                    pill.textContent = kw; kwWrap.appendChild(pill);
-                });
-                updateSerp(); updateCounters(); updateSerpLive();
-                document.getElementById('wpb-adv-save-error').style.display = 'none';
-                document.getElementById('wpb-adv-save-success').style.display = 'none';
-            }
-
-            function updateSerp() {
-                var titleInput = document.getElementById('wpb-adv-title'); var descInput = document.getElementById('wpb-adv-desc');
-                var serpTitle = document.getElementById('wpb-adv-serp-title'); var serpDesc = document.getElementById('wpb-adv-serp-desc'); var serpUrl = document.getElementById('wpb-adv-serp-url');
-                if (!serpTitle) return;
-                var t = titleInput ? titleInput.value.trim() : '';
-                var full = titleOrder === 'site_page' ? siteName + ' ' + sep + ' ' + t : t + ' ' + sep + ' ' + siteName;
-                serpTitle.textContent = full || '—';
-                var d = descInput ? descInput.value.trim() : '';
-                serpDesc.textContent = d || '—'; serpDesc.className = 'wpb-adv-serp-desc' + (d ? '' : ' empty');
-                if (serpUrl) serpUrl.textContent = selectedEditUrl ? new URL(selectedEditUrl).hostname : '';
-            }
-            function updateSerpLive() { var ti = document.getElementById('wpb-adv-title'); var di = document.getElementById('wpb-adv-desc'); if (ti) ti.addEventListener('input', updateSerp); if (di) di.addEventListener('input', updateSerp); }
-            function updateCounters() {
-                function refreshCtr(input, ctr, max, w1, w2) {
-                    if (!input || !ctr) return;
-                    input.addEventListener('input', function () { var l = this.value.length; ctr.textContent = l + '/' + max; ctr.style.color = l > w2 ? '#dc2626' : l >= w1 ? '#059669' : '#9ca3af'; });
-                    var l = input.value.length; ctr.textContent = l + '/' + max; ctr.style.color = l > w2 ? '#dc2626' : l >= w1 ? '#059669' : '#9ca3af';
-                }
-                refreshCtr(document.getElementById('wpb-adv-title'), document.getElementById('wpb-adv-title-ctr'), 60, 30, 60);
-                refreshCtr(document.getElementById('wpb-adv-desc'), document.getElementById('wpb-adv-desc-ctr'), 160, 120, 160);
-            }
-
-            var saveBtn = document.getElementById('wpb-adv-save-btn');
-            if (saveBtn) {
-                saveBtn.addEventListener('click', function () {
-                    var title = document.getElementById('wpb-adv-title').value.trim(), desc = document.getElementById('wpb-adv-desc').value.trim();
-                    var kwJson = document.getElementById('wpb-adv-kw-json').value, objType = document.getElementById('wpb-adv-obj-type').value, objId = document.getElementById('wpb-adv-obj-id').value;
-                    var errEl = document.getElementById('wpb-adv-save-error'), okEl = document.getElementById('wpb-adv-save-success');
-                    this.disabled = true; errEl.style.display = 'none'; okEl.style.display = 'none';
-                    var fd = new FormData(); fd.append('action', 'wpb_advisor_save'); fd.append('nonce', nonce);
-                    fd.append('obj_type', objType); fd.append('obj_id', objId); fd.append('seo_title', title); fd.append('seo_description', desc); fd.append('seo_keywords', kwJson);
-                    var btn = this;
-                    fetch(ajaxUrl, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
-                        if (res.success) { okEl.style.display = 'block'; setTimeout(function () { okEl.style.display = 'none'; }, 4000); }
-                        else { errEl.textContent = res.data || 'Errore nel salvataggio.'; errEl.style.display = 'block'; }
-                    }).catch(function () { errEl.textContent = 'Errore di rete.'; errEl.style.display = 'block'; }).finally(function () { btn.disabled = false; });
-                });
-            }
-
-            var clearLogBtn = document.getElementById('wpb-adv-clear-log');
-            if (clearLogBtn) {
-                clearLogBtn.addEventListener('click', function () {
-                    if (!confirm('Svuotare il log?')) return;
-                    var fd = new FormData(); fd.append('action', 'wpb_advisor_clear_log'); fd.append('nonce', nonce);
-                    fetch(ajaxUrl, { method: 'POST', body: fd }).then(function () { window.location.reload(); });
-                });
-            }
-
-            var provSel = document.getElementById('wpb-adv-provider-sel');
-            if (provSel) {
-                provSel.addEventListener('change', function () {
-                    var ant = document.getElementById('wpb-adv-anthropic-row'), gem = document.getElementById('wpb-adv-gemini-row');
-                    if (this.value === 'gemini') { ant.style.display = 'none'; gem.style.display = ''; } else { ant.style.display = ''; gem.style.display = 'none'; }
-                });
-            }
-
-            var loadModelsBtn = document.getElementById('wpb-adv-load-models');
-            if (loadModelsBtn) {
-                loadModelsBtn.addEventListener('click', function () {
-                    var prov = document.getElementById('wpb-adv-provider-sel').value, sel = document.getElementById('wpb-adv-model-sel');
-                    this.disabled = true; this.textContent = 'Caricamento…';
-                    var fd = new FormData(); fd.append('action', 'wpb_advisor_fetch_models'); fd.append('nonce', nonce); fd.append('provider', prov); fd.append('force', '1');
-                    var btn = this;
-                    fetch(ajaxUrl, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
-                        if (!res.success || res.data.error) { alert(res.data.error || 'Impossibile caricare i modelli.'); return; }
-                        var current = sel.value; while (sel.options.length > 1) sel.remove(1);
-                        (res.data || []).forEach(function (m) { var opt = document.createElement('option'); opt.value = m; opt.textContent = m; if (m === current) opt.selected = true; sel.appendChild(opt); });
-                    }).finally(function () { btn.disabled = false; btn.textContent = 'Carica modelli'; });
-                });
-            }
-
-            function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-        })();
-    </script>
     <?php
 }
+

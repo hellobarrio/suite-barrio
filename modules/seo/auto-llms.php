@@ -1,9 +1,9 @@
 <?php
 /**
- * WP Barrio — Auto LLMs
+ * Suite Barrio — Auto LLMs
  * Genera automaticamente llms.txt e llms-full.txt tramite AI (Gemini o Anthropic Claude).
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
@@ -12,38 +12,38 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI
    ───────────────────────────────────────── */
-if (!defined('WPB_LLMS_LOG_OPTION'))
-    define('WPB_LLMS_LOG_OPTION', 'wpb_llms_log');
-if (!defined('WPB_LLMS_LOG_MAX'))
-    define('WPB_LLMS_LOG_MAX', 100);
-if (!defined('WPB_LLMS_CACHE_OPTION'))
-    define('WPB_LLMS_CACHE_OPTION', 'wpb_llms_last_generated');
+if (!defined('SUITE_BARRIO_LLMS_LOG_OPTION'))
+    define('SUITE_BARRIO_LLMS_LOG_OPTION', 'wpb_llms_log');
+if (!defined('SUITE_BARRIO_LLMS_LOG_MAX'))
+    define('SUITE_BARRIO_LLMS_LOG_MAX', 100);
+if (!defined('SUITE_BARRIO_LLMS_CACHE_OPTION'))
+    define('SUITE_BARRIO_LLMS_CACHE_OPTION', 'wpb_llms_last_generated');
 
 /* ─────────────────────────────────────────
    HELPER: scrivi una riga nel log
    ───────────────────────────────────────── */
-function wpb_llms_log($status, $type = '', $note = '')
+function suite_barrio_llms_log($status, $type = '', $note = '')
 {
     if (!get_option('wpb_llms_log_enabled', 1))
         return;
 
-    $log = get_option(WPB_LLMS_LOG_OPTION, []);
+    $log = get_option(SUITE_BARRIO_LLMS_LOG_OPTION, []);
     array_unshift($log, [
         'ts' => current_time('timestamp'),
         'status' => $status,   // 'success' | 'error'
         'type' => $type,     // 'short' | 'full' | 'both'
         'note' => $note,
     ]);
-    if (count($log) > WPB_LLMS_LOG_MAX) {
-        $log = array_slice($log, 0, WPB_LLMS_LOG_MAX);
+    if (count($log) > SUITE_BARRIO_LLMS_LOG_MAX) {
+        $log = array_slice($log, 0, SUITE_BARRIO_LLMS_LOG_MAX);
     }
-    update_option(WPB_LLMS_LOG_OPTION, $log, false);
+    update_option(SUITE_BARRIO_LLMS_LOG_OPTION, $log, false);
 }
 
 /* ─────────────────────────────────────────
    HELPER: chiave API del provider attivo
    ───────────────────────────────────────── */
-function wpb_llms_active_key()
+function suite_barrio_llms_active_key()
 {
     $provider = get_option('wpb_llms_provider', 'anthropic');
     return $provider === 'gemini'
@@ -54,7 +54,7 @@ function wpb_llms_active_key()
 /* ─────────────────────────────────────────
    HELPER: recupera modelli dal provider (con cache 24h)
    ───────────────────────────────────────── */
-function wpb_llms_fetch_models($provider)
+function suite_barrio_llms_fetch_models($provider)
 {
     $cache_key = 'wpb_llms_models_' . $provider;
     $cached = get_transient($cache_key);
@@ -133,7 +133,7 @@ function wpb_llms_fetch_models($provider)
 /* ─────────────────────────────────────────
    HELPER: restituisce tutti i post type e tassonomie configurabili
    ───────────────────────────────────────── */
-function wpb_llms_get_configurable_post_types()
+function suite_barrio_llms_get_configurable_post_types()
 {
     $built_in = ['post', 'page'];
     $all = get_post_types(['public' => true], 'objects');
@@ -147,7 +147,7 @@ function wpb_llms_get_configurable_post_types()
     return $result;
 }
 
-function wpb_llms_get_configurable_taxonomies()
+function suite_barrio_llms_get_configurable_taxonomies()
 {
     $all = get_taxonomies(['public' => true], 'objects');
     $result = [];
@@ -166,7 +166,7 @@ function wpb_llms_get_configurable_taxonomies()
    $pt_modes      → ['post_type_name' => 'include'|'include_links'|'exclude']
    $tax_modes     → ['taxonomy_name'  => 'include'|'include_links'|'exclude']
    ───────────────────────────────────────── */
-function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_modes = [])
+function suite_barrio_llms_build_markdown($include_full = false, $pt_modes = [], $tax_modes = [])
 {
     $site_name = get_bloginfo('name');
     $site_url = get_bloginfo('url');
@@ -175,11 +175,11 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
 
     // Determina le lingue da includere
     $wpml_active = defined('ICL_SITEPRESS_VERSION')
-        && function_exists('wpb_multilang_is_enabled')
-        && wpb_multilang_is_enabled();
-    $languages = $wpml_active ? wpb_multilang_languages() : [null => null];
-    $primary = $wpml_active && function_exists('wpb_multilang_primary_language')
-        ? wpb_multilang_primary_language()
+        && function_exists('suite_barrio_multilang_is_enabled')
+        && suite_barrio_multilang_is_enabled();
+    $languages = $wpml_active ? suite_barrio_multilang_languages() : [null => null];
+    $primary = $wpml_active && function_exists('suite_barrio_multilang_primary_language')
+        ? suite_barrio_multilang_primary_language()
         : null;
 
     $md = '';
@@ -196,7 +196,7 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
         }
 
         // Intestazione di sezione per lingua (solo se multilingua attivo)
-        $lang_flag = $wpml_active && function_exists('wpb_multilang_flag') ? wpb_multilang_flag((string) $lang_code) : '';
+        $lang_flag = $wpml_active && function_exists('suite_barrio_multilang_flag') ? suite_barrio_multilang_flag((string) $lang_code) : '';
         $lang_label = $wpml_active ? ($languages[$lang_code] ?? strtoupper((string) $lang_code)) : null;
         $lang_display = $lang_label ? trim($lang_flag . ' ' . $lang_label) : null;
         if ($lang_display) {
@@ -417,9 +417,9 @@ function wpb_llms_build_markdown($include_full = false, $pt_modes = [], $tax_mod
 /* ─────────────────────────────────────────
    HELPER: raccoglie il contenuto del sito (wrapper legacy — usato solo per compatibilità)
    ───────────────────────────────────────── */
-function wpb_llms_collect_site_content($include_full = false, $pt_modes = [], $tax_modes = [])
+function suite_barrio_llms_collect_site_content($include_full = false, $pt_modes = [], $tax_modes = [])
 {
-    $built = wpb_llms_build_markdown($include_full, $pt_modes, $tax_modes);
+    $built = suite_barrio_llms_build_markdown($include_full, $pt_modes, $tax_modes);
     return $built['raw_info'] . $built['body'];
 }
 
@@ -427,7 +427,7 @@ function wpb_llms_collect_site_content($include_full = false, $pt_modes = [], $t
    HELPER: chiama l'AI per generare SOLO la descrizione introduttiva
    Ritorna ['short_intro' => '...', 'full_intro' => '...'] oppure ['error' => '...']
    ───────────────────────────────────────── */
-function wpb_llms_generate_intro($site_info, $generate_type)
+function suite_barrio_llms_generate_intro($site_info, $generate_type)
 {
     $provider = get_option('wpb_llms_provider', 'anthropic');
     $model = get_option('wpb_llms_model', 'claude-sonnet-4-6') ?: 'claude-sonnet-4-6';
@@ -544,17 +544,17 @@ function wpb_llms_generate_intro($site_info, $generate_type)
 /* ─────────────────────────────────────────
    HELPER: chiama il provider AI (wrapper — ora usato solo dalla vecchia firma)
    ───────────────────────────────────────── */
-function wpb_llms_call_api($site_content, $generate_type, $pt_modes = [], $tax_modes = [])
+function suite_barrio_llms_call_api($site_content, $generate_type, $pt_modes = [], $tax_modes = [])
 {
     // Questo wrapper non viene più usato nel flusso principale
-    // (il generate handler usa wpb_llms_build_markdown + wpb_llms_generate_intro)
-    return ['error' => 'Metodo deprecato — usa wpb_llms_generate_intro.'];
+    // (il generate handler usa suite_barrio_llms_build_markdown + suite_barrio_llms_generate_intro)
+    return ['error' => 'Metodo deprecato — usa suite_barrio_llms_generate_intro.'];
 }
 
 /* ─────────────────────────────────────────
    HELPER: scrive il file nella root di WordPress
    ───────────────────────────────────────── */
-function wpb_llms_write_file($filename, $content)
+function suite_barrio_llms_write_file($filename, $content)
 {
     $path = ABSPATH . $filename;
     // phpcs:ignore PluginCheck.CodeAnalysis.WriteFile.ABSPATHDetected -- il file deve risiedere nella webroot per essere raggiungibile pubblicamente
@@ -568,7 +568,7 @@ function wpb_llms_write_file($filename, $content)
 /* ─────────────────────────────────────────
    HELPER: legge un file dalla root
    ───────────────────────────────────────── */
-function wpb_llms_read_file($filename)
+function suite_barrio_llms_read_file($filename)
 {
     $path = ABSPATH . $filename;
     if (!file_exists($path))
@@ -579,8 +579,8 @@ function wpb_llms_read_file($filename)
 /* ─────────────────────────────────────────
    AJAX: recupera modelli live
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_llms_fetch_models', function () {
-    check_ajax_referer('wpb_llms_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_llms_fetch_models', function () {
+    check_ajax_referer('suite_barrio_llms_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_success(['error' => 'Permesso negato.']);
 
@@ -589,7 +589,7 @@ add_action('wp_ajax_wpb_llms_fetch_models', function () {
     if ($force)
         delete_transient('wpb_llms_models_' . $provider);
 
-    $models = wpb_llms_fetch_models($provider);
+    $models = suite_barrio_llms_fetch_models($provider);
     if ($models === null) {
         wp_send_json_success(['error' => 'Impossibile recuperare i modelli. Verifica la chiave API.']);
     }
@@ -599,23 +599,23 @@ add_action('wp_ajax_wpb_llms_fetch_models', function () {
 /* ─────────────────────────────────────────
    AJAX: genera i file llms
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_llms_generate', function () {
+add_action('wp_ajax_suite_barrio_llms_generate', function () {
     // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
     @set_time_limit(300);
     // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
     @ini_set('max_execution_time', '300');
 
-    check_ajax_referer('wpb_llms_nonce', 'nonce');
+    check_ajax_referer('suite_barrio_llms_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_success(['error' => 'Permesso negato.']);
 
     $type = sanitize_key($_POST['type'] ?? 'both');
 
-    $api_key = wpb_llms_active_key();
+    $api_key = suite_barrio_llms_active_key();
     if (empty($api_key)) {
         $provider = get_option('wpb_llms_provider', 'anthropic');
         $msg = 'Chiave API non configurata per il provider: ' . $provider;
-        wpb_llms_log('error', $type, $msg);
+        suite_barrio_llms_log('error', $type, $msg);
         wp_send_json_success(['error' => $msg]);
     }
 
@@ -641,20 +641,20 @@ add_action('wp_ajax_wpb_llms_generate', function () {
 
     // Genera llms.txt
     if (in_array($type, ['short', 'both'])) {
-        $built = wpb_llms_build_markdown(false, $pt_modes, $tax_modes);
-        $intro = wpb_llms_generate_intro($built['raw_info'], 'short');
+        $built = suite_barrio_llms_build_markdown(false, $pt_modes, $tax_modes);
+        $intro = suite_barrio_llms_generate_intro($built['raw_info'], 'short');
 
         if (isset($intro['error'])) {
-            wpb_llms_log('error', 'short', $intro['error']);
+            suite_barrio_llms_log('error', 'short', $intro['error']);
             wp_send_json_success(['error' => $intro['error'], 'error_type' => 'short']);
         }
 
         $final = "# {$built['site_name']}\n\n> {$built['site_url']}\n\n";
         $final .= $intro['intro'] . "\n" . $built['body'];
 
-        $write = wpb_llms_write_file('llms.txt', $final);
+        $write = suite_barrio_llms_write_file('llms.txt', $final);
         if (isset($write['error'])) {
-            wpb_llms_log('error', 'short', $write['error']);
+            suite_barrio_llms_log('error', 'short', $write['error']);
             wp_send_json_success(['error' => $write['error'], 'error_type' => 'short']);
         }
         $results['short'] = ['label' => 'llms.txt', 'bytes' => $write['bytes']];
@@ -662,29 +662,29 @@ add_action('wp_ajax_wpb_llms_generate', function () {
 
     // Genera llms-full.txt
     if (in_array($type, ['full', 'both'])) {
-        $built_full = wpb_llms_build_markdown(true, $pt_modes, $tax_modes);
-        $intro_full = wpb_llms_generate_intro($built_full['raw_info'], 'full');
+        $built_full = suite_barrio_llms_build_markdown(true, $pt_modes, $tax_modes);
+        $intro_full = suite_barrio_llms_generate_intro($built_full['raw_info'], 'full');
 
         if (isset($intro_full['error'])) {
-            wpb_llms_log('error', 'full', $intro_full['error']);
+            suite_barrio_llms_log('error', 'full', $intro_full['error']);
             wp_send_json_success(['error' => $intro_full['error'], 'error_type' => 'full']);
         }
 
         $final_full = "# {$built_full['site_name']}\n\n> {$built_full['site_url']}\n\n";
         $final_full .= $intro_full['intro'] . "\n" . $built_full['body'];
 
-        $write_full = wpb_llms_write_file('llms-full.txt', $final_full);
+        $write_full = suite_barrio_llms_write_file('llms-full.txt', $final_full);
         if (isset($write_full['error'])) {
-            wpb_llms_log('error', 'full', $write_full['error']);
+            suite_barrio_llms_log('error', 'full', $write_full['error']);
             wp_send_json_success(['error' => $write_full['error'], 'error_type' => 'full']);
         }
         $results['full'] = ['label' => 'llms-full.txt', 'bytes' => $write_full['bytes']];
     }
 
-    update_option(WPB_LLMS_CACHE_OPTION, ['ts' => current_time('timestamp'), 'type' => $type], false);
+    update_option(SUITE_BARRIO_LLMS_CACHE_OPTION, ['ts' => current_time('timestamp'), 'type' => $type], false);
     $provider = get_option('wpb_llms_provider', 'anthropic');
     $model = get_option('wpb_llms_model', '');
-    wpb_llms_log('success', $type, 'Generato con ' . $provider . ($model ? ' / ' . $model : ''));
+    suite_barrio_llms_log('success', $type, 'Generato con ' . $provider . ($model ? ' / ' . $model : ''));
 
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
@@ -695,8 +695,8 @@ add_action('wp_ajax_wpb_llms_generate', function () {
 /* ─────────────────────────────────────────
    AJAX: salva le impostazioni di inclusione
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_llms_save_inclusion', function () {
-    check_ajax_referer('wpb_llms_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_llms_save_inclusion', function () {
+    check_ajax_referer('suite_barrio_llms_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_success(['error' => 'Permesso negato.']);
 
@@ -732,12 +732,12 @@ add_action('wp_ajax_wpb_llms_save_inclusion', function () {
 /* ─────────────────────────────────────────
    AJAX: svuota log
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_llms_clear_log', function () {
-    check_ajax_referer('wpb_llms_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_llms_clear_log', function () {
+    check_ajax_referer('suite_barrio_llms_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_success(['error' => 'Permesso negato.']);
 
-    delete_option(WPB_LLMS_LOG_OPTION);
+    delete_option(SUITE_BARRIO_LLMS_LOG_OPTION);
     wp_send_json_success();
 });
 
@@ -747,7 +747,7 @@ add_action('wp_ajax_wpb_llms_clear_log', function () {
    a ogni pagina admin: questo evita che messaggi di errore API
    finiscano visualizzati come notice globali.
    ───────────────────────────────────────── */
-add_action('load-wp-barrio_page_wp-barrio-auto-llms', function () {
+add_action('load-suite-barrio_page_suite-barrio-auto-llms', function () {
     add_filter('pre_option_settings_errors', '__return_empty_array');
 });
 
@@ -760,7 +760,7 @@ add_action('graphql_register_types', function () {
 
     // Tipo LlmsContent
     register_graphql_object_type('LlmsContent', [
-        'description' => 'Contenuto LLMs generato da WP Barrio Auto LLMs',
+        'description' => 'Contenuto LLMs generato da Suite Barrio Auto LLMs',
         'fields' => [
             'content' => [
                 'type' => 'String',
@@ -782,7 +782,7 @@ add_action('graphql_register_types', function () {
         'type' => 'LlmsContent',
         'description' => 'Restituisce il contenuto di llms.txt',
         'resolve' => function () {
-            $content = wpb_llms_read_file('llms.txt');
+            $content = suite_barrio_llms_read_file('llms.txt');
             if ($content === null)
                 return null;
             $path = ABSPATH . 'llms.txt';
@@ -799,7 +799,7 @@ add_action('graphql_register_types', function () {
         'type' => 'LlmsContent',
         'description' => 'Restituisce il contenuto di llms-full.txt',
         'resolve' => function () {
-            $content = wpb_llms_read_file('llms-full.txt');
+            $content = suite_barrio_llms_read_file('llms-full.txt');
             if ($content === null)
                 return null;
             $path = ABSPATH . 'llms-full.txt';
@@ -816,28 +816,40 @@ add_action('graphql_register_types', function () {
    1. MENU ADMIN
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    if (!wpb_tools_module_enabled('seo'))
+    if (!suite_barrio_tools_module_enabled('seo'))
         return;
 
-    // Figlio di wp-barrio (mantiene capability check) ma nascosto via CSS
+    // Figlio di suite-barrio (mantiene capability check) ma nascosto via CSS
     add_submenu_page(
-        'wp-barrio',
-        'Auto LLMs — WP Barrio',
+        'suite-barrio',
+        'Auto LLMs — Suite Barrio',
         'Auto LLMs',
         'manage_options',
-        'wp-barrio-auto-llms',
-        'wpb_llms_admin_page'
+        'suite-barrio-auto-llms',
+        'suite_barrio_llms_admin_page'
     );
 }, 15);
 
-add_action('admin_head', function () {
-    echo '<style>#adminmenu a[href="admin.php?page=wp-barrio-auto-llms"]{display:none!important}</style>';
-});
+add_action('admin_enqueue_scripts', function ($hook) {
+    // CSS: nasconde la voce di sottomenu (deve valere su tutte le pagine admin,
+    // perché il menu laterale è visibile ovunque)
+    wp_add_inline_style(
+        'suite-barrio-admin',
+        '#adminmenu a[href="admin.php?page=suite-barrio-auto-llms"]{display:none!important}'
+    );
+
+    // JS: handle vuoto per il codice inline della pagina Auto LLMs, solo su questa pagina
+    if ($hook !== 'suite-barrio_page_suite-barrio-auto-llms')
+        return;
+
+    wp_register_script('suite-barrio-llms-inline', '', [], SUITE_BARRIO_VERSION, true);
+    wp_enqueue_script('suite-barrio-llms-inline');
+}, 20);
 
 add_filter('submenu_file', function ($submenu_file) {
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
-    if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-auto-llms')
-        return 'wp-barrio-seo';
+    if (isset($_GET['page']) && $_GET['page'] === 'suite-barrio-auto-llms')
+        return 'suite-barrio-seo';
     return $submenu_file;
 });
 
@@ -858,78 +870,78 @@ add_action('admin_init', function () {
 /* ─────────────────────────────────────────
    3. PAGINA ADMIN
    ───────────────────────────────────────── */
-function wpb_llms_admin_page()
+function suite_barrio_llms_admin_page()
 {
-    $api_key = wpb_llms_active_key();
+    $api_key = suite_barrio_llms_active_key();
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'generate';
-    $last_gen = get_option(WPB_LLMS_CACHE_OPTION, null);
-    $log = get_option(WPB_LLMS_LOG_OPTION, []);
+    $last_gen = get_option(SUITE_BARRIO_LLMS_CACHE_OPTION, null);
+    $log = get_option(SUITE_BARRIO_LLMS_LOG_OPTION, []);
 
     $short_exists = file_exists(ABSPATH . 'llms.txt');
     $full_exists = file_exists(ABSPATH . 'llms-full.txt');
     $short_size = $short_exists ? size_format(filesize(ABSPATH . 'llms.txt')) : '—';
     $full_size = $full_exists ? size_format(filesize(ABSPATH . 'llms-full.txt')) : '—';
     ?>
-<div id="wpb-llms-wrap" class="wrap wpb-wrap">
+<div id="suite-barrio-llms-wrap" class="wrap suite-barrio-wrap">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-                <div class="wpb-llms-hdr">
-                    <div class="wpb-llms-hdr-icon"><span class="dashicons dashicons-text-page"></span></div>
+                <div class="suite-barrio-llms-hdr">
+                    <div class="suite-barrio-llms-hdr-icon"><span class="dashicons dashicons-text-page"></span></div>
                     <div>
-                        <h1>WP Barrio <span class="wpb-llms-bc">/ Auto LLMs</span></h1>
-                        <p class="wpb-llms-sub">Genera automaticamente llms.txt e llms-full.txt con AI</p>
+                        <h1>Suite Barrio <span class="suite-barrio-llms-bc">/ Auto LLMs</span></h1>
+                        <p class="suite-barrio-llms-sub">Genera automaticamente llms.txt e llms-full.txt con AI</p>
                     </div>
                 </div>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-seo')); ?>"
+                <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-seo')); ?>"
                     style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:12.5px;font-weight:600;background:#f3f4f6;color:#374151 !important;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none !important;white-space:nowrap;flex-shrink:0;align-self:flex-start;">
                     <span class="dashicons dashicons-arrow-left-alt2"
                         style="font-size:14px;width:14px;height:14px;margin-top:1px;"></span>
                     Strumenti SEO
                 </a>
             </div>
-            <hr class="wpb-llms-dvd">
+            <hr class="suite-barrio-llms-dvd">
 
             <!-- Stats -->
-            <div class="wpb-stats-bar">
-                <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num <?php echo $short_exists ? 'wpb-ok' : 'wpb-err'; ?>">
+            <div class="suite-barrio-stats-bar">
+                <div class="suite-barrio-stats-bar-item">
+                    <div class="suite-barrio-stats-bar-num <?php echo $short_exists ? 'suite-barrio-ok' : 'suite-barrio-err'; ?>">
                         <?php echo $short_exists ? '✓' : '✗'; ?>
                     </div>
-                    <div class="wpb-stats-bar-lbl">llms.txt</div>
+                    <div class="suite-barrio-stats-bar-lbl">llms.txt</div>
                 </div>
-                <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num <?php echo $full_exists ? 'wpb-ok' : 'wpb-err'; ?>">
+                <div class="suite-barrio-stats-bar-item">
+                    <div class="suite-barrio-stats-bar-num <?php echo $full_exists ? 'suite-barrio-ok' : 'suite-barrio-err'; ?>">
                         <?php echo $full_exists ? '✓' : '✗'; ?>
                     </div>
-                    <div class="wpb-stats-bar-lbl">llms-full.txt</div>
+                    <div class="suite-barrio-stats-bar-lbl">llms-full.txt</div>
                 </div>
-                <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num">
+                <div class="suite-barrio-stats-bar-item">
+                    <div class="suite-barrio-stats-bar-num">
                         <?php echo esc_html($short_size); ?>
                     </div>
-                    <div class="wpb-stats-bar-lbl">Dim. llms.txt</div>
+                    <div class="suite-barrio-stats-bar-lbl">Dim. llms.txt</div>
                 </div>
-                <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num">
+                <div class="suite-barrio-stats-bar-item">
+                    <div class="suite-barrio-stats-bar-num">
                         <?php echo esc_html($full_size); ?>
                     </div>
-                    <div class="wpb-stats-bar-lbl">Dim. llms-full.txt</div>
+                    <div class="suite-barrio-stats-bar-lbl">Dim. llms-full.txt</div>
                 </div>
-                <div class="wpb-stats-bar-item">
-                    <div class="wpb-stats-bar-num" style="font-size:13px;">
+                <div class="suite-barrio-stats-bar-item">
+                    <div class="suite-barrio-stats-bar-num" style="font-size:13px;">
                         <?php echo $last_gen ? esc_html(date_i18n('d/m/Y H:i', $last_gen['ts'])) : '—'; ?>
                     </div>
-                    <div class="wpb-stats-bar-lbl">Ultima generazione</div>
+                    <div class="suite-barrio-stats-bar-lbl">Ultima generazione</div>
                 </div>
             </div>
 
-            <div class="wpb-llms-tabs">
-                <a href="?page=wp-barrio-auto-llms&tab=generate"
-                    class="wpb-llms-tab <?php echo $tab === 'generate' ? 'active' : ''; ?>">Genera</a>
-                <a href="?page=wp-barrio-auto-llms&tab=log"
-                    class="wpb-llms-tab <?php echo $tab === 'log' ? 'active' : ''; ?>">Log</a>
-                <a href="?page=wp-barrio-auto-llms&tab=settings"
-                    class="wpb-llms-tab <?php echo $tab === 'settings' ? 'active' : ''; ?>">Impostazioni</a>
+            <div class="suite-barrio-llms-tabs">
+                <a href="?page=suite-barrio-auto-llms&tab=generate"
+                    class="suite-barrio-llms-tab <?php echo $tab === 'generate' ? 'active' : ''; ?>">Genera</a>
+                <a href="?page=suite-barrio-auto-llms&tab=log"
+                    class="suite-barrio-llms-tab <?php echo $tab === 'log' ? 'active' : ''; ?>">Log</a>
+                <a href="?page=suite-barrio-auto-llms&tab=settings"
+                    class="suite-barrio-llms-tab <?php echo $tab === 'settings' ? 'active' : ''; ?>">Impostazioni</a>
             </div>
 
             <?php
@@ -941,45 +953,45 @@ function wpb_llms_admin_page()
 
                 if (empty($api_key)): ?>
                             <div class="notice notice-warning inline" style="margin-bottom:16px;">
-                                ⚠️ Chiave API non configurata. <a href="?page=wp-barrio-auto-llms&tab=settings">Vai alle impostazioni →</a>
+                                ⚠️ Chiave API non configurata. <a href="?page=suite-barrio-auto-llms&tab=settings">Vai alle impostazioni →</a>
                             </div>
                     <?php endif;
 
                 // Raccoglie CPT e tassonomie per il pannello
-                $all_post_types = wpb_llms_get_configurable_post_types();
-                $all_taxonomies = wpb_llms_get_configurable_taxonomies();
+                $all_post_types = suite_barrio_llms_get_configurable_post_types();
+                $all_taxonomies = suite_barrio_llms_get_configurable_taxonomies();
                 $saved_pt_modes = get_option('wpb_llms_pt_modes', []);
                 $saved_tax_modes = get_option('wpb_llms_tax_modes', []);
                 ?>
 
                     <!-- Pannello inclusione CPT e tassonomie -->
-                    <div class="wpb-inclusion-panel" id="wpb-inclusion-panel">
-                        <div class="wpb-inclusion-header" id="wpb-inclusion-toggle">
-                            <div class="wpb-inclusion-header-left">
+                    <div class="suite-barrio-inclusion-panel" id="suite-barrio-inclusion-panel">
+                        <div class="suite-barrio-inclusion-header" id="suite-barrio-inclusion-toggle">
+                            <div class="suite-barrio-inclusion-header-left">
                                 <span style="font-size:18px;">🗂</span>
                                 <div>
-                                    <div class="wpb-inclusion-title">Contenuti da includere</div>
-                                    <div class="wpb-inclusion-desc">Scegli quali post type e tassonomie includere nei file generati
+                                    <div class="suite-barrio-inclusion-title">Contenuti da includere</div>
+                                    <div class="suite-barrio-inclusion-desc">Scegli quali post type e tassonomie includere nei file generati
                                     </div>
                                 </div>
                             </div>
-                            <span class="wpb-inclusion-toggle-icon">▼</span>
+                            <span class="suite-barrio-inclusion-toggle-icon">▼</span>
                         </div>
-                        <div class="wpb-inclusion-body">
+                        <div class="suite-barrio-inclusion-body">
 
                             <?php if (!empty($all_post_types)): ?>
-                                    <div class="wpb-inclusion-section">
-                                        <div class="wpb-inclusion-section-title">Post Type</div>
-                                        <div class="wpb-inclusion-grid">
+                                    <div class="suite-barrio-inclusion-section">
+                                        <div class="suite-barrio-inclusion-section-title">Post Type</div>
+                                        <div class="suite-barrio-inclusion-grid">
                                             <?php foreach ($all_post_types as $slug => $info):
                                                 $saved_mode = $saved_pt_modes[$slug] ?? 'include';
                                                 ?>
-                                                    <div class="wpb-inclusion-item">
+                                                    <div class="suite-barrio-inclusion-item">
                                                         <div>
-                                                            <div class="wpb-inclusion-item-label"><?php echo esc_html($info['label']); ?></div>
-                                                            <span class="wpb-inclusion-item-slug"><?php echo esc_html($slug); ?></span>
+                                                            <div class="suite-barrio-inclusion-item-label"><?php echo esc_html($info['label']); ?></div>
+                                                            <span class="suite-barrio-inclusion-item-slug"><?php echo esc_html($slug); ?></span>
                                                         </div>
-                                                        <select class="wpb-inclusion-select" data-type="pt" data-slug="<?php echo esc_attr($slug); ?>"
+                                                        <select class="suite-barrio-inclusion-select" data-type="pt" data-slug="<?php echo esc_attr($slug); ?>"
                                                             data-mode="<?php echo esc_attr($saved_mode); ?>">
                                                             <option value="include" <?php selected($saved_mode, 'include'); ?>>✓ Includi</option>
                                                             <option value="include_links" <?php selected($saved_mode, 'include_links'); ?>>↗ Solo link
@@ -993,18 +1005,18 @@ function wpb_llms_admin_page()
                             <?php endif; ?>
 
                             <?php if (!empty($all_taxonomies)): ?>
-                                    <div class="wpb-inclusion-section">
-                                        <div class="wpb-inclusion-section-title">Tassonomie</div>
-                                        <div class="wpb-inclusion-grid">
+                                    <div class="suite-barrio-inclusion-section">
+                                        <div class="suite-barrio-inclusion-section-title">Tassonomie</div>
+                                        <div class="suite-barrio-inclusion-grid">
                                             <?php foreach ($all_taxonomies as $slug => $info):
                                                 $saved_mode = $saved_tax_modes[$slug] ?? 'include';
                                                 ?>
-                                                    <div class="wpb-inclusion-item">
+                                                    <div class="suite-barrio-inclusion-item">
                                                         <div>
-                                                            <div class="wpb-inclusion-item-label"><?php echo esc_html($info['label']); ?></div>
-                                                            <span class="wpb-inclusion-item-slug"><?php echo esc_html($slug); ?></span>
+                                                            <div class="suite-barrio-inclusion-item-label"><?php echo esc_html($info['label']); ?></div>
+                                                            <span class="suite-barrio-inclusion-item-slug"><?php echo esc_html($slug); ?></span>
                                                         </div>
-                                                        <select class="wpb-inclusion-select" data-type="tax" data-slug="<?php echo esc_attr($slug); ?>"
+                                                        <select class="suite-barrio-inclusion-select" data-type="tax" data-slug="<?php echo esc_attr($slug); ?>"
                                                             data-mode="<?php echo esc_attr($saved_mode); ?>">
                                                             <option value="include" <?php selected($saved_mode, 'include'); ?>>✓ Includi</option>
                                                             <option value="include_links" <?php selected($saved_mode, 'include_links'); ?>>↗ Solo link
@@ -1025,7 +1037,7 @@ function wpb_llms_admin_page()
                                     <strong>✗ Escludi</strong> — non incluso nei record generati &nbsp;·&nbsp;
                                     <strong>Sintetico</strong> max 10 voci · <strong>Completo</strong> tutte
                                 </p>
-                                <button class="wpb-btn-gen-llms secondary" id="btn-save-inclusion"
+                                <button class="suite-barrio-btn-gen-llms secondary" id="btn-save-inclusion"
                                     style="padding:6px 16px;font-size:12px;flex-shrink:0;">
                                     💾 Salva selezione
                                 </button>
@@ -1034,20 +1046,20 @@ function wpb_llms_admin_page()
                     </div>
 
                     <!-- LLMs sintetico -->
-                    <div class="wpb-gen-panel">
-                        <div class="wpb-gen-header">
-                            <div class="wpb-gen-icon">📄</div>
+                    <div class="suite-barrio-gen-panel">
+                        <div class="suite-barrio-gen-header">
+                            <div class="suite-barrio-gen-icon">📄</div>
                             <div>
-                                <div class="wpb-gen-title">LLMs sintetico — <code>hbLlms</code></div>
-                                <div class="wpb-gen-desc">
+                                <div class="suite-barrio-gen-title">LLMs sintetico — <code>hbLlms</code></div>
+                                <div class="suite-barrio-gen-desc">
                                     Versione sintetica: introduzione GEO-ottimizzata + max 10 voci per sezione.
                                     Esposto via GraphQL con la query <code>hbLlms { content updatedAt bytes }</code>.
                                 </div>
                             </div>
                         </div>
-                        <div class="wpb-gen-body">
-                            <div class="wpb-file-meta">
-                                <span class="wpb-file-badge <?php echo $short_exists ? 'exists' : 'missing'; ?>">
+                        <div class="suite-barrio-gen-body">
+                            <div class="suite-barrio-file-meta">
+                                <span class="suite-barrio-file-badge <?php echo $short_exists ? 'exists' : 'missing'; ?>">
                                     <?php echo $short_exists ? '✓ File presente' : '○ Non ancora generato'; ?>
                                 </span>
                                 <?php if ($short_exists): ?>
@@ -1057,43 +1069,43 @@ function wpb_llms_admin_page()
                                         </span>
                                 <?php endif; ?>
                             </div>
-                            <div class="wpb-gen-actions">
-                                <button class="wpb-btn-gen-llms" id="btn-gen-short" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
+                            <div class="suite-barrio-gen-actions">
+                                <button class="suite-barrio-btn-gen-llms" id="btn-gen-short" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
                                     ✦ Genera LLMs sintetico
                                 </button>
                                 <?php if ($short_exists): ?>
                                         <a href="<?php echo esc_url(get_bloginfo('url') . '/llms.txt'); ?>" target="_blank"
-                                            class="wpb-btn-gen-llms secondary wpb-btn-preview-llms" style="text-decoration:none;">
+                                            class="suite-barrio-btn-gen-llms secondary suite-barrio-btn-preview-llms" style="text-decoration:none;">
                                             👁 Anteprima
                                         </a>
                                 <?php endif; ?>
                             </div>
-                            <div class="wpb-gen-progress" id="progress-short">
-                                <div class="wpb-progress-bar-inner" id="pbar-short"></div>
-                                <div class="wpb-progress-label" id="plabel-short">Raccolta contenuto sito…</div>
+                            <div class="suite-barrio-gen-progress" id="progress-short">
+                                <div class="suite-barrio-progress-bar-inner" id="pbar-short"></div>
+                                <div class="suite-barrio-progress-label" id="plabel-short">Raccolta contenuto sito…</div>
                             </div>
-                            <div class="wpb-result-box" id="result-short">
-                                <div class="wpb-result-title">✓ Generato con successo</div>
-                                <div class="wpb-result-files" id="result-short-files"></div>
+                            <div class="suite-barrio-result-box" id="result-short">
+                                <div class="suite-barrio-result-title">✓ Generato con successo</div>
+                                <div class="suite-barrio-result-files" id="result-short-files"></div>
                             </div>
                         </div>
                     </div>
 
                     <!-- LLMs completo -->
-                    <div class="wpb-gen-panel">
-                        <div class="wpb-gen-header">
-                            <div class="wpb-gen-icon">📃</div>
+                    <div class="suite-barrio-gen-panel">
+                        <div class="suite-barrio-gen-header">
+                            <div class="suite-barrio-gen-icon">📃</div>
                             <div>
-                                <div class="wpb-gen-title">LLMs completo — <code>hbLlmsFull</code></div>
-                                <div class="wpb-gen-desc">
+                                <div class="suite-barrio-gen-title">LLMs completo — <code>hbLlmsFull</code></div>
+                                <div class="suite-barrio-gen-desc">
                                     Versione estesa: introduzione GEO-ottimizzata + tutte le voci con contenuto completo.
                                     Esposto via GraphQL con la query <code>hbLlmsFull { content updatedAt bytes }</code>.
                                 </div>
                             </div>
                         </div>
-                        <div class="wpb-gen-body">
-                            <div class="wpb-file-meta">
-                                <span class="wpb-file-badge <?php echo $full_exists ? 'exists' : 'missing'; ?>">
+                        <div class="suite-barrio-gen-body">
+                            <div class="suite-barrio-file-meta">
+                                <span class="suite-barrio-file-badge <?php echo $full_exists ? 'exists' : 'missing'; ?>">
                                     <?php echo $full_exists ? '✓ File presente' : '○ Non ancora generato'; ?>
                                 </span>
                                 <?php if ($full_exists): ?>
@@ -1103,31 +1115,31 @@ function wpb_llms_admin_page()
                                         </span>
                                 <?php endif; ?>
                             </div>
-                            <div class="wpb-gen-actions">
-                                <button class="wpb-btn-gen-llms" id="btn-gen-full" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
+                            <div class="suite-barrio-gen-actions">
+                                <button class="suite-barrio-btn-gen-llms" id="btn-gen-full" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
                                     ✦ Genera LLMs completo
                                 </button>
                                 <?php if ($full_exists): ?>
                                         <a href="<?php echo esc_url(get_bloginfo('url') . '/llms-full.txt'); ?>" target="_blank"
-                                            class="wpb-btn-gen-llms secondary wpb-btn-preview-llms" style="text-decoration:none;">
+                                            class="suite-barrio-btn-gen-llms secondary suite-barrio-btn-preview-llms" style="text-decoration:none;">
                                             👁 Anteprima
                                         </a>
                                 <?php endif; ?>
                             </div>
-                            <div class="wpb-gen-progress" id="progress-full">
-                                <div class="wpb-progress-bar-inner" id="pbar-full"></div>
-                                <div class="wpb-progress-label" id="plabel-full">Raccolta contenuto completo del sito…</div>
+                            <div class="suite-barrio-gen-progress" id="progress-full">
+                                <div class="suite-barrio-progress-bar-inner" id="pbar-full"></div>
+                                <div class="suite-barrio-progress-label" id="plabel-full">Raccolta contenuto completo del sito…</div>
                             </div>
-                            <div class="wpb-result-box" id="result-full">
-                                <div class="wpb-result-title">✓ Generato con successo</div>
-                                <div class="wpb-result-files" id="result-full-files"></div>
+                            <div class="suite-barrio-result-box" id="result-full">
+                                <div class="suite-barrio-result-title">✓ Generato con successo</div>
+                                <div class="suite-barrio-result-files" id="result-full-files"></div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Genera entrambi -->
                     <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
-                        <button class="wpb-btn-gen-llms" id="btn-gen-both" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
+                        <button class="suite-barrio-btn-gen-llms" id="btn-gen-both" <?php echo empty($api_key) ? 'disabled' : ''; ?>>
                             ✦ Genera entrambi i record
                         </button>
                         <span style="font-size:12px;color:#646970;">Genera sintetico e completo in sequenza.</span>
@@ -1144,42 +1156,42 @@ function wpb_llms_admin_page()
                             <div class="notice notice-warning inline">
                                 <p>
                                     <strong>Registrazione log disabilitata.</strong>
-                                    Per riattivare vai alle <a href="?page=wp-barrio-auto-llms&tab=settings">Impostazioni</a>.
+                                    Per riattivare vai alle <a href="?page=suite-barrio-auto-llms&tab=settings">Impostazioni</a>.
                                 </p>
                             </div>
                     <?php else:
                     $log_success = count(array_filter($log, fn($e) => $e['status'] === 'success'));
                     $log_errors = count(array_filter($log, fn($e) => $e['status'] === 'error'));
                     ?>
-                            <div class="wpb-log-stats">
-                                <div class="wpb-log-stat">
+                            <div class="suite-barrio-log-stats">
+                                <div class="suite-barrio-log-stat">
                                     <div class="n"><?php echo count($log); ?></div>
                                     <div class="l">Totale operazioni</div>
                                 </div>
-                                <div class="wpb-log-stat">
+                                <div class="suite-barrio-log-stat">
                                     <div class="n green"><?php echo esc_html($log_success); ?></div>
                                     <div class="l">Completate</div>
                                 </div>
-                                <div class="wpb-log-stat">
+                                <div class="suite-barrio-log-stat">
                                     <div class="n red"><?php echo esc_html($log_errors); ?></div>
                                     <div class="l">Errori</div>
                                 </div>
                             </div>
 
-                            <div class="wpb-log-toolbar">
-                                <div class="wpb-log-filters">
-                                    <button class="wpb-log-filter active" data-filter="all">Tutti</button>
-                                    <button class="wpb-log-filter" data-filter="success">Successi</button>
-                                    <button class="wpb-log-filter" data-filter="error">Errori</button>
+                            <div class="suite-barrio-log-toolbar">
+                                <div class="suite-barrio-log-filters">
+                                    <button class="suite-barrio-log-filter active" data-filter="all">Tutti</button>
+                                    <button class="suite-barrio-log-filter" data-filter="success">Successi</button>
+                                    <button class="suite-barrio-log-filter" data-filter="error">Errori</button>
                                 </div>
-                                <button class="wpb-btn-clear" id="btn-clear-log">🗑 Svuota log</button>
+                                <button class="suite-barrio-btn-clear" id="btn-clear-log">🗑 Svuota log</button>
                             </div>
 
                             <?php if (empty($log)): ?>
-                                    <div class="wpb-log-empty">Nessuna operazione registrata ancora.</div>
+                                    <div class="suite-barrio-log-empty">Nessuna operazione registrata ancora.</div>
                             <?php else: ?>
-                                    <div class="wpb-log-table-wrap">
-                                        <table class="wpb-log-table" id="llms-log-table">
+                                    <div class="suite-barrio-log-table-wrap">
+                                        <table class="suite-barrio-log-table" id="llms-log-table">
                                             <thead>
                                                 <tr>
                                                     <th>Stato</th>
@@ -1196,21 +1208,21 @@ function wpb_llms_admin_page()
                                                     ?>
                                                         <tr data-status="<?php echo esc_attr($entry['status']); ?>">
                                                             <td>
-                                                                <span class="wpb-log-status <?php echo esc_attr($entry['status']); ?>">
+                                                                <span class="suite-barrio-log-status <?php echo esc_attr($entry['status']); ?>">
                                                                     <?php echo esc_html($label); ?>
                                                                 </span>
                                                             </td>
                                                             <td>
-                                                                <span class="wpb-log-type-badge">
+                                                                <span class="suite-barrio-log-type-badge">
                                                                     <?php echo esc_html($type_labels[$entry['type']] ?? $entry['type']); ?>
                                                                 </span>
                                                             </td>
                                                             <td>
-                                                                <div class="wpb-log-note<?php echo $is_err ? ' wpb-log-note-error' : ''; ?>">
+                                                                <div class="suite-barrio-log-note<?php echo $is_err ? ' suite-barrio-log-note-error' : ''; ?>">
                                                                     <?php echo esc_html($entry['note'] ?: '—'); ?>
                                                                 </div>
                                                             </td>
-                                                            <td><span class="wpb-log-time"><?php echo esc_html(date_i18n('d/m/Y H:i', $entry['ts'])); ?></span></td>
+                                                            <td><span class="suite-barrio-log-time"><?php echo esc_html(date_i18n('d/m/Y H:i', $entry['ts'])); ?></span></td>
                                                         </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -1281,51 +1293,51 @@ function wpb_llms_admin_page()
                                 <tr>
                                     <th scope="row" style="width:200px;">Provider e modello AI</th>
                                     <td>
-                                        <div id="wpb-llms-provider-list">
+                                        <div id="suite-barrio-llms-provider-list">
                                             <?php foreach ($providers as $pval => $pdata):
                                                 $is_sel = ($provider === $pval);
                                                 $p_models = $pdata['models'];
                                                 $active_model = ($is_sel && array_key_exists($model, $p_models)) ? $model : $pdata['default_model'];
                                                 ?>
-                                                    <div class="wpb-provider-block">
-                                                        <label class="wpb-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
+                                                    <div class="suite-barrio-provider-block">
+                                                        <label class="suite-barrio-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
                                                             data-provider="<?php echo esc_attr($pval); ?>">
                                                             <input type="radio" name="wpb_llms_provider" value="<?php echo esc_attr($pval); ?>"
                                                                 <?php checked($provider, $pval); ?>>
-                                                            <span class="wpb-pc-logo"><?php echo esc_html($pdata['logo']); ?></span>
+                                                            <span class="suite-barrio-pc-logo"><?php echo esc_html($pdata['logo']); ?></span>
                                                             <div>
-                                                                <div class="wpb-pc-name"><?php echo esc_html($pdata['name']); ?></div>
-                                                                <div class="wpb-pc-desc"><?php echo esc_html($pdata['desc']); ?></div>
+                                                                <div class="suite-barrio-pc-name"><?php echo esc_html($pdata['name']); ?></div>
+                                                                <div class="suite-barrio-pc-desc"><?php echo esc_html($pdata['desc']); ?></div>
                                                             </div>
                                                         </label>
-                                                        <div class="wpb-provider-keys <?php echo $is_sel ? 'visible' : ''; ?>"
-                                                            id="wpb-llms-keys-<?php echo esc_attr($pval); ?>">
-                                                            <div class="wpb-key-group">
+                                                        <div class="suite-barrio-provider-keys <?php echo $is_sel ? 'visible' : ''; ?>"
+                                                            id="suite-barrio-llms-keys-<?php echo esc_attr($pval); ?>">
+                                                            <div class="suite-barrio-key-group">
                                                                 <label><?php echo esc_html($pdata['key_label']); ?></label>
                                                                 <input type="password" name="<?php echo esc_attr($pdata['key_field']); ?>"
                                                                     value="<?php echo esc_attr($pdata['key_val']); ?>"
                                                                     placeholder="<?php echo esc_attr($pdata['key_ph']); ?>" autocomplete="off">
-                                                                <div class="wpb-key-hint">Ottieni la chiave su
+                                                                <div class="suite-barrio-key-hint">Ottieni la chiave su
                                                                     <a href="<?php echo esc_url($pdata['key_url']); ?>" target="_blank">
                                                                         <?php echo esc_html($pdata['key_url']); ?>
                                                                     </a>
                                                                 </div>
                                                             </div>
-                                                            <div class="wpb-key-group">
+                                                            <div class="suite-barrio-key-group">
                                                                 <label>Modello</label>
-                                                                <div class="wpb-model-group">
+                                                                <div class="suite-barrio-model-group">
                                                                     <?php foreach ($p_models as $mval => $mdata):
                                                                         $m_checked = ($active_model === $mval);
                                                                         ?>
-                                                                            <label class="wpb-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
+                                                                            <label class="suite-barrio-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
                                                                                 <input type="radio" name="wpb_llms_model"
                                                                                     value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
                                                                                 <div>
-                                                                                    <div class="wpb-model-name"><?php echo esc_html($mdata['name']); ?>
+                                                                                    <div class="suite-barrio-model-name"><?php echo esc_html($mdata['name']); ?>
                                                                                     </div>
-                                                                                    <div class="wpb-model-desc"><?php echo esc_html($mdata['desc']); ?>
+                                                                                    <div class="suite-barrio-model-desc"><?php echo esc_html($mdata['desc']); ?>
                                                                                     </div>
-                                                                                    <div class="wpb-model-id"><?php echo esc_html($mval); ?></div>
+                                                                                    <div class="suite-barrio-model-id"><?php echo esc_html($mval); ?></div>
                                                                                 </div>
                                                                             </label>
                                                                     <?php endforeach; ?>
@@ -1385,16 +1397,16 @@ function wpb_llms_admin_page()
                                 <tr>
                                     <th scope="row">Registrazione log</th>
                                     <td>
-                                        <div class="wpb-toggle-row">
-                                            <label class="wpb-toggle">
+                                        <div class="suite-barrio-toggle-row">
+                                            <label class="suite-barrio-toggle">
                                                 <input type="checkbox" name="wpb_llms_log_enabled" value="1" <?php checked($log_en, 1); ?>>
-                                                <span class="wpb-toggle-track"></span>
+                                                <span class="suite-barrio-toggle-track"></span>
                                             </label>
-                                            <div class="wpb-toggle-info">
-                                                <div class="wpb-toggle-title">
+                                            <div class="suite-barrio-toggle-info">
+                                                <div class="suite-barrio-toggle-title">
                                                     <?php echo $log_en ? '✓ Attivo — ogni generazione viene registrata nel Log' : 'Disattivo — le operazioni non vengono registrate'; ?>
                                                 </div>
-                                                <div class="wpb-toggle-desc">
+                                                <div class="suite-barrio-toggle-desc">
                                                     Se attivo, ogni generazione AI viene salvata nella scheda Log con stato e dettagli.
                                                 </div>
                                             </div>
@@ -1405,41 +1417,41 @@ function wpb_llms_admin_page()
                             </tbody>
                         </table>
 
-                        <button type="submit" class="wpb-llms-save-btn"><span class="dashicons dashicons-yes"
+                        <button type="submit" class="suite-barrio-llms-save-btn"><span class="dashicons dashicons-yes"
                                 style="font-size:16px;width:16px;height:16px;"></span> Salva impostazioni</button>
                     </form>
 
-                    <script>
+                    <?php ob_start(); ?>
                         (function () {
                             var ajaxUrl = '<?php echo esc_js(admin_url("admin-ajax.php")); ?>';
-                            var nonce = '<?php echo esc_js(wp_create_nonce("wpb_llms_nonce")); ?>';
+                            var nonce = '<?php echo esc_js(wp_create_nonce("suite_barrio_llms_nonce")); ?>';
                             var currentModel = '<?php echo esc_js(get_option("wpb_llms_model", "")); ?>';
                             var modelDefaults = { anthropic: 'claude-sonnet-4-6', gemini: 'gemini-2.5-flash' };
 
                             function updateModelHighlight() {
-                                document.querySelectorAll('.wpb-model-label').forEach(function (lbl) {
+                                document.querySelectorAll('.suite-barrio-model-label').forEach(function (lbl) {
                                     var r = lbl.querySelector('input[type=radio]');
                                     lbl.classList.toggle('selected', !!(r && r.checked && !r.disabled));
                                 });
                             }
 
                             function renderModels(panel, models, selectedId) {
-                                var group = panel.querySelector('.wpb-model-group');
+                                var group = panel.querySelector('.suite-barrio-model-group');
                                 if (!group) return;
-                                var prov = panel.id.replace('wpb-llms-keys-', '');
+                                var prov = panel.id.replace('suite-barrio-llms-keys-', '');
                                 var chosen = selectedId || modelDefaults[prov] || Object.keys(models)[0];
                                 group.innerHTML = '';
                                 Object.keys(models).forEach(function (id) {
                                     var m = models[id];
                                     var chk = (id === chosen);
                                     var lbl = document.createElement('label');
-                                    lbl.className = 'wpb-model-label' + (chk ? ' selected' : '');
+                                    lbl.className = 'suite-barrio-model-label' + (chk ? ' selected' : '');
                                     lbl.innerHTML =
                                         '<input type="radio" name="wpb_llms_model" value="' + id + '"' + (chk ? ' checked' : '') + ' style="margin-top:2px;flex-shrink:0;">' +
                                         '<div>' +
-                                        '<div class="wpb-model-name">' + (m.name || id) + '</div>' +
-                                        (m.desc ? '<div class="wpb-model-desc">' + m.desc + '</div>' : '') +
-                                        '<div class="wpb-model-id">' + id + '</div>' +
+                                        '<div class="suite-barrio-model-name">' + (m.name || id) + '</div>' +
+                                        (m.desc ? '<div class="suite-barrio-model-desc">' + m.desc + '</div>' : '') +
+                                        '<div class="suite-barrio-model-id">' + id + '</div>' +
                                         '</div>';
                                     lbl.querySelector('input').addEventListener('change', updateModelHighlight);
                                     group.appendChild(lbl);
@@ -1448,9 +1460,9 @@ function wpb_llms_admin_page()
                             }
 
                             function loadModels(provider, panel, force) {
-                                var statusEl = panel.querySelector('.wpb-model-status');
+                                var statusEl = panel.querySelector('.suite-barrio-model-status');
                                 if (statusEl) statusEl.textContent = 'Caricamento modelli…';
-                                var body = new URLSearchParams({ action: 'wpb_llms_fetch_models', nonce: nonce, provider: provider, force: force ? '1' : '' });
+                                var body = new URLSearchParams({ action: 'suite_barrio_llms_fetch_models', nonce: nonce, provider: provider, force: force ? '1' : '' });
                                 fetch(ajaxUrl, { method: 'POST', body: body })
                                     .then(function (r) { return r.json(); })
                                     .then(function (data) {
@@ -1467,29 +1479,29 @@ function wpb_llms_admin_page()
                                     });
                             }
 
-                            document.querySelectorAll('.wpb-provider-keys').forEach(function (panel) {
-                                var group = panel.querySelector('.wpb-model-group');
+                            document.querySelectorAll('.suite-barrio-provider-keys').forEach(function (panel) {
+                                var group = panel.querySelector('.suite-barrio-model-group');
                                 if (!group) return;
                                 var bar = document.createElement('div');
                                 bar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px;';
                                 bar.innerHTML =
-                                    '<span class="wpb-model-status" style="font-size:11px;color:#888;flex:1;"></span>' +
+                                    '<span class="suite-barrio-model-status" style="font-size:11px;color:#888;flex:1;"></span>' +
                                     '<button type="button" class="button button-small btn-refresh-models" style="font-size:11px;padding:3px 10px;cursor:pointer;">↻ Aggiorna</button>';
                                 group.parentNode.insertBefore(bar, group);
                                 bar.querySelector('.btn-refresh-models').addEventListener('click', function () {
                                     currentModel = '';
-                                    loadModels(panel.id.replace('wpb-llms-keys-', ''), panel, true);
+                                    loadModels(panel.id.replace('suite-barrio-llms-keys-', ''), panel, true);
                                 });
                             });
 
                             document.querySelectorAll('input[name="wpb_llms_provider"]').forEach(function (radio) {
                                 radio.addEventListener('change', function () {
                                     var sel = this.value;
-                                    document.querySelectorAll('.wpb-provider-card').forEach(function (c) {
+                                    document.querySelectorAll('.suite-barrio-provider-card').forEach(function (c) {
                                         c.classList.toggle('selected', c.dataset.provider === sel);
                                     });
-                                    document.querySelectorAll('.wpb-provider-keys').forEach(function (panel) {
-                                        var prov = panel.id.replace('wpb-llms-keys-', '');
+                                    document.querySelectorAll('.suite-barrio-provider-keys').forEach(function (panel) {
+                                        var prov = panel.id.replace('suite-barrio-llms-keys-', '');
                                         var active = (prov === sel);
                                         panel.classList.toggle('visible', active);
                                         panel.querySelectorAll('input[type=radio][name="wpb_llms_model"]').forEach(function (r) {
@@ -1500,26 +1512,28 @@ function wpb_llms_admin_page()
                                 });
                             });
 
-                            document.querySelectorAll('.wpb-provider-keys.visible').forEach(function (panel) {
-                                loadModels(panel.id.replace('wpb-llms-keys-', ''), panel, false);
+                            document.querySelectorAll('.suite-barrio-provider-keys.visible').forEach(function (panel) {
+                                loadModels(panel.id.replace('suite-barrio-llms-keys-', ''), panel, false);
                             });
 
                             updateModelHighlight();
                         })();
-                    </script>
+                    <?php
+                    wp_add_inline_script('suite-barrio-llms-inline', ob_get_clean());
+                    ?>
 
             <?php endif; ?>
-        </div><!-- #wpb-llms-wrap -->
+        </div><!-- #suite-barrio-llms-wrap -->
 
-        <div id="wpb-llms-toast"></div>
+        <div id="suite-barrio-llms-toast"></div>
 
-        <script>
+        <?php ob_start(); ?>
             (function () {
                 var ajaxUrl = '<?php echo esc_js(admin_url("admin-ajax.php")); ?>';
-                var nonce = '<?php echo esc_js(wp_create_nonce("wpb_llms_nonce")); ?>';
+                var nonce = '<?php echo esc_js(wp_create_nonce("suite_barrio_llms_nonce")); ?>';
 
                 function toast(msg, type) {
-                    var t = document.getElementById('wpb-llms-toast');
+                    var t = document.getElementById('suite-barrio-llms-toast');
                     t.textContent = msg;
                     t.className = 'show' + (type === 'error' ? ' error' : '');
                     setTimeout(function () { t.className = ''; }, 3500);
@@ -1568,7 +1582,7 @@ function wpb_llms_admin_page()
                     filesEl.innerHTML = '';
                     records.forEach(function (r) {
                         var span = document.createElement('span');
-                        span.className = 'wpb-result-file';
+                        span.className = 'suite-barrio-result-file';
                         span.innerHTML = '✓ ' + r.label + ' <span style="color:#646970">(' + formatBytes(r.bytes) + ')</span>';
                         filesEl.appendChild(span);
                     });
@@ -1603,12 +1617,12 @@ function wpb_llms_admin_page()
                     try {
                         var ptModes = {};
                         var taxModes = {};
-                        document.querySelectorAll('.wpb-inclusion-select').forEach(function (sel) {
+                        document.querySelectorAll('.suite-barrio-inclusion-select').forEach(function (sel) {
                             if (sel.dataset.type === 'pt') ptModes[sel.dataset.slug] = sel.value;
                             if (sel.dataset.type === 'tax') taxModes[sel.dataset.slug] = sel.value;
                         });
 
-                        var params = new URLSearchParams({ action: 'wpb_llms_generate', nonce: nonce, type: type });
+                        var params = new URLSearchParams({ action: 'suite_barrio_llms_generate', nonce: nonce, type: type });
                         Object.keys(ptModes).forEach(function (k) { params.append('pt_modes[' + k + ']', ptModes[k]); });
                         Object.keys(taxModes).forEach(function (k) { params.append('tax_modes[' + k + ']', taxModes[k]); });
 
@@ -1649,14 +1663,14 @@ function wpb_llms_admin_page()
                 if (clearLogBtn) {
                     clearLogBtn.addEventListener('click', function () {
                         if (!confirm('Svuotare tutto il log? L\'operazione è irreversibile.')) return;
-                        fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'wpb_llms_clear_log', nonce: nonce }) })
+                        fetch(ajaxUrl, { method: 'POST', body: new URLSearchParams({ action: 'suite_barrio_llms_clear_log', nonce: nonce }) })
                             .then(function () { location.reload(); });
                     });
                 }
 
                 /* ── Toggle pannello inclusione ── */
-                var inclusionToggle = document.getElementById('wpb-inclusion-toggle');
-                var inclusionPanel = document.getElementById('wpb-inclusion-panel');
+                var inclusionToggle = document.getElementById('suite-barrio-inclusion-toggle');
+                var inclusionPanel = document.getElementById('suite-barrio-inclusion-panel');
                 if (inclusionToggle && inclusionPanel) {
                     inclusionToggle.addEventListener('click', function () {
                         inclusionPanel.classList.toggle('open');
@@ -1664,7 +1678,7 @@ function wpb_llms_admin_page()
                 }
 
                 /* ── Colore select inclusione al cambio ── */
-                document.querySelectorAll('.wpb-inclusion-select').forEach(function (sel) {
+                document.querySelectorAll('.suite-barrio-inclusion-select').forEach(function (sel) {
                     sel.addEventListener('change', function () {
                         sel.dataset.mode = sel.value;
                     });
@@ -1678,8 +1692,8 @@ function wpb_llms_admin_page()
                         saveIncBtn.disabled = true;
                         saveIncBtn.textContent = '⏳ Salvataggio…';
 
-                        var params = new URLSearchParams({ action: 'wpb_llms_save_inclusion', nonce: nonce });
-                        document.querySelectorAll('.wpb-inclusion-select').forEach(function (sel) {
+                        var params = new URLSearchParams({ action: 'suite_barrio_llms_save_inclusion', nonce: nonce });
+                        document.querySelectorAll('.suite-barrio-inclusion-select').forEach(function (sel) {
                             if (sel.dataset.type === 'pt') params.append('pt_modes[' + sel.dataset.slug + ']', sel.value);
                             if (sel.dataset.type === 'tax') params.append('tax_modes[' + sel.dataset.slug + ']', sel.value);
                         });
@@ -1712,9 +1726,9 @@ function wpb_llms_admin_page()
                 }
 
                 /* ── Filtro log ── */
-                document.querySelectorAll('.wpb-log-filter').forEach(function (btn) {
+                document.querySelectorAll('.suite-barrio-log-filter').forEach(function (btn) {
                     btn.addEventListener('click', function () {
-                        document.querySelectorAll('.wpb-log-filter').forEach(function (b) { b.classList.remove('active'); });
+                        document.querySelectorAll('.suite-barrio-log-filter').forEach(function (b) { b.classList.remove('active'); });
                         btn.classList.add('active');
                         var filter = btn.dataset.filter;
                         document.querySelectorAll('#llms-log-table tbody tr').forEach(function (row) {
@@ -1723,6 +1737,8 @@ function wpb_llms_admin_page()
                     });
                 });
             })();
-        </script>
+        <?php
+        wp_add_inline_script('suite-barrio-llms-inline', ob_get_clean());
+        ?>
         <?php
 }

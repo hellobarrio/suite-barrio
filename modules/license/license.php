@@ -1,9 +1,9 @@
 <?php
 /**
- * WP Barrio — License Gate
+ * Suite Barrio — License Gate
  * Blocca l'intero plugin finché non viene inserita la chiave di licenza corretta.
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
@@ -12,9 +12,9 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    VERIFICA LICENZA
    ───────────────────────────────────────── */
-function wpb_license_is_active(): bool
+function suite_barrio_license_is_active(): bool
 {
-    if (!defined('WPB_LICENSE_KEY') || WPB_LICENSE_KEY === '') {
+    if (!defined('SUITE_BARRIO_LICENSE_KEY') || SUITE_BARRIO_LICENSE_KEY === '') {
         return false;
     }
 
@@ -23,7 +23,7 @@ function wpb_license_is_active(): bool
         return false;
     }
 
-    return hash_equals(WPB_LICENSE_KEY, $stored);
+    return hash_equals(SUITE_BARRIO_LICENSE_KEY, $stored);
 }
 
 /* ─────────────────────────────────────────
@@ -31,7 +31,7 @@ function wpb_license_is_active(): bool
    non è (ancora) attiva.
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    if (wpb_license_is_active()) {
+    if (suite_barrio_license_is_active()) {
         return;
     }
 
@@ -39,8 +39,8 @@ add_action('admin_menu', function () {
         'Suite Barrio',
         'Suite Barrio',
         'manage_options',
-        'wp-barrio',
-        'wpb_license_render_page',
+        'suite-barrio',
+        'suite_barrio_license_render_page',
         'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgcm9sZT0iaW1nIj48cGF0aCBmaWxsPSJibGFjayIgZD0iTTUsNWgyLjV2Mi41SDVaTTAsOC43NWgyLjV2Mi41SDBaTTIuNSwxMS4yNWgyLjV2Mi41SDIuNVpNNSwxMy43NWgxMHYyLjVINVpNMTcuNSw4Ljc1aDIuNXYyLjVIMTcuNVpNMTUsMTEuMjVoMi41djIuNUgxNVpNMTIuNSw1aDIuNXYyLjVIMTIuNVoiLz48L3N2Zz4=',
         80
     );
@@ -49,18 +49,18 @@ add_action('admin_menu', function () {
 /* ─────────────────────────────────────────
    HANDLER ATTIVAZIONE
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_license_activate', function () {
+add_action('admin_post_suite_barrio_license_activate', function () {
     if (!current_user_can('manage_options')) {
-        wp_die(esc_html__('Non autorizzato.', 'wp-barrio'));
+        wp_die(esc_html__('Non autorizzato.', 'suite-barrio'));
     }
 
-    check_admin_referer('wpb_license_activate');
+    check_admin_referer('suite_barrio_license_activate');
 
     $key = isset($_POST['wpb_license_key']) ? trim(wp_unslash($_POST['wpb_license_key'])) : '';
-    $valid = defined('WPB_LICENSE_KEY')
-        && WPB_LICENSE_KEY !== ''
+    $valid = defined('SUITE_BARRIO_LICENSE_KEY')
+        && SUITE_BARRIO_LICENSE_KEY !== ''
         && $key !== ''
-        && hash_equals(WPB_LICENSE_KEY, $key);
+        && hash_equals(SUITE_BARRIO_LICENSE_KEY, $key);
 
     if ($valid) {
         update_option('wpb_license_key', $key);
@@ -70,7 +70,7 @@ add_action('admin_post_wpb_license_activate', function () {
     }
 
     wp_safe_redirect(add_query_arg(
-        ['page' => 'wp-barrio', 'wpb_license' => $status],
+        ['page' => 'suite-barrio', 'suite_barrio_license' => $status],
         admin_url('admin.php')
     ));
     exit;
@@ -79,14 +79,14 @@ add_action('admin_post_wpb_license_activate', function () {
 /* ─────────────────────────────────────────
    PAGINA DI ATTIVAZIONE
    ───────────────────────────────────────── */
-function wpb_license_render_page()
+function suite_barrio_license_render_page()
 {
-    $show_error = isset($_GET['wpb_license']) && $_GET['wpb_license'] === 'error';
+    $show_error = isset($_GET['suite_barrio_license']) && $_GET['suite_barrio_license'] === 'error';
     ?>
-    <div class="wrap wpb-wrap">
+    <div class="wrap suite-barrio-wrap">
 
-        <div class="wpb-header">
-            <div class="wpb-header-icon">
+        <div class="suite-barrio-header">
+            <div class="suite-barrio-header-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="22" height="22" aria-hidden="true">
                     <path fill="#fff"
                         d="M5,5h2.5v2.5H5ZM0,8.75h2.5v2.5H0ZM2.5,11.25h2.5v2.5H2.5ZM5,13.75h10v2.5H5ZM17.5,8.75h2.5v2.5H17.5ZM15,11.25h2.5v2.5H15ZM12.5,5h2.5v2.5H12.5Z" />
@@ -94,36 +94,36 @@ function wpb_license_render_page()
             </div>
             <div>
                 <h1>Suite Barrio</h1>
-                <p class="wpb-header-sub">Attiva il plugin per iniziare</p>
+                <p class="suite-barrio-header-sub">Attiva il plugin per iniziare</p>
             </div>
         </div>
 
-        <hr class="wpb-divider">
+        <hr class="suite-barrio-divider">
 
         <?php if ($show_error): ?>
-            <div class="wpb-notice wpb-notice-error">
+            <div class="suite-barrio-notice suite-barrio-notice-error">
                 <span class="dashicons dashicons-warning"></span>
                 <div>Chiave non valida. Verifica e riprova.</div>
             </div>
         <?php endif; ?>
 
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="max-width:420px;">
-            <input type="hidden" name="action" value="wpb_license_activate">
-            <?php wp_nonce_field('wpb_license_activate'); ?>
+            <input type="hidden" name="action" value="suite_barrio_license_activate">
+            <?php wp_nonce_field('suite_barrio_license_activate'); ?>
 
-            <label class="wpb-field-label" for="wpb_license_key">Chiave di licenza</label>
+            <label class="suite-barrio-field-label" for="wpb_license_key">Chiave di licenza</label>
             <input
                 type="text"
                 id="wpb_license_key"
                 name="wpb_license_key"
-                class="wpb-input"
+                class="suite-barrio-input"
                 style="width:100%;margin-bottom:12px;"
                 autocomplete="off"
                 required
             >
-            <p class="wpb-field-desc">Inserisci la chiave di licenza per attivare Suite Barrio.</p>
+            <p class="suite-barrio-field-desc">Inserisci la chiave di licenza per attivare Suite Barrio.</p>
 
-            <button type="submit" class="wpb-btn wpb-btn-primary" style="margin-top:12px;">Attiva</button>
+            <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary" style="margin-top:12px;">Attiva</button>
         </form>
 
     </div>

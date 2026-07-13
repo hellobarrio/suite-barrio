@@ -1,21 +1,21 @@
 <?php
 /**
- * WP Barrio — Accessibilità
+ * Suite Barrio — Accessibilità
  * Widget di accessibilità frontend: posizione e colori configurabili dall'admin.
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_ACCESSIBILITY_VERSION', '1.0.0');
-define('WPB_ACCESSIBILITY_OPTION', 'wpb_accessibility_settings');
+define('SUITE_BARRIO_ACCESSIBILITY_VERSION', '1.0.0');
+define('SUITE_BARRIO_ACCESSIBILITY_OPTION', 'wpb_accessibility_settings');
 
 /* ─────────────────────────────────────────
    HELPERS
    ───────────────────────────────────────── */
-function wpb_accessibility_settings(): array
+function suite_barrio_accessibility_settings(): array
 {
     $defaults = [
         'position'            => 'left',
@@ -24,11 +24,11 @@ function wpb_accessibility_settings(): array
         'declaration_enabled' => false,
         'declaration_content' => '',
     ];
-    $s = get_option(WPB_ACCESSIBILITY_OPTION, []);
+    $s = get_option(SUITE_BARRIO_ACCESSIBILITY_OPTION, []);
     return array_merge($defaults, is_array($s) ? $s : []);
 }
 
-function wpb_accessibility_darken_hex(string $hex, float $factor = 0.82): string
+function suite_barrio_accessibility_darken_hex(string $hex, float $factor = 0.82): string
 {
     $hex = ltrim($hex, '#');
     if (strlen($hex) === 3)
@@ -39,7 +39,7 @@ function wpb_accessibility_darken_hex(string $hex, float $factor = 0.82): string
     return sprintf('#%02x%02x%02x', $r, $g, $b);
 }
 
-function wpb_accessibility_hex_rgba(string $hex, float $alpha): string
+function suite_barrio_accessibility_hex_rgba(string $hex, float $alpha): string
 {
     $hex = ltrim($hex, '#');
     if (strlen($hex) === 3)
@@ -58,20 +58,20 @@ function wpb_accessibility_hex_rgba(string $hex, float $alpha): string
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
     add_submenu_page(
-        'wp-barrio',
-        'Accessibilità — WP Barrio',
+        'suite-barrio',
+        'Accessibilità — Suite Barrio',
         'Accessibilità',
         'manage_options',
-        'wp-barrio-accessibility',
-        'wpb_accessibility_admin_page'
+        'suite-barrio-accessibility',
+        'suite_barrio_accessibility_admin_page'
     );
 });
 
 /* ─────────────────────────────────────────
    SALVATAGGIO
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_accessibility_save', function () {
-    check_admin_referer('wpb_accessibility_save');
+add_action('admin_post_suite_barrio_accessibility_save', function () {
+    check_admin_referer('suite_barrio_accessibility_save');
     if (!current_user_can('manage_options'))
         wp_die('Accesso negato.');
 
@@ -81,7 +81,7 @@ add_action('admin_post_wpb_accessibility_save', function () {
     $declaration_enabled = !empty($_POST['declaration_enabled']);
     $declaration_content = wp_kses_post(wp_unslash($_POST['declaration_content'] ?? ''));
 
-    update_option(WPB_ACCESSIBILITY_OPTION, [
+    update_option(SUITE_BARRIO_ACCESSIBILITY_OPTION, [
         'position'            => in_array($position, ['left', 'right'], true) ? $position : 'left',
         'accent_color'        => $accent_color,
         'navy_color'          => $navy_color,
@@ -89,7 +89,7 @@ add_action('admin_post_wpb_accessibility_save', function () {
         'declaration_content' => $declaration_content,
     ]);
 
-    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-accessibility&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-accessibility&saved=1'));
     exit;
 });
 
@@ -102,20 +102,20 @@ add_action('admin_post_wpb_accessibility_save', function () {
 add_action('rest_api_init', function () {
     register_rest_route('wp-barrio/v1', '/accessibility', [
         'methods'             => 'GET',
-        'callback'            => 'wpb_accessibility_embed_handler',
+        'callback'            => 'suite_barrio_accessibility_embed_handler',
         'permission_callback' => '__return_true',
     ]);
 });
 
-function wpb_accessibility_embed_handler(): void
+function suite_barrio_accessibility_embed_handler(): void
 {
-    $s = wpb_accessibility_settings();
+    $s = suite_barrio_accessibility_settings();
 
-    $navy_deep   = wpb_accessibility_darken_hex($s['navy_color']);
-    $accent_rgba = wpb_accessibility_hex_rgba($s['accent_color'], 0.28);
+    $navy_deep   = suite_barrio_accessibility_darken_hex($s['navy_color']);
+    $accent_rgba = suite_barrio_accessibility_hex_rgba($s['accent_color'], 0.28);
 
-    $css_path = WP_ALT_AI_PLUGIN_DIR . 'modules/accessibility/assets/accessibility-widget.css';
-    $js_path  = WP_ALT_AI_PLUGIN_DIR . 'modules/accessibility/assets/accessibility-widget.js';
+    $css_path = SUITE_BARRIO_PLUGIN_DIR . 'modules/accessibility/assets/accessibility-widget.css';
+    $js_path  = SUITE_BARRIO_PLUGIN_DIR . 'modules/accessibility/assets/accessibility-widget.js';
 
     $css = (string) file_get_contents($css_path);
     $js  = (string) file_get_contents($js_path);
@@ -144,8 +144,8 @@ function wpb_accessibility_embed_handler(): void
             'content' => $s['declaration_content'] ?? '',
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
-    $embed    = "(function(){if(document.getElementById('wpb-a11y-style'))return;var s=document.createElement('style');s.id='wpb-a11y-style';s.textContent={$css_json};(document.head||document.documentElement).appendChild(s);})();\n"
-        . "window.__wpbA11yConfig={$config_json};\n"
+    $embed    = "(function(){if(document.getElementById('suite-barrio-a11y-style'))return;var s=document.createElement('style');s.id='suite-barrio-a11y-style';s.textContent={$css_json};(document.head||document.documentElement).appendChild(s);})();\n"
+        . "window.__suiteBarrioA11yConfig={$config_json};\n"
         . "{$js}";
 
     // Cache basata sull'hash delle impostazioni correnti
@@ -173,25 +173,25 @@ function wpb_accessibility_embed_handler(): void
    FRONTEND — enqueueing + override CSS
    ───────────────────────────────────────── */
 add_action('wp_enqueue_scripts', function () {
-    $s = wpb_accessibility_settings();
+    $s = suite_barrio_accessibility_settings();
 
     wp_enqueue_style(
-        'wpb-accessibility-widget',
-        WP_ALT_AI_PLUGIN_URL . 'modules/accessibility/assets/accessibility-widget.css',
+        'suite-barrio-accessibility-widget',
+        SUITE_BARRIO_PLUGIN_URL . 'modules/accessibility/assets/accessibility-widget.css',
         [],
-        WPB_ACCESSIBILITY_VERSION
+        SUITE_BARRIO_ACCESSIBILITY_VERSION
     );
 
     wp_enqueue_script(
-        'wpb-accessibility-widget',
-        WP_ALT_AI_PLUGIN_URL . 'modules/accessibility/assets/accessibility-widget.js',
+        'suite-barrio-accessibility-widget',
+        SUITE_BARRIO_PLUGIN_URL . 'modules/accessibility/assets/accessibility-widget.js',
         [],
-        WPB_ACCESSIBILITY_VERSION,
+        SUITE_BARRIO_ACCESSIBILITY_VERSION,
         true
     );
 
-    $navy_deep   = wpb_accessibility_darken_hex($s['navy_color']);
-    $accent_rgba = wpb_accessibility_hex_rgba($s['accent_color'], 0.28);
+    $navy_deep   = suite_barrio_accessibility_darken_hex($s['navy_color']);
+    $accent_rgba = suite_barrio_accessibility_hex_rgba($s['accent_color'], 0.28);
 
     $inline = "#a11y-widget {\n"
         . "  --a11y-accent:      {$s['accent_color']};\n"
@@ -206,7 +206,7 @@ add_action('wp_enqueue_scripts', function () {
             . "@media (max-width: 575px) { #a11y-widget { left: auto; right: 1rem; } }\n";
     }
 
-    wp_add_inline_style('wpb-accessibility-widget', $inline);
+    wp_add_inline_style('suite-barrio-accessibility-widget', $inline);
 
     $config_json = (string) json_encode([
         'declaration' => [
@@ -215,60 +215,90 @@ add_action('wp_enqueue_scripts', function () {
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     wp_add_inline_script(
-        'wpb-accessibility-widget',
-        'window.__wpbA11yConfig=' . $config_json . ';',
+        'suite-barrio-accessibility-widget',
+        'window.__suiteBarrioA11yConfig=' . $config_json . ';',
         'before'
     );
 });
 
 /* ─────────────────────────────────────────
+   ENQUEUE ADMIN — JS pagina impostazioni
+   ───────────────────────────────────────── */
+add_action('admin_enqueue_scripts', function ($hook) {
+    if ($hook !== 'suite-barrio_page_suite-barrio-accessibility')
+        return;
+
+    wp_register_script('suite-barrio-accessibility-admin', '', [], SUITE_BARRIO_ACCESSIBILITY_VERSION, true);
+    wp_enqueue_script('suite-barrio-accessibility-admin');
+
+    $suite_barrio_accessibility_admin_js = '(function () {
+    var accentInput = document.getElementById(\'suite-barrio-a11y-accent\');
+    var navyInput   = document.getElementById(\'suite-barrio-a11y-navy\');
+
+    function bindColorLabel(input) {
+        if (!input) return;
+        var label = input.closest(\'td\').querySelector(\'div > div:first-child\');
+        if (!label) return;
+        input.addEventListener(\'input\', function () {
+            label.textContent = input.value;
+        });
+    }
+
+    bindColorLabel(accentInput);
+    bindColorLabel(navyInput);
+})();';
+
+    wp_add_inline_script('suite-barrio-accessibility-admin', $suite_barrio_accessibility_admin_js);
+});
+
+/* ─────────────────────────────────────────
    PAGINA ADMIN
    ───────────────────────────────────────── */
-function wpb_accessibility_admin_page()
+function suite_barrio_accessibility_admin_page()
 {
-    $s     = wpb_accessibility_settings();
+    $s     = suite_barrio_accessibility_settings();
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
     ?>
-    <div class="wrap wpb-wrap">
+    <div class="wrap suite-barrio-wrap">
 
-        <div class="wpb-header-row">
-            <div class="wpb-header">
-                <div class="wpb-header-icon">
+        <div class="suite-barrio-header-row">
+            <div class="suite-barrio-header">
+                <div class="suite-barrio-header-icon">
                     <span class="dashicons dashicons-universal-access"
                         style="color:#fff;font-size:20px;width:20px;height:20px;"></span>
                 </div>
                 <div>
-                    <h1>WP Barrio <span style="font-size:14px;font-weight:400;color:#9ca3af;">/ Accessibilità</span></h1>
-                    <p class="wpb-header-sub">Widget di accessibilità per il frontend del sito</p>
+                    <h1>Suite Barrio <span style="font-size:14px;font-weight:400;color:#9ca3af;">/ Accessibilità</span></h1>
+                    <p class="suite-barrio-header-sub">Widget di accessibilità per il frontend del sito</p>
                 </div>
             </div>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio')); ?>"
-                class="wpb-btn wpb-btn-small wpb-btn-ghost">
+            <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio')); ?>"
+                class="suite-barrio-btn suite-barrio-btn-small suite-barrio-btn-ghost">
                 <span class="dashicons dashicons-arrow-left-alt2"
                     style="font-size:14px;width:14px;height:14px;"></span>
                 Dashboard
             </a>
         </div>
 
-        <hr class="wpb-divider">
+        <hr class="suite-barrio-divider">
 
         <?php if ($saved): ?>
-            <div class="wpb-tools-notice wpb-notice-success" style="margin-bottom:16px;">
+            <div class="suite-barrio-tools-notice suite-barrio-notice-success" style="margin-bottom:16px;">
                 <span class="dashicons dashicons-yes-alt"></span>
                 <span>Impostazioni salvate.</span>
             </div>
         <?php endif; ?>
 
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-            <?php wp_nonce_field('wpb_accessibility_save'); ?>
-            <input type="hidden" name="action" value="wpb_accessibility_save">
+            <?php wp_nonce_field('suite_barrio_accessibility_save'); ?>
+            <input type="hidden" name="action" value="suite_barrio_accessibility_save">
 
-            <div class="wpb-section-box" style="max-width:640px;">
-                <div class="wpb-section-head">
+            <div class="suite-barrio-section-box" style="max-width:640px;">
+                <div class="suite-barrio-section-head">
                     <span class="dashicons dashicons-universal-access"></span> Impostazioni widget
                 </div>
-                <div class="wpb-section-body">
+                <div class="suite-barrio-section-body">
 
                     <table class="form-table" style="margin:0;">
                         <tr>
@@ -290,14 +320,14 @@ function wpb_accessibility_admin_page()
                         </tr>
                         <tr>
                             <th scope="row" style="padding:10px 20px 10px 0;">
-                                <label for="wpb-a11y-accent"
+                                <label for="suite-barrio-a11y-accent"
                                     style="font-weight:600;font-size:13px;color:#374151;">
                                     Colore principale
                                 </label>
                             </th>
                             <td style="padding:10px 0;">
                                 <div style="display:flex;align-items:center;gap:12px;">
-                                    <input type="color" id="wpb-a11y-accent" name="accent_color"
+                                    <input type="color" id="suite-barrio-a11y-accent" name="accent_color"
                                         value="<?php echo esc_attr($s['accent_color']); ?>"
                                         style="width:48px;height:36px;padding:2px;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;">
                                     <div>
@@ -313,14 +343,14 @@ function wpb_accessibility_admin_page()
                         </tr>
                         <tr>
                             <th scope="row" style="padding:10px 20px 10px 0;">
-                                <label for="wpb-a11y-navy"
+                                <label for="suite-barrio-a11y-navy"
                                     style="font-weight:600;font-size:13px;color:#374151;">
                                     Colore secondario
                                 </label>
                             </th>
                             <td style="padding:10px 0;">
                                 <div style="display:flex;align-items:center;gap:12px;">
-                                    <input type="color" id="wpb-a11y-navy" name="navy_color"
+                                    <input type="color" id="suite-barrio-a11y-navy" name="navy_color"
                                         value="<?php echo esc_attr($s['navy_color']); ?>"
                                         style="width:48px;height:36px;padding:2px;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;">
                                     <div>
@@ -340,11 +370,11 @@ function wpb_accessibility_admin_page()
             </div>
 
             <!-- Dichiarazione di Accessibilità -->
-            <div class="wpb-section-box" style="max-width:640px;margin-top:24px;">
-                <div class="wpb-section-head">
+            <div class="suite-barrio-section-box" style="max-width:640px;margin-top:24px;">
+                <div class="suite-barrio-section-head">
                     <span class="dashicons dashicons-text-page"></span> Dichiarazione di Accessibilità
                 </div>
-                <div class="wpb-section-body">
+                <div class="suite-barrio-section-body">
                     <p style="margin:0 0 14px;font-size:13px;color:#374151;">
                         Se attivata, un pulsante <strong>"Dichiarazione"</strong> comparirà nell'header
                         del widget. Cliccandolo l'utente vedrà il testo inserito qui sotto in una
@@ -353,14 +383,14 @@ function wpb_accessibility_admin_page()
                     <table style="border-collapse:collapse;width:100%;">
                         <tr>
                             <th scope="row" style="padding:10px 20px 10px 0;width:180px;vertical-align:top;">
-                                <label for="wpb-a11y-decl-enabled"
+                                <label for="suite-barrio-a11y-decl-enabled"
                                     style="font-weight:600;font-size:13px;color:#374151;">
                                     Attiva dichiarazione
                                 </label>
                             </th>
                             <td style="padding:10px 0;">
                                 <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
-                                    <input type="checkbox" id="wpb-a11y-decl-enabled"
+                                    <input type="checkbox" id="suite-barrio-a11y-decl-enabled"
                                         name="declaration_enabled" value="1"
                                         <?php checked(!empty($s['declaration_enabled'])); ?>
                                         style="width:16px;height:16px;">
@@ -376,7 +406,7 @@ function wpb_accessibility_admin_page()
                             </th>
                             <td style="padding:10px 0;">
                                 <?php
-                                wp_editor($s['declaration_content'], 'wpb_a11y_declaration', [
+                                wp_editor($s['declaration_content'], 'suite_barrio_a11y_declaration', [
                                     'textarea_name' => 'declaration_content',
                                     'media_buttons' => false,
                                     'textarea_rows' => 12,
@@ -393,7 +423,7 @@ function wpb_accessibility_admin_page()
             </div>
 
             <div style="margin-top:16px;">
-                <button type="submit" class="wpb-save-btn">
+                <button type="submit" class="suite-barrio-save-btn">
                     <span class="dashicons dashicons-yes"
                         style="font-size:16px;width:16px;height:16px;margin-top:1px;"></span>
                     Salva impostazioni
@@ -489,11 +519,11 @@ function wpb_accessibility_admin_page()
             . "}\n\n"
             . "module.exports = nextConfig";
         ?>
-        <div class="wpb-section-box" style="max-width:680px;margin-top:24px;">
-            <div class="wpb-section-head">
+        <div class="suite-barrio-section-box" style="max-width:680px;margin-top:24px;">
+            <div class="suite-barrio-section-head">
                 <span class="dashicons dashicons-editor-code"></span> Integrazione Next.js
             </div>
-            <div class="wpb-section-body">
+            <div class="suite-barrio-section-body">
 
                 <!-- Step 1 -->
                 <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
@@ -506,7 +536,7 @@ function wpb_accessibility_admin_page()
                             quando salvi le impostazioni qui sopra.
                         </p>
                         <div style="position:relative;">
-                            <pre id="wpb-a11y-snippet" style="background:#1e293b;color:#e2e8f0;padding:14px 16px;border-radius:8px;font-size:12px;line-height:1.6;overflow-x:auto;margin:0;white-space:pre;"><?php echo esc_html($step1_snippet); ?></pre>
+                            <pre id="suite-barrio-a11y-snippet" style="background:#1e293b;color:#e2e8f0;padding:14px 16px;border-radius:8px;font-size:12px;line-height:1.6;overflow-x:auto;margin:0;white-space:pre;"><?php echo esc_html($step1_snippet); ?></pre>
                             <button type="button"
                                 style="position:absolute;top:8px;right:8px;padding:4px 10px;border-radius:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#e2e8f0;font-size:11px;cursor:pointer;transition:background .15s;"
                                 onclick="(function(b){var t=b.closest('div').querySelector('pre').textContent;navigator.clipboard.writeText(t).then(function(){b.textContent='Copiato!';setTimeout(function(){b.textContent='Copia';},1800);});})(this)">
@@ -540,7 +570,7 @@ function wpb_accessibility_admin_page()
                             </code>
                         </div>
                         <div style="position:relative;">
-                            <pre id="wpb-a11y-snippet-csp" style="background:#1e293b;color:#e2e8f0;padding:14px 16px;border-radius:8px;font-size:12px;line-height:1.6;overflow-x:auto;margin:0;white-space:pre;"><?php echo esc_html($step2_snippet); ?></pre>
+                            <pre id="suite-barrio-a11y-snippet-csp" style="background:#1e293b;color:#e2e8f0;padding:14px 16px;border-radius:8px;font-size:12px;line-height:1.6;overflow-x:auto;margin:0;white-space:pre;"><?php echo esc_html($step2_snippet); ?></pre>
                             <button type="button"
                                 style="position:absolute;top:8px;right:8px;padding:4px 10px;border-radius:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#e2e8f0;font-size:11px;cursor:pointer;transition:background .15s;"
                                 onclick="(function(b){var t=b.closest('div').querySelector('pre').textContent;navigator.clipboard.writeText(t).then(function(){b.textContent='Copiato!';setTimeout(function(){b.textContent='Copia';},1800);});})(this)">
@@ -559,23 +589,5 @@ function wpb_accessibility_admin_page()
 
     </div>
 
-    <script>
-    (function () {
-        var accentInput = document.getElementById('wpb-a11y-accent');
-        var navyInput   = document.getElementById('wpb-a11y-navy');
-
-        function bindColorLabel(input) {
-            if (!input) return;
-            var label = input.closest('td').querySelector('div > div:first-child');
-            if (!label) return;
-            input.addEventListener('input', function () {
-                label.textContent = input.value;
-            });
-        }
-
-        bindColorLabel(accentInput);
-        bindColorLabel(navyInput);
-    })();
-    </script>
     <?php
 }

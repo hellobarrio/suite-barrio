@@ -1,4 +1,4 @@
-/* WP Barrio Consent Engine v1 — standalone, no dependencies */
+/* Suite Barrio Consent Engine v1 — standalone, no dependencies */
 (function (w, d) {
   "use strict";
 
@@ -116,7 +116,7 @@
   /* ── Rest base (stessa logica di loadConfig) ── */
   function restBase() {
     return (
-      w.WpbRestBase ||
+      w.SuiteBarrioRestBase ||
       (d.currentScript && d.currentScript.src
         ? new URL(d.currentScript.src).origin + "/wp-json"
         : location.origin + "/wp-json")
@@ -150,7 +150,7 @@
     ["functional", "analytics", "marketing"].forEach(function (cat) {
       if (!prefs[cat]) return;
       d.querySelectorAll(
-        'script[type="text/plain"][data-wpb-category="' + cat + '"]',
+        'script[type="text/plain"][data-suite-barrio-category="' + cat + '"]',
       ).forEach(function (el) {
         var clone = d.createElement("script");
         Array.from(el.attributes).forEach(function (a) {
@@ -189,12 +189,12 @@
   /* ── Config ── */
   function loadConfig() {
     if (cfg) return Promise.resolve(cfg);
-    if (w.WpbConfig) {
-      cfg = w.WpbConfig;
+    if (w.SuiteBarrioConfig) {
+      cfg = w.SuiteBarrioConfig;
       return Promise.resolve(cfg);
     }
     var base =
-      w.WpbRestBase ||
+      w.SuiteBarrioRestBase ||
       (d.currentScript && d.currentScript.src
         ? new URL(d.currentScript.src).origin + "/wp-json"
         : location.origin + "/wp-json");
@@ -227,14 +227,14 @@
   /* ── Wire preferences widget ── */
   function wirePref(container, config) {
     var cur = consent ? Object.assign({}, consent) : defaults();
-    container.querySelectorAll("[data-wpb-toggle]").forEach(function (cb) {
-      var cat = cb.getAttribute("data-wpb-toggle");
+    container.querySelectorAll("[data-suite-barrio-toggle]").forEach(function (cb) {
+      var cat = cb.getAttribute("data-suite-barrio-toggle");
       cb.checked = !!cur[cat];
       cb.disabled = cat === "necessary";
     });
-    container.querySelectorAll("[data-wpb-action]").forEach(function (btn) {
+    container.querySelectorAll("[data-suite-barrio-action]").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var action = btn.getAttribute("data-wpb-action");
+        var action = btn.getAttribute("data-suite-barrio-action");
         var prefs;
         if (action === "accept-all") {
           prefs = {
@@ -248,16 +248,16 @@
         } else {
           prefs = { necessary: true };
           container
-            .querySelectorAll("[data-wpb-toggle]")
+            .querySelectorAll("[data-suite-barrio-toggle]")
             .forEach(function (cb) {
-              var cat = cb.getAttribute("data-wpb-toggle");
+              var cat = cb.getAttribute("data-suite-barrio-toggle");
               if (cat !== "necessary") prefs[cat] = cb.checked;
             });
         }
         save(prefs);
-        var ov = d.getElementById("wpb-pref-overlay");
+        var ov = d.getElementById("suite-barrio-pref-overlay");
         if (ov) ov.remove();
-        var b = d.getElementById("wpb-banner");
+        var b = d.getElementById("suite-barrio-banner");
         if (b) b.remove();
         renderWidget(config);
       });
@@ -266,13 +266,13 @@
 
   /* ── Preferences drawer ── */
   function openPref(config) {
-    if (d.getElementById("wpb-pref-overlay")) return;
+    if (d.getElementById("suite-barrio-pref-overlay")) return;
     var b  = (config && config.banner) || {};
     var bg = b.color_bg   || "#0D1B2E";
     var fg = b.color_text || "#FFFFFF";
 
     var ov = d.createElement("div");
-    ov.id = "wpb-pref-overlay";
+    ov.id = "suite-barrio-pref-overlay";
     ov.style.cssText =
       "position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.5)";
 
@@ -320,7 +320,7 @@
     loadPrefHtml(config).then(function (html) {
       inner.innerHTML = html;
       /* Pulsante primario sempre scuro: usa il colore di sfondo del banner */
-      inner.querySelectorAll(".wpb-pref-btn-primary").forEach(function (btn) {
+      inner.querySelectorAll(".suite-barrio-pref-btn-primary").forEach(function (btn) {
         btn.style.background = bg;
         btn.style.color = fg;
       });
@@ -334,7 +334,7 @@
 
   /* ── Banner ── */
   function renderBanner(config) {
-    if (d.getElementById("wpb-banner")) return;
+    if (d.getElementById("suite-barrio-banner")) return;
     var b = (config && config.banner) || {};
     var bg = b.color_bg || "#0D1B2E";
     var fg = b.color_text || "#FFFFFF";
@@ -342,7 +342,7 @@
     var pos = b.position || "bottom";
 
     var el = d.createElement("div");
-    el.id = "wpb-banner";
+    el.id = "suite-barrio-banner";
     el.setAttribute("role", "dialog");
     el.setAttribute("aria-live", "polite");
     el.setAttribute("aria-label", b.text_title || "Gestione cookie");
@@ -443,11 +443,11 @@
 
   /* ── Floating widget ── */
   function renderWidget(config) {
-    if (d.getElementById("wpb-widget")) return;
+    if (d.getElementById("suite-barrio-widget")) return;
     var b = (config && config.banner) || {};
     if (!b.show_widget) return;
     var wBtn = d.createElement("button");
-    wBtn.id = "wpb-widget";
+    wBtn.id = "suite-barrio-widget";
     wBtn.type = "button";
     wBtn.setAttribute("aria-label", "Gestisci preferenze cookie");
     wBtn.title = "Gestisci preferenze cookie";
@@ -476,7 +476,7 @@
     d.body.appendChild(wBtn);
   }
 
-  /* ── Wire any [data-wpb-preferences] widgets (present or dynamically injected) ── */
+  /* ── Wire any [data-suite-barrio-preferences] widgets (present or dynamically injected) ── */
   function wireInlinePrefs(config) {
     var b  = (config && config.banner) || {};
     var bg = b.color_bg   || "#0D1B2E";
@@ -484,24 +484,24 @@
 
     function applyToWidget(el) {
       wirePref(el, config);
-      el.querySelectorAll(".wpb-pref-btn-primary").forEach(function (btn) {
+      el.querySelectorAll(".suite-barrio-pref-btn-primary").forEach(function (btn) {
         btn.style.background = bg;
         btn.style.color = fg;
       });
     }
 
     // Widget già nel DOM al momento del boot
-    d.querySelectorAll("[data-wpb-preferences]").forEach(applyToWidget);
+    d.querySelectorAll("[data-suite-barrio-preferences]").forEach(applyToWidget);
 
     // Widget inseriti dinamicamente (es. via fetch nel cookie report script)
     new MutationObserver(function (mutations) {
       mutations.forEach(function (m) {
         m.addedNodes.forEach(function (node) {
           if (node.nodeType !== 1) return;
-          if (node.hasAttribute("data-wpb-preferences")) {
+          if (node.hasAttribute("data-suite-barrio-preferences")) {
             applyToWidget(node);
           }
-          node.querySelectorAll("[data-wpb-preferences]").forEach(applyToWidget);
+          node.querySelectorAll("[data-suite-barrio-preferences]").forEach(applyToWidget);
         });
       });
     }).observe(d.body, { childList: true, subtree: true });
@@ -538,7 +538,7 @@
   }
 
   /* ── Public API ── */
-  w.WpbConsent = {
+  w.SuiteBarrioConsent = {
     getConsent: function () {
       return consent ? Object.assign({}, consent) : null;
     },
@@ -552,19 +552,19 @@
         analytics: true,
         marketing: true,
       });
-      var banner = d.getElementById("wpb-banner");
+      var banner = d.getElementById("suite-barrio-banner");
       if (banner) banner.remove();
       loadConfig().then(renderWidget);
     },
     rejectAll: function () {
       save(defaults());
-      var banner = d.getElementById("wpb-banner");
+      var banner = d.getElementById("suite-barrio-banner");
       if (banner) banner.remove();
       loadConfig().then(renderWidget);
     },
     setConsent: function (prefs) {
       save(Object.assign(defaults(), prefs));
-      var banner = d.getElementById("wpb-banner");
+      var banner = d.getElementById("suite-barrio-banner");
       if (banner) banner.remove();
       loadConfig().then(renderWidget);
     },
@@ -577,6 +577,6 @@
   loadConfig()
     .then(boot)
     .catch(function (e) {
-      console.warn("[WpbConsent] Config non disponibile:", e);
+      console.warn("[SuiteBarrioConsent] Config non disponibile:", e);
     });
 })(window, document);

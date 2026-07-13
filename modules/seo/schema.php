@@ -1,55 +1,58 @@
 <?php
 /**
- * WP Barrio — SEO / Schema
+ * Suite Barrio — SEO / Schema
  * Genera JSON-LD strutturato ed esporta via GraphQL.
  *
  *  - hbSchemaRaw          → globale: LocalBusiness + WebSite
  *  - hbSchemaPageRaw(url) → pagina: globale + WebPage per quell'URL
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
     exit;
 
-if (!defined('WPB_SCHEMA_OPTION'))
-    define('WPB_SCHEMA_OPTION', 'wpb_schema_settings');
+if (!defined('SUITE_BARRIO_SCHEMA_OPTION'))
+    define('SUITE_BARRIO_SCHEMA_OPTION', 'wpb_schema_settings');
 
 /* ─────────────────────────────────────────
    MENU
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    if (!wpb_tools_module_enabled('seo'))
+    if (!suite_barrio_tools_module_enabled('seo'))
         return;
 
     add_submenu_page(
-        'wp-barrio',
-        'Schema — WP Barrio',
+        'suite-barrio',
+        'Schema — Suite Barrio',
         'Schema',
         'manage_options',
-        'wp-barrio-schema',
-        'wpb_schema_admin_page'
+        'suite-barrio-schema',
+        'suite_barrio_schema_admin_page'
     );
 }, 15);
 
-add_action('admin_head', function () {
-    echo '<style>#adminmenu a[href="admin.php?page=wp-barrio-schema"]{display:none!important}</style>';
+add_action('admin_enqueue_scripts', function () {
+    wp_add_inline_style(
+        'suite-barrio-admin',
+        '#adminmenu a[href="admin.php?page=suite-barrio-schema"]{display:none!important}'
+    );
 });
 
 add_filter('submenu_file', function ($submenu_file) {
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
-    if (isset($_GET['page']) && $_GET['page'] === 'wp-barrio-schema')
-        return 'wp-barrio-seo';
+    if (isset($_GET['page']) && $_GET['page'] === 'suite-barrio-schema')
+        return 'suite-barrio-seo';
     return $submenu_file;
 });
 
 /* ─────────────────────────────────────────
    SALVATAGGIO IMPOSTAZIONI
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_schema_save', function () {
+add_action('admin_post_suite_barrio_schema_save', function () {
     if (!current_user_can('manage_options'))
         wp_die('Accesso negato.');
-    check_admin_referer('wpb_schema_save');
+    check_admin_referer('suite_barrio_schema_save');
 
     $settings = [
         'business_type' => sanitize_text_field(wp_unslash($_POST['business_type'] ?? 'LocalBusiness')),
@@ -75,18 +78,18 @@ add_action('admin_post_wpb_schema_save', function () {
         'language' => sanitize_text_field(wp_unslash($_POST['language'] ?? 'it-IT')),
     ];
 
-    update_option(WPB_SCHEMA_OPTION, $settings);
+    update_option(SUITE_BARRIO_SCHEMA_OPTION, $settings);
     if (function_exists('invalidate_vercel_cache')) {
         invalidate_vercel_cache('wp:global');
     }
-    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-schema&saved=1'));
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-schema&saved=1'));
     exit;
 });
 
 /* ─────────────────────────────────────────
    HELPER: ISO → BCP-47
    ───────────────────────────────────────── */
-function wpb_schema_to_bcp47(string $code): string
+function suite_barrio_schema_to_bcp47(string $code): string
 {
     static $map = [
     'it' => 'it-IT',
@@ -117,10 +120,10 @@ function wpb_schema_to_bcp47(string $code): string
 /* ─────────────────────────────────────────
    HELPER: grafo globale (LocalBusiness + WebSite)
    ───────────────────────────────────────── */
-function wpb_schema_build_global(): array
+function suite_barrio_schema_build_global(): array
 {
-    $s = get_option(WPB_SCHEMA_OPTION, []);
-    $meta = get_option(WPB_META_OPTION, []);
+    $s = get_option(SUITE_BARRIO_SCHEMA_OPTION, []);
+    $meta = get_option(SUITE_BARRIO_META_OPTION, []);
 
     $site_url = rtrim($s['url'] ?: home_url(), '/');
     $site_name = $s['business_name'] ?: ($meta['site_title'] ?: get_bloginfo('name'));
@@ -206,11 +209,11 @@ function wpb_schema_build_global(): array
    Restituisce null se l'URL non corrisponde
    a nessun contenuto indicizzabile.
    ───────────────────────────────────────── */
-function wpb_schema_find_webpage(string $requested_url): ?array
+function suite_barrio_schema_find_webpage(string $requested_url): ?array
 {
-    $s = get_option(WPB_SCHEMA_OPTION, []);
-    $meta = get_option(WPB_META_OPTION, []);
-    $content = get_option(WPB_META_CONTENT_OPTION, []);
+    $s = get_option(SUITE_BARRIO_SCHEMA_OPTION, []);
+    $meta = get_option(SUITE_BARRIO_META_OPTION, []);
+    $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
 
     $site_url = rtrim($s['url'] ?: home_url(), '/');
     $site_name = $s['business_name'] ?: ($meta['site_title'] ?: get_bloginfo('name'));
@@ -222,8 +225,8 @@ function wpb_schema_find_webpage(string $requested_url): ?array
     $tax_list = $content['taxonomies'] ?? [];
 
     $wpml_active = defined('ICL_SITEPRESS_VERSION')
-        && function_exists('wpb_multilang_is_enabled')
-        && wpb_multilang_is_enabled();
+        && function_exists('suite_barrio_multilang_is_enabled')
+        && suite_barrio_multilang_is_enabled();
 
     $to_frontend = function (string $wp_url) use ($site_url): string {
         if (empty($wp_url))
@@ -275,7 +278,7 @@ function wpb_schema_find_webpage(string $requested_url): ?array
                 'element_type' => $post_type,
             ]);
             if ($lang_details && isset($lang_details->language_code))
-                $node_lang = wpb_schema_to_bcp47($lang_details->language_code);
+                $node_lang = suite_barrio_schema_to_bcp47($lang_details->language_code);
         }
 
         $is_home = rtrim($frontend_url, '/') === rtrim($site_url, '/');
@@ -368,7 +371,7 @@ function wpb_schema_find_webpage(string $requested_url): ?array
                     'element_type' => 'tax_' . $tax,
                 ]);
                 if ($lang_details && isset($lang_details->language_code))
-                    $node_lang = wpb_schema_to_bcp47($lang_details->language_code);
+                    $node_lang = suite_barrio_schema_to_bcp47($lang_details->language_code);
             }
 
             $page = [
@@ -407,10 +410,10 @@ function wpb_schema_find_webpage(string $requested_url): ?array
    HELPER: schema completo per una pagina
    (globale + WebPage per quell'URL)
    ───────────────────────────────────────── */
-function wpb_schema_build_page(string $url): array
+function suite_barrio_schema_build_page(string $url): array
 {
-    $schema = wpb_schema_build_global();
-    $webpage = wpb_schema_find_webpage($url);
+    $schema = suite_barrio_schema_build_global();
+    $webpage = suite_barrio_schema_find_webpage($url);
     if ($webpage)
         $schema['@graph'][] = $webpage;
     return $schema;
@@ -419,9 +422,9 @@ function wpb_schema_build_page(string $url): array
 /* ─────────────────────────────────────────
    COMPAT: alias backward-compatible
    ───────────────────────────────────────── */
-function wpb_schema_build(): array
+function suite_barrio_schema_build(): array
 {
-    return wpb_schema_build_global();
+    return suite_barrio_schema_build_global();
 }
 
 /* ─────────────────────────────────────────
@@ -441,8 +444,8 @@ add_action('graphql_register_types', function () {
         'resolve' => function ($root, array $args) {
             $uri = trim($args['uri'] ?? '');
             $schema = $uri !== ''
-                ? wpb_schema_build_page(home_url('/' . ltrim($uri, '/')))
-                : wpb_schema_build_global();
+                ? suite_barrio_schema_build_page(home_url('/' . ltrim($uri, '/')))
+                : suite_barrio_schema_build_global();
             return wp_json_encode($schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         },
     ]);
@@ -451,11 +454,11 @@ add_action('graphql_register_types', function () {
 /* ─────────────────────────────────────────
    PAGINA ADMIN
    ───────────────────────────────────────── */
-function wpb_schema_admin_page()
+function suite_barrio_schema_admin_page()
 {
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione (notice "salvato"), nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
-    $s = get_option(WPB_SCHEMA_OPTION, []);
+    $s = get_option(SUITE_BARRIO_SCHEMA_OPTION, []);
 
     $business_types = [
         'LocalBusiness' => 'LocalBusiness',
@@ -474,46 +477,46 @@ function wpb_schema_admin_page()
         'RealEstateAgent' => 'RealEstateAgent',
     ];
     ?>
-    <div id="wpb-schema-wrap" class="wrap wpb-wrap">
+    <div id="suite-barrio-schema-wrap" class="wrap suite-barrio-wrap">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-                <div class="wpb-sch-header">
-                    <div class="wpb-sch-header-icon"><span class="dashicons dashicons-networking"></span></div>
+                <div class="suite-barrio-sch-header">
+                    <div class="suite-barrio-sch-header-icon"><span class="dashicons dashicons-networking"></span></div>
                     <div>
-                        <h1>WP Barrio <span class="wpb-sch-breadcrumb">/ SEO / Schema</span></h1>
-                        <p class="wpb-sch-sub">Dati strutturati JSON-LD &mdash; esportati via GraphQL per il frontend headless
+                        <h1>Suite Barrio <span class="suite-barrio-sch-breadcrumb">/ SEO / Schema</span></h1>
+                        <p class="suite-barrio-sch-sub">Dati strutturati JSON-LD &mdash; esportati via GraphQL per il frontend headless
                         </p>
                     </div>
                 </div>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-seo')); ?>"
+                <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-seo')); ?>"
                     style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:12.5px;font-weight:600;background:#f3f4f6;color:#374151 !important;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none !important;white-space:nowrap;flex-shrink:0;align-self:flex-start;">
                     <span class="dashicons dashicons-arrow-left-alt2"
                         style="font-size:14px;width:14px;height:14px;margin-top:1px;"></span>
                     Strumenti SEO
                 </a>
             </div>
-            <hr class="wpb-sch-divider">
+            <hr class="suite-barrio-sch-divider">
 
             <?php if ($saved): ?>
-                    <div class="wpb-sch-notice-success">
+                    <div class="suite-barrio-sch-notice-success">
                         <span class="dashicons dashicons-yes-alt"></span>
                         <div>Impostazioni salvate.</div>
                     </div>
             <?php endif; ?>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('wpb_schema_save'); ?>
-                <input type="hidden" name="action" value="wpb_schema_save">
+                <?php wp_nonce_field('suite_barrio_schema_save'); ?>
+                <input type="hidden" name="action" value="suite_barrio_schema_save">
 
                 <!-- Business -->
-                <div class="wpb-schema-panel">
-                    <div class="wpb-schema-panel-header">
+                <div class="suite-barrio-schema-panel">
+                    <div class="suite-barrio-schema-panel-header">
                         <span class="dashicons dashicons-building"></span>
-                        <span class="wpb-schema-panel-header-title">Identità Business</span>
+                        <span class="suite-barrio-schema-panel-header-title">Identità Business</span>
                     </div>
-                    <div class="wpb-schema-section">
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Tipo<small>Schema.org @type</small></div>
-                            <div class="wpb-sf-input">
+                    <div class="suite-barrio-schema-section">
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Tipo<small>Schema.org @type</small></div>
+                            <div class="suite-barrio-sf-input">
                                 <select name="business_type">
                                     <?php foreach ($business_types as $val => $label): ?>
                                             <option value="<?php echo esc_attr($val); ?>" <?php selected($s['business_type'] ?? 'LocalBusiness', $val); ?>><?php echo esc_html($label); ?></option>
@@ -521,35 +524,35 @@ function wpb_schema_admin_page()
                                 </select>
                             </div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Nome<small>Nome del business</small></div>
-                            <div class="wpb-sf-input"><input type="text" name="business_name"
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Nome<small>Nome del business</small></div>
+                            <div class="suite-barrio-sf-input"><input type="text" name="business_name"
                                     value="<?php echo esc_attr($s['business_name'] ?? ''); ?>"
                                     placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>"></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Descrizione</div>
-                            <div class="wpb-sf-input"><textarea
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Descrizione</div>
+                            <div class="suite-barrio-sf-input"><textarea
                                     name="description"><?php echo esc_textarea($s['description'] ?? ''); ?></textarea></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">URL sito</div>
-                            <div class="wpb-sf-input"><input type="url" name="url"
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">URL sito</div>
+                            <div class="suite-barrio-sf-input"><input type="url" name="url"
                                     value="<?php echo esc_attr($s['url'] ?? home_url()); ?>"></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Logo URL</div>
-                            <div class="wpb-sf-input"><input type="url" name="logo"
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Logo URL</div>
+                            <div class="suite-barrio-sf-input"><input type="url" name="logo"
                                     value="<?php echo esc_attr($s['logo'] ?? ''); ?>" placeholder="https://…/logo.png"></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Immagine principale</div>
-                            <div class="wpb-sf-input"><input type="url" name="image"
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Immagine principale</div>
+                            <div class="suite-barrio-sf-input"><input type="url" name="image"
                                     value="<?php echo esc_attr($s['image'] ?? ''); ?>" placeholder="https://…/cover.jpg"></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Lingua<small>Lingua principale del sito</small></div>
-                            <div class="wpb-sf-input">
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Lingua<small>Lingua principale del sito</small></div>
+                            <div class="suite-barrio-sf-input">
                                 <?php
                                 $current_lang = $s['language'] ?? 'it-IT';
                                 $lang_options = [
@@ -599,46 +602,46 @@ function wpb_schema_admin_page()
                 </div>
 
                 <!-- Contatti -->
-                <div class="wpb-schema-panel">
-                    <div class="wpb-schema-panel-header">
+                <div class="suite-barrio-schema-panel">
+                    <div class="suite-barrio-schema-panel-header">
                         <span class="dashicons dashicons-phone"></span>
-                        <span class="wpb-schema-panel-header-title">Contatti</span>
+                        <span class="suite-barrio-schema-panel-header-title">Contatti</span>
                     </div>
-                    <div class="wpb-schema-section">
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Telefono</div>
-                            <div class="wpb-sf-input"><input type="text" name="telephone"
+                    <div class="suite-barrio-schema-section">
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Telefono</div>
+                            <div class="suite-barrio-sf-input"><input type="text" name="telephone"
                                     value="<?php echo esc_attr($s['telephone'] ?? ''); ?>" placeholder="+390000000000"></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Email</div>
-                            <div class="wpb-sf-input"><input type="email" name="email"
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Email</div>
+                            <div class="suite-barrio-sf-input"><input type="email" name="email"
                                     value="<?php echo esc_attr($s['email'] ?? ''); ?>"></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Partita IVA</div>
-                            <div class="wpb-sf-input"><input type="text" name="vat_id"
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Partita IVA</div>
+                            <div class="suite-barrio-sf-input"><input type="text" name="vat_id"
                                     value="<?php echo esc_attr($s['vat_id'] ?? ''); ?>" placeholder="IT00000000000"></div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Indirizzo -->
-                <div class="wpb-schema-panel">
-                    <div class="wpb-schema-panel-header">
+                <div class="suite-barrio-schema-panel">
+                    <div class="suite-barrio-schema-panel-header">
                         <span class="dashicons dashicons-location"></span>
-                        <span class="wpb-schema-panel-header-title">Indirizzo &amp; Posizione</span>
+                        <span class="suite-barrio-schema-panel-header-title">Indirizzo &amp; Posizione</span>
                     </div>
-                    <div class="wpb-schema-section">
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Via / Indirizzo</div>
-                            <div class="wpb-sf-input"><input type="text" name="street_address"
+                    <div class="suite-barrio-schema-section">
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Via / Indirizzo</div>
+                            <div class="suite-barrio-sf-input"><input type="text" name="street_address"
                                     value="<?php echo esc_attr($s['street_address'] ?? ''); ?>"></div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">CAP e Città</div>
-                            <div class="wpb-sf-input">
-                                <div class="wpb-sf-pair">
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">CAP e Città</div>
+                            <div class="suite-barrio-sf-input">
+                                <div class="suite-barrio-sf-pair">
                                     <input type="text" name="postal_code"
                                         value="<?php echo esc_attr($s['postal_code'] ?? ''); ?>" placeholder="CAP"
                                         style="max-width:100px;">
@@ -647,10 +650,10 @@ function wpb_schema_admin_page()
                                 </div>
                             </div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Provincia / Nazione</div>
-                            <div class="wpb-sf-input">
-                                <div class="wpb-sf-pair">
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Provincia / Nazione</div>
+                            <div class="suite-barrio-sf-input">
+                                <div class="suite-barrio-sf-pair">
                                     <input type="text" name="region" value="<?php echo esc_attr($s['region'] ?? ''); ?>"
                                         placeholder="Provincia" style="max-width:100px;">
                                     <input type="text" name="country" value="<?php echo esc_attr($s['country'] ?? 'IT'); ?>"
@@ -658,10 +661,10 @@ function wpb_schema_admin_page()
                                 </div>
                             </div>
                         </div>
-                        <div class="wpb-sf-row">
-                            <div class="wpb-sf-label">Coordinate GPS<small>latitudine, longitudine</small></div>
-                            <div class="wpb-sf-input">
-                                <div class="wpb-sf-pair">
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label">Coordinate GPS<small>latitudine, longitudine</small></div>
+                            <div class="suite-barrio-sf-input">
+                                <div class="suite-barrio-sf-pair">
                                     <input type="text" name="latitude" value="<?php echo esc_attr($s['latitude'] ?? ''); ?>"
                                         placeholder="44.1234">
                                     <input type="text" name="longitude" value="<?php echo esc_attr($s['longitude'] ?? ''); ?>"
@@ -673,21 +676,21 @@ function wpb_schema_admin_page()
                 </div>
 
                 <!-- Social -->
-                <div class="wpb-schema-panel">
-                    <div class="wpb-schema-panel-header">
+                <div class="suite-barrio-schema-panel">
+                    <div class="suite-barrio-schema-panel-header">
                         <span class="dashicons dashicons-share"></span>
-                        <span class="wpb-schema-panel-header-title">Social (sameAs)</span>
+                        <span class="suite-barrio-schema-panel-header-title">Social (sameAs)</span>
                     </div>
-                    <div class="wpb-schema-section">
+                    <div class="suite-barrio-schema-section">
                         <?php foreach ([
                             'facebook' => ['Facebook', 'https://www.facebook.com/…'],
                             'instagram' => ['Instagram', 'https://www.instagram.com/…'],
                             'twitter' => ['Twitter/X', 'https://x.com/…'],
                             'linkedin' => ['LinkedIn', 'https://www.linkedin.com/…'],
                         ] as $field => [$label, $ph]): ?>
-                                <div class="wpb-sf-row">
-                                    <div class="wpb-sf-label"><?php echo esc_html($label); ?></div>
-                                    <div class="wpb-sf-input"><input type="url" name="<?php echo esc_attr($field); ?>"
+                                <div class="suite-barrio-sf-row">
+                                    <div class="suite-barrio-sf-label"><?php echo esc_html($label); ?></div>
+                                    <div class="suite-barrio-sf-input"><input type="url" name="<?php echo esc_attr($field); ?>"
                                             value="<?php echo esc_attr($s[$field] ?? ''); ?>"
                                             placeholder="<?php echo esc_attr($ph); ?>"></div>
                                 </div>
@@ -695,7 +698,7 @@ function wpb_schema_admin_page()
                     </div>
                 </div>
 
-                <button type="submit" class="wpb-sch-save-btn">
+                <button type="submit" class="suite-barrio-sch-save-btn">
                     <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
                     Salva impostazioni
                 </button>
@@ -705,7 +708,7 @@ function wpb_schema_admin_page()
             <div style="margin-top:32px;">
                 <h2 style="font-size:14px;font-weight:700;color:#111827;margin:0 0 10px;">Anteprima Schema globale (LocalBusiness + WebSite)</h2>
                 <?php
-                $preview = wpb_schema_build_global();
+                $preview = suite_barrio_schema_build_global();
                 $json = wp_json_encode($preview, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
                 $json_hl = preg_replace(
                     ['/"([^"]+)"\s*:/', '/"([^"]*)"(?!\s*:)/', '/\b(\d+\.?\d*)\b/', '/\b(true|false|null)\b/'],
@@ -713,7 +716,7 @@ function wpb_schema_admin_page()
                     htmlspecialchars($json)
                 );
                 ?>
-                <div class="wpb-schema-preview"><?php echo wp_kses_post($json_hl); ?></div>
+                <div class="suite-barrio-schema-preview"><?php echo wp_kses_post($json_hl); ?></div>
             </div>
         </div>
         <?php

@@ -2,12 +2,226 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_CP_LOG_OPTION', 'wpb_cp_log');
-define('WPB_CP_LOG_MAX', 100);
+define('SUITE_BARRIO_CP_LOG_OPTION', 'wpb_cp_log');
+define('SUITE_BARRIO_CP_LOG_MAX', 100);
 
 add_action('admin_menu', function () {
-    add_submenu_page('wp-barrio', 'Cookie e Privacy', 'Cookie e Privacy', 'manage_options', 'wp-barrio-cookie-privacy', 'wpb_cp_admin_page');
+    add_submenu_page('suite-barrio', 'Cookie e Privacy', 'Cookie e Privacy', 'manage_options', 'suite-barrio-cookie-privacy', 'suite_barrio_cp_admin_page');
 }, 13);
+
+/* ─────────────────────────────────────────
+   ENQUEUE — JS della pagina Cookie e Privacy
+   ───────────────────────────────────────── */
+add_action('admin_enqueue_scripts', function ($hook) {
+    if ($hook !== 'suite-barrio_page_suite-barrio-cookie-privacy')
+        return;
+
+    wp_register_script('suite-barrio-cp-admin', '', [], SUITE_BARRIO_VERSION, true);
+    wp_enqueue_script('suite-barrio-cp-admin');
+
+    // Script comune a tutte le tab della pagina (log, provider AI, generazione policy)
+    $suite_barrio_cp_admin_js = '(function () {
+    var ajaxUrl = SUITE_BARRIO_CP_AJAX_URL;
+    var nonce = SUITE_BARRIO_CP_NONCE;
+
+    var clearLogBtn = document.getElementById(\'suite-barrio-cp-clear-log\');
+    if (clearLogBtn) {
+        clearLogBtn.addEventListener(\'click\', function () {
+            if (!confirm(\'Svuotare il log?\')) return;
+            var fd = new FormData();
+            fd.append(\'action\', \'suite_barrio_cp_clear_log\');
+            fd.append(\'nonce\', nonce);
+            fetch(ajaxUrl, { method: \'POST\', body: fd }).then(function () { window.location.reload(); });
+        });
+    }
+
+    var provSel = document.getElementById(\'suite-barrio-cp-provider-sel\');
+    if (provSel) {
+        provSel.addEventListener(\'change\', function () {
+            var ant = document.getElementById(\'suite-barrio-cp-anthropic-row\');
+            var gem = document.getElementById(\'suite-barrio-cp-gemini-row\');
+            if (this.value === \'gemini\') {
+                ant.style.display = \'none\';
+                gem.style.display = \'\';
+            } else {
+                ant.style.display = \'\';
+                gem.style.display = \'none\';
+            }
+        });
+    }
+
+    var loadModelsBtn = document.getElementById(\'suite-barrio-cp-load-models\');
+    if (loadModelsBtn) {
+        loadModelsBtn.addEventListener(\'click\', function () {
+            var prov = document.getElementById(\'suite-barrio-cp-provider-sel\').value;
+            var sel = document.getElementById(\'suite-barrio-cp-model-sel\');
+            this.disabled = true;
+            this.textContent = \'Caricamento...\';
+            var fd = new FormData();
+            fd.append(\'action\', \'suite_barrio_cp_fetch_models\');
+            fd.append(\'nonce\', nonce);
+            fd.append(\'provider\', prov);
+            fd.append(\'force\', \'1\');
+            var btn = this;
+            fetch(ajaxUrl, { method: \'POST\', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
+                if (!res.success || res.data.error) {
+                    alert(res.data.error || \'Impossibile caricare i modelli.\');
+                    return;
+                }
+                var current = sel.value;
+                while (sel.options.length > 1) sel.remove(1);
+                (res.data || []).forEach(function (m) {
+                    var opt = document.createElement(\'option\');
+                    opt.value = m;
+                    opt.textContent = m;
+                    if (m === current) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            }).finally(function () {
+                btn.disabled = false;
+                btn.textContent = \'Carica modelli\';
+            });
+        });
+    }
+
+    /* ── Generazione asincrona Privacy / Cookie / Entrambe ── */
+    var genBtns = document.querySelectorAll(\'.suite-barrio-cp-gen-btn\');
+    var progressBox = document.getElementById(\'suite-barrio-cp-gen-progress\');
+    var resultBox = document.getElementById(\'suite-barrio-cp-gen-result\');
+
+    if (genBtns.length && progressBox && resultBox) {
+        var allRows = progressBox.querySelectorAll(\'.suite-barrio-cp-gen-row\');
+
+        var setRowState = function (policy, state, statusText) {
+            var row = progressBox.querySelector(\'.suite-barrio-cp-gen-row[data-policy="\' + policy + \'"]\');
+            if (!row) return;
+            row.classList.remove(\'is-running\', \'is-success\', \'is-error\', \'is-hidden\');
+            if (state) row.classList.add(\'is-\' + state);
+            row.querySelector(\'.suite-barrio-cp-gen-status\').textContent = statusText;
+        };
+
+        var showRows = function (policies) {
+            allRows.forEach(function (row) {
+                var pol = row.getAttribute(\'data-policy\');
+                if (policies.indexOf(pol) === -1) {
+                    row.classList.add(\'is-hidden\');
+                } else {
+                    row.classList.remove(\'is-hidden\');
+                }
+            });
+        };
+
+        var generateOne = function (policy) {
+            var label = policy === \'privacy\' ? \'Privacy Policy\' : \'Cookie Policy\';
+            setRowState(policy, \'running\', \'Generazione in corso…\');
+
+            var fd = new FormData();
+            fd.append(\'action\', \'suite_barrio_cp_generate_\' + policy);
+            fd.append(\'nonce\', nonce);
+
+            return fetch(ajaxUrl, { method: \'POST\', body: fd, credentials: \'same-origin\' })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res && res.success) {
+                        setRowState(policy, \'success\', \'Aggiornata: \' + (res.data.page_title || \'\'));
+                        return { policy: policy, label: label, ok: true, data: res.data };
+                    }
+                    var msg = (res && res.data && res.data.message) ? res.data.message : \'Errore sconosciuto\';
+                    var plain = (new DOMParser()).parseFromString(msg, \'text/html\').body.textContent || \'\';
+                    setRowState(policy, \'error\', plain);
+                    return { policy: policy, label: label, ok: false, error: msg };
+                })
+                .catch(function (err) {
+                    setRowState(policy, \'error\', \'Errore di rete\');
+                    return { policy: policy, label: label, ok: false, error: \'Errore di rete\' };
+                });
+        };
+
+        var renderResult = function (results) {
+            var okCount = results.filter(function (r) { return r.ok; }).length;
+            var klass, icon, html;
+
+            if (okCount === results.length && results.length > 1) {
+                klass = \'is-success\'; icon = \'yes-alt\';
+                html = \'<strong>Privacy Policy e Cookie Policy</strong> generate e salvate.\';
+            } else if (okCount === results.length && results.length === 1) {
+                klass = \'is-success\'; icon = \'yes-alt\';
+                html = \'<strong>\' + results[0].label + \'</strong> generata e salvata.\';
+            } else if (okCount === 0) {
+                klass = \'is-error\'; icon = \'warning\';
+                html = \'<strong>Generazione fallita.</strong><br>\'
+                    + results.map(function (r) { return r.label + \': \' + r.error; }).join(\'<br>\');
+            } else {
+                klass = \'is-mixed\'; icon = \'warning\';
+                html = \'<strong>Generazione parziale.</strong><br>\'
+                    + results.map(function (r) {
+                        return r.ok ? r.label + \': aggiornata.\' : r.label + \': \' + r.error;
+                    }).join(\'<br>\');
+            }
+
+            resultBox.innerHTML =
+                \'<div class="suite-barrio-cp-gen-result-box \' + klass + \'">\'
+                + \'<span class="dashicons dashicons-\' + icon + \'"></span>\'
+                + \'<div>\' + html + \'</div></div>\';
+        };
+
+        var setBtnsDisabled = function (disabled) {
+            genBtns.forEach(function (b) { b.disabled = disabled; });
+        };
+
+        genBtns.forEach(function (btn) {
+            btn.addEventListener(\'click\', function () {
+                var target = btn.getAttribute(\'data-generate\');
+                var policies = target === \'both\' ? [\'privacy\', \'cookie\']
+                    : target === \'privacy\' ? [\'privacy\']
+                        : [\'cookie\'];
+
+                setBtnsDisabled(true);
+                resultBox.innerHTML = \'\';
+                progressBox.hidden = false;
+                showRows(policies);
+                policies.forEach(function (p) { setRowState(p, \'running\', \'Generazione in corso…\'); });
+
+                var jobs = policies.map(function (p) { return generateOne(p); });
+
+                Promise.all(jobs)
+                    .then(function (results) { renderResult(results); })
+                    .finally(function () { setBtnsDisabled(false); });
+            });
+        });
+    }
+})();';
+
+    $suite_barrio_cp_admin_js = str_replace(
+        ['SUITE_BARRIO_CP_AJAX_URL', 'SUITE_BARRIO_CP_NONCE'],
+        [wp_json_encode(admin_url('admin-ajax.php')), wp_json_encode(wp_create_nonce('suite_barrio_cp_nonce'))],
+        $suite_barrio_cp_admin_js
+    );
+
+    wp_add_inline_script('suite-barrio-cp-admin', $suite_barrio_cp_admin_js);
+
+    // Script solo per la tab "settings" (bottone "Usa endpoint Suite Barrio")
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+    $suite_barrio_cp_tab = sanitize_key($_GET['tab'] ?? 'generate');
+    if ($suite_barrio_cp_tab === 'settings') {
+        $suite_barrio_cp_settings_js = 'document.getElementById(\'suite-barrio-cp-use-endpoint\').addEventListener(\'click\', function(){
+    if (!confirm(\'Sovrascrivere il Cookie report script con l\\\'endpoint Suite Barrio?\')) return;
+    document.getElementById(\'wpb_cp_cookie_report_script\').value =
+        \'<script>\\nfetch(\\\'\' + SUITE_BARRIO_CP_PREFERENCES_ENDPOINT + \'\\\')\\n\'
+        + \'  .then(function(r){ return r.json(); })\\n\'
+        + \'  .then(function(res){ document.getElementById(\\\'suite-barrio-cookie-preferences\\\').innerHTML = res.html || \\\'\\\'; });\\n\'
+        + \'<\\/script>\\n<div id="suite-barrio-cookie-preferences"></div>\';
+});';
+
+        $suite_barrio_cp_settings_js = str_replace(
+            'SUITE_BARRIO_CP_PREFERENCES_ENDPOINT',
+            wp_json_encode(rest_url('wpb/v1/cookie-banner/preferences-html')),
+            $suite_barrio_cp_settings_js
+        );
+
+        wp_add_inline_script('suite-barrio-cp-admin', $suite_barrio_cp_settings_js);
+    }
+});
 
 add_action('admin_init', function () {
     register_setting('wpb_cp_content_settings', 'wpb_cp_privacy_page_id', ['sanitize_callback' => 'absint']);
@@ -48,7 +262,7 @@ add_action('admin_init', function () {
                 false // no autoload
             );
             // Aggiorna subito la pagina cookie policy con il nuovo script
-            wpb_cp_sync_report_script_to_page();
+            suite_barrio_cp_sync_report_script_to_page();
         }
     }
 }, 1); // Priorità 1: prima di options.php
@@ -59,7 +273,7 @@ add_action('admin_init', function () {
    strippato da options.php / kses / WAF.
    Gestisce anche l'eventuale valore legacy (non base64).
    ───────────────────────────────────────── */
-function wpb_cp_get_cookie_report_script(): string
+function suite_barrio_cp_get_cookie_report_script(): string
 {
     $raw = (string) get_option('wpb_cp_cookie_report_script', '');
     if ($raw === '') {
@@ -80,7 +294,7 @@ function wpb_cp_get_cookie_report_script(): string
    nella pagina Cookie Policy e lo sostituisce con il valore attuale del campo.
    Se il blocco non esiste lo aggiunge in coda. Se lo script è vuoto lo rimuove.
    ───────────────────────────────────────── */
-function wpb_cp_sync_report_script_to_page(): void
+function suite_barrio_cp_sync_report_script_to_page(): void
 {
     $cookie_id = absint(get_option('wpb_cp_cookie_page_id', 0));
     if (!$cookie_id) return;
@@ -88,7 +302,7 @@ function wpb_cp_sync_report_script_to_page(): void
     $page = get_post($cookie_id);
     if (!$page || $page->post_type !== 'page') return;
 
-    $script  = wpb_cp_get_cookie_report_script();
+    $script  = suite_barrio_cp_get_cookie_report_script();
     $content = $page->post_content;
 
     // Pattern: heading "Cookie utilizzati su questo sito" + blocco wp:html
@@ -120,14 +334,14 @@ function wpb_cp_sync_report_script_to_page(): void
 
 /* ─────────────────────────────────────────
    HELPER: dominio del sito.
-   Deriva l'host dal campo "Sito web" di WP Barrio → Info Azienda.
+   Deriva l'host dal campo "Sito web" di Suite Barrio → Info Azienda.
    Fallback: dominio del sito WordPress (home_url).
    ───────────────────────────────────────── */
-function wpb_cp_get_domain(): string
+function suite_barrio_cp_get_domain(): string
 {
     $url = '';
-    if (function_exists('wpb_company_info_get')) {
-        $info = wpb_company_info_get();
+    if (function_exists('suite_barrio_company_info_get')) {
+        $info = suite_barrio_company_info_get();
         $url = trim((string) ($info['sito_web'] ?? ''));
     }
 
@@ -152,7 +366,7 @@ function wpb_cp_get_domain(): string
    utili (ragione sociale, sede legale, contatti fiscali).
    Tutti i valori sono stringhe (vuote se assenti).
    ───────────────────────────────────────── */
-function wpb_cp_company_data(): array
+function suite_barrio_cp_company_data(): array
 {
     $defaults = [
         'ragione_sociale' => '',
@@ -173,11 +387,11 @@ function wpb_cp_company_data(): array
         'sede_provincia' => '',
     ];
 
-    if (!function_exists('wpb_company_info_get')) {
+    if (!function_exists('suite_barrio_company_info_get')) {
         return $defaults;
     }
 
-    $info = wpb_company_info_get();
+    $info = suite_barrio_company_info_get();
     $out = $defaults;
     foreach ($defaults as $key => $_) {
         $out[$key] = trim((string) ($info[$key] ?? ''));
@@ -191,7 +405,7 @@ function wpb_cp_company_data(): array
    viene preposto al contenuto della Privacy Policy.
    I campi vuoti vengono omessi automaticamente.
    ───────────────────────────────────────── */
-function wpb_cp_company_block_html(array $c): string
+function suite_barrio_cp_company_block_html(array $c): string
 {
     if ($c['ragione_sociale'] === '') {
         return '';
@@ -256,7 +470,7 @@ function wpb_cp_company_block_html(array $c): string
    HELPER: testo dei dati aziendali da iniettare nel prompt.
    Formato leggibile dall'AI con tutti i campi disponibili.
    ───────────────────────────────────────── */
-function wpb_cp_company_data_for_prompt(array $c): string
+function suite_barrio_cp_company_data_for_prompt(array $c): string
 {
     $lines = [];
     $map = [
@@ -289,7 +503,7 @@ function wpb_cp_company_data_for_prompt(array $c): string
    HELPER: genera UNA policy (privacy o cookie) e la salva.
    Usata da entrambi gli endpoint AJAX in parallelo.
    ───────────────────────────────────────── */
-function wpb_cp_generate_and_save_policy(string $policy_type, int $page_id, array $company, string $domain): array
+function suite_barrio_cp_generate_and_save_policy(string $policy_type, int $page_id, array $company, string $domain): array
 {
     $page = $page_id ? get_post($page_id) : null;
     if (!$page || $page->post_type !== 'page') {
@@ -298,10 +512,10 @@ function wpb_cp_generate_and_save_policy(string $policy_type, int $page_id, arra
 
     // Cookie report (script fornito dal provider di cookie management)
     $cookie_report = $policy_type === 'cookie'
-        ? wpb_cp_get_cookie_report_script()
+        ? suite_barrio_cp_get_cookie_report_script()
         : '';
 
-    $result = wpb_cp_call_ai(wpb_cp_policy_prompt(
+    $result = suite_barrio_cp_call_ai(suite_barrio_cp_policy_prompt(
         $policy_type,
         $domain,
         $page,
@@ -312,7 +526,7 @@ function wpb_cp_generate_and_save_policy(string $policy_type, int $page_id, arra
         return ['success' => false, 'message' => $result['error']];
     }
 
-    $content = wpb_cp_clean_generated_html($result['text'] ?? '');
+    $content = suite_barrio_cp_clean_generated_html($result['text'] ?? '');
     if (!$content) {
         return ['success' => false, 'message' => 'Contenuto generato vuoto o non valido.'];
     }
@@ -320,7 +534,7 @@ function wpb_cp_generate_and_save_policy(string $policy_type, int $page_id, arra
     // Per la privacy, preponiamo il blocco "Titolare del trattamento"
     // costruito server-side dai dati di Info Azienda.
     if ($policy_type === 'privacy') {
-        $block = wpb_cp_company_block_html($company);
+        $block = suite_barrio_cp_company_block_html($company);
         if ($block !== '') {
             $content = wp_kses_post($block) . "\n\n" . $content;
         }
@@ -364,9 +578,9 @@ function wpb_cp_generate_and_save_policy(string $policy_type, int $page_id, arra
 /* ─────────────────────────────────────────
    AJAX: validazione comune + dispatch
    ───────────────────────────────────────── */
-function wpb_cp_ajax_generate(string $policy_type): void
+function suite_barrio_cp_ajax_generate(string $policy_type): void
 {
-    check_ajax_referer('wpb_cp_nonce', 'nonce');
+    check_ajax_referer('suite_barrio_cp_nonce', 'nonce');
     if (!current_user_can('manage_options')) {
         wp_send_json_error(['message' => 'Permesso negato.'], 403);
     }
@@ -377,20 +591,20 @@ function wpb_cp_ajax_generate(string $policy_type): void
         @set_time_limit(180);
     }
 
-    $domain = wpb_cp_get_domain();
+    $domain = suite_barrio_cp_get_domain();
     if ($domain === '') {
         wp_send_json_error([
             'message' => 'Dominio mancante. Compila il "Sito web" in <a href="'
-                . esc_url(admin_url('admin.php?page=wp-barrio-info-azienda&tab=dati'))
+                . esc_url(admin_url('admin.php?page=suite-barrio-info-azienda&tab=dati'))
                 . '">Info Azienda</a>.',
         ]);
     }
 
-    $company = wpb_cp_company_data();
+    $company = suite_barrio_cp_company_data();
     if ($company['ragione_sociale'] === '') {
         wp_send_json_error([
             'message' => 'Compila almeno la <strong>Ragione sociale</strong> in <a href="'
-                . esc_url(admin_url('admin.php?page=wp-barrio-info-azienda&tab=dati'))
+                . esc_url(admin_url('admin.php?page=suite-barrio-info-azienda&tab=dati'))
                 . '">Info Azienda</a> prima di generare le policy.',
         ]);
     }
@@ -405,7 +619,7 @@ function wpb_cp_ajax_generate(string $policy_type): void
     }
 
     $page_id = $policy_type === 'privacy' ? $privacy_id : $cookie_id;
-    $result = wpb_cp_generate_and_save_policy($policy_type, $page_id, $company, $domain);
+    $result = suite_barrio_cp_generate_and_save_policy($policy_type, $page_id, $company, $domain);
 
     if (!$result['success']) {
         wpb_cp_log('error', $domain, ucfirst($policy_type) . ' Policy: ' . $result['message']);
@@ -425,31 +639,31 @@ function wpb_cp_ajax_generate(string $policy_type): void
     ]);
 }
 
-add_action('wp_ajax_wpb_cp_generate_privacy', function () {
-    wpb_cp_ajax_generate('privacy');
+add_action('wp_ajax_suite_barrio_cp_generate_privacy', function () {
+    suite_barrio_cp_ajax_generate('privacy');
 });
 
-add_action('wp_ajax_wpb_cp_generate_cookie', function () {
-    wpb_cp_ajax_generate('cookie');
+add_action('wp_ajax_suite_barrio_cp_generate_cookie', function () {
+    suite_barrio_cp_ajax_generate('cookie');
 });
 
 function wpb_cp_log(string $status, string $target, string $note): void
 {
     if (!get_option('wpb_cp_log_enabled', 1))
         return;
-    $log = get_option(WPB_CP_LOG_OPTION, []);
+    $log = get_option(SUITE_BARRIO_CP_LOG_OPTION, []);
     array_unshift($log, [
         'ts' => current_time('timestamp'),
         'status' => $status,
         'target' => $target,
         'note' => $note,
     ]);
-    if (count($log) > WPB_CP_LOG_MAX)
-        $log = array_slice($log, 0, WPB_CP_LOG_MAX);
-    update_option(WPB_CP_LOG_OPTION, $log, false);
+    if (count($log) > SUITE_BARRIO_CP_LOG_MAX)
+        $log = array_slice($log, 0, SUITE_BARRIO_CP_LOG_MAX);
+    update_option(SUITE_BARRIO_CP_LOG_OPTION, $log, false);
 }
 
-function wpb_cp_active_key(): string
+function suite_barrio_cp_active_key(): string
 {
     $provider = get_option('wpb_cp_provider', 'gemini');
     return $provider === 'anthropic'
@@ -457,10 +671,10 @@ function wpb_cp_active_key(): string
         : get_option('wpb_cp_gemini_key', '');
 }
 
-function wpb_cp_call_ai(string $prompt): array
+function suite_barrio_cp_call_ai(string $prompt): array
 {
     $provider = get_option('wpb_cp_provider', 'gemini');
-    $key = wpb_cp_active_key();
+    $key = suite_barrio_cp_active_key();
     $model = get_option('wpb_cp_model', '');
     if (!$key)
         return ['error' => 'Chiave API non configurata.'];
@@ -508,7 +722,7 @@ function wpb_cp_call_ai(string $prompt): array
     return ['text' => $body['candidates'][0]['content']['parts'][0]['text'] ?? ''];
 }
 
-function wpb_cp_policy_prompt(string $policy_type, string $domain, WP_Post $page, array $company = [], bool $cookie_report_present = false): string
+function suite_barrio_cp_policy_prompt(string $policy_type, string $domain, WP_Post $page, array $company = [], bool $cookie_report_present = false): string
 {
     $site_name = get_bloginfo('name');
     $lang = get_bloginfo('language');
@@ -517,13 +731,13 @@ function wpb_cp_policy_prompt(string $policy_type, string $domain, WP_Post $page
         ? 'trattamento dei dati personali, basi giuridiche, finalita, conservazione, diritti degli interessati e trasferimenti'
         : 'uso dei cookie, categorie di cookie, finalita, gestione consenso, cookie tecnici, analitici, marketing e modalita di modifica preferenze';
 
-    $company_block = !empty($company) ? wpb_cp_company_data_for_prompt($company) : '';
+    $company_block = !empty($company) ? suite_barrio_cp_company_data_for_prompt($company) : '';
     $company_section = $company_block !== ''
         ? "DATI AZIENDALI VERIFICATI (unica fonte di verità per qualsiasi riferimento al titolare/azienda):\n$company_block\n"
         : '';
 
-    $services_block   = function_exists('wpb_cb_get_services_for_prompt')
-        ? wpb_cb_get_services_for_prompt()
+    $services_block   = function_exists('suite_barrio_cb_get_services_for_prompt')
+        ? suite_barrio_cb_get_services_for_prompt()
         : '';
     $services_section = $services_block !== ''
         ? "SERVIZI E COOKIE RILEVATI (usa questi dati nella sezione cookie della policy, non inventarne altri):\n$services_block\n"
@@ -576,7 +790,7 @@ function wpb_cp_policy_prompt(string $policy_type, string $domain, WP_Post $page
         . "- non aggiungere introduzioni sul fatto che sei un'AI";
 }
 
-function wpb_cp_clean_generated_html(string $text): string
+function suite_barrio_cp_clean_generated_html(string $text): string
 {
     $text = trim($text);
     $text = preg_replace('/^```(?:html)?\s*/i', '', $text);
@@ -584,22 +798,22 @@ function wpb_cp_clean_generated_html(string $text): string
     return wp_kses_post(trim($text));
 }
 
-add_action('wp_ajax_wpb_cp_clear_log', function () {
-    check_ajax_referer('wpb_cp_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_cp_clear_log', function () {
+    check_ajax_referer('suite_barrio_cp_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
-    delete_option(WPB_CP_LOG_OPTION);
+    delete_option(SUITE_BARRIO_CP_LOG_OPTION);
     wp_send_json_success();
 });
 
-add_action('wp_ajax_wpb_cp_fetch_models', function () {
-    check_ajax_referer('wpb_cp_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_cp_fetch_models', function () {
+    check_ajax_referer('suite_barrio_cp_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
 
     $provider = sanitize_key($_POST['provider'] ?? 'gemini');
     $force = !empty($_POST['force']);
-    $cache_key = 'wpb_cp_models_' . $provider;
+    $cache_key = 'suite_barrio_cp_models_' . $provider;
     if ($force)
         delete_transient($cache_key);
     $cached = get_transient($cache_key);
@@ -645,42 +859,42 @@ add_action('wp_ajax_wpb_cp_fetch_models', function () {
     wp_send_json_success($models);
 });
 
-function wpb_cp_admin_page()
+function suite_barrio_cp_admin_page()
 {
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = sanitize_key($_GET['tab'] ?? 'generate');
-    $nonce = wp_create_nonce('wpb_cp_nonce');
+    $nonce = wp_create_nonce('suite_barrio_cp_nonce');
     $provider = get_option('wpb_cp_provider', 'gemini');
     $model = get_option('wpb_cp_model', '');
-    $log = get_option(WPB_CP_LOG_OPTION, []);
+    $log = get_option(SUITE_BARRIO_CP_LOG_OPTION, []);
     $pages = get_pages(['sort_column' => 'post_title', 'sort_order' => 'ASC', 'post_status' => ['publish', 'draft', 'private']]);
     $notice = [];
-    $saved_domain = wpb_cp_get_domain();
+    $saved_domain = suite_barrio_cp_get_domain();
     $selected_privacy_page_id = absint(get_option('wpb_cp_privacy_page_id', 0));
     $selected_cookie_page_id = absint(get_option('wpb_cp_cookie_page_id', 0));
-    $cookie_report_script = wpb_cp_get_cookie_report_script();
+    $cookie_report_script = suite_barrio_cp_get_cookie_report_script();
     ?>
-<div id="wpb-cp-wrap" class="wrap wpb-wrap">
-        <div class="wpb-cp-header">
-            <div class="wpb-cp-header-icon"><span class="dashicons dashicons-shield"></span></div>
+<div id="suite-barrio-cp-wrap" class="wrap suite-barrio-wrap">
+        <div class="suite-barrio-cp-header">
+            <div class="suite-barrio-cp-header-icon"><span class="dashicons dashicons-shield"></span></div>
             <div>
-                <h1>WP Barrio <span class="wpb-cp-breadcrumb">/ Cookie e Privacy</span></h1>
-                <p class="wpb-cp-sub">Genera documenti privacy e cookie policy con AI per il sito corrente</p>
+                <h1>Suite Barrio <span class="suite-barrio-cp-breadcrumb">/ Cookie e Privacy</span></h1>
+                <p class="suite-barrio-cp-sub">Genera documenti privacy e cookie policy con AI per il sito corrente</p>
             </div>
         </div>
-        <hr class="wpb-cp-divider">
+        <hr class="suite-barrio-cp-divider">
 
         <?php
-        $registered_tabs = apply_filters('wpb_cp_tabs', [
+        $registered_tabs = apply_filters('suite_barrio_cp_tabs', [
             'generate' => ['label' => 'Genera',       'icon' => 'media-text'],
             'log'      => ['label' => 'Log',          'icon' => 'list-view'],
             'settings' => ['label' => 'Impostazioni', 'icon' => 'admin-generic'],
         ]);
         ?>
-        <div class="wpb-cp-tabs">
+        <div class="suite-barrio-cp-tabs">
             <?php foreach ($registered_tabs as $tab_key => $tab_def): ?>
-                <a class="wpb-cp-tab <?php echo $tab === $tab_key ? 'active' : ''; ?>"
-                   href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-cookie-privacy&tab=' . urlencode($tab_key))); ?>">
+                <a class="suite-barrio-cp-tab <?php echo $tab === $tab_key ? 'active' : ''; ?>"
+                   href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-cookie-privacy&tab=' . urlencode($tab_key))); ?>">
                     <span class="dashicons dashicons-<?php echo esc_attr($tab_def['icon']); ?>"></span>
                     <?php echo esc_html($tab_def['label']); ?>
                 </a>
@@ -690,7 +904,7 @@ function wpb_cp_admin_page()
         <?php if ($tab === 'settings'): ?>
             <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione ?>
             <?php if (isset($_GET['settings-updated'])): ?>
-                <div class="wpb-cp-notice-success"><span class="dashicons dashicons-yes-alt"></span>
+                <div class="suite-barrio-cp-notice-success"><span class="dashicons dashicons-yes-alt"></span>
                     <div>Impostazioni salvate.</div>
                 </div>
             <?php endif; ?>
@@ -698,49 +912,49 @@ function wpb_cp_admin_page()
             <form method="post" action="options.php" style="max-width:640px;">
                 <?php settings_fields('wpb_cp_settings'); ?>
 
-                <div class="wpb-settings-card">
-                    <div class="wpb-settings-card-header">Provider AI</div>
-                    <div class="wpb-settings-card-body">
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Provider<small>Seleziona il servizio AI</small></div>
-                            <div class="wpb-settings-input">
-                                <select name="wpb_cp_provider" id="wpb-cp-provider-sel">
+                <div class="suite-barrio-settings-card">
+                    <div class="suite-barrio-settings-card-header">Provider AI</div>
+                    <div class="suite-barrio-settings-card-body">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Provider<small>Seleziona il servizio AI</small></div>
+                            <div class="suite-barrio-settings-input">
+                                <select name="wpb_cp_provider" id="suite-barrio-cp-provider-sel">
                                     <option value="anthropic" <?php selected($provider, 'anthropic'); ?>>Anthropic Claude
                                     </option>
                                     <option value="gemini" <?php selected($provider, 'gemini'); ?>>Google Gemini</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="wpb-settings-row" id="wpb-cp-anthropic-row"
+                        <div class="suite-barrio-settings-row" id="suite-barrio-cp-anthropic-row"
                             style="<?php echo $provider === 'gemini' ? 'display:none;' : ''; ?>">
-                            <div class="wpb-settings-label">Chiave API Anthropic<small>sk-ant-...</small></div>
-                            <div class="wpb-settings-input">
+                            <div class="suite-barrio-settings-label">Chiave API Anthropic<small>sk-ant-...</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <input type="password" name="wpb_cp_anthropic_key"
                                     value="<?php echo esc_attr(get_option('wpb_cp_anthropic_key', '')); ?>"
                                     placeholder="sk-ant-api03-..." autocomplete="off">
                             </div>
                         </div>
-                        <div class="wpb-settings-row" id="wpb-cp-gemini-row"
+                        <div class="suite-barrio-settings-row" id="suite-barrio-cp-gemini-row"
                             style="<?php echo $provider !== 'gemini' ? 'display:none;' : ''; ?>">
-                            <div class="wpb-settings-label">Chiave API Gemini<small>AIza...</small></div>
-                            <div class="wpb-settings-input">
+                            <div class="suite-barrio-settings-label">Chiave API Gemini<small>AIza...</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <input type="password" name="wpb_cp_gemini_key"
                                     value="<?php echo esc_attr(get_option('wpb_cp_gemini_key', '')); ?>" placeholder="AIzaSy..."
                                     autocomplete="off">
                             </div>
                         </div>
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Modello<small>Lascia vuoto per il default</small></div>
-                            <div class="wpb-settings-input">
-                                <div class="wpb-model-row">
-                                    <select name="wpb_cp_model" id="wpb-cp-model-sel">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Modello<small>Lascia vuoto per il default</small></div>
+                            <div class="suite-barrio-settings-input">
+                                <div class="suite-barrio-model-row">
+                                    <select name="wpb_cp_model" id="suite-barrio-cp-model-sel">
                                         <option value="">— Default —</option>
                                         <?php if ($model): ?>
                                             <option value="<?php echo esc_attr($model); ?>" selected><?php echo esc_html($model); ?>
                                             </option>
                                         <?php endif; ?>
                                     </select>
-                                    <button type="button" class="wpb-cp-btn wpb-cp-btn-ghost" id="wpb-cp-load-models">Carica
+                                    <button type="button" class="suite-barrio-cp-btn suite-barrio-cp-btn-ghost" id="suite-barrio-cp-load-models">Carica
                                         modelli</button>
                                 </div>
                             </div>
@@ -748,12 +962,12 @@ function wpb_cp_admin_page()
                     </div>
                 </div>
 
-                <div class="wpb-settings-card">
-                    <div class="wpb-settings-card-header">Log</div>
-                    <div class="wpb-settings-card-body">
-                        <div class="wpb-settings-row">
-                            <div class="wpb-settings-label">Abilita log<small>Registra operazioni</small></div>
-                            <div class="wpb-settings-input">
+                <div class="suite-barrio-settings-card">
+                    <div class="suite-barrio-settings-card-header">Log</div>
+                    <div class="suite-barrio-settings-card-body">
+                        <div class="suite-barrio-settings-row">
+                            <div class="suite-barrio-settings-label">Abilita log<small>Registra operazioni</small></div>
+                            <div class="suite-barrio-settings-input">
                                 <input type="hidden" name="wpb_cp_log_enabled" value="0">
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                                     <input type="checkbox" name="wpb_cp_log_enabled" value="1" <?php checked(get_option('wpb_cp_log_enabled', 1)); ?>>
@@ -764,7 +978,7 @@ function wpb_cp_admin_page()
                     </div>
                 </div>
 
-                <button type="submit" class="wpb-cp-btn wpb-cp-btn-primary">
+                <button type="submit" class="suite-barrio-cp-btn suite-barrio-cp-btn-primary">
                     <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
                     Salva impostazioni
                 </button>
@@ -774,14 +988,14 @@ function wpb_cp_admin_page()
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <span style="font-size:13px;color:#6b7280;font-weight:500;"><?php echo count($log); ?> operazioni
                     registrate</span>
-                <button class="wpb-cp-btn wpb-cp-btn-ghost" id="wpb-cp-clear-log">Svuota log</button>
+                <button class="suite-barrio-cp-btn suite-barrio-cp-btn-ghost" id="suite-barrio-cp-clear-log">Svuota log</button>
             </div>
             <?php if (empty($log)): ?>
                 <div
                     style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:40px;text-align:center;color:#6b7280;font-size:13px;">
                     Nessuna operazione registrata.</div>
             <?php else: ?>
-                <table class="wpb-log-table">
+                <table class="suite-barrio-log-table">
                     <thead>
                         <tr>
                             <th style="width:160px;">Data</th>
@@ -797,7 +1011,7 @@ function wpb_cp_admin_page()
                                     <?php echo esc_html(date_i18n('d/m/Y H:i', $entry['ts'] ?? 0)); ?>
                                 </td>
                                 <td><span
-                                        class="wpb-log-badge <?php echo esc_attr($entry['status'] ?? 'error'); ?>"><?php echo ($entry['status'] ?? '') === 'success' ? '&#x2713; OK' : '&#x2715; Errore'; ?></span>
+                                        class="suite-barrio-log-badge <?php echo esc_attr($entry['status'] ?? 'error'); ?>"><?php echo ($entry['status'] ?? '') === 'success' ? '&#x2713; OK' : '&#x2715; Errore'; ?></span>
                                 </td>
                                 <td><?php echo esc_html($entry['target'] ?? ''); ?></td>
                                 <td style="color:#9ca3af;font-size:12px;"><?php echo esc_html($entry['note'] ?? ''); ?></td>
@@ -809,7 +1023,7 @@ function wpb_cp_admin_page()
 
         <?php elseif ($tab === 'generate'): ?>
             <?php if (!empty($notice)): ?>
-                <div class="wpb-cp-notice-<?php echo esc_attr($notice['type']); ?>">
+                <div class="suite-barrio-cp-notice-<?php echo esc_attr($notice['type']); ?>">
                     <span
                         class="dashicons <?php echo $notice['type'] === 'success' ? 'dashicons-yes-alt' : 'dashicons-warning'; ?>"></span>
                     <div><?php echo wp_kses_post($notice['message']); ?></div>
@@ -817,49 +1031,49 @@ function wpb_cp_admin_page()
             <?php endif; ?>
             <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione ?>
             <?php if (isset($_GET['settings-updated'])): ?>
-                <div class="wpb-cp-notice-success"><span class="dashicons dashicons-yes-alt"></span>
+                <div class="suite-barrio-cp-notice-success"><span class="dashicons dashicons-yes-alt"></span>
                     <div>Configurazione salvata. Ora puoi generare i contenuti.</div>
                 </div>
             <?php endif; ?>
-            <div class="wpb-cp-notice">
+            <div class="suite-barrio-cp-notice">
                 <span class="dashicons dashicons-info"></span>
                 <div>Salva dominio e pagine prima di generare. La Privacy Policy e la Cookie Policy verranno generate
                     separatamente e salvate direttamente nel contenuto delle pagine scelte.</div>
             </div>
-            <div class="wpb-cp-panel">
-                <div class="wpb-cp-panel-header">
+            <div class="suite-barrio-cp-panel">
+                <div class="suite-barrio-cp-panel-header">
                     <span class="dashicons dashicons-media-text"></span>
-                    <span class="wpb-cp-panel-title">Configurazione contenuti</span>
-                    <span class="wpb-cp-panel-desc">Privacy Policy e Cookie Policy</span>
+                    <span class="suite-barrio-cp-panel-title">Configurazione contenuti</span>
+                    <span class="suite-barrio-cp-panel-desc">Privacy Policy e Cookie Policy</span>
                 </div>
-                <div class="wpb-cp-panel-body">
+                <div class="suite-barrio-cp-panel-body">
                     <form method="post" action="options.php">
                         <?php settings_fields('wpb_cp_content_settings'); ?>
-                        <div class="wpb-cp-field-row">
-                            <label class="wpb-cp-field-label" for="wpb_cp_domain">Dominio<span>Sincronizzato automaticamente dal
+                        <div class="suite-barrio-cp-field-row">
+                            <label class="suite-barrio-cp-field-label" for="suite_barrio_cp_domain">Dominio<span>Sincronizzato automaticamente dal
                                     campo "Sito web" di
                                     <a
-                                        href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-info-azienda&tab=dati')); ?>">Info
+                                        href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-info-azienda&tab=dati')); ?>">Info
                                         Azienda</a>.</span></label>
-                            <div class="wpb-cp-field-input">
-                                <input id="wpb_cp_domain" type="text" placeholder="example.com"
+                            <div class="suite-barrio-cp-field-input">
+                                <input id="suite_barrio_cp_domain" type="text" placeholder="example.com"
                                     value="<?php echo esc_attr($saved_domain); ?>" readonly
                                     style="background:#f9fafb;color:#6b7280;cursor:not-allowed;">
                                 <?php if ($saved_domain === ''): ?>
                                     <p style="margin:6px 0 0;font-size:12px;color:#b45309;">
                                         Nessun sito web impostato.
                                         <a
-                                            href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio-info-azienda&tab=dati')); ?>">Compila
+                                            href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-info-azienda&tab=dati')); ?>">Compila
                                             il campo "Sito web" in Info Azienda</a>.
                                     </p>
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <div class="wpb-cp-field-row">
-                            <label class="wpb-cp-field-label" for="wpb_cp_privacy_page">Privacy Policy<span>Pagina in cui
+                        <div class="suite-barrio-cp-field-row">
+                            <label class="suite-barrio-cp-field-label" for="suite_barrio_cp_privacy_page">Privacy Policy<span>Pagina in cui
                                     salvare solo la Privacy Policy.</span></label>
-                            <div class="wpb-cp-field-input">
-                                <select id="wpb_cp_privacy_page" name="wpb_cp_privacy_page_id" required>
+                            <div class="suite-barrio-cp-field-input">
+                                <select id="suite_barrio_cp_privacy_page" name="wpb_cp_privacy_page_id" required>
                                     <option value="">— Seleziona pagina —</option>
                                     <?php foreach ($pages as $page): ?>
                                         <option value="<?php echo esc_attr($page->ID); ?>" <?php selected($selected_privacy_page_id, $page->ID); ?>>
@@ -869,11 +1083,11 @@ function wpb_cp_admin_page()
                                 </select>
                             </div>
                         </div>
-                        <div class="wpb-cp-field-row">
-                            <label class="wpb-cp-field-label" for="wpb_cp_cookie_page">Cookie Policy<span>Pagina in cui salvare
+                        <div class="suite-barrio-cp-field-row">
+                            <label class="suite-barrio-cp-field-label" for="suite_barrio_cp_cookie_page">Cookie Policy<span>Pagina in cui salvare
                                     solo la Cookie Policy.</span></label>
-                            <div class="wpb-cp-field-input">
-                                <select id="wpb_cp_cookie_page" name="wpb_cp_cookie_page_id" required>
+                            <div class="suite-barrio-cp-field-input">
+                                <select id="suite_barrio_cp_cookie_page" name="wpb_cp_cookie_page_id" required>
                                     <option value="">— Seleziona pagina —</option>
                                     <?php foreach ($pages as $page): ?>
                                         <option value="<?php echo esc_attr($page->ID); ?>" <?php selected($selected_cookie_page_id, $page->ID); ?>>
@@ -883,251 +1097,70 @@ function wpb_cp_admin_page()
                                 </select>
                             </div>
                         </div>
-                        <div class="wpb-cp-field-row">
-                            <label class="wpb-cp-field-label" for="wpb_cp_cookie_report_script">Cookie report script<span>Codice
+                        <div class="suite-barrio-cp-field-row">
+                            <label class="suite-barrio-cp-field-label" for="wpb_cp_cookie_report_script">Cookie report script<span>Codice
                                     fornito dal tuo servizio
                                     di cookie management (Iubenda, Cookiebot, CookieYes…). Verrà inserito automaticamente in
                                     coda alla Cookie Policy. Lascia vuoto per non includere alcun report.</span></label>
-                            <div class="wpb-cp-field-input">
+                            <div class="suite-barrio-cp-field-input">
                                 <textarea id="wpb_cp_cookie_report_script" name="wpb_cp_cookie_report_script" rows="6"
                                     placeholder="&lt;script type=&quot;text/javascript&quot; src=&quot;https://...&quot;&gt;&lt;/script&gt;"
                                     style="width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:10px 12px;border:1px solid #d1d5db;border-radius:7px;resize:vertical;"><?php echo esc_textarea($cookie_report_script); ?></textarea>
-                                <button type="button" class="button" id="wpb-cp-use-endpoint"
+                                <button type="button" class="button" id="suite-barrio-cp-use-endpoint"
                                     style="margin-top:6px;">
-                                    &#x21BA; Usa endpoint WP Barrio (sostituisce il contenuto)
+                                    &#x21BA; Usa endpoint Suite Barrio (sostituisce il contenuto)
                                 </button>
-                                <script>
-                                document.getElementById('wpb-cp-use-endpoint').addEventListener('click', function(){
-                                    if (!confirm('Sovrascrivere il Cookie report script con l\'endpoint WP Barrio?')) return;
-                                    document.getElementById('wpb_cp_cookie_report_script').value =
-                                        '<script>\nfetch(\'' + <?php echo wp_json_encode(rest_url('wpb/v1/cookie-banner/preferences-html')); ?> + '\')\n'
-                                        + '  .then(function(r){ return r.json(); })\n'
-                                        + '  .then(function(res){ document.getElementById(\'wpb-cookie-preferences\').innerHTML = res.html || \'\'; });\n'
-                                        + '<\/script>\n<div id="wpb-cookie-preferences"></div>';
-                                });
-                                </script>
+                                <?php // JS del bottone registrato/iniettato via wp_add_inline_script() nell'hook admin_enqueue_scripts (vedi inizio file). ?>
                             </div>
                         </div>
-                        <div class="wpb-cp-actions">
-                            <button type="submit" class="wpb-cp-btn wpb-cp-btn-primary"><span
+                        <div class="suite-barrio-cp-actions">
+                            <button type="submit" class="suite-barrio-cp-btn suite-barrio-cp-btn-primary"><span
                                     class="dashicons dashicons-yes"></span> Salva</button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="wpb-cp-panel">
-                <div class="wpb-cp-panel-header">
+            <div class="suite-barrio-cp-panel">
+                <div class="suite-barrio-cp-panel-header">
                     <span class="dashicons dashicons-hammer"></span>
-                    <span class="wpb-cp-panel-title">Generazione</span>
-                    <span class="wpb-cp-panel-desc">Genera le policy singolarmente o insieme</span>
+                    <span class="suite-barrio-cp-panel-title">Generazione</span>
+                    <span class="suite-barrio-cp-panel-desc">Genera le policy singolarmente o insieme</span>
                 </div>
-                <div class="wpb-cp-panel-body">
+                <div class="suite-barrio-cp-panel-body">
 
                     <!-- Container per progresso e risultato (popolato da JS) -->
-                    <div id="wpb-cp-gen-progress" class="wpb-cp-gen-progress" hidden>
-                        <div class="wpb-cp-gen-row" data-policy="privacy">
-                            <span class="wpb-cp-gen-spinner" aria-hidden="true"></span>
-                            <span class="wpb-cp-gen-label">Privacy Policy</span>
-                            <span class="wpb-cp-gen-status">In coda…</span>
+                    <div id="suite-barrio-cp-gen-progress" class="suite-barrio-cp-gen-progress" hidden>
+                        <div class="suite-barrio-cp-gen-row" data-policy="privacy">
+                            <span class="suite-barrio-cp-gen-spinner" aria-hidden="true"></span>
+                            <span class="suite-barrio-cp-gen-label">Privacy Policy</span>
+                            <span class="suite-barrio-cp-gen-status">In coda…</span>
                         </div>
-                        <div class="wpb-cp-gen-row" data-policy="cookie">
-                            <span class="wpb-cp-gen-spinner" aria-hidden="true"></span>
-                            <span class="wpb-cp-gen-label">Cookie Policy</span>
-                            <span class="wpb-cp-gen-status">In coda…</span>
+                        <div class="suite-barrio-cp-gen-row" data-policy="cookie">
+                            <span class="suite-barrio-cp-gen-spinner" aria-hidden="true"></span>
+                            <span class="suite-barrio-cp-gen-label">Cookie Policy</span>
+                            <span class="suite-barrio-cp-gen-status">In coda…</span>
                         </div>
                     </div>
 
-                    <div id="wpb-cp-gen-result" class="wpb-cp-gen-result"></div>
+                    <div id="suite-barrio-cp-gen-result" class="suite-barrio-cp-gen-result"></div>
 
-                    <div class="wpb-cp-actions wpb-cp-gen-actions" style="padding-left:0;margin-top:0;">
-                        <button type="button" class="wpb-cp-btn wpb-cp-btn-primary wpb-cp-gen-btn" data-generate="both">
+                    <div class="suite-barrio-cp-actions suite-barrio-cp-gen-actions" style="padding-left:0;margin-top:0;">
+                        <button type="button" class="suite-barrio-cp-btn suite-barrio-cp-btn-primary suite-barrio-cp-gen-btn" data-generate="both">
                             <span class="dashicons dashicons-hammer"></span> Genera entrambe
                         </button>
-                        <button type="button" class="wpb-cp-btn wpb-cp-btn-ghost wpb-cp-gen-btn" data-generate="privacy">
+                        <button type="button" class="suite-barrio-cp-btn suite-barrio-cp-btn-ghost suite-barrio-cp-gen-btn" data-generate="privacy">
                             <span class="dashicons dashicons-shield"></span> Solo Privacy
                         </button>
-                        <button type="button" class="wpb-cp-btn wpb-cp-btn-ghost wpb-cp-gen-btn" data-generate="cookie">
+                        <button type="button" class="suite-barrio-cp-btn suite-barrio-cp-btn-ghost suite-barrio-cp-gen-btn" data-generate="cookie">
                             <span class="dashicons dashicons-admin-site"></span> Solo Cookie
                         </button>
                     </div>
                 </div>
             </div>
         <?php else: ?>
-            <?php do_action('wpb_cp_render_tab_' . sanitize_key($tab)); ?>
+            <?php do_action('suite_barrio_cp_render_tab_' . sanitize_key($tab)); ?>
         <?php endif; ?>
-        <script>
-            (function () {
-                var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
-                var nonce = <?php echo wp_json_encode($nonce); ?>;
-
-                var clearLogBtn = document.getElementById('wpb-cp-clear-log');
-                if (clearLogBtn) {
-                    clearLogBtn.addEventListener('click', function () {
-                        if (!confirm('Svuotare il log?')) return;
-                        var fd = new FormData();
-                        fd.append('action', 'wpb_cp_clear_log');
-                        fd.append('nonce', nonce);
-                        fetch(ajaxUrl, { method: 'POST', body: fd }).then(function () { window.location.reload(); });
-                    });
-                }
-
-                var provSel = document.getElementById('wpb-cp-provider-sel');
-                if (provSel) {
-                    provSel.addEventListener('change', function () {
-                        var ant = document.getElementById('wpb-cp-anthropic-row');
-                        var gem = document.getElementById('wpb-cp-gemini-row');
-                        if (this.value === 'gemini') {
-                            ant.style.display = 'none';
-                            gem.style.display = '';
-                        } else {
-                            ant.style.display = '';
-                            gem.style.display = 'none';
-                        }
-                    });
-                }
-
-                var loadModelsBtn = document.getElementById('wpb-cp-load-models');
-                if (loadModelsBtn) {
-                    loadModelsBtn.addEventListener('click', function () {
-                        var prov = document.getElementById('wpb-cp-provider-sel').value;
-                        var sel = document.getElementById('wpb-cp-model-sel');
-                        this.disabled = true;
-                        this.textContent = 'Caricamento...';
-                        var fd = new FormData();
-                        fd.append('action', 'wpb_cp_fetch_models');
-                        fd.append('nonce', nonce);
-                        fd.append('provider', prov);
-                        fd.append('force', '1');
-                        var btn = this;
-                        fetch(ajaxUrl, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
-                            if (!res.success || res.data.error) {
-                                alert(res.data.error || 'Impossibile caricare i modelli.');
-                                return;
-                            }
-                            var current = sel.value;
-                            while (sel.options.length > 1) sel.remove(1);
-                            (res.data || []).forEach(function (m) {
-                                var opt = document.createElement('option');
-                                opt.value = m;
-                                opt.textContent = m;
-                                if (m === current) opt.selected = true;
-                                sel.appendChild(opt);
-                            });
-                        }).finally(function () {
-                            btn.disabled = false;
-                            btn.textContent = 'Carica modelli';
-                        });
-                    });
-                }
-
-                /* ── Generazione asincrona Privacy / Cookie / Entrambe ── */
-                var genBtns = document.querySelectorAll('.wpb-cp-gen-btn');
-                var progressBox = document.getElementById('wpb-cp-gen-progress');
-                var resultBox = document.getElementById('wpb-cp-gen-result');
-
-                if (genBtns.length && progressBox && resultBox) {
-                    var allRows = progressBox.querySelectorAll('.wpb-cp-gen-row');
-
-                    var setRowState = function (policy, state, statusText) {
-                        var row = progressBox.querySelector('.wpb-cp-gen-row[data-policy="' + policy + '"]');
-                        if (!row) return;
-                        row.classList.remove('is-running', 'is-success', 'is-error', 'is-hidden');
-                        if (state) row.classList.add('is-' + state);
-                        row.querySelector('.wpb-cp-gen-status').textContent = statusText;
-                    };
-
-                    var showRows = function (policies) {
-                        allRows.forEach(function (row) {
-                            var pol = row.getAttribute('data-policy');
-                            if (policies.indexOf(pol) === -1) {
-                                row.classList.add('is-hidden');
-                            } else {
-                                row.classList.remove('is-hidden');
-                            }
-                        });
-                    };
-
-                    var generateOne = function (policy) {
-                        var label = policy === 'privacy' ? 'Privacy Policy' : 'Cookie Policy';
-                        setRowState(policy, 'running', 'Generazione in corso…');
-
-                        var fd = new FormData();
-                        fd.append('action', 'wpb_cp_generate_' + policy);
-                        fd.append('nonce', nonce);
-
-                        return fetch(ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
-                            .then(function (r) { return r.json(); })
-                            .then(function (res) {
-                                if (res && res.success) {
-                                    setRowState(policy, 'success', 'Aggiornata: ' + (res.data.page_title || ''));
-                                    return { policy: policy, label: label, ok: true, data: res.data };
-                                }
-                                var msg = (res && res.data && res.data.message) ? res.data.message : 'Errore sconosciuto';
-                                var plain = (new DOMParser()).parseFromString(msg, 'text/html').body.textContent || '';
-                                setRowState(policy, 'error', plain);
-                                return { policy: policy, label: label, ok: false, error: msg };
-                            })
-                            .catch(function (err) {
-                                setRowState(policy, 'error', 'Errore di rete');
-                                return { policy: policy, label: label, ok: false, error: 'Errore di rete' };
-                            });
-                    };
-
-                    var renderResult = function (results) {
-                        var okCount = results.filter(function (r) { return r.ok; }).length;
-                        var klass, icon, html;
-
-                        if (okCount === results.length && results.length > 1) {
-                            klass = 'is-success'; icon = 'yes-alt';
-                            html = '<strong>Privacy Policy e Cookie Policy</strong> generate e salvate.';
-                        } else if (okCount === results.length && results.length === 1) {
-                            klass = 'is-success'; icon = 'yes-alt';
-                            html = '<strong>' + results[0].label + '</strong> generata e salvata.';
-                        } else if (okCount === 0) {
-                            klass = 'is-error'; icon = 'warning';
-                            html = '<strong>Generazione fallita.</strong><br>'
-                                + results.map(function (r) { return r.label + ': ' + r.error; }).join('<br>');
-                        } else {
-                            klass = 'is-mixed'; icon = 'warning';
-                            html = '<strong>Generazione parziale.</strong><br>'
-                                + results.map(function (r) {
-                                    return r.ok ? r.label + ': aggiornata.' : r.label + ': ' + r.error;
-                                }).join('<br>');
-                        }
-
-                        resultBox.innerHTML =
-                            '<div class="wpb-cp-gen-result-box ' + klass + '">'
-                            + '<span class="dashicons dashicons-' + icon + '"></span>'
-                            + '<div>' + html + '</div></div>';
-                    };
-
-                    var setBtnsDisabled = function (disabled) {
-                        genBtns.forEach(function (b) { b.disabled = disabled; });
-                    };
-
-                    genBtns.forEach(function (btn) {
-                        btn.addEventListener('click', function () {
-                            var target = btn.getAttribute('data-generate');
-                            var policies = target === 'both' ? ['privacy', 'cookie']
-                                : target === 'privacy' ? ['privacy']
-                                    : ['cookie'];
-
-                            setBtnsDisabled(true);
-                            resultBox.innerHTML = '';
-                            progressBox.hidden = false;
-                            showRows(policies);
-                            policies.forEach(function (p) { setRowState(p, 'running', 'Generazione in corso…'); });
-
-                            var jobs = policies.map(function (p) { return generateOne(p); });
-
-                            Promise.all(jobs)
-                                .then(function (results) { renderResult(results); })
-                                .finally(function () { setBtnsDisabled(false); });
-                        });
-                    });
-                }
-            })();
-        </script>
+        <?php /* JS della pagina registrato/iniettato via wp_add_inline_script() nell'hook admin_enqueue_scripts (vedi inizio file). */ ?>
     </div>
 <?php }

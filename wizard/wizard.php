@@ -1,38 +1,38 @@
 <?php
 /**
- * WP Barrio — Wizard Messa Online
+ * Suite Barrio — Wizard Messa Online
  * Guida step-by-step per portare un sito in produzione.
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_WIZARD_PROGRESS_OPTION', 'wpb_wizard_progress');
+define('SUITE_BARRIO_WIZARD_PROGRESS_OPTION', 'wpb_wizard_progress');
 
 /* ─────────────────────────────────────────
    DEFINIZIONE PASSI
    ───────────────────────────────────────── */
 // Moduli che richiedono chiavi API AI generativa.
-// Usato da wpb_wizard_steps() e dal render dello step "Configura AI".
-function wpb_wizard_ai_modules(): array
+// Usato da suite_barrio_wizard_steps() e dal render dello step "Configura AI".
+function suite_barrio_wizard_ai_modules(): array
 {
     return ['auto_alt', 'seo', 'cookie_privacy'];
 }
 
-function wpb_wizard_needs_ai(): bool
+function suite_barrio_wizard_needs_ai(): bool
 {
-    if (!function_exists('wpb_tools_module_enabled'))
+    if (!function_exists('suite_barrio_tools_module_enabled'))
         return false;
-    foreach (wpb_wizard_ai_modules() as $key) {
-        if (wpb_tools_module_enabled($key))
+    foreach (suite_barrio_wizard_ai_modules() as $key) {
+        if (suite_barrio_tools_module_enabled($key))
             return true;
     }
     return false;
 }
 
-function wpb_wizard_steps(): array
+function suite_barrio_wizard_steps(): array
 {
     $steps = [
         1 => ['label' => 'Info Azienda',        'icon' => 'dashicons-id-alt'],
@@ -40,19 +40,19 @@ function wpb_wizard_steps(): array
         3 => ['label' => 'GTM',                  'icon' => 'dashicons-tag'],
     ];
 
-    if (function_exists('wpb_tools_module_enabled') && wpb_tools_module_enabled('forms')) {
+    if (function_exists('suite_barrio_tools_module_enabled') && suite_barrio_tools_module_enabled('forms')) {
         $steps[4] = ['label' => 'Mailjet', 'icon' => 'dashicons-email'];
     }
 
-    if (function_exists('wpb_tools_module_enabled') && wpb_tools_module_enabled('cookie_privacy')) {
+    if (function_exists('suite_barrio_tools_module_enabled') && suite_barrio_tools_module_enabled('cookie_privacy')) {
         $steps[5] = ['label' => 'Cookie, Privacy', 'icon' => 'dashicons-shield'];
     }
 
-    if (wpb_wizard_needs_ai()) {
+    if (suite_barrio_wizard_needs_ai()) {
         $steps[6] = ['label' => 'Configura AI', 'icon' => 'dashicons-admin-network'];
     }
 
-    if (function_exists('wpb_tools_module_enabled') && wpb_tools_module_enabled('seo')) {
+    if (function_exists('suite_barrio_tools_module_enabled') && suite_barrio_tools_module_enabled('seo')) {
         $steps[7] = ['label' => 'SEO', 'icon' => 'dashicons-search'];
     }
 
@@ -62,7 +62,7 @@ function wpb_wizard_steps(): array
 }
 
 // Restituisce i 4 sotto-step fissi di SEO con label e icona.
-function wpb_wizard_seo_substeps(): array
+function suite_barrio_wizard_seo_substeps(): array
 {
     return [
         1 => ['label' => 'SEO Globale', 'icon' => 'dashicons-admin-site'],
@@ -73,10 +73,10 @@ function wpb_wizard_seo_substeps(): array
 }
 
 // Restituisce il primo sotto-step SEO non ancora done/skipped.
-function wpb_wizard_seo_current_substep(): int
+function suite_barrio_wizard_seo_current_substep(): int
 {
-    $p = wpb_wizard_get_progress();
-    foreach (wpb_wizard_seo_substeps() as $n => $_) {
+    $p = suite_barrio_wizard_get_progress();
+    foreach (suite_barrio_wizard_seo_substeps() as $n => $_) {
         if (($p["seo_sub_{$n}"] ?? 'pending') === 'pending')
             return $n;
     }
@@ -84,83 +84,83 @@ function wpb_wizard_seo_current_substep(): int
 }
 
 // Il wizard è concluso quando step_8 risulta 'done'.
-function wpb_wizard_is_complete(): bool
+function suite_barrio_wizard_is_complete(): bool
 {
-    return wpb_wizard_step_status(8) === 'done';
+    return suite_barrio_wizard_step_status(8) === 'done';
 }
 
 // Alert chiave => array chiavi dismissed.
-function wpb_wizard_get_dismissed(): array
+function suite_barrio_wizard_get_dismissed(): array
 {
-    $p = wpb_wizard_get_progress();
+    $p = suite_barrio_wizard_get_progress();
     $d = $p['dismissed_alerts'] ?? [];
     return is_array($d) ? $d : [];
 }
 
 // Numero di step saltati (esclusi i dismissed e step_8 = Controlli Finali).
-function wpb_wizard_skipped_count(): int
+function suite_barrio_wizard_skipped_count(): int
 {
-    $steps     = wpb_wizard_steps();
-    $dismissed = wpb_wizard_get_dismissed();
+    $steps     = suite_barrio_wizard_steps();
+    $dismissed = suite_barrio_wizard_get_dismissed();
     $count     = 0;
     foreach ($steps as $n => $_) {
         if ($n === 8) continue;
         if (in_array("step_{$n}", $dismissed, true)) continue;
-        if (wpb_wizard_step_status($n) === 'skipped') $count++;
+        if (suite_barrio_wizard_step_status($n) === 'skipped') $count++;
     }
     return $count;
 }
 
 // Numero di checkbox di "Controlli Finali" non spuntate (escluse le dismissed).
-function wpb_wizard_unchecked_finals_count(): int
+function suite_barrio_wizard_unchecked_finals_count(): int
 {
     $all       = ['gtm_analytics', 'mailjet_recaptcha', 'email_forms', 'orari_gmaps', 'popup_banner', 'auto_alt', 'cookie_policy', 'accessibility'];
-    $p         = wpb_wizard_get_progress();
+    $p         = suite_barrio_wizard_get_progress();
     $saved     = isset($p['step_8_checks']) && is_array($p['step_8_checks']) ? $p['step_8_checks'] : [];
-    $dismissed = wpb_wizard_get_dismissed();
+    $dismissed = suite_barrio_wizard_get_dismissed();
     $pending   = array_diff($all, $saved);
     $pending   = array_filter($pending, fn($k) => !in_array("final_{$k}", $dismissed, true));
     return count($pending);
 }
 
 // Conteggio totale per il badge: step saltati + checkbox finali non spuntate.
-function wpb_wizard_badge_count(): int
+function suite_barrio_wizard_badge_count(): int
 {
-    if (!wpb_wizard_is_complete()) return 0;
-    return wpb_wizard_skipped_count() + wpb_wizard_unchecked_finals_count();
+    if (!suite_barrio_wizard_is_complete()) return 0;
+    return suite_barrio_wizard_skipped_count() + suite_barrio_wizard_unchecked_finals_count();
 }
 
 /* ─────────────────────────────────────────
    AJAX — dismissal singolo alert
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_wizard_dismiss_alert', function () {
-    check_ajax_referer('wpb_wizard_dismiss_alert', 'nonce');
+add_action('wp_ajax_suite_barrio_wizard_dismiss_alert', function () {
+    check_ajax_referer('suite_barrio_wizard_dismiss_alert', 'nonce');
     if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
 
     $key = sanitize_key(wp_unslash($_POST['alert_key'] ?? ''));
     if ($key === '') wp_send_json_error('missing_key', 400);
 
-    $progress = wpb_wizard_get_progress();
+    $progress = suite_barrio_wizard_get_progress();
     $dismissed = isset($progress['dismissed_alerts']) && is_array($progress['dismissed_alerts'])
         ? $progress['dismissed_alerts'] : [];
     if (!in_array($key, $dismissed, true)) {
         $dismissed[] = $key;
     }
     $progress['dismissed_alerts'] = $dismissed;
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    wp_send_json_success(['badge' => wpb_wizard_badge_count()]);
+    wp_send_json_success(['badge' => suite_barrio_wizard_badge_count()]);
 });
 
 /* ─────────────────────────────────────────
    BADGE MENU — step saltati + check finali
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    $count = wpb_wizard_badge_count();
+    $count = suite_barrio_wizard_badge_count();
     if ($count === 0) return;
     global $menu;
     foreach ($menu as $k => $item) {
-        if (isset($item[2]) && $item[2] === 'wp-barrio') {
+        if (isset($item[2]) && $item[2] === 'suite-barrio') {
             $menu[$k][0] .= ' <span class="update-plugins count-' . $count
                 . '"><span class="update-count">' . $count . '</span></span>';
             break;
@@ -171,37 +171,37 @@ add_action('admin_menu', function () {
 /* ─────────────────────────────────────────
    HELPER: progressi salvati
    ───────────────────────────────────────── */
-function wpb_wizard_get_progress()
+function suite_barrio_wizard_get_progress()
 {
-    $p = get_option(WPB_WIZARD_PROGRESS_OPTION, []);
+    $p = get_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, []);
     return is_array($p) ? $p : [];
 }
 
-function wpb_wizard_step_status(int $num): string
+function suite_barrio_wizard_step_status(int $num): string
 {
-    $p = wpb_wizard_get_progress();
+    $p = suite_barrio_wizard_get_progress();
     return $p["step_{$num}"] ?? 'pending'; // 'done' | 'skipped' | 'pending'
 }
 
 // Uno step è navigabile se tutti i precedenti (esistenti) sono done/skipped.
-function wpb_wizard_step_accessible(int $num): bool
+function suite_barrio_wizard_step_accessible(int $num): bool
 {
-    $steps = wpb_wizard_steps();
+    $steps = suite_barrio_wizard_steps();
     if (!isset($steps[$num]))
         return false;
     foreach ($steps as $n => $step) {
         if ($n >= $num)
             break;
-        if (wpb_wizard_step_status($n) === 'pending')
+        if (suite_barrio_wizard_step_status($n) === 'pending')
             return false;
     }
     return true;
 }
 
 // Restituisce il numero del prossimo step esistente, 0 se siamo all'ultimo.
-function wpb_wizard_next_step(int $current): int
+function suite_barrio_wizard_next_step(int $current): int
 {
-    $keys = array_keys(wpb_wizard_steps());
+    $keys = array_keys(suite_barrio_wizard_steps());
     $pos  = array_search($current, $keys, true);
     return ($pos !== false && isset($keys[$pos + 1])) ? $keys[$pos + 1] : 0;
 }
@@ -210,21 +210,41 @@ function wpb_wizard_next_step(int $current): int
    MENU: pagina nascosta
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    add_submenu_page(
+    global $suite_barrio_wizard_page_hook;
+    $suite_barrio_wizard_page_hook = add_submenu_page(
         null,
-        'Messa Online — WP Barrio',
+        'Messa Online — Suite Barrio',
         'Wizard Messa Online',
         'manage_options',
-        'wp-barrio-wizard',
-        'wpb_wizard_page'
+        'suite-barrio-wizard',
+        'suite_barrio_wizard_page'
     );
+});
+
+/* ─────────────────────────────────────────
+   ASSET: script della pagina wizard (contenuto inline
+   agganciato ad handle registrati, invece di <script> raw)
+   ───────────────────────────────────────── */
+add_action('admin_enqueue_scripts', function ($hook) {
+    global $suite_barrio_wizard_page_hook;
+    if (!$suite_barrio_wizard_page_hook || $hook !== $suite_barrio_wizard_page_hook) {
+        return;
+    }
+
+    // Handle "vuoto" (nessun file esterno) usati come contenitore per
+    // il JS inline generato da suite_barrio_wizard_page() ai singoli step.
+    wp_register_script('suite-barrio-wizard-step6', '', [], SUITE_BARRIO_VERSION, true);
+    wp_enqueue_script('suite-barrio-wizard-step6');
+
+    wp_register_script('suite-barrio-wizard-step7-redirects', '', [], SUITE_BARRIO_VERSION, true);
+    wp_enqueue_script('suite-barrio-wizard-step7-redirects');
 });
 
 /* ─────────────────────────────────────────
    SALVATAGGIO STEP 1 — Dati azienda
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_step1_save', function () {
-    check_admin_referer('wpb_wizard_step1_save');
+add_action('admin_post_suite_barrio_wizard_step1_save', function () {
+    check_admin_referer('suite_barrio_wizard_step1_save');
 
     $fields = [
         'ragione_sociale' => 'text',
@@ -257,20 +277,20 @@ add_action('admin_post_wpb_wizard_step1_save', function () {
         }
     }
 
-    $existing = get_option(WPB_COMPANY_INFO_OPTION, []);
-    update_option(WPB_COMPANY_INFO_OPTION, array_merge((array) $existing, $clean));
+    $existing = get_option(SUITE_BARRIO_COMPANY_INFO_OPTION, []);
+    update_option(SUITE_BARRIO_COMPANY_INFO_OPTION, array_merge((array) $existing, $clean));
 
     if (function_exists('invalidate_vercel_cache'))
         invalidate_vercel_cache('wp:option');
 
-    $progress = wpb_wizard_get_progress();
+    $progress = suite_barrio_wizard_get_progress();
     $progress['step_1'] = 'done';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    $next = wpb_wizard_next_step(1);
+    $next = suite_barrio_wizard_next_step(1);
     $url = $next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1');
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1');
     wp_safe_redirect($url);
     exit;
 });
@@ -278,24 +298,24 @@ add_action('admin_post_wpb_wizard_step1_save', function () {
 /* ─────────────────────────────────────────
    SALVATAGGIO STEP 2 — Selezione strumenti
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_step2_save', function () {
-    check_admin_referer('wpb_wizard_step2_save');
+add_action('admin_post_suite_barrio_wizard_step2_save', function () {
+    check_admin_referer('suite_barrio_wizard_step2_save');
 
-    $modules = wpb_tools_modules_list();
+    $modules = suite_barrio_tools_modules_list();
     $options = [];
     foreach ($modules as $key => $data) {
         $options[$key] = isset($_POST['modules'][$key]) ? 1 : 0;
     }
-    update_option(WPB_TOOLS_OPTION, $options);
+    update_option(SUITE_BARRIO_TOOLS_OPTION, $options);
 
-    $progress           = wpb_wizard_get_progress();
+    $progress           = suite_barrio_wizard_get_progress();
     $progress['step_2'] = 'done';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    $next = wpb_wizard_next_step(2);
+    $next = suite_barrio_wizard_next_step(2);
     $url  = $next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1');
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1');
     wp_safe_redirect($url);
     exit;
 });
@@ -303,8 +323,8 @@ add_action('admin_post_wpb_wizard_step2_save', function () {
 /* ─────────────────────────────────────────
    SALVATAGGIO STEP 3 — Google Tag Manager
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_step3_save', function () {
-    check_admin_referer('wpb_wizard_step3_save');
+add_action('admin_post_suite_barrio_wizard_step3_save', function () {
+    check_admin_referer('suite_barrio_wizard_step3_save');
 
     $gtm_id = sanitize_text_field(wp_unslash($_POST['gtm_id'] ?? ''));
     // Normalizza: assicura il prefisso GTM- se l'utente ha inserito solo il codice
@@ -313,14 +333,14 @@ add_action('admin_post_wpb_wizard_step3_save', function () {
     }
     update_option('wpb_gtm_container_id', $gtm_id);
 
-    $progress           = wpb_wizard_get_progress();
+    $progress           = suite_barrio_wizard_get_progress();
     $progress['step_3'] = 'done';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    $next = wpb_wizard_next_step(3);
+    $next = suite_barrio_wizard_next_step(3);
     $url  = $next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1');
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1');
     wp_safe_redirect($url);
     exit;
 });
@@ -328,8 +348,8 @@ add_action('admin_post_wpb_wizard_step3_save', function () {
 /* ─────────────────────────────────────────
    SALVATAGGIO STEP 4 — Mailjet
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_step4_save', function () {
-    check_admin_referer('wpb_wizard_step4_save');
+add_action('admin_post_suite_barrio_wizard_step4_save', function () {
+    check_admin_referer('suite_barrio_wizard_step4_save');
 
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato con sanitize_text_field(); il trim() intermedio non viene riconosciuto dal sniff
     $mj_api_key    = sanitize_text_field(trim(wp_unslash($_POST['mailjet_api_key']    ?? '')));
@@ -342,14 +362,14 @@ add_action('admin_post_wpb_wizard_step4_save', function () {
     if ($mj_secret_key !== '') $existing['secret_key'] = $mj_secret_key;
     update_option('wpb_forms_mailjet', $existing);
 
-    $progress           = wpb_wizard_get_progress();
+    $progress           = suite_barrio_wizard_get_progress();
     $progress['step_4'] = 'done';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    $next = wpb_wizard_next_step(4);
+    $next = suite_barrio_wizard_next_step(4);
     $url  = $next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1');
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1');
     wp_safe_redirect($url);
     exit;
 });
@@ -358,8 +378,8 @@ add_action('admin_post_wpb_wizard_step4_save', function () {
    SALVATAGGIO STEP 5 — Cookie e Privacy
    Nessun dato da salvare: solo avanzamento.
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_step5_save', function () {
-    check_admin_referer('wpb_wizard_step5_save');
+add_action('admin_post_suite_barrio_wizard_step5_save', function () {
+    check_admin_referer('suite_barrio_wizard_step5_save');
 
     // Salva il cookie report script nello stesso option usato dallo strumento Cookie e Privacy.
     if (isset($_POST['wpb_cp_cookie_report_script'])) {
@@ -370,14 +390,14 @@ add_action('admin_post_wpb_wizard_step5_save', function () {
         );
     }
 
-    $progress           = wpb_wizard_get_progress();
+    $progress           = suite_barrio_wizard_get_progress();
     $progress['step_5'] = 'done';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    $next = wpb_wizard_next_step(5);
+    $next = suite_barrio_wizard_next_step(5);
     $url  = $next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1');
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1');
     wp_safe_redirect($url);
     exit;
 });
@@ -387,29 +407,29 @@ add_action('admin_post_wpb_wizard_step5_save', function () {
    Scrive provider, chiavi, modello e impostazioni prompt
    in tutti i moduli AI attivi.
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_step6_save', function () {
-    check_admin_referer('wpb_wizard_step6_save');
+add_action('admin_post_suite_barrio_wizard_step6_save', function () {
+    check_admin_referer('suite_barrio_wizard_step6_save');
 
-    $fn = 'wpb_tools_module_enabled';
+    $fn = 'suite_barrio_tools_module_enabled';
 
-    $provider  = sanitize_key(wp_unslash($_POST['wpb_wizard_ai_provider']      ?? 'anthropic'));
+    $provider  = sanitize_key(wp_unslash($_POST['suite_barrio_wizard_ai_provider']      ?? 'anthropic'));
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato con sanitize_text_field(); il trim() intermedio non viene riconosciuto dal sniff
-    $key_anth  = sanitize_text_field(trim(wp_unslash($_POST['wpb_wizard_ai_key_anthropic'] ?? '')));
+    $key_anth  = sanitize_text_field(trim(wp_unslash($_POST['suite_barrio_wizard_ai_key_anthropic'] ?? '')));
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato con sanitize_text_field(); il trim() intermedio non viene riconosciuto dal sniff
-    $key_gem   = sanitize_text_field(trim(wp_unslash($_POST['wpb_wizard_ai_key_gemini']    ?? '')));
+    $key_gem   = sanitize_text_field(trim(wp_unslash($_POST['suite_barrio_wizard_ai_key_gemini']    ?? '')));
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato con sanitize_text_field(); il trim() intermedio non viene riconosciuto dal sniff
-    $model     = sanitize_text_field(trim(wp_unslash($_POST['wpb_wizard_ai_model']         ?? '')));
-    $language  = sanitize_key(wp_unslash($_POST['wpb_wizard_ai_language']      ?? 'it'));
-    $tone      = sanitize_key(wp_unslash($_POST['wpb_wizard_ai_tone']          ?? 'neutral'));
-    $style     = sanitize_key(wp_unslash($_POST['wpb_wizard_ai_style']         ?? 'descriptive'));
+    $model     = sanitize_text_field(trim(wp_unslash($_POST['suite_barrio_wizard_ai_model']         ?? '')));
+    $language  = sanitize_key(wp_unslash($_POST['suite_barrio_wizard_ai_language']      ?? 'it'));
+    $tone      = sanitize_key(wp_unslash($_POST['suite_barrio_wizard_ai_tone']          ?? 'neutral'));
+    $style     = sanitize_key(wp_unslash($_POST['suite_barrio_wizard_ai_style']         ?? 'descriptive'));
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato con sanitize_text_field(); il trim() intermedio non viene riconosciuto dal sniff
-    $context   = sanitize_text_field(trim(wp_unslash($_POST['wpb_wizard_ai_context']       ?? '')));
+    $context   = sanitize_text_field(trim(wp_unslash($_POST['suite_barrio_wizard_ai_context']       ?? '')));
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato con sanitize_text_field(); il trim() intermedio non viene riconosciuto dal sniff
-    $keywords  = sanitize_text_field(trim(wp_unslash($_POST['wpb_wizard_ai_keywords']      ?? '')));
+    $keywords  = sanitize_text_field(trim(wp_unslash($_POST['suite_barrio_wizard_ai_keywords']      ?? '')));
 
-    $alt = function_exists($fn) && wpb_tools_module_enabled('auto_alt');
-    $seo = function_exists($fn) && wpb_tools_module_enabled('seo');
-    $cp  = function_exists($fn) && wpb_tools_module_enabled('cookie_privacy');
+    $alt = function_exists($fn) && suite_barrio_tools_module_enabled('auto_alt');
+    $seo = function_exists($fn) && suite_barrio_tools_module_enabled('seo');
+    $cp  = function_exists($fn) && suite_barrio_tools_module_enabled('cookie_privacy');
 
     // ── Provider ──────────────────────────────────────────────────────
     if ($alt) update_option('wp_alt_ai_provider',    $provider);
@@ -453,14 +473,14 @@ add_action('admin_post_wpb_wizard_step6_save', function () {
     if ($alt) update_option('wp_alt_ai_keywords',   $keywords);
     if ($seo) update_option('wpb_advisor_keywords', $keywords);
 
-    $progress           = wpb_wizard_get_progress();
+    $progress           = suite_barrio_wizard_get_progress();
     $progress['step_6'] = 'done';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    $next = wpb_wizard_next_step(6);
+    $next = suite_barrio_wizard_next_step(6);
     $url  = $next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1');
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1');
     wp_safe_redirect($url);
     exit;
 });
@@ -470,41 +490,41 @@ add_action('admin_post_wpb_wizard_step6_save', function () {
    ───────────────────────────────────────── */
 
 // Helper interno: marca un sotto-step e, se è l'ultimo, anche step_7.
-function wpb_wizard_seo_mark(int $substep, string $status): void
+function suite_barrio_wizard_seo_mark(int $substep, string $status): void
 {
-    $progress = wpb_wizard_get_progress();
+    $progress = suite_barrio_wizard_get_progress();
     $progress["seo_sub_{$substep}"] = $status;
     // Se tutti e 4 sono completati, chiudi anche lo step principale.
     $all_done = true;
-    foreach (wpb_wizard_seo_substeps() as $n => $_) {
+    foreach (suite_barrio_wizard_seo_substeps() as $n => $_) {
         $st = $progress["seo_sub_{$n}"] ?? 'pending';
         if ($st === 'pending') { $all_done = false; break; }
     }
     if ($all_done)
         $progress['step_7'] = ($status === 'skipped' && ($progress['step_7'] ?? '') !== 'done') ? 'skipped' : 'done';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 }
 
 // Sotto-step 1 — SEO Globale
-add_action('admin_post_wpb_wizard_step7_sub1_save', function () {
-    check_admin_referer('wpb_wizard_step7_sub1_save');
+add_action('admin_post_suite_barrio_wizard_step7_sub1_save', function () {
+    check_admin_referer('suite_barrio_wizard_step7_sub1_save');
     $settings = get_option('wpb_meta_settings', []);
     if (!is_array($settings)) $settings = [];
-    $settings['site_title']  = sanitize_text_field(wp_unslash($_POST['wpb_meta_site_title']  ?? ''));
-    $settings['separator']   = sanitize_text_field(wp_unslash($_POST['wpb_meta_separator']   ?? '—'));
-    $settings['title_order'] = sanitize_text_field(wp_unslash($_POST['wpb_meta_title_order'] ?? 'page_site'));
-    $settings['default_desc'] = sanitize_textarea_field(wp_unslash($_POST['wpb_meta_default_desc'] ?? ''));
+    $settings['site_title']  = sanitize_text_field(wp_unslash($_POST['suite_barrio_meta_site_title']  ?? ''));
+    $settings['separator']   = sanitize_text_field(wp_unslash($_POST['suite_barrio_meta_separator']   ?? '—'));
+    $settings['title_order'] = sanitize_text_field(wp_unslash($_POST['suite_barrio_meta_title_order'] ?? 'page_site'));
+    $settings['default_desc'] = sanitize_textarea_field(wp_unslash($_POST['suite_barrio_meta_default_desc'] ?? ''));
     update_option('wpb_meta_settings', $settings);
     if (!empty($settings['site_title']))
         update_option('blogname', $settings['site_title']);
-    wpb_wizard_seo_mark(1, 'done');
-    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-wizard&step=7&substep=2'));
+    suite_barrio_wizard_seo_mark(1, 'done');
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-wizard&step=7&substep=2'));
     exit;
 });
 
 // Sotto-step 2 — Sitemap
-add_action('admin_post_wpb_wizard_step7_sub2_save', function () {
-    check_admin_referer('wpb_wizard_step7_sub2_save');
+add_action('admin_post_suite_barrio_wizard_step7_sub2_save', function () {
+    check_admin_referer('suite_barrio_wizard_step7_sub2_save');
     $post_types = get_post_types(['public' => true], 'names');
     $taxonomies = array_diff(get_taxonomies(['public' => true], 'names'), ['post_format', 'nav_menu', 'link_category']);
     $settings   = [];
@@ -513,14 +533,14 @@ add_action('admin_post_wpb_wizard_step7_sub2_save', function () {
     foreach ($taxonomies as $tax)
         $settings['taxonomies'][$tax] = isset($_POST['tax'][$tax]) ? 1 : 0;
     update_option('wpb_sitemap_settings', $settings);
-    wpb_wizard_seo_mark(2, 'done');
-    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-wizard&step=7&substep=3'));
+    suite_barrio_wizard_seo_mark(2, 'done');
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-wizard&step=7&substep=3'));
     exit;
 });
 
 // Sotto-step 3 — Schema
-add_action('admin_post_wpb_wizard_step7_sub3_save', function () {
-    check_admin_referer('wpb_wizard_step7_sub3_save');
+add_action('admin_post_suite_barrio_wizard_step7_sub3_save', function () {
+    check_admin_referer('suite_barrio_wizard_step7_sub3_save');
     $s = [
         'business_type'  => sanitize_text_field(wp_unslash($_POST['business_type']  ?? 'LocalBusiness')),
         'business_name'  => sanitize_text_field(wp_unslash($_POST['business_name']  ?? '')),
@@ -549,14 +569,14 @@ add_action('admin_post_wpb_wizard_step7_sub3_save', function () {
     if (is_array($existing))
         $s = array_merge($existing, $s);
     update_option('wpb_schema_settings', $s);
-    wpb_wizard_seo_mark(3, 'done');
-    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-wizard&step=7&substep=4'));
+    suite_barrio_wizard_seo_mark(3, 'done');
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-wizard&step=7&substep=4'));
     exit;
 });
 
 // Sotto-step 4 — Redirects (aggiunge una o più voci)
-add_action('admin_post_wpb_wizard_step7_sub4_save', function () {
-    check_admin_referer('wpb_wizard_step7_sub4_save');
+add_action('admin_post_suite_barrio_wizard_step7_sub4_save', function () {
+    check_admin_referer('suite_barrio_wizard_step7_sub4_save');
 
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array grezzo di righe; ogni campo (from/to/code/note) viene unslashed e sanitizzato singolarmente nel foreach sottostante
     $rows      = isset($_POST['redirects']) && is_array($_POST['redirects']) ? $_POST['redirects'] : [];
@@ -570,7 +590,7 @@ add_action('admin_post_wpb_wizard_step7_sub4_save', function () {
         if ($from === '' || $to === '') continue;
         $code = (int) ($row['code'] ?? 301);
         $saved[] = [
-            'id'   => uniqid('wpbr_', false),
+            'id'   => uniqid('sbrio_', false),
             'from' => '/' . ltrim($from, '/'),
             'to'   => $to,
             'code' => in_array($code, $valid_codes, true) ? $code : 301,
@@ -579,27 +599,27 @@ add_action('admin_post_wpb_wizard_step7_sub4_save', function () {
     }
     update_option('wpb_redirects', $saved);
 
-    wpb_wizard_seo_mark(4, 'done');
-    $next = wpb_wizard_next_step(7);
+    suite_barrio_wizard_seo_mark(4, 'done');
+    $next = suite_barrio_wizard_next_step(7);
     wp_safe_redirect($next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1'));
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1'));
     exit;
 });
 
 // Skip di un singolo sotto-step SEO
-add_action('admin_post_wpb_wizard_seo_substep_skip', function () {
-    check_admin_referer('wpb_wizard_seo_substep_skip');
+add_action('admin_post_suite_barrio_wizard_seo_substep_skip', function () {
+    check_admin_referer('suite_barrio_wizard_seo_substep_skip');
     $sub = max(1, min(4, absint(wp_unslash($_POST['substep'] ?? 1))));
-    wpb_wizard_seo_mark($sub, 'skipped');
+    suite_barrio_wizard_seo_mark($sub, 'skipped');
     $next_sub = $sub + 1;
     if ($next_sub <= 4) {
-        wp_safe_redirect(admin_url("admin.php?page=wp-barrio-wizard&step=7&substep={$next_sub}"));
+        wp_safe_redirect(admin_url("admin.php?page=suite-barrio-wizard&step=7&substep={$next_sub}"));
     } else {
-        $next_step = wpb_wizard_next_step(7);
+        $next_step = suite_barrio_wizard_next_step(7);
         wp_safe_redirect($next_step
-            ? admin_url("admin.php?page=wp-barrio-wizard&step={$next_step}")
-            : admin_url('admin.php?page=wp-barrio-wizard&completed=1'));
+            ? admin_url("admin.php?page=suite-barrio-wizard&step={$next_step}")
+            : admin_url('admin.php?page=suite-barrio-wizard&completed=1'));
     }
     exit;
 });
@@ -607,37 +627,37 @@ add_action('admin_post_wpb_wizard_seo_substep_skip', function () {
 /* ─────────────────────────────────────────
    SALVATAGGIO STEP 8 — Controlli Finali
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_step8_save', function () {
-    check_admin_referer('wpb_wizard_step8_save');
+add_action('admin_post_suite_barrio_wizard_step8_save', function () {
+    check_admin_referer('suite_barrio_wizard_step8_save');
 
     $allowed = ['gtm_analytics', 'mailjet_recaptcha', 'email_forms', 'orari_gmaps', 'popup_banner', 'auto_alt', 'cookie_policy', 'accessibility'];
     $submitted = isset($_POST['checks']) && is_array($_POST['checks']) ? array_map('sanitize_key', array_keys(wp_unslash($_POST['checks']))) : [];
     $checks = array_filter($submitted, fn($k) => in_array($k, $allowed, true));
 
-    $progress                  = wpb_wizard_get_progress();
+    $progress                  = suite_barrio_wizard_get_progress();
     $progress['step_8']        = 'done';
     $progress['step_8_checks'] = array_values($checks);
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    wp_safe_redirect(admin_url('admin.php?page=wp-barrio-wizard&completed=1'));
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-wizard&completed=1'));
     exit;
 });
 
 /* ─────────────────────────────────────────
    SALTA PASSAGGIO
    ───────────────────────────────────────── */
-add_action('admin_post_wpb_wizard_skip', function () {
-    check_admin_referer('wpb_wizard_skip');
+add_action('admin_post_suite_barrio_wizard_skip', function () {
+    check_admin_referer('suite_barrio_wizard_skip');
     $step = max(1, absint(wp_unslash($_POST['step'] ?? 1)));
 
-    $progress = wpb_wizard_get_progress();
+    $progress = suite_barrio_wizard_get_progress();
     $progress["step_{$step}"] = 'skipped';
-    update_option(WPB_WIZARD_PROGRESS_OPTION, $progress);
+    update_option(SUITE_BARRIO_WIZARD_PROGRESS_OPTION, $progress);
 
-    $next = wpb_wizard_next_step($step);
+    $next = suite_barrio_wizard_next_step($step);
     $url = $next
-        ? admin_url("admin.php?page=wp-barrio-wizard&step={$next}")
-        : admin_url('admin.php?page=wp-barrio-wizard&completed=1');
+        ? admin_url("admin.php?page=suite-barrio-wizard&step={$next}")
+        : admin_url('admin.php?page=suite-barrio-wizard&completed=1');
     wp_safe_redirect($url);
     exit;
 });
@@ -646,9 +666,9 @@ add_action('admin_post_wpb_wizard_skip', function () {
 /* ─────────────────────────────────────────
    PAGINA WIZARD
    ───────────────────────────────────────── */
-function wpb_wizard_page()
+function suite_barrio_wizard_page()
 {
-    $steps = wpb_wizard_steps();
+    $steps = suite_barrio_wizard_steps();
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $completed = isset($_GET['completed']);
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
@@ -656,7 +676,7 @@ function wpb_wizard_page()
     if (!isset($steps[$current]))
         $current = 1;
 
-    $data = function_exists('wpb_company_info_get') ? wpb_company_info_get() : [];
+    $data = function_exists('suite_barrio_company_info_get') ? suite_barrio_company_info_get() : [];
 
     $step1_fields = [
         'ragione_sociale' => ['label' => 'Ragione sociale', 'type' => 'text', 'full' => true],
@@ -673,51 +693,51 @@ function wpb_wizard_page()
         'capitale_sociale' => ['label' => 'Capitale sociale', 'type' => 'text', 'placeholder' => 'es. 10.000 € i.v.'],
     ];
     ?>
-    <div id="wpb-wizard" class="wrap wpb-wrap">
+    <div id="suite-barrio-wizard" class="wrap suite-barrio-wrap">
 
         <!-- Header -->
-        <div class="wpb-header-row">
-            <div class="wpb-header">
-                <div class="wpb-header-icon">
+        <div class="suite-barrio-header-row">
+            <div class="suite-barrio-header">
+                <div class="suite-barrio-header-icon">
                     <span class="dashicons dashicons-migrate"
                         style="color:#fff;font-size:20px;width:20px;height:20px;"></span>
                 </div>
                 <div>
                     <h1>Messa Online</h1>
-                    <p class="wpb-header-sub">Guida passo-passo per portare il sito in produzione</p>
+                    <p class="suite-barrio-header-sub">Guida passo-passo per portare il sito in produzione</p>
                 </div>
             </div>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio')); ?>"
-                class="wpb-btn wpb-btn-small wpb-btn-ghost">
+            <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio')); ?>"
+                class="suite-barrio-btn suite-barrio-btn-small suite-barrio-btn-ghost">
                 <span class="dashicons dashicons-arrow-left-alt2" style="font-size:14px;width:14px;height:14px;"></span>
                 Dashboard
             </a>
         </div>
 
-        <hr class="wpb-divider">
+        <hr class="suite-barrio-divider">
 
         <!-- Navigazione step -->
-        <div class="wpb-wizard-steps">
+        <div class="suite-barrio-wizard-steps">
             <?php foreach ($steps as $num => $step):
-                $status = wpb_wizard_step_status($num);
-                $accessible = wpb_wizard_step_accessible($num);
+                $status = suite_barrio_wizard_step_status($num);
+                $accessible = suite_barrio_wizard_step_accessible($num);
                 $is_active = ($num === $current) && !$completed;
-                $cls = 'wpb-wizard-step';
+                $cls = 'suite-barrio-wizard-step';
                 if ($is_active)
                     $cls .= ' is-active';
                 elseif ($status === 'done')
                     $cls .= ' is-done';
                 elseif ($status === 'skipped')
                     $cls .= ' is-skipped';
-                $step_url = esc_url(admin_url("admin.php?page=wp-barrio-wizard&step={$num}"));
+                $step_url = esc_url(admin_url("admin.php?page=suite-barrio-wizard&step={$num}"));
                 ?>
                 <div class="<?php echo esc_attr($cls); ?>">
                     <?php if ($accessible && !$is_active): ?>
-                        <a href="<?php echo esc_url($step_url); ?>" class="wpb-wizard-step-inner">
+                        <a href="<?php echo esc_url($step_url); ?>" class="suite-barrio-wizard-step-inner">
                         <?php else: ?>
-                            <span class="wpb-wizard-step-inner">
+                            <span class="suite-barrio-wizard-step-inner">
                             <?php endif; ?>
-                            <div class="wpb-wizard-step-num">
+                            <div class="suite-barrio-wizard-step-num">
                                 <?php if ($status === 'done'): ?>
                                     <span class="dashicons dashicons-yes" style="font-size:14px;width:14px;height:14px;"></span>
                                 <?php elseif ($status === 'skipped'): ?>
@@ -726,7 +746,7 @@ function wpb_wizard_page()
                                     <?php echo esc_html($num); ?>
                                 <?php endif; ?>
                             </div>
-                            <div class="wpb-wizard-step-label"><?php echo esc_html($step['label']); ?></div>
+                            <div class="suite-barrio-wizard-step-label"><?php echo esc_html($step['label']); ?></div>
                             <?php if ($accessible && !$is_active): ?>
                         </a>
                     <?php else: ?>
@@ -741,24 +761,24 @@ function wpb_wizard_page()
         ?>
 
             <!-- Schermata completamento -->
-            <div class="wpb-wizard-complete">
-                <div class="wpb-wizard-complete-icon">
+            <div class="suite-barrio-wizard-complete">
+                <div class="suite-barrio-wizard-complete-icon">
                     <span class="dashicons dashicons-yes-alt"></span>
                 </div>
                 <h2>Wizard completato!</h2>
                 <p>Hai completato tutti i passaggi della messa online.</p>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=wp-barrio')); ?>" class="wpb-btn wpb-btn-primary">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio')); ?>" class="suite-barrio-btn suite-barrio-btn-primary">
                     Torna alla dashboard
                 </a>
                 <div style="margin-top:14px;">
                     <?php if (!empty($perf_url)): ?>
                         <a href="<?php echo esc_url('https://pagespeed.web.dev/report?url=' . rawurlencode($perf_url)); ?>"
-                           target="_blank" rel="noopener" class="wpb-btn wpb-btn-ghost">
+                           target="_blank" rel="noopener" class="suite-barrio-btn suite-barrio-btn-ghost">
                             <span class="dashicons dashicons-performance" style="font-size:16px;width:16px;height:16px;margin-top:1px;"></span>
                             Verifica prestazioni
                         </a>
                     <?php else: ?>
-                        <button class="wpb-btn wpb-btn-ghost" disabled
+                        <button class="suite-barrio-btn suite-barrio-btn-ghost" disabled
                             title="Inserisci l'URL del sito nello Step 1 per usare questa funzione">
                             <span class="dashicons dashicons-performance" style="font-size:16px;width:16px;height:16px;margin-top:1px;"></span>
                             Verifica prestazioni
@@ -771,41 +791,41 @@ function wpb_wizard_page()
         <?php elseif ($current === 1): ?>
 
             <!-- Card step 1 -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon">
                         <span class="dashicons dashicons-id-alt"></span>
                     </div>
                     <div>
-                        <div class="wpb-wizard-card-title">Dati azienda</div>
-                        <div class="wpb-wizard-card-subtitle">Ragione sociale, recapiti e dati fiscali</div>
+                        <div class="suite-barrio-wizard-card-title">Dati azienda</div>
+                        <div class="suite-barrio-wizard-card-subtitle">Ragione sociale, recapiti e dati fiscali</div>
                     </div>
                 </div>
 
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="wpb-wizard-form">
-                    <?php wp_nonce_field('wpb_wizard_step1_save'); ?>
-                    <input type="hidden" name="action" value="wpb_wizard_step1_save">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="suite-barrio-wizard-form">
+                    <?php wp_nonce_field('suite_barrio_wizard_step1_save'); ?>
+                    <input type="hidden" name="action" value="suite_barrio_wizard_step1_save">
 
-                    <div class="wpb-wizard-fields">
+                    <div class="suite-barrio-wizard-fields">
                         <?php foreach ($step1_fields as $key => $field):
                             $value = $data[$key] ?? '';
                             $placeholder = $field['placeholder'] ?? '';
                             $is_full = !empty($field['full']);
                             ?>
-                            <div class="wpb-wizard-field<?php echo $is_full ? ' wpb-wizard-field-full' : ''; ?>">
-                                <label for="wpb-wiz-<?php echo esc_attr($key); ?>">
+                            <div class="suite-barrio-wizard-field<?php echo $is_full ? ' suite-barrio-wizard-field-full' : ''; ?>">
+                                <label for="suite-barrio-wiz-<?php echo esc_attr($key); ?>">
                                     <?php echo esc_html($field['label']); ?>
                                 </label>
-                                <input type="<?php echo esc_attr($field['type']); ?>" id="wpb-wiz-<?php echo esc_attr($key); ?>"
+                                <input type="<?php echo esc_attr($field['type']); ?>" id="suite-barrio-wiz-<?php echo esc_attr($key); ?>"
                                     name="company[<?php echo esc_attr($key); ?>]" value="<?php echo esc_attr($value); ?>"
                                     placeholder="<?php echo esc_attr($placeholder); ?>">
                             </div>
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="wpb-wizard-actions">
-                        <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                    <div class="suite-barrio-wizard-actions">
+                        <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                             Continua
                             <span class="dashicons dashicons-arrow-right-alt2"
                                 style="font-size:15px;width:15px;height:15px;"></span>
@@ -814,12 +834,12 @@ function wpb_wizard_page()
                 </form>
 
                 <!-- Skip: form separato, fuori dal form principale -->
-                <div class="wpb-wizard-card-footer">
+                <div class="suite-barrio-wizard-card-footer">
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_skip'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_skip">
+                        <?php wp_nonce_field('suite_barrio_wizard_skip'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_skip">
                         <input type="hidden" name="step" value="1">
-                        <button type="submit" class="wpb-wizard-skip-btn">Salta passaggio</button>
+                        <button type="submit" class="suite-barrio-wizard-skip-btn">Salta passaggio</button>
                     </form>
                 </div>
 
@@ -843,61 +863,61 @@ function wpb_wizard_page()
         ?>
 
             <!-- Card step 2 -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon">
                         <span class="dashicons dashicons-admin-plugins"></span>
                     </div>
                     <div>
-                        <div class="wpb-wizard-card-title">Strumenti attivi</div>
-                        <div class="wpb-wizard-card-subtitle">Seleziona i moduli di WP Barrio da utilizzare su questo sito</div>
+                        <div class="suite-barrio-wizard-card-title">Strumenti attivi</div>
+                        <div class="suite-barrio-wizard-card-subtitle">Seleziona i moduli di Suite Barrio da utilizzare su questo sito</div>
                     </div>
                 </div>
 
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="wpb-wizard-form">
-                    <?php wp_nonce_field('wpb_wizard_step2_save'); ?>
-                    <input type="hidden" name="action" value="wpb_wizard_step2_save">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="suite-barrio-wizard-form">
+                    <?php wp_nonce_field('suite_barrio_wizard_step2_save'); ?>
+                    <input type="hidden" name="action" value="suite_barrio_wizard_step2_save">
 
-                    <div class="wpb-wizard-modules">
-                        <?php foreach (wpb_tools_modules_list() as $key => $mod):
-                            $enabled = wpb_tools_module_enabled($key);
+                    <div class="suite-barrio-wizard-modules">
+                        <?php foreach (suite_barrio_tools_modules_list() as $key => $mod):
+                            $enabled = suite_barrio_tools_module_enabled($key);
                             $meta    = $module_meta[$key] ?? ['icon' => 'dashicons-admin-generic', 'color' => '#374151'];
                         ?>
-                            <label class="wpb-wizard-module" for="wpb-mod-<?php echo esc_attr($key); ?>">
-                                <div class="wpb-wizard-module-left">
-                                    <div class="wpb-wizard-module-icon" style="background:<?php echo esc_attr($meta['color']); ?>">
+                            <label class="suite-barrio-wizard-module" for="suite-barrio-mod-<?php echo esc_attr($key); ?>">
+                                <div class="suite-barrio-wizard-module-left">
+                                    <div class="suite-barrio-wizard-module-icon" style="background:<?php echo esc_attr($meta['color']); ?>">
                                         <span class="dashicons <?php echo esc_attr($meta['icon']); ?>"></span>
                                     </div>
-                                    <div class="wpb-wizard-module-body">
-                                        <div class="wpb-wizard-module-label"><?php echo esc_html($mod['label']); ?></div>
-                                        <div class="wpb-wizard-module-desc"><?php echo esc_html($mod['desc']); ?></div>
+                                    <div class="suite-barrio-wizard-module-body">
+                                        <div class="suite-barrio-wizard-module-label"><?php echo esc_html($mod['label']); ?></div>
+                                        <div class="suite-barrio-wizard-module-desc"><?php echo esc_html($mod['desc']); ?></div>
                                     </div>
                                 </div>
-                                <div class="wpb-toggle">
-                                    <input type="checkbox" id="wpb-mod-<?php echo esc_attr($key); ?>"
+                                <div class="suite-barrio-toggle">
+                                    <input type="checkbox" id="suite-barrio-mod-<?php echo esc_attr($key); ?>"
                                         name="modules[<?php echo esc_attr($key); ?>]" value="1"
                                         <?php checked($enabled, true); ?>>
-                                    <span class="wpb-toggle-track"></span>
+                                    <span class="suite-barrio-toggle-track"></span>
                                 </div>
                             </label>
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="wpb-wizard-actions">
-                        <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                    <div class="suite-barrio-wizard-actions">
+                        <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                             Continua
                             <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                         </button>
                     </div>
                 </form>
 
-                <div class="wpb-wizard-card-footer">
+                <div class="suite-barrio-wizard-card-footer">
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_skip'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_skip">
+                        <?php wp_nonce_field('suite_barrio_wizard_skip'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_skip">
                         <input type="hidden" name="step" value="2">
-                        <button type="submit" class="wpb-wizard-skip-btn">Salta passaggio</button>
+                        <button type="submit" class="suite-barrio-wizard-skip-btn">Salta passaggio</button>
                     </form>
                 </div>
 
@@ -936,23 +956,23 @@ function wpb_wizard_page()
         ?>
 
             <!-- Card step 3 -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon" style="background:#e37400;">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon" style="background:#e37400;">
                         <span class="dashicons dashicons-tag"></span>
                     </div>
                     <div>
-                        <div class="wpb-wizard-card-title">Google Tag Manager</div>
-                        <div class="wpb-wizard-card-subtitle">Verifica e configura il tag GTM sul sito</div>
+                        <div class="suite-barrio-wizard-card-title">Google Tag Manager</div>
+                        <div class="suite-barrio-wizard-card-subtitle">Verifica e configura il tag GTM sul sito</div>
                     </div>
                 </div>
 
-                <div class="wpb-wizard-form">
+                <div class="suite-barrio-wizard-form">
 
                     <!-- Risultato controllo -->
                     <?php if ($check_status === 'no_url'): ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-warn">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-warn">
                             <span class="dashicons dashicons-info-outline"></span>
                             <div>
                                 <strong>URL sito non impostato</strong>
@@ -961,7 +981,7 @@ function wpb_wizard_page()
                         </div>
 
                     <?php elseif ($check_status === 'error'): ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-warn">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-warn">
                             <span class="dashicons dashicons-warning"></span>
                             <div>
                                 <strong>Sito non raggiungibile</strong>
@@ -970,7 +990,7 @@ function wpb_wizard_page()
                         </div>
 
                     <?php elseif ($check_status === 'found'): ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-ok">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-ok">
                             <span class="dashicons dashicons-yes-alt"></span>
                             <div>
                                 <strong>Tag GTM rilevato</strong>
@@ -979,7 +999,7 @@ function wpb_wizard_page()
                         </div>
 
                     <?php else: ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-error">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-error">
                             <span class="dashicons dashicons-dismiss"></span>
                             <div>
                                 <strong>Tag GTM non trovato</strong>
@@ -989,26 +1009,26 @@ function wpb_wizard_page()
                     <?php endif; ?>
 
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_step3_save'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_step3_save">
+                        <?php wp_nonce_field('suite_barrio_wizard_step3_save'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_step3_save">
 
-                        <div class="wpb-wizard-fields">
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
-                                <label for="wpb-wiz-gtm-id">Container ID</label>
-                                <input type="text" id="wpb-wiz-gtm-id" name="gtm_id"
+                        <div class="suite-barrio-wizard-fields">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
+                                <label for="suite-barrio-wiz-gtm-id">Container ID</label>
+                                <input type="text" id="suite-barrio-wiz-gtm-id" name="gtm_id"
                                     value="<?php echo esc_attr($gtm_prefill); ?>"
                                     placeholder="GTM-XXXXXXX">
                             </div>
                         </div>
 
-                        <div class="wpb-wizard-actions">
-                            <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit"
+                        <div class="suite-barrio-wizard-actions">
+                            <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit"
                                 <?php echo $check_status !== 'found' ? 'disabled' : ''; ?>>
                                 Continua
                                 <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                             </button>
                             <?php if ($check_status !== 'found'): ?>
-                                <span class="wpb-wizard-submit-note">
+                                <span class="suite-barrio-wizard-submit-note">
                                     GTM non rilevato — usa "Salta passaggio" per procedere senza.
                                 </span>
                             <?php endif; ?>
@@ -1017,12 +1037,12 @@ function wpb_wizard_page()
 
                 </div>
 
-                <div class="wpb-wizard-card-footer">
+                <div class="suite-barrio-wizard-card-footer">
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_skip'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_skip">
+                        <?php wp_nonce_field('suite_barrio_wizard_skip'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_skip">
                         <input type="hidden" name="step" value="3">
-                        <button type="submit" class="wpb-wizard-skip-btn">Salta passaggio</button>
+                        <button type="submit" class="suite-barrio-wizard-skip-btn">Salta passaggio</button>
                     </form>
                 </div>
 
@@ -1037,35 +1057,35 @@ function wpb_wizard_page()
         ?>
 
             <!-- Card step 4 — Mailjet -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon" style="background:#f7622c;">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon" style="background:#f7622c;">
                         <span class="dashicons dashicons-email" style="color:#fff;"></span>
                     </div>
                     <div>
-                        <div class="wpb-wizard-card-title">Mailjet</div>
-                        <div class="wpb-wizard-card-subtitle">Credenziali per l'invio email tramite lo strumento Forms</div>
+                        <div class="suite-barrio-wizard-card-title">Mailjet</div>
+                        <div class="suite-barrio-wizard-card-subtitle">Credenziali per l'invio email tramite lo strumento Forms</div>
                     </div>
                 </div>
 
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="wpb-wizard-form">
-                    <?php wp_nonce_field('wpb_wizard_step4_save'); ?>
-                    <input type="hidden" name="action" value="wpb_wizard_step4_save">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="suite-barrio-wizard-form">
+                    <?php wp_nonce_field('suite_barrio_wizard_step4_save'); ?>
+                    <input type="hidden" name="action" value="suite_barrio_wizard_step4_save">
 
-                    <div class="wpb-wizard-fields">
+                    <div class="suite-barrio-wizard-fields">
 
-                        <div class="wpb-wizard-field wpb-wizard-field-full">
-                            <label for="wpb-wiz-mj-api-key">API Key (pubblica)</label>
-                            <input type="text" id="wpb-wiz-mj-api-key" name="mailjet_api_key"
+                        <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
+                            <label for="suite-barrio-wiz-mj-api-key">API Key (pubblica)</label>
+                            <input type="text" id="suite-barrio-wiz-mj-api-key" name="mailjet_api_key"
                                 value="<?php echo esc_attr($mj_api_key); ?>"
                                 placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                                 autocomplete="off">
                         </div>
 
-                        <div class="wpb-wizard-field wpb-wizard-field-full">
-                            <label for="wpb-wiz-mj-secret-key">Secret Key (privata)</label>
-                            <input type="password" id="wpb-wiz-mj-secret-key" name="mailjet_secret_key"
+                        <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
+                            <label for="suite-barrio-wiz-mj-secret-key">Secret Key (privata)</label>
+                            <input type="password" id="suite-barrio-wiz-mj-secret-key" name="mailjet_secret_key"
                                 value="<?php echo esc_attr($mj_secret_key); ?>"
                                 placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                                 autocomplete="off">
@@ -1073,20 +1093,20 @@ function wpb_wizard_page()
 
                     </div>
 
-                    <div class="wpb-wizard-actions">
-                        <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                    <div class="suite-barrio-wizard-actions">
+                        <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                             Continua
                             <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                         </button>
                     </div>
                 </form>
 
-                <div class="wpb-wizard-card-footer">
+                <div class="suite-barrio-wizard-card-footer">
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_skip'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_skip">
+                        <?php wp_nonce_field('suite_barrio_wizard_skip'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_skip">
                         <input type="hidden" name="step" value="4">
-                        <button type="submit" class="wpb-wizard-skip-btn">Salta passaggio</button>
+                        <button type="submit" class="suite-barrio-wizard-skip-btn">Salta passaggio</button>
                     </form>
                 </div>
 
@@ -1125,7 +1145,7 @@ function wpb_wizard_page()
                 'Cookie Notice (WP)'  => ['cookie-notice-container', 'cookie_notice_accepted', 'cn-notice'],
                 'GDPR Cookie Consent' => ['gdpr-cookie-consent', 'wt-cli-cookie', 'wt_cli_accepted'],
                 'WP Cookie Consent'   => ['wpcc-container', 'wp-cookie-consent'],
-                'WP Barrio'           => ['wpb-cookie', 'wpb-cp-banner'],
+                'Suite Barrio'           => ['suite-barrio-cookie', 'suite-barrio-cp-banner'],
                 'Generico'            => ['cookieconsent', 'cookie-consent-banner', 'cookie-banner', 'cookie-popup', 'cookie-law-info', 'js-cookie-consent'],
             ];
 
@@ -1194,22 +1214,22 @@ function wpb_wizard_page()
         ?>
 
             <!-- Card step 4 -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon" style="background:#0f766e;">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon" style="background:#0f766e;">
                         <span class="dashicons dashicons-shield"></span>
                     </div>
                     <div>
-                        <div class="wpb-wizard-card-title">Cookie e Privacy</div>
-                        <div class="wpb-wizard-card-subtitle">Verifica la presenza di un banner cookie sul sito</div>
+                        <div class="suite-barrio-wizard-card-title">Cookie e Privacy</div>
+                        <div class="suite-barrio-wizard-card-subtitle">Verifica la presenza di un banner cookie sul sito</div>
                     </div>
                 </div>
 
-                <div class="wpb-wizard-form">
+                <div class="suite-barrio-wizard-form">
 
                     <?php if ($check_status === 'no_url'): ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-warn">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-warn">
                             <span class="dashicons dashicons-info-outline"></span>
                             <div>
                                 <strong>URL sito non impostato</strong>
@@ -1218,7 +1238,7 @@ function wpb_wizard_page()
                         </div>
 
                     <?php elseif ($check_status === 'error'): ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-warn">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-warn">
                             <span class="dashicons dashicons-warning"></span>
                             <div>
                                 <strong>Sito non raggiungibile</strong>
@@ -1227,7 +1247,7 @@ function wpb_wizard_page()
                         </div>
 
                     <?php elseif ($check_status === 'found'): ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-ok">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-ok">
                             <span class="dashicons dashicons-yes-alt"></span>
                             <div>
                                 <strong>Banner cookie rilevato<?php echo $platform !== 'Generico' ? ' — ' . esc_html($platform) : ''; ?></strong>
@@ -1236,7 +1256,7 @@ function wpb_wizard_page()
                         </div>
 
                     <?php else: ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-error">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-error">
                             <span class="dashicons dashicons-dismiss"></span>
                             <div>
                                 <strong>Nessun banner cookie rilevato</strong>
@@ -1247,34 +1267,34 @@ function wpb_wizard_page()
                     <?php endif; ?>
 
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_step5_save'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_step5_save">
+                        <?php wp_nonce_field('suite_barrio_wizard_step5_save'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_step5_save">
 
                         <?php if ($check_status === 'found'): ?>
-                            <div class="wpb-wizard-field wpb-wizard-field-full" style="margin-top:20px;">
-                                <label for="wpb_cp_cookie_report_script_wiz" class="wpb-wizard-label">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full" style="margin-top:20px;">
+                                <label for="suite_barrio_cp_cookie_report_script_wiz" class="suite-barrio-wizard-label">
                                     Tabella riepilogo cookie
-                                    <span class="wpb-wizard-label-hint">Opzionale — incolla qui il codice HTML/script della tabella cookie fornito da <?php echo esc_html(str_replace(' (via GTM)', '', $platform)); ?>. Verrà aggiunto in coda alla Cookie Policy.</span>
+                                    <span class="suite-barrio-wizard-label-hint">Opzionale — incolla qui il codice HTML/script della tabella cookie fornito da <?php echo esc_html(str_replace(' (via GTM)', '', $platform)); ?>. Verrà aggiunto in coda alla Cookie Policy.</span>
                                 </label>
                                 <textarea
-                                    id="wpb_cp_cookie_report_script_wiz"
+                                    id="suite_barrio_cp_cookie_report_script_wiz"
                                     name="wpb_cp_cookie_report_script"
                                     rows="6"
                                     placeholder="<script id=&quot;CookieDeclaration&quot; ...></script>"
-                                    class="wpb-wizard-textarea"
+                                    class="suite-barrio-wizard-textarea"
                                 ><?php echo esc_textarea(get_option('wpb_cp_cookie_report_script', '')); ?></textarea>
                             </div>
                         <?php endif; ?>
 
-                        <div class="wpb-wizard-actions">
-                            <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit"
+                        <div class="suite-barrio-wizard-actions">
+                            <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit"
                                 <?php echo $check_status !== 'found' ? 'disabled' : ''; ?>>
                                 Continua
                                 <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                             </button>
                         </div>
                         <?php if ($check_status === 'not_found'): ?>
-                            <p class="wpb-wizard-submit-note">
+                            <p class="suite-barrio-wizard-submit-note">
                                 Nessun banner cookie rilevato sul sito. Usa "Salta passaggio" se vuoi procedere senza configurare un banner.
                             </p>
                         <?php endif; ?>
@@ -1282,12 +1302,12 @@ function wpb_wizard_page()
 
                 </div>
 
-                <div class="wpb-wizard-card-footer">
+                <div class="suite-barrio-wizard-card-footer">
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_skip'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_skip">
+                        <?php wp_nonce_field('suite_barrio_wizard_skip'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_skip">
                         <input type="hidden" name="step" value="5">
-                        <button type="submit" class="wpb-wizard-skip-btn">Salta passaggio</button>
+                        <button type="submit" class="suite-barrio-wizard-skip-btn">Salta passaggio</button>
                     </form>
                 </div>
 
@@ -1295,10 +1315,10 @@ function wpb_wizard_page()
 
         <?php elseif ($current === 6):
 
-            $fn         = 'wpb_tools_module_enabled';
-            $active_alt = function_exists($fn) && wpb_tools_module_enabled('auto_alt');
-            $active_seo = function_exists($fn) && wpb_tools_module_enabled('seo');
-            $active_cp  = function_exists($fn) && wpb_tools_module_enabled('cookie_privacy');
+            $fn         = 'suite_barrio_tools_module_enabled';
+            $active_alt = function_exists($fn) && suite_barrio_tools_module_enabled('auto_alt');
+            $active_seo = function_exists($fn) && suite_barrio_tools_module_enabled('seo');
+            $active_cp  = function_exists($fn) && suite_barrio_tools_module_enabled('cookie_privacy');
 
             $active_labels = array_filter([
                 $active_alt ? 'Auto Alt'         : '',
@@ -1307,7 +1327,7 @@ function wpb_wizard_page()
             ]);
 
             // Legge i valori correnti dal primo modulo attivo che li ha.
-            $ref        = $active_alt ? 'wp_alt_ai' : ($active_seo ? 'wpb_llms' : 'wpb_advisor');
+            $ref        = $active_alt ? 'wp_alt_ai' : ($active_seo ? 'suite_barrio_llms' : 'suite_barrio_advisor');
             $provider   = (string) get_option($ref . '_provider', 'anthropic');
             $key_anth   = (string) get_option($active_alt ? 'wp_alt_ai_api_key'    : ($active_seo ? 'wpb_llms_api_key'   : 'wpb_advisor_api_key'),    '');
             $key_gem    = (string) get_option($active_alt ? 'wp_alt_ai_gemini_key' : ($active_seo ? 'wpb_llms_gemini_key' : 'wpb_advisor_gemini_key'), '');
@@ -1346,10 +1366,10 @@ function wpb_wizard_page()
         ?>
 
             <!-- Card step 5 -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon" style="background:#7c3aed;">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon" style="background:#7c3aed;">
                         <span class="dashicons dashicons-admin-network" style="color:#fff;"></span>
                     </div>
                     <div>
@@ -1361,57 +1381,57 @@ function wpb_wizard_page()
                     </div>
                 </div>
 
-                <div class="wpb-wizard-form">
+                <div class="suite-barrio-wizard-form">
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                    <?php wp_nonce_field('wpb_wizard_step6_save'); ?>
-                    <input type="hidden" name="action" value="wpb_wizard_step6_save">
+                    <?php wp_nonce_field('suite_barrio_wizard_step6_save'); ?>
+                    <input type="hidden" name="action" value="suite_barrio_wizard_step6_save">
 
                     <!-- ── Provider & modello ──────────────────────────── -->
-                    <div class="wpb-section-box" style="margin-bottom:16px;">
-                        <div class="wpb-section-head">
+                    <div class="suite-barrio-section-box" style="margin-bottom:16px;">
+                        <div class="suite-barrio-section-head">
                             <span class="dashicons dashicons-superhero-alt"></span> Provider e modello AI
                         </div>
-                        <div class="wpb-section-body">
+                        <div class="suite-barrio-section-body">
                         <?php foreach ($providers_cfg as $pval => $pcfg):
                             $is_sel      = ($provider === $pval);
                             $active_mdl  = ($is_sel && isset($pcfg['models'][$model])) ? $model : $pcfg['default'];
                             $key_val     = ($pval === 'anthropic') ? $key_anth : $key_gem;
                         ?>
-                            <label class="wpb-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
+                            <label class="suite-barrio-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
                                 data-provider="<?php echo esc_attr($pval); ?>">
-                                <input type="radio" name="wpb_wizard_ai_provider"
+                                <input type="radio" name="suite_barrio_wizard_ai_provider"
                                     value="<?php echo esc_attr($pval); ?>"
                                     <?php checked($provider, $pval); ?>>
                                 <div>
-                                    <div class="wpb-pc-name"><?php echo esc_html($pcfg['label']); ?></div>
-                                    <div class="wpb-pc-desc"><?php echo esc_html($pcfg['desc']); ?></div>
+                                    <div class="suite-barrio-pc-name"><?php echo esc_html($pcfg['label']); ?></div>
+                                    <div class="suite-barrio-pc-desc"><?php echo esc_html($pcfg['desc']); ?></div>
                                 </div>
                             </label>
 
-                            <div class="wpb-provider-keys <?php echo $is_sel ? 'visible' : ''; ?>"
-                                id="wpbwiz-keys-<?php echo esc_attr($pval); ?>">
-                                <div class="wpb-key-group">
+                            <div class="suite-barrio-provider-keys <?php echo $is_sel ? 'visible' : ''; ?>"
+                                id="suite-barrio-wiz-keys-<?php echo esc_attr($pval); ?>">
+                                <div class="suite-barrio-key-group">
                                     <label>Chiave API <?php echo esc_html($pval === 'anthropic' ? 'Anthropic' : 'Google AI Studio'); ?></label>
                                     <input type="password"
-                                        name="wpb_wizard_ai_key_<?php echo esc_attr($pval === 'anthropic' ? 'anthropic' : 'gemini'); ?>"
+                                        name="suite_barrio_wizard_ai_key_<?php echo esc_attr($pval === 'anthropic' ? 'anthropic' : 'gemini'); ?>"
                                         value="<?php echo esc_attr($key_val); ?>"
                                         placeholder="<?php echo esc_attr($pcfg['key_ph']); ?>"
                                         autocomplete="off">
                                 </div>
-                                <div class="wpb-key-group">
+                                <div class="suite-barrio-key-group">
                                     <label>Modello</label>
-                                    <div class="wpb-model-group">
+                                    <div class="suite-barrio-model-group">
                                     <?php foreach ($pcfg['models'] as $mval => $mdata):
                                         $m_checked = ($active_mdl === $mval); ?>
-                                        <label class="wpb-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
-                                            <input type="radio" name="wpb_wizard_ai_model"
+                                        <label class="suite-barrio-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
+                                            <input type="radio" name="suite_barrio_wizard_ai_model"
                                                 value="<?php echo esc_attr($mval); ?>"
                                                 <?php checked($active_mdl, $mval); ?>
                                                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
                                             <div>
-                                                <div class="wpb-model-name"><?php echo esc_html($mdata['name']); ?></div>
-                                                <div class="wpb-model-desc"><?php echo esc_html($mdata['desc']); ?></div>
-                                                <div class="wpb-model-id"><?php echo esc_html($mval); ?></div>
+                                                <div class="suite-barrio-model-name"><?php echo esc_html($mdata['name']); ?></div>
+                                                <div class="suite-barrio-model-desc"><?php echo esc_html($mdata['desc']); ?></div>
+                                                <div class="suite-barrio-model-id"><?php echo esc_html($mval); ?></div>
                                             </div>
                                         </label>
                                     <?php endforeach; ?>
@@ -1423,13 +1443,13 @@ function wpb_wizard_page()
                     </div>
 
                     <!-- ── Lingua ──────────────────────────────────────── -->
-                    <div class="wpb-section-box" style="margin-bottom:16px;">
-                        <div class="wpb-section-head">
+                    <div class="suite-barrio-section-box" style="margin-bottom:16px;">
+                        <div class="suite-barrio-section-head">
                             <span class="dashicons dashicons-translation"></span> Lingua output
                         </div>
-                        <div class="wpb-section-body">
-                            <label class="wpb-field-label">Lingua dei testi generati</label>
-                            <select name="wpb_wizard_ai_language" class="wpb-select">
+                        <div class="suite-barrio-section-body">
+                            <label class="suite-barrio-field-label">Lingua dei testi generati</label>
+                            <select name="suite_barrio_wizard_ai_language" class="suite-barrio-select">
                                 <option value="it" <?php selected($language, 'it'); ?>>🇮🇹 Italiano</option>
                                 <option value="en" <?php selected($language, 'en'); ?>>🇬🇧 English</option>
                                 <option value="es" <?php selected($language, 'es'); ?>>🇪🇸 Español</option>
@@ -1440,15 +1460,15 @@ function wpb_wizard_page()
                     </div>
 
                     <!-- ── Impostazioni prompt ─────────────────────────── -->
-                    <div class="wpb-section-box" style="margin-bottom:20px;">
-                        <div class="wpb-section-head">
+                    <div class="suite-barrio-section-box" style="margin-bottom:20px;">
+                        <div class="suite-barrio-section-head">
                             <span class="dashicons dashicons-edit-page"></span> Impostazioni prompt
                         </div>
-                        <div class="wpb-section-body">
+                        <div class="suite-barrio-section-body">
 
                             <div style="margin-bottom:16px;">
-                                <label class="wpb-field-label" for="wpbwiz_tone">Registro linguistico</label>
-                                <select name="wpb_wizard_ai_tone" id="wpbwiz_tone" class="wpb-select">
+                                <label class="suite-barrio-field-label" for="suite_barrio_wiz_tone">Registro linguistico</label>
+                                <select name="suite_barrio_wizard_ai_tone" id="suite_barrio_wiz_tone" class="suite-barrio-select">
                                     <option value="neutral"      <?php selected($tone, 'neutral'); ?>>Neutro e oggettivo</option>
                                     <option value="professional" <?php selected($tone, 'professional'); ?>>Professionale e formale</option>
                                     <option value="friendly"     <?php selected($tone, 'friendly'); ?>>Amichevole e accessibile</option>
@@ -1456,43 +1476,43 @@ function wpb_wizard_page()
                                     <option value="creative"     <?php selected($tone, 'creative'); ?>>Creativo e coinvolgente</option>
                                     <option value="seo"          <?php selected($tone, 'seo'); ?>>Ottimizzato SEO</option>
                                 </select>
-                                <p class="wpb-field-desc">Tono dei testi generati dall'AI.</p>
+                                <p class="suite-barrio-field-desc">Tono dei testi generati dall'AI.</p>
                             </div>
 
                             <div style="margin-bottom:16px;">
-                                <label class="wpb-field-label" for="wpbwiz_style">Stile descrittivo</label>
-                                <select name="wpb_wizard_ai_style" id="wpbwiz_style" class="wpb-select">
+                                <label class="suite-barrio-field-label" for="suite_barrio_wiz_style">Stile descrittivo</label>
+                                <select name="suite_barrio_wizard_ai_style" id="suite_barrio_wiz_style" class="suite-barrio-select">
                                     <option value="descriptive"  <?php selected($style, 'descriptive'); ?>>Descrittivo — elenca gli elementi visivi</option>
                                     <option value="contextual"   <?php selected($style, 'contextual'); ?>>Contestuale — interpreta significato e scopo</option>
                                     <option value="emotional"    <?php selected($style, 'emotional'); ?>>Evocativo — trasmette sensazioni e atmosfera</option>
                                     <option value="journalistic" <?php selected($style, 'journalistic'); ?>>Giornalistico — sintetico come una didascalia</option>
                                 </select>
-                                <p class="wpb-field-desc">Approccio con cui l'AI descrive i contenuti.</p>
+                                <p class="suite-barrio-field-desc">Approccio con cui l'AI descrive i contenuti.</p>
                             </div>
 
                             <div style="margin-bottom:16px;">
-                                <label class="wpb-field-label" for="wpbwiz_context">Contesto del sito</label>
-                                <input type="text" name="wpb_wizard_ai_context" id="wpbwiz_context"
-                                    class="wpb-input" style="width:100%;max-width:460px;"
+                                <label class="suite-barrio-field-label" for="suite_barrio_wiz_context">Contesto del sito</label>
+                                <input type="text" name="suite_barrio_wizard_ai_context" id="suite_barrio_wiz_context"
+                                    class="suite-barrio-input" style="width:100%;max-width:460px;"
                                     value="<?php echo esc_attr($context); ?>"
                                     placeholder="es. e-commerce di moda sostenibile, blog di cucina italiana…">
-                                <p class="wpb-field-desc">Fornisce contesto all'AI per generare testi più pertinenti al tuo settore.</p>
+                                <p class="suite-barrio-field-desc">Fornisce contesto all'AI per generare testi più pertinenti al tuo settore.</p>
                             </div>
 
                             <div>
-                                <label class="wpb-field-label" for="wpbwiz_keywords">Parole chiave SEO</label>
-                                <input type="text" name="wpb_wizard_ai_keywords" id="wpbwiz_keywords"
-                                    class="wpb-input" style="width:100%;max-width:460px;"
+                                <label class="suite-barrio-field-label" for="suite_barrio_wiz_keywords">Parole chiave SEO</label>
+                                <input type="text" name="suite_barrio_wizard_ai_keywords" id="suite_barrio_wiz_keywords"
+                                    class="suite-barrio-input" style="width:100%;max-width:460px;"
                                     value="<?php echo esc_attr($keywords); ?>"
                                     placeholder="es. scarpe artigianali, pelle italiana, handmade…">
-                                <p class="wpb-field-desc">Parole chiave da includere nei testi se pertinenti. Separate da virgola.</p>
+                                <p class="suite-barrio-field-desc">Parole chiave da includere nei testi se pertinenti. Separate da virgola.</p>
                             </div>
 
                         </div>
                     </div>
 
-                    <div class="wpb-wizard-actions">
-                        <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                    <div class="suite-barrio-wizard-actions">
+                        <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                             Continua
                             <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                         </button>
@@ -1500,42 +1520,42 @@ function wpb_wizard_page()
                 </form>
                 </div>
 
-                <div class="wpb-wizard-card-footer">
+                <div class="suite-barrio-wizard-card-footer">
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_skip'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_skip">
+                        <?php wp_nonce_field('suite_barrio_wizard_skip'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_skip">
                         <input type="hidden" name="step" value="6">
-                        <button type="submit" class="wpb-wizard-skip-btn">Salta passaggio</button>
+                        <button type="submit" class="suite-barrio-wizard-skip-btn">Salta passaggio</button>
                     </form>
                 </div>
 
             </div>
 
-        <script>
-        (function () {
-            var providerName = 'wpb_wizard_ai_provider';
-            var modelName    = 'wpb_wizard_ai_model';
+        <?php
+        wp_add_inline_script('suite-barrio-wizard-step6', '        (function () {
+            var providerName = \'suite_barrio_wizard_ai_provider\';
+            var modelName    = \'suite_barrio_wizard_ai_model\';
 
             function updateModelHighlight() {
-                document.querySelectorAll('.wpb-model-label').forEach(function (lbl) {
-                    var r = lbl.querySelector('input[type=radio]');
-                    lbl.classList.toggle('selected', !!(r && r.checked && !r.disabled));
+                document.querySelectorAll(\'.suite-barrio-model-label\').forEach(function (lbl) {
+                    var r = lbl.querySelector(\'input[type=radio]\');
+                    lbl.classList.toggle(\'selected\', !!(r && r.checked && !r.disabled));
                 });
             }
 
-            document.querySelectorAll('input[name="' + providerName + '"]').forEach(function (radio) {
-                radio.addEventListener('change', function () {
+            document.querySelectorAll(\'input[name="\' + providerName + \'"]\').forEach(function (radio) {
+                radio.addEventListener(\'change\', function () {
                     var sel = this.value;
                     // Aggiorna bordo card provider
-                    document.querySelectorAll('.wpb-provider-card').forEach(function (c) {
-                        c.classList.toggle('selected', c.dataset.provider === sel);
+                    document.querySelectorAll(\'.suite-barrio-provider-card\').forEach(function (c) {
+                        c.classList.toggle(\'selected\', c.dataset.provider === sel);
                     });
                     // Mostra/nascondi sezione chiavi+modelli
-                    document.querySelectorAll('[id^="wpbwiz-keys-"]').forEach(function (panel) {
-                        var prov  = panel.id.replace('wpbwiz-keys-', '');
+                    document.querySelectorAll(\'[id^="suite-barrio-wiz-keys-"]\').forEach(function (panel) {
+                        var prov  = panel.id.replace(\'suite-barrio-wiz-keys-\', \'\');
                         var active = (prov === sel);
-                        panel.classList.toggle('visible', active);
-                        panel.querySelectorAll('input[type=radio][name="' + modelName + '"]').forEach(function (r) {
+                        panel.classList.toggle(\'visible\', active);
+                        panel.querySelectorAll(\'input[type=radio][name="\' + modelName + \'"]\').forEach(function (r) {
                             r.disabled = !active;
                         });
                     });
@@ -1544,22 +1564,23 @@ function wpb_wizard_page()
             });
 
             updateModelHighlight();
-        })();
-        </script>
+        })();'
+        );
+        ?>
 
         <?php elseif ($current === 7):
 
             // Determina substep corrente: URL param se valido, altrimenti primo incompleto.
             // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
             $url_sub     = absint(wp_unslash($_GET['substep'] ?? 0));
-            $cur_sub     = wpb_wizard_seo_current_substep();
+            $cur_sub     = suite_barrio_wizard_seo_current_substep();
             if ($url_sub >= 1 && $url_sub <= 4) $cur_sub = $url_sub;
 
-            $seo_steps   = wpb_wizard_seo_substeps();
-            $seo_progress = wpb_wizard_get_progress();
+            $seo_steps   = suite_barrio_wizard_seo_substeps();
+            $seo_progress = suite_barrio_wizard_get_progress();
 
             // Legge info azienda per pre-compilare SEO Globale e Schema.
-            $company = function_exists('wpb_company_info_get') ? wpb_company_info_get() : [];
+            $company = function_exists('suite_barrio_company_info_get') ? suite_barrio_company_info_get() : [];
 
             // Legge impostazioni esistenti dei sotto-strumenti.
             $meta_s   = get_option('wpb_meta_settings',   []);  if (!is_array($meta_s))   $meta_s   = [];
@@ -1568,10 +1589,10 @@ function wpb_wizard_page()
         ?>
 
             <!-- Card step 6 — SEO -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon" style="background:#0369a1;">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon" style="background:#0369a1;">
                         <span class="dashicons dashicons-search" style="color:#fff;"></span>
                     </div>
                     <div>
@@ -1581,10 +1602,10 @@ function wpb_wizard_page()
                 </div>
 
                 <!-- Navigazione sotto-step -->
-                <div class="wpb-wizard-substeps">
+                <div class="suite-barrio-wizard-substeps">
                     <?php foreach ($seo_steps as $n => $sdata):
                         $st = $seo_progress["seo_sub_{$n}"] ?? 'pending';
-                        $cls = 'wpb-wizard-substep';
+                        $cls = 'suite-barrio-wizard-substep';
                         if ($n === $cur_sub) $cls .= ' is-active';
                         elseif ($st === 'done')    $cls .= ' is-done';
                         elseif ($st === 'skipped') $cls .= ' is-skipped';
@@ -1598,17 +1619,17 @@ function wpb_wizard_page()
                                 break;
                             }
                         }
-                        $sub_url = esc_url(admin_url("admin.php?page=wp-barrio-wizard&step=7&substep={$n}"));
+                        $sub_url = esc_url(admin_url("admin.php?page=suite-barrio-wizard&step=7&substep={$n}"));
                         $is_link = $sub_accessible && ($n !== $cur_sub);
                     ?>
                         <div class="<?php echo esc_attr($cls); ?>">
                             <?php if ($is_link): ?>
-                                <a href="<?php echo esc_url($sub_url); ?>" class="wpb-wizard-substep-inner">
+                                <a href="<?php echo esc_url($sub_url); ?>" class="suite-barrio-wizard-substep-inner">
                             <?php else: ?>
-                                <span class="wpb-wizard-substep-inner">
+                                <span class="suite-barrio-wizard-substep-inner">
                             <?php endif; ?>
-                                <span class="wpb-wizard-substep-num"><?php echo esc_html($n); ?></span>
-                                <span class="wpb-wizard-substep-label"><?php echo esc_html($sdata['label']); ?></span>
+                                <span class="suite-barrio-wizard-substep-num"><?php echo esc_html($n); ?></span>
+                                <span class="suite-barrio-wizard-substep-label"><?php echo esc_html($sdata['label']); ?></span>
                             <?php if ($is_link): ?>
                                 </a>
                             <?php else: ?>
@@ -1618,54 +1639,54 @@ function wpb_wizard_page()
                     <?php endforeach; ?>
                 </div>
 
-                <div class="wpb-wizard-form">
+                <div class="suite-barrio-wizard-form">
 
                     <!-- ═══════ SUB-STEP 1: SEO Globale ═══════ -->
                     <?php if ($cur_sub === 1): ?>
 
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_step7_sub1_save'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_step7_sub1_save">
-                        <div class="wpb-wizard-fields">
+                        <?php wp_nonce_field('suite_barrio_wizard_step7_sub1_save'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_step7_sub1_save">
+                        <div class="suite-barrio-wizard-fields">
 
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Titolo del sito
                                     <span>Usato nel tag &lt;title&gt; come nome sito</span>
                                 </label>
-                                <input type="text" name="wpb_meta_site_title"
+                                <input type="text" name="suite_barrio_meta_site_title"
                                     value="<?php echo esc_attr($meta_s['site_title'] ?? $company['ragione_sociale'] ?? get_bloginfo('name')); ?>"
                                     placeholder="Nome del sito">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Separatore nel titolo</label>
-                                <select name="wpb_meta_separator" class="wpb-select">
+                                <select name="suite_barrio_meta_separator" class="suite-barrio-select">
                                     <?php foreach (['—', '|', '·', '›', '»', '-'] as $sep): ?>
                                         <option value="<?php echo esc_attr($sep); ?>" <?php selected($meta_s['separator'] ?? '—', $sep); ?>><?php echo esc_html($sep); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Ordine nel tag title</label>
-                                <select name="wpb_meta_title_order" class="wpb-select">
+                                <select name="suite_barrio_meta_title_order" class="suite-barrio-select">
                                     <option value="page_site" <?php selected($meta_s['title_order'] ?? 'page_site', 'page_site'); ?>>Pagina — Sito</option>
                                     <option value="site_page" <?php selected($meta_s['title_order'] ?? 'page_site', 'site_page'); ?>>Sito — Pagina</option>
                                 </select>
                             </div>
 
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Meta description predefinita
                                     <span>Usata quando la pagina non ha una description personalizzata</span>
                                 </label>
-                                <textarea name="wpb_meta_default_desc" rows="3"
-                                    class="wpb-wizard-textarea"
+                                <textarea name="suite_barrio_meta_default_desc" rows="3"
+                                    class="suite-barrio-wizard-textarea"
                                     placeholder="Breve descrizione del sito (max 160 caratteri)…"><?php echo esc_textarea($meta_s['default_desc'] ?? ''); ?></textarea>
                             </div>
 
                         </div>
-                        <div class="wpb-wizard-actions">
-                            <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                        <div class="suite-barrio-wizard-actions">
+                            <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                                 Continua <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                             </button>
                         </div>
@@ -1681,11 +1702,11 @@ function wpb_wizard_page()
                         );
                     ?>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_step7_sub2_save'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_step7_sub2_save">
+                        <?php wp_nonce_field('suite_barrio_wizard_step7_sub2_save'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_step7_sub2_save">
 
-                        <?php if (!function_exists('wpb_tools_module_enabled') || !wpb_tools_module_enabled('seo_sitemap')): ?>
-                            <div class="wpb-wizard-gtm-check wpb-wizard-gtm-warn" style="margin-bottom:16px;">
+                        <?php if (!function_exists('suite_barrio_tools_module_enabled') || !suite_barrio_tools_module_enabled('seo_sitemap')): ?>
+                            <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-warn" style="margin-bottom:16px;">
                                 <span class="dashicons dashicons-info-outline"></span>
                                 <div>
                                     <strong>Modulo Sitemap non attivo</strong>
@@ -1694,23 +1715,23 @@ function wpb_wizard_page()
                             </div>
                         <?php endif; ?>
 
-                        <div class="wpb-wizard-fields">
+                        <div class="suite-barrio-wizard-fields">
                             <?php if (!empty($pt_objects)): ?>
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Tipi di contenuto in sitemap</label>
-                                <div class="wpb-wizard-toggle-list">
+                                <div class="suite-barrio-wizard-toggle-list">
                                 <?php foreach ($pt_objects as $pt_obj):
                                     $included = $sitemap_s['post_types'][$pt_obj->name] ?? 1;
                                     $cid      = 'wiz_pt_' . esc_attr($pt_obj->name);
                                 ?>
-                                    <label class="wpb-wizard-toggle-row" for="<?php echo esc_attr($cid); ?>">
-                                        <span class="wpb-wizard-toggle-info">
+                                    <label class="suite-barrio-wizard-toggle-row" for="<?php echo esc_attr($cid); ?>">
+                                        <span class="suite-barrio-wizard-toggle-info">
                                             <strong><?php echo esc_html($pt_obj->label); ?></strong>
                                             <code><?php echo esc_html($pt_obj->name); ?></code>
                                         </span>
-                                        <span class="wpb-wizard-toggle-wrap">
+                                        <span class="suite-barrio-wizard-toggle-wrap">
                                             <input type="checkbox" id="<?php echo esc_attr($cid); ?>" name="pt[<?php echo esc_attr($pt_obj->name); ?>]" value="1" <?php checked((bool)$included); ?>>
-                                            <span class="wpb-wizard-toggle-track"></span>
+                                            <span class="suite-barrio-wizard-toggle-track"></span>
                                         </span>
                                     </label>
                                 <?php endforeach; ?>
@@ -1719,21 +1740,21 @@ function wpb_wizard_page()
                             <?php endif; ?>
 
                             <?php if (!empty($tax_objects)): ?>
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Tassonomie in sitemap</label>
-                                <div class="wpb-wizard-toggle-list">
+                                <div class="suite-barrio-wizard-toggle-list">
                                 <?php foreach ($tax_objects as $tax_obj):
                                     $included = $sitemap_s['taxonomies'][$tax_obj->name] ?? 1;
                                     $cid      = 'wiz_tax_' . esc_attr($tax_obj->name);
                                 ?>
-                                    <label class="wpb-wizard-toggle-row" for="<?php echo esc_attr($cid); ?>">
-                                        <span class="wpb-wizard-toggle-info">
+                                    <label class="suite-barrio-wizard-toggle-row" for="<?php echo esc_attr($cid); ?>">
+                                        <span class="suite-barrio-wizard-toggle-info">
                                             <strong><?php echo esc_html($tax_obj->label); ?></strong>
                                             <code><?php echo esc_html($tax_obj->name); ?></code>
                                         </span>
-                                        <span class="wpb-wizard-toggle-wrap">
+                                        <span class="suite-barrio-wizard-toggle-wrap">
                                             <input type="checkbox" id="<?php echo esc_attr($cid); ?>" name="tax[<?php echo esc_attr($tax_obj->name); ?>]" value="1" <?php checked((bool)$included); ?>>
-                                            <span class="wpb-wizard-toggle-track"></span>
+                                            <span class="suite-barrio-wizard-toggle-track"></span>
                                         </span>
                                     </label>
                                 <?php endforeach; ?>
@@ -1742,8 +1763,8 @@ function wpb_wizard_page()
                             <?php endif; ?>
                         </div>
 
-                        <div class="wpb-wizard-actions">
-                            <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                        <div class="suite-barrio-wizard-actions">
+                            <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                                 Continua <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                             </button>
                         </div>
@@ -1765,22 +1786,22 @@ function wpb_wizard_page()
                         ];
                     ?>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_step7_sub3_save'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_step7_sub3_save">
-                        <div class="wpb-wizard-fields">
+                        <?php wp_nonce_field('suite_barrio_wizard_step7_sub3_save'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_step7_sub3_save">
+                        <div class="suite-barrio-wizard-fields">
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Tipo di attività</label>
-                                <select name="business_type" class="wpb-select">
+                                <select name="business_type" class="suite-barrio-select">
                                     <?php foreach ($business_types as $val => $lbl): ?>
                                         <option value="<?php echo esc_attr($val); ?>" <?php selected($schema_s['business_type'] ?? 'LocalBusiness', $val); ?>><?php echo esc_html($lbl); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Lingua</label>
-                                <select name="language" class="wpb-select">
+                                <select name="language" class="suite-barrio-select">
                                     <option value="it-IT" <?php selected($schema_s['language'] ?? 'it-IT', 'it-IT'); ?>>🇮🇹 it-IT</option>
                                     <option value="en-US" <?php selected($schema_s['language'] ?? 'it-IT', 'en-US'); ?>>🇬🇧 en-US</option>
                                     <option value="es-ES" <?php selected($schema_s['language'] ?? 'it-IT', 'es-ES'); ?>>🇪🇸 es-ES</option>
@@ -1789,79 +1810,79 @@ function wpb_wizard_page()
                                 </select>
                             </div>
 
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Nome attività</label>
                                 <input type="text" name="business_name"
                                     value="<?php echo esc_attr($sc('business_name', 'ragione_sociale')); ?>"
                                     placeholder="Ragione sociale o nome attività">
                             </div>
 
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Descrizione <span>Breve descrizione dell'attività per i dati strutturati</span></label>
                                 <textarea name="description" rows="3"
-                                    class="wpb-wizard-textarea"
+                                    class="suite-barrio-wizard-textarea"
                                     placeholder="Descrizione breve dell'attività…"><?php echo esc_textarea($schema_s['description'] ?? ''); ?></textarea>
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>URL sito web</label>
                                 <input type="url" name="url"
                                     value="<?php echo esc_attr($sc('url', 'sito_web')); ?>"
                                     placeholder="https://esempio.com">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Telefono</label>
                                 <input type="text" name="telephone"
                                     value="<?php echo esc_attr($sc('telephone', 'telefono')); ?>"
                                     placeholder="+39 02 0000000">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Email</label>
                                 <input type="email" name="email"
                                     value="<?php echo esc_attr($sc('email', 'email')); ?>"
                                     placeholder="info@esempio.com">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Partita IVA</label>
                                 <input type="text" name="vat_id"
                                     value="<?php echo esc_attr($sc('vat_id', 'partita_iva')); ?>"
                                     placeholder="IT00000000000">
                             </div>
 
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Indirizzo</label>
                                 <input type="text" name="street_address"
                                     value="<?php echo esc_attr($sc('street_address', 'sede_via')); ?>"
                                     placeholder="Via Roma 1">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>CAP</label>
                                 <input type="text" name="postal_code"
                                     value="<?php echo esc_attr($sc('postal_code', 'sede_cap')); ?>"
                                     placeholder="00100">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Città</label>
                                 <input type="text" name="locality"
                                     value="<?php echo esc_attr($sc('locality', 'sede_citta')); ?>"
                                     placeholder="Roma">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Provincia</label>
                                 <input type="text" name="region"
                                     value="<?php echo esc_attr($sc('region', 'sede_provincia')); ?>"
                                     placeholder="RM">
                             </div>
 
-                            <div class="wpb-wizard-field">
+                            <div class="suite-barrio-wizard-field">
                                 <label>Paese</label>
-                                <select name="country" class="wpb-select">
+                                <select name="country" class="suite-barrio-select">
                                     <option value="IT" <?php selected($schema_s['country'] ?? 'IT', 'IT'); ?>>🇮🇹 Italia</option>
                                     <option value="US" <?php selected($schema_s['country'] ?? 'IT', 'US'); ?>>🇺🇸 USA</option>
                                     <option value="GB" <?php selected($schema_s['country'] ?? 'IT', 'GB'); ?>>🇬🇧 UK</option>
@@ -1872,7 +1893,7 @@ function wpb_wizard_page()
                                 </select>
                             </div>
 
-                            <div class="wpb-wizard-field wpb-wizard-field-full">
+                            <div class="suite-barrio-wizard-field suite-barrio-wizard-field-full">
                                 <label>Social</label>
                                 <div style="display:flex;flex-direction:column;gap:8px;">
                                     <?php foreach (['facebook' => 'Facebook', 'instagram' => 'Instagram', 'twitter' => 'Twitter / X', 'linkedin' => 'LinkedIn'] as $skey => $slabel): ?>
@@ -1884,8 +1905,8 @@ function wpb_wizard_page()
                             </div>
 
                         </div>
-                        <div class="wpb-wizard-actions">
-                            <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                        <div class="suite-barrio-wizard-actions">
+                            <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                                 Continua <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                             </button>
                         </div>
@@ -1898,7 +1919,7 @@ function wpb_wizard_page()
                     ?>
 
                     <?php if (!empty($existing_redirects)): ?>
-                        <div class="wpb-wizard-gtm-check wpb-wizard-gtm-warn" style="margin-bottom:16px;">
+                        <div class="suite-barrio-wizard-gtm-check suite-barrio-wizard-gtm-warn" style="margin-bottom:16px;">
                             <span class="dashicons dashicons-info-outline"></span>
                             <div>
                                 <strong><?php echo count($existing_redirects); ?> redirect già configurati</strong>
@@ -1907,139 +1928,140 @@ function wpb_wizard_page()
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="wpb-redirects-form">
-                        <?php wp_nonce_field('wpb_wizard_step7_sub4_save'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_step7_sub4_save">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="suite-barrio-redirects-form">
+                        <?php wp_nonce_field('suite_barrio_wizard_step7_sub4_save'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_step7_sub4_save">
 
-                        <div class="wpb-redirects-builder" id="wpb-redirects-builder">
+                        <div class="suite-barrio-redirects-builder" id="suite-barrio-redirects-builder">
 
                             <!-- Riga template (nascosta, clonata via JS) -->
-                            <template id="wpb-redirect-row-tpl">
-                                <div class="wpb-redirect-row">
-                                    <div class="wpb-redirect-row-fields">
-                                        <div class="wpb-redirect-cell wpb-redirect-cell-from wpb-wizard-field">
+                            <template id="suite-barrio-redirect-row-tpl">
+                                <div class="suite-barrio-redirect-row">
+                                    <div class="suite-barrio-redirect-row-fields">
+                                        <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-from suite-barrio-wizard-field">
                                             <label>Da</label>
                                             <input type="text" name="redirects[__i__][from]" placeholder="/vecchia-pagina" autocomplete="off">
                                         </div>
-                                        <div class="wpb-redirect-cell wpb-redirect-cell-to wpb-wizard-field">
+                                        <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-to suite-barrio-wizard-field">
                                             <label>A</label>
                                             <input type="text" name="redirects[__i__][to]" placeholder="/nuova-pagina" autocomplete="off">
                                         </div>
-                                        <div class="wpb-redirect-cell wpb-redirect-cell-code wpb-wizard-field">
+                                        <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-code suite-barrio-wizard-field">
                                             <label>Tipo</label>
-                                            <select name="redirects[__i__][code]" class="wpb-select">
+                                            <select name="redirects[__i__][code]" class="suite-barrio-select">
                                                 <option value="301">301 — Permanente</option>
                                                 <option value="302">302 — Temporaneo</option>
                                                 <option value="307">307 — Temporaneo (metodo)</option>
                                                 <option value="410">410 — Rimosso</option>
                                             </select>
                                         </div>
-                                        <div class="wpb-redirect-cell wpb-redirect-cell-note wpb-wizard-field">
+                                        <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-note suite-barrio-wizard-field">
                                             <label>Nota <span>opzionale</span></label>
                                             <input type="text" name="redirects[__i__][note]" placeholder="es. vecchio slug prodotto…" autocomplete="off">
                                         </div>
                                     </div>
-                                    <button type="button" class="wpb-redirect-remove" title="Rimuovi">
+                                    <button type="button" class="suite-barrio-redirect-remove" title="Rimuovi">
                                         <span class="dashicons dashicons-trash"></span>
                                     </button>
                                 </div>
                             </template>
 
                             <!-- Prima riga vuota -->
-                            <div class="wpb-redirect-row">
-                                <div class="wpb-redirect-row-fields">
-                                    <div class="wpb-redirect-cell wpb-redirect-cell-from wpb-wizard-field">
+                            <div class="suite-barrio-redirect-row">
+                                <div class="suite-barrio-redirect-row-fields">
+                                    <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-from suite-barrio-wizard-field">
                                         <label>Da</label>
                                         <input type="text" name="redirects[0][from]" placeholder="/vecchia-pagina" autocomplete="off">
                                     </div>
-                                    <div class="wpb-redirect-cell wpb-redirect-cell-to wpb-wizard-field">
+                                    <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-to suite-barrio-wizard-field">
                                         <label>A</label>
                                         <input type="text" name="redirects[0][to]" placeholder="/nuova-pagina" autocomplete="off">
                                     </div>
-                                    <div class="wpb-redirect-cell wpb-redirect-cell-code wpb-wizard-field">
+                                    <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-code suite-barrio-wizard-field">
                                         <label>Tipo</label>
-                                        <select name="redirects[0][code]" class="wpb-select">
+                                        <select name="redirects[0][code]" class="suite-barrio-select">
                                             <option value="301">301 — Permanente</option>
                                             <option value="302">302 — Temporaneo</option>
                                             <option value="307">307 — Temporaneo (metodo)</option>
                                             <option value="410">410 — Rimosso</option>
                                         </select>
                                     </div>
-                                    <div class="wpb-redirect-cell wpb-redirect-cell-note wpb-wizard-field">
+                                    <div class="suite-barrio-redirect-cell suite-barrio-redirect-cell-note suite-barrio-wizard-field">
                                         <label>Nota <span>opzionale</span></label>
                                         <input type="text" name="redirects[0][note]" placeholder="es. vecchio slug prodotto…" autocomplete="off">
                                     </div>
                                 </div>
-                                <button type="button" class="wpb-redirect-remove" title="Rimuovi">
+                                <button type="button" class="suite-barrio-redirect-remove" title="Rimuovi">
                                     <span class="dashicons dashicons-trash"></span>
                                 </button>
                             </div>
 
-                        </div><!-- .wpb-redirects-builder -->
+                        </div><!-- .suite-barrio-redirects-builder -->
 
-                        <button type="button" id="wpb-redirect-add" class="wpb-btn wpb-btn-ghost wpb-btn-small" style="margin-top:10px;">
+                        <button type="button" id="suite-barrio-redirect-add" class="suite-barrio-btn suite-barrio-btn-ghost suite-barrio-btn-small" style="margin-top:10px;">
                             <span class="dashicons dashicons-plus-alt2" style="font-size:14px;width:14px;height:14px;margin-top:1px;"></span>
                             Aggiungi redirect
                         </button>
 
-                        <div class="wpb-wizard-actions" style="margin-top:24px;">
-                            <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                        <div class="suite-barrio-wizard-actions" style="margin-top:24px;">
+                            <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                                 Continua <span class="dashicons dashicons-arrow-right-alt2" style="font-size:15px;width:15px;height:15px;"></span>
                             </button>
                         </div>
                     </form>
 
-                    <script>
-                    (function () {
-                        var builder  = document.getElementById('wpb-redirects-builder');
-                        var addBtn   = document.getElementById('wpb-redirect-add');
-                        var tpl      = document.getElementById('wpb-redirect-row-tpl');
+                    <?php
+                    wp_add_inline_script('suite-barrio-wizard-step7-redirects', '                    (function () {
+                        var builder  = document.getElementById(\'suite-barrio-redirects-builder\');
+                        var addBtn   = document.getElementById(\'suite-barrio-redirect-add\');
+                        var tpl      = document.getElementById(\'suite-barrio-redirect-row-tpl\');
                         var rowIndex = 1;
 
                         function attachRemove(row) {
-                            var btn = row.querySelector('.wpb-redirect-remove');
+                            var btn = row.querySelector(\'.suite-barrio-redirect-remove\');
                             if (!btn) return;
-                            btn.addEventListener('click', function () {
-                                if (builder.querySelectorAll('.wpb-redirect-row').length > 1) {
+                            btn.addEventListener(\'click\', function () {
+                                if (builder.querySelectorAll(\'.suite-barrio-redirect-row\').length > 1) {
                                     row.remove();
                                 } else {
-                                    row.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+                                    row.querySelectorAll(\'input\').forEach(function (i) { i.value = \'\'; });
                                 }
                             });
                         }
 
                         // Attach su prima riga
-                        builder.querySelectorAll('.wpb-redirect-row').forEach(attachRemove);
+                        builder.querySelectorAll(\'.suite-barrio-redirect-row\').forEach(attachRemove);
 
-                        addBtn.addEventListener('click', function () {
+                        addBtn.addEventListener(\'click\', function () {
                             var clone = tpl.content.cloneNode(true);
-                            var row   = clone.querySelector('.wpb-redirect-row');
-                            // Sostituisce l'indice placeholder
+                            var row   = clone.querySelector(\'.suite-barrio-redirect-row\');
+                            // Sostituisce l\'indice placeholder
                             row.innerHTML = row.innerHTML.replace(/__i__/g, rowIndex++);
                             attachRemove(row);
                             builder.appendChild(row);
                             // Focus sul primo input della nuova riga
-                            var first = builder.querySelector('.wpb-redirect-row:last-child input');
+                            var first = builder.querySelector(\'.suite-barrio-redirect-row:last-child input\');
                             if (first) first.focus();
                         });
-                    })();
-                    </script>
+                    })();'
+                    );
+                    ?>
 
                     <?php endif; ?>
 
-                </div><!-- .wpb-wizard-form -->
+                </div><!-- .suite-barrio-wizard-form -->
 
                 <!-- Footer con skip del singolo sotto-step -->
-                <div class="wpb-wizard-card-footer">
+                <div class="suite-barrio-wizard-card-footer">
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('wpb_wizard_seo_substep_skip'); ?>
-                        <input type="hidden" name="action" value="wpb_wizard_seo_substep_skip">
+                        <?php wp_nonce_field('suite_barrio_wizard_seo_substep_skip'); ?>
+                        <input type="hidden" name="action" value="suite_barrio_wizard_seo_substep_skip">
                         <input type="hidden" name="substep" value="<?php echo esc_attr($cur_sub); ?>">
-                        <button type="submit" class="wpb-wizard-skip-btn">Salta passaggio</button>
+                        <button type="submit" class="suite-barrio-wizard-skip-btn">Salta passaggio</button>
                     </form>
                 </div>
 
-            </div><!-- .wpb-wizard-card -->
+            </div><!-- .suite-barrio-wizard-card -->
 
         <?php elseif ($current === 8):
 
@@ -2086,47 +2108,47 @@ function wpb_wizard_page()
                 ],
             ];
 
-            $p7         = wpb_wizard_get_progress();
+            $p7         = suite_barrio_wizard_get_progress();
             $saved_chks = $p7['step_8_checks'] ?? [];
             if (!is_array($saved_chks)) $saved_chks = [];
         ?>
 
             <!-- Card step 7 — Controlli Finali -->
-            <div class="wpb-wizard-card">
+            <div class="suite-barrio-wizard-card">
 
-                <div class="wpb-wizard-card-head">
-                    <div class="wpb-wizard-card-head-icon" style="background:#111827;">
+                <div class="suite-barrio-wizard-card-head">
+                    <div class="suite-barrio-wizard-card-head-icon" style="background:#111827;">
                         <span class="dashicons dashicons-yes-alt" style="color:#fff;"></span>
                     </div>
                     <div>
-                        <div class="wpb-wizard-card-title">Controlli Finali</div>
-                        <div class="wpb-wizard-card-subtitle">Verifica di aver completato tutte le operazioni prima di concludere la messa online</div>
+                        <div class="suite-barrio-wizard-card-title">Controlli Finali</div>
+                        <div class="suite-barrio-wizard-card-subtitle">Verifica di aver completato tutte le operazioni prima di concludere la messa online</div>
                     </div>
                 </div>
 
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="wpb-wizard-form">
-                    <?php wp_nonce_field('wpb_wizard_step8_save'); ?>
-                    <input type="hidden" name="action" value="wpb_wizard_step8_save">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="suite-barrio-wizard-form">
+                    <?php wp_nonce_field('suite_barrio_wizard_step8_save'); ?>
+                    <input type="hidden" name="action" value="suite_barrio_wizard_step8_save">
 
-                    <div class="wpb-wizard-checklist">
+                    <div class="suite-barrio-wizard-checklist">
                         <?php foreach ($checklist as $key => $item):
                             $is_checked = in_array($key, $saved_chks, true);
                         ?>
-                            <label class="wpb-wizard-check-item" for="wpbchk_<?php echo esc_attr($key); ?>">
-                                <input type="checkbox" id="wpbchk_<?php echo esc_attr($key); ?>"
+                            <label class="suite-barrio-wizard-check-item" for="suite_barrio_chk_<?php echo esc_attr($key); ?>">
+                                <input type="checkbox" id="suite_barrio_chk_<?php echo esc_attr($key); ?>"
                                     name="checks[<?php echo esc_attr($key); ?>]" value="1"
                                     <?php checked($is_checked); ?>>
-                                <span class="wpb-wizard-check-icon">
+                                <span class="suite-barrio-wizard-check-icon">
                                     <span class="dashicons <?php echo esc_attr($item['icon']); ?>"></span>
                                 </span>
-                                <span class="wpb-wizard-check-label"><?php echo esc_html($item['label']); ?></span>
-                                <span class="wpb-wizard-check-done dashicons dashicons-yes"></span>
+                                <span class="suite-barrio-wizard-check-label"><?php echo esc_html($item['label']); ?></span>
+                                <span class="suite-barrio-wizard-check-done dashicons dashicons-yes"></span>
                             </label>
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="wpb-wizard-actions">
-                        <button type="submit" class="wpb-btn wpb-btn-primary wpb-wizard-submit">
+                    <div class="suite-barrio-wizard-actions">
+                        <button type="submit" class="suite-barrio-btn suite-barrio-btn-primary suite-barrio-wizard-submit">
                             Termina la messa online
                             <span class="dashicons dashicons-yes-alt" style="font-size:15px;width:15px;height:15px;"></span>
                         </button>

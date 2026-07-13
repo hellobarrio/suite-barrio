@@ -1,7 +1,7 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class WPB_Consent_Log {
+class SUITE_BARRIO_Consent_Log {
 
     const DB_VERSION      = '1.0.0';
     const DB_VERSION_OPT  = 'wpb_cb_log_db_version';
@@ -112,5 +112,5 @@ class WPB_Consent_Log {
     }
 }
 
-register_activation_hook(WP_ALT_AI_PLUGIN_DIR . 'wp-barrio.php', ['WPB_Consent_Log', 'install']);
-add_action('plugins_loaded', ['WPB_Consent_Log', 'maybe_upgrade']);
+register_activation_hook(SUITE_BARRIO_PLUGIN_DIR . 'suite-barrio.php', ['SUITE_BARRIO_Consent_Log', 'install']);
+add_action('plugins_loaded', ['SUITE_BARRIO_Consent_Log', 'maybe_upgrade']);

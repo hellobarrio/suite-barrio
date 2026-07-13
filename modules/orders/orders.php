@@ -1,6 +1,6 @@
 <?php
 /**
- * WP Barrio — Orders
+ * Suite Barrio — Orders
  * Riordinamento drag & drop di post type e termini di tassonomia.
  *
  * Architettura:
@@ -9,36 +9,36 @@
  *  - Sottovoce "Riordina" sotto ogni post type abilitato: drag & drop post.
  *  - Voce "Riordina Categorie" per utenti con edit_posts: riordino tassonomie.
  *
- * @package WP_Barrio
+ * @package Suite_Barrio
  */
 
 if (!defined('ABSPATH'))
     exit;
 
-define('WPB_ORDERS_VERSION', '1.0.0');
-define('WPB_ORDERS_OPTION', 'wpb_orders_settings');
+define('SUITE_BARRIO_ORDERS_VERSION', '1.0.0');
+define('SUITE_BARRIO_ORDERS_OPTION', 'wpb_orders_settings');
 
 /* ─────────────────────────────────────────
    HELPERS: lettura impostazioni
    ───────────────────────────────────────── */
-function wpb_orders_settings(): array
+function suite_barrio_orders_settings(): array
 {
-    return get_option(WPB_ORDERS_OPTION, []);
+    return get_option(SUITE_BARRIO_ORDERS_OPTION, []);
 }
 
-function wpb_orders_enabled_post_types(): array
+function suite_barrio_orders_enabled_post_types(): array
 {
-    $s = wpb_orders_settings();
+    $s = suite_barrio_orders_settings();
     return $s['enabled_post_types'] ?? [];
 }
 
-function wpb_orders_enabled_taxonomies(): array
+function suite_barrio_orders_enabled_taxonomies(): array
 {
-    $s = wpb_orders_settings();
+    $s = suite_barrio_orders_settings();
     return $s['enabled_taxonomies'] ?? [];
 }
 
-function wpb_orders_get_post_types(): array
+function suite_barrio_orders_get_post_types(): array
 {
     $post_types = get_post_types(['public' => true], 'objects');
     unset($post_types['attachment']);
@@ -53,7 +53,7 @@ function wpb_orders_get_post_types(): array
     return $result;
 }
 
-function wpb_orders_get_taxonomies(): array
+function suite_barrio_orders_get_taxonomies(): array
 {
     $taxonomies = get_taxonomies(['public' => true], 'objects');
     $result = [];
@@ -71,18 +71,18 @@ function wpb_orders_get_taxonomies(): array
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
 
-    // 1. Pagina Orders nel menu WP Barrio (solo admin)
+    // 1. Pagina Orders nel menu Suite Barrio (solo admin)
     add_submenu_page(
-        'wp-barrio',
-        'Orders — WP Barrio',
+        'suite-barrio',
+        'Orders — Suite Barrio',
         'Orders',
         'manage_options',
-        'wp-barrio-orders',
-        'wpb_orders_admin_page'
+        'suite-barrio-orders',
+        'suite_barrio_orders_admin_page'
     );
 
     // 2. "Riordina" sotto ogni post type abilitato
-    $enabled_pts = wpb_orders_enabled_post_types();
+    $enabled_pts = suite_barrio_orders_enabled_post_types();
     foreach ($enabled_pts as $pt_slug) {
         $pt_obj = get_post_type_object($pt_slug);
         if (!$pt_obj)
@@ -98,24 +98,24 @@ add_action('admin_menu', function () {
             'Riordina — ' . $pt_obj->labels->name,
             'Riordina',
             'edit_posts',
-            'wpb-reorder-' . $pt_slug,
+            'suite-barrio-reorder-' . $pt_slug,
             function () use ($pt_slug) {
-                wpb_orders_reorder_posts_page($pt_slug);
+                suite_barrio_orders_reorder_posts_page($pt_slug);
             }
         );
     }
 
     // 3. "Riordina Categorie" — solo per utenti NON admin
-    $enabled_taxs = wpb_orders_enabled_taxonomies();
+    $enabled_taxs = suite_barrio_orders_enabled_taxonomies();
     if (!empty($enabled_taxs) && !current_user_can('manage_options')) {
         add_menu_page(
-            'Riordina Categorie — WP Barrio',
+            'Riordina Categorie — Suite Barrio',
             'Riordina Categorie',
             'edit_posts',
-            'wpb-reorder-terms',
-            'wpb_orders_reorder_terms_page',
+            'suite-barrio-reorder-terms',
+            'suite_barrio_orders_reorder_terms_page',
             'dashicons-sort',
-            21
+            80
         );
     }
 
@@ -125,9 +125,9 @@ add_action('admin_menu', function () {
    ENQUEUE SCRIPTS
    ───────────────────────────────────────── */
 add_action('admin_enqueue_scripts', function ($hook) {
-    $is_orders_page = strpos($hook, 'wp-barrio-orders') !== false;
-    $is_reorder_posts = strpos($hook, 'wpb-reorder-') !== false;
-    $is_reorder_terms = strpos($hook, 'wpb-reorder-terms') !== false;
+    $is_orders_page = strpos($hook, 'suite-barrio-orders') !== false;
+    $is_reorder_posts = strpos($hook, 'suite-barrio-reorder-') !== false;
+    $is_reorder_terms = strpos($hook, 'suite-barrio-reorder-terms') !== false;
 
     if (!$is_orders_page && !$is_reorder_posts && !$is_reorder_terms)
         return;
@@ -135,18 +135,18 @@ add_action('admin_enqueue_scripts', function ($hook) {
     wp_enqueue_script('jquery-ui-sortable');
 
     if ($is_reorder_posts || $is_reorder_terms) {
-        wp_add_inline_script('jquery-ui-sortable', wpb_orders_sortable_js(), 'after');
+        wp_add_inline_script('jquery-ui-sortable', suite_barrio_orders_sortable_js(), 'after');
     }
     if ($is_orders_page) {
-        wp_add_inline_script('jquery-ui-sortable', wpb_orders_config_js(), 'after');
+        wp_add_inline_script('jquery-ui-sortable', suite_barrio_orders_config_js(), 'after');
     }
 });
 
 /* ─────────────────────────────────────────
    AJAX: toggle abilitazione post type
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_orders_toggle_pt', function () {
-    check_ajax_referer('wpb_orders_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_orders_toggle_pt', function () {
+    check_ajax_referer('suite_barrio_orders_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permessi insufficienti.');
 
@@ -156,7 +156,7 @@ add_action('wp_ajax_wpb_orders_toggle_pt', function () {
     if (!$pt)
         wp_send_json_error('Post type mancante.');
 
-    $s = wpb_orders_settings();
+    $s = suite_barrio_orders_settings();
     $list = $s['enabled_post_types'] ?? [];
 
     if ($enabled) {
@@ -170,15 +170,15 @@ add_action('wp_ajax_wpb_orders_toggle_pt', function () {
     }
 
     $s['enabled_post_types'] = $list;
-    update_option(WPB_ORDERS_OPTION, $s);
+    update_option(SUITE_BARRIO_ORDERS_OPTION, $s);
     wp_send_json_success($list);
 });
 
 /* ─────────────────────────────────────────
    AJAX: toggle abilitazione tassonomia
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_orders_toggle_tax', function () {
-    check_ajax_referer('wpb_orders_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_orders_toggle_tax', function () {
+    check_ajax_referer('suite_barrio_orders_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permessi insufficienti.');
 
@@ -188,7 +188,7 @@ add_action('wp_ajax_wpb_orders_toggle_tax', function () {
     if (!$tax)
         wp_send_json_error('Tassonomia mancante.');
 
-    $s = wpb_orders_settings();
+    $s = suite_barrio_orders_settings();
     $list = $s['enabled_taxonomies'] ?? [];
 
     if ($enabled) {
@@ -204,22 +204,22 @@ add_action('wp_ajax_wpb_orders_toggle_tax', function () {
     }
 
     $s['enabled_taxonomies'] = $list;
-    update_option(WPB_ORDERS_OPTION, $s);
+    update_option(SUITE_BARRIO_ORDERS_OPTION, $s);
     wp_send_json_success($list);
 });
 
 /* ─────────────────────────────────────────
    AJAX: salva ordine post
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_orders_save_posts', function () {
-    check_ajax_referer('wpb_orders_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_orders_save_posts', function () {
+    check_ajax_referer('suite_barrio_orders_nonce', 'nonce');
     if (!current_user_can('edit_posts'))
         wp_send_json_error('Permessi insufficienti.');
 
     $items = isset($_POST['items']) ? array_map('absint', wp_unslash((array) $_POST['items'])) : [];
     $post_type = sanitize_key($_POST['post_type'] ?? '');
 
-    if (!in_array($post_type, wpb_orders_enabled_post_types(), true))
+    if (!in_array($post_type, suite_barrio_orders_enabled_post_types(), true))
         wp_send_json_error('Post type non abilitato.');
 
     foreach ($items as $order => $post_id) {
@@ -237,15 +237,15 @@ add_action('wp_ajax_wpb_orders_save_posts', function () {
 /* ─────────────────────────────────────────
    AJAX: salva ordine termini
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_orders_save_terms', function () {
-    check_ajax_referer('wpb_orders_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_orders_save_terms', function () {
+    check_ajax_referer('suite_barrio_orders_nonce', 'nonce');
     if (!current_user_can('edit_posts'))
         wp_send_json_error('Permessi insufficienti.');
 
     $items = isset($_POST['items']) ? array_map('absint', wp_unslash((array) $_POST['items'])) : [];
     $taxonomy = sanitize_key($_POST['taxonomy'] ?? '');
 
-    if (!in_array($taxonomy, wpb_orders_enabled_taxonomies(), true))
+    if (!in_array($taxonomy, suite_barrio_orders_enabled_taxonomies(), true))
         wp_send_json_error('Tassonomia non abilitata.');
 
     foreach ($items as $order => $term_id) {
@@ -263,8 +263,8 @@ add_action('wp_ajax_wpb_orders_save_terms', function () {
 /* ─────────────────────────────────────────
    AJAX: carica post di un post type
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_orders_get_posts', function () {
-    check_ajax_referer('wpb_orders_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_orders_get_posts', function () {
+    check_ajax_referer('suite_barrio_orders_nonce', 'nonce');
     if (!current_user_can('edit_posts'))
         wp_send_json_error('Permessi insufficienti.');
 
@@ -291,8 +291,8 @@ add_action('wp_ajax_wpb_orders_get_posts', function () {
 /* ─────────────────────────────────────────
    AJAX: carica termini di una tassonomia
    ───────────────────────────────────────── */
-add_action('wp_ajax_wpb_orders_get_terms', function () {
-    check_ajax_referer('wpb_orders_nonce', 'nonce');
+add_action('wp_ajax_suite_barrio_orders_get_terms', function () {
+    check_ajax_referer('suite_barrio_orders_nonce', 'nonce');
     if (!current_user_can('edit_posts'))
         wp_send_json_error('Permessi insufficienti.');
 
@@ -329,7 +329,7 @@ add_action('pre_get_posts', function ($query) {
     if (is_admin() || !$query->is_main_query())
         return;
 
-    $enabled = wpb_orders_enabled_post_types();
+    $enabled = suite_barrio_orders_enabled_post_types();
     if (empty($enabled))
         return;
 
@@ -354,7 +354,7 @@ add_filter('terms_clauses', function ($clauses, $taxonomies, $args) {
     if (is_admin())
         return $clauses;
 
-    $enabled = wpb_orders_enabled_taxonomies();
+    $enabled = suite_barrio_orders_enabled_taxonomies();
     if (empty($enabled))
         return $clauses;
 
@@ -369,14 +369,14 @@ add_filter('terms_clauses', function ($clauses, $taxonomies, $args) {
         return $clauses;
 
     global $wpdb;
-    $clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} wpb_tm ON (t.term_id = wpb_tm.term_id AND wpb_tm.meta_key = 'wpb_term_order')";
-    $clauses['orderby'] = 'ORDER BY CAST(COALESCE(wpb_tm.meta_value, 9999) AS UNSIGNED) ASC, t.name ASC';
+    $clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} suite_barrio_tm ON (t.term_id = suite_barrio_tm.term_id AND suite_barrio_tm.meta_key = 'wpb_term_order')";
+    $clauses['orderby'] = 'ORDER BY CAST(COALESCE(suite_barrio_tm.meta_value, 9999) AS UNSIGNED) ASC, t.name ASC';
     return $clauses;
 }, 10, 3);
 
-function wpb_orders_config_js(): string
+function suite_barrio_orders_config_js(): string
 {
-    $nonce = wp_create_nonce('wpb_orders_nonce');
+    $nonce = wp_create_nonce('suite_barrio_orders_nonce');
     $ajax_url = esc_url(admin_url('admin-ajax.php'));
 
     return 'jQuery(function($){
@@ -384,53 +384,53 @@ function wpb_orders_config_js(): string
     var nonce   = \'' . $nonce . '\';
 
     // Tab switching
-    $(document).on(\'click\', \'.wpb-orders-tab\', function(){
+    $(document).on(\'click\', \'.suite-barrio-orders-tab\', function(){
         var tab = $(this).data(\'tab\');
-        $(\'.wpb-orders-tab\').removeClass(\'active\');
+        $(\'.suite-barrio-orders-tab\').removeClass(\'active\');
         $(this).addClass(\'active\');
-        $(\'.wpb-orders-panel\').removeClass(\'active\');
-        $(\'#wpb-orders-panel-\' + tab).addClass(\'active\');
+        $(\'.suite-barrio-orders-panel\').removeClass(\'active\');
+        $(\'#suite-barrio-orders-panel-\' + tab).addClass(\'active\');
     });
 
     // Toggle post type
-    $(document).on(\'change\', \'.wpb-pt-toggle\', function(){
+    $(document).on(\'change\', \'.suite-barrio-pt-toggle\', function(){
         var input   = $(this);
-        var row     = input.closest(\'.wpb-orders-row\');
-        var label   = row.find(\'.wpb-toggle\');
+        var row     = input.closest(\'.suite-barrio-orders-row\');
+        var label   = row.find(\'.suite-barrio-toggle\');
         var pt      = input.data(\'pt\');
         var enabled = input.is(\':checked\') ? 1 : 0;
 
-        label.addClass(\'wpb-toggle-saving\');
-        $.post(ajaxUrl, { action:\'wpb_orders_toggle_pt\', nonce:nonce, post_type:pt, enabled:enabled },
+        label.addClass(\'suite-barrio-toggle-saving\');
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_toggle_pt\', nonce:nonce, post_type:pt, enabled:enabled },
         function(res){
-            label.removeClass(\'wpb-toggle-saving\');
+            label.removeClass(\'suite-barrio-toggle-saving\');
             if (!res.success) { input.prop(\'checked\', !enabled); alert(\'Errore nel salvataggio.\'); }
             else {
                 // mostra/nascondi nota "Riordina apparirà nel menu"
-                if (enabled) row.find(\'.wpb-pt-hint\').fadeIn(150);
-                else         row.find(\'.wpb-pt-hint\').fadeOut(150);
+                if (enabled) row.find(\'.suite-barrio-pt-hint\').fadeIn(150);
+                else         row.find(\'.suite-barrio-pt-hint\').fadeOut(150);
             }
         });
     });
 
     // Toggle tassonomia — e carica/scarica il blocco di riordino inline
-    $(document).on(\'change\', \'.wpb-tax-toggle\', function(){
+    $(document).on(\'change\', \'.suite-barrio-tax-toggle\', function(){
         var input   = $(this);
-        var row     = input.closest(\'.wpb-orders-row\');
-        var label   = row.find(\'.wpb-toggle\');
+        var row     = input.closest(\'.suite-barrio-orders-row\');
+        var label   = row.find(\'.suite-barrio-toggle\');
         var tax     = input.data(\'tax\');
         var enabled = input.is(\':checked\') ? 1 : 0;
 
-        label.addClass(\'wpb-toggle-saving\');
-        $.post(ajaxUrl, { action:\'wpb_orders_toggle_tax\', nonce:nonce, taxonomy:tax, enabled:enabled },
+        label.addClass(\'suite-barrio-toggle-saving\');
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_toggle_tax\', nonce:nonce, taxonomy:tax, enabled:enabled },
         function(res){
-            label.removeClass(\'wpb-toggle-saving\');
+            label.removeClass(\'suite-barrio-toggle-saving\');
             if (!res.success) { input.prop(\'checked\', !enabled); alert(\'Errore nel salvataggio.\'); return; }
 
-            var reorderBlock = row.find(\'.wpb-orders-tax-reorder\');
+            var reorderBlock = row.find(\'.suite-barrio-orders-tax-reorder\');
             if (enabled) {
                 reorderBlock.slideDown(200);
-                loadTermsInline(tax, reorderBlock.find(\'.wpb-tax-inline-list\'));
+                loadTermsInline(tax, reorderBlock.find(\'.suite-barrio-tax-inline-list\'));
             } else {
                 reorderBlock.slideUp(200);
             }
@@ -439,31 +439,31 @@ function wpb_orders_config_js(): string
 
     // Carica termini nel blocco inline
     function loadTermsInline(taxonomy, wrap) {
-        wrap.html(\'<div class="wpb-orders-loading">Caricamento...</div>\');
-        $.post(ajaxUrl, { action:\'wpb_orders_get_terms\', nonce:nonce, taxonomy:taxonomy },
+        wrap.html(\'<div class="suite-barrio-orders-loading">Caricamento...</div>\');
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_get_terms\', nonce:nonce, taxonomy:taxonomy },
         function(res){
-            if (!res.success) { wrap.html(\'<div class="wpb-orders-empty">Errore.</div>\'); return; }
+            if (!res.success) { wrap.html(\'<div class="suite-barrio-orders-empty">Errore.</div>\'); return; }
             var items = res.data;
-            if (!items.length) { wrap.html(\'<div class="wpb-orders-empty">Nessun termine.</div>\'); return; }
+            if (!items.length) { wrap.html(\'<div class="suite-barrio-orders-empty">Nessun termine.</div>\'); return; }
 
-            var html = \'<ul class="wpb-orders-list wpb-tax-sortable" data-tax="\' + taxonomy + \'">\';
+            var html = \'<ul class="suite-barrio-orders-list suite-barrio-tax-sortable" data-tax="\' + taxonomy + \'">\';
             $.each(items, function(i, item){
-                html += \'<li class="wpb-orders-item" data-id="\' + item.id + \'">\';
-                html += \'<span class="wpb-orders-handle dashicons dashicons-menu"></span>\';
-                html += \'<span class="wpb-orders-item-title">\' + $(\'<div>\').text(item.name).html() + \'</span>\';
-                html += \'<span class="wpb-orders-item-meta">\' + item.count + \' elem.</span>\';
+                html += \'<li class="suite-barrio-orders-item" data-id="\' + item.id + \'">\';
+                html += \'<span class="suite-barrio-orders-handle dashicons dashicons-menu"></span>\';
+                html += \'<span class="suite-barrio-orders-item-title">\' + $(\'<div>\').text(item.name).html() + \'</span>\';
+                html += \'<span class="suite-barrio-orders-item-meta">\' + item.count + \' elem.</span>\';
                 html += \'</li>\';
             });
             html += \'</ul>\';
-            html += \'<div class="wpb-orders-actions">\';
-            html += \'<button class="button button-primary wpb-save-terms-inline">Salva ordine</button>\';
-            html += \'<span class="wpb-orders-saved-badge wpb-terms-inline-saved"><span class="dashicons dashicons-yes" style="color:#00a32a;font-size:16px;width:16px;height:16px;"></span> Ordine salvato</span>\';
+            html += \'<div class="suite-barrio-orders-actions">\';
+            html += \'<button class="button button-primary suite-barrio-save-terms-inline">Salva ordine</button>\';
+            html += \'<span class="suite-barrio-orders-saved-badge suite-barrio-terms-inline-saved"><span class="dashicons dashicons-yes" style="color:#00a32a;font-size:16px;width:16px;height:16px;"></span> Ordine salvato</span>\';
             html += \'</div>\';
             wrap.html(html);
 
-            wrap.find(\'.wpb-tax-sortable\').sortable({
-                handle:      \'.wpb-orders-handle\',
-                placeholder: \'wpb-orders-item wpb-orders-placeholder\',
+            wrap.find(\'.suite-barrio-tax-sortable\').sortable({
+                handle:      \'.suite-barrio-orders-handle\',
+                placeholder: \'suite-barrio-orders-item suite-barrio-orders-placeholder\',
                 axis:        \'y\',
                 tolerance:   \'pointer\'
             });
@@ -471,21 +471,21 @@ function wpb_orders_config_js(): string
     }
 
     // Salva termini inline (pagina config tassonomie)
-    $(document).on(\'click\', \'.wpb-save-terms-inline\', function(){
+    $(document).on(\'click\', \'.suite-barrio-save-terms-inline\', function(){
         var btn      = $(this);
-        var actionsDiv = btn.closest(\'.wpb-orders-actions\');
-        var sortable = btn.closest(\'.wpb-orders-tax-reorder\').find(\'.wpb-tax-sortable\');
+        var actionsDiv = btn.closest(\'.suite-barrio-orders-actions\');
+        var sortable = btn.closest(\'.suite-barrio-orders-tax-reorder\').find(\'.suite-barrio-tax-sortable\');
         var taxonomy = sortable.data(\'tax\');
         var items    = [];
-        sortable.find(\'.wpb-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
+        sortable.find(\'.suite-barrio-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
         if (!items.length) return;
 
         btn.prop(\'disabled\', true).text(\'Salvataggio...\');
-        $.post(ajaxUrl, { action:\'wpb_orders_save_terms\', nonce:nonce, taxonomy:taxonomy, items:items },
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_save_terms\', nonce:nonce, taxonomy:taxonomy, items:items },
         function(res){
             btn.prop(\'disabled\', false).text(\'Salva ordine\');
             if (res.success) {
-                var badge = actionsDiv.find(\'.wpb-terms-inline-saved\');
+                var badge = actionsDiv.find(\'.suite-barrio-terms-inline-saved\');
                 badge.addClass(\'show\');
                 setTimeout(function(){ badge.removeClass(\'show\'); }, 2500);
             }
@@ -493,11 +493,11 @@ function wpb_orders_config_js(): string
     });
 
     // Inizializza i blocchi tassonomia già abilitati all\'apertura
-    $(\'.wpb-tax-toggle:checked\').each(function(){
+    $(\'.suite-barrio-tax-toggle:checked\').each(function(){
         var tax  = $(this).data(\'tax\');
-        var wrap = $(this).closest(\'.wpb-orders-row\').find(\'.wpb-orders-tax-reorder\');
+        var wrap = $(this).closest(\'.suite-barrio-orders-row\').find(\'.suite-barrio-orders-tax-reorder\');
         wrap.show();
-        loadTermsInline(tax, wrap.find(\'.wpb-tax-inline-list\'));
+        loadTermsInline(tax, wrap.find(\'.suite-barrio-tax-inline-list\'));
     });
 });';
 }
@@ -505,9 +505,9 @@ function wpb_orders_config_js(): string
 /* ─────────────────────────────────────────
    JS INLINE — pagine di riordino (post e termini)
    ───────────────────────────────────────── */
-function wpb_orders_sortable_js(): string
+function suite_barrio_orders_sortable_js(): string
 {
-    $nonce = wp_create_nonce('wpb_orders_nonce');
+    $nonce = wp_create_nonce('suite_barrio_orders_nonce');
     $ajax_url = esc_url(admin_url('admin-ajax.php'));
 
     return 'jQuery(function($){
@@ -516,30 +516,30 @@ function wpb_orders_sortable_js(): string
 
     // ── Carica post ────────────────────────────────────────
     function loadPosts(postType) {
-        var wrap = $(\'#wpb-reorder-list\');
-        wrap.html(\'<div class="wpb-orders-loading">Caricamento...</div>\');
+        var wrap = $(\'#suite-barrio-reorder-list\');
+        wrap.html(\'<div class="suite-barrio-orders-loading">Caricamento...</div>\');
 
-        $.post(ajaxUrl, { action:\'wpb_orders_get_posts\', nonce:nonce, post_type:postType },
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_get_posts\', nonce:nonce, post_type:postType },
         function(res){
-            if (!res.success) { wrap.html(\'<div class="wpb-orders-empty">Errore nel caricamento.</div>\'); return; }
+            if (!res.success) { wrap.html(\'<div class="suite-barrio-orders-empty">Errore nel caricamento.</div>\'); return; }
             var items = res.data;
-            if (!items.length) { wrap.html(\'<div class="wpb-orders-empty">Nessun post trovato.</div>\'); return; }
+            if (!items.length) { wrap.html(\'<div class="suite-barrio-orders-empty">Nessun post trovato.</div>\'); return; }
 
-            var html = \'<ul class="wpb-orders-list" id="wpb-sortable-posts">\';
+            var html = \'<ul class="suite-barrio-orders-list" id="suite-barrio-sortable-posts">\';
             $.each(items, function(i, item){
                 var statusLabel = item.status === \'publish\' ? \'Pubblicato\' : (item.status === \'draft\' ? \'Bozza\' : item.status);
-                html += \'<li class="wpb-orders-item" data-id="\' + item.id + \'">\';
-                html += \'<span class="wpb-orders-handle dashicons dashicons-menu"></span>\';
-                html += \'<span class="wpb-orders-item-title">\' + $(\'<div>\').text(item.title).html() + \'</span>\';
-                html += \'<span class="wpb-orders-item-meta"><span class="wpb-orders-status \' + item.status + \'">\' + statusLabel + \'</span></span>\';
+                html += \'<li class="suite-barrio-orders-item" data-id="\' + item.id + \'">\';
+                html += \'<span class="suite-barrio-orders-handle dashicons dashicons-menu"></span>\';
+                html += \'<span class="suite-barrio-orders-item-title">\' + $(\'<div>\').text(item.title).html() + \'</span>\';
+                html += \'<span class="suite-barrio-orders-item-meta"><span class="suite-barrio-orders-status \' + item.status + \'">\' + statusLabel + \'</span></span>\';
                 html += \'</li>\';
             });
             html += \'</ul>\';
             wrap.html(html);
 
-            $(\'#wpb-sortable-posts\').sortable({
-                handle:      \'.wpb-orders-handle\',
-                placeholder: \'wpb-orders-item wpb-orders-placeholder\',
+            $(\'#suite-barrio-sortable-posts\').sortable({
+                handle:      \'.suite-barrio-orders-handle\',
+                placeholder: \'suite-barrio-orders-item suite-barrio-orders-placeholder\',
                 axis:        \'y\',
                 tolerance:   \'pointer\'
             });
@@ -548,29 +548,29 @@ function wpb_orders_sortable_js(): string
 
     // ── Carica termini ─────────────────────────────────────
     function loadTerms(taxonomy) {
-        var wrap = $(\'#wpb-reorder-list\');
-        wrap.html(\'<div class="wpb-orders-loading">Caricamento...</div>\');
+        var wrap = $(\'#suite-barrio-reorder-list\');
+        wrap.html(\'<div class="suite-barrio-orders-loading">Caricamento...</div>\');
 
-        $.post(ajaxUrl, { action:\'wpb_orders_get_terms\', nonce:nonce, taxonomy:taxonomy },
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_get_terms\', nonce:nonce, taxonomy:taxonomy },
         function(res){
-            if (!res.success) { wrap.html(\'<div class="wpb-orders-empty">Errore nel caricamento.</div>\'); return; }
+            if (!res.success) { wrap.html(\'<div class="suite-barrio-orders-empty">Errore nel caricamento.</div>\'); return; }
             var items = res.data;
-            if (!items.length) { wrap.html(\'<div class="wpb-orders-empty">Nessun termine trovato.</div>\'); return; }
+            if (!items.length) { wrap.html(\'<div class="suite-barrio-orders-empty">Nessun termine trovato.</div>\'); return; }
 
-            var html = \'<ul class="wpb-orders-list" id="wpb-sortable-terms">\';
+            var html = \'<ul class="suite-barrio-orders-list" id="suite-barrio-sortable-terms">\';
             $.each(items, function(i, item){
-                html += \'<li class="wpb-orders-item" data-id="\' + item.id + \'">\';
-                html += \'<span class="wpb-orders-handle dashicons dashicons-menu"></span>\';
-                html += \'<span class="wpb-orders-item-title">\' + $(\'<div>\').text(item.name).html() + \'</span>\';
-                html += \'<span class="wpb-orders-item-meta">\' + item.count + \' elementi</span>\';
+                html += \'<li class="suite-barrio-orders-item" data-id="\' + item.id + \'">\';
+                html += \'<span class="suite-barrio-orders-handle dashicons dashicons-menu"></span>\';
+                html += \'<span class="suite-barrio-orders-item-title">\' + $(\'<div>\').text(item.name).html() + \'</span>\';
+                html += \'<span class="suite-barrio-orders-item-meta">\' + item.count + \' elementi</span>\';
                 html += \'</li>\';
             });
             html += \'</ul>\';
             wrap.html(html);
 
-            $(\'#wpb-sortable-terms\').sortable({
-                handle:      \'.wpb-orders-handle\',
-                placeholder: \'wpb-orders-item wpb-orders-placeholder\',
+            $(\'#suite-barrio-sortable-terms\').sortable({
+                handle:      \'.suite-barrio-orders-handle\',
+                placeholder: \'suite-barrio-orders-item suite-barrio-orders-placeholder\',
                 axis:        \'y\',
                 tolerance:   \'pointer\'
             });
@@ -578,32 +578,32 @@ function wpb_orders_sortable_js(): string
     }
 
     // ── Caricamento iniziale ───────────────────────────────
-    var initPt  = $(\'#wpb-reorder-post-type\').val();
-    var initTax = $(\'#wpb-reorder-taxonomy\').val();
+    var initPt  = $(\'#suite-barrio-reorder-post-type\').val();
+    var initTax = $(\'#suite-barrio-reorder-taxonomy\').val();
     if (initPt)  loadPosts(initPt);
     if (initTax) loadTerms(initTax);
 
     // ── Cambio select tassonomia ───────────────────────────
-    $(document).on(\'change\', \'#wpb-reorder-taxonomy\', function(){
+    $(document).on(\'change\', \'#suite-barrio-reorder-taxonomy\', function(){
         var val = $(this).val();
         if (val) loadTerms(val);
-        else $(\'#wpb-reorder-list\').html(\'\');
+        else $(\'#suite-barrio-reorder-list\').html(\'\');
     });
 
     // ── Salva ordine post ──────────────────────────────────
-    $(document).on(\'click\', \'#wpb-save-posts\', function(){
+    $(document).on(\'click\', \'#suite-barrio-save-posts\', function(){
         var btn      = $(this);
-        var postType = $(\'#wpb-reorder-post-type\').val();
+        var postType = $(\'#suite-barrio-reorder-post-type\').val();
         var items    = [];
-        $(\'#wpb-sortable-posts .wpb-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
+        $(\'#suite-barrio-sortable-posts .suite-barrio-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
         if (!items.length || !postType) return;
 
         btn.prop(\'disabled\', true).text(\'Salvataggio...\');
-        $.post(ajaxUrl, { action:\'wpb_orders_save_posts\', nonce:nonce, post_type:postType, items:items },
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_save_posts\', nonce:nonce, post_type:postType, items:items },
         function(res){
             btn.prop(\'disabled\', false).text(\'Salva ordine\');
             if (res.success) {
-                var badge = $(\'#wpb-posts-saved\');
+                var badge = $(\'#suite-barrio-posts-saved\');
                 badge.addClass(\'show\');
                 setTimeout(function(){ badge.removeClass(\'show\'); }, 2500);
             }
@@ -611,19 +611,19 @@ function wpb_orders_sortable_js(): string
     });
 
     // ── Salva ordine termini ───────────────────────────────
-    $(document).on(\'click\', \'#wpb-save-terms\', function(){
+    $(document).on(\'click\', \'#suite-barrio-save-terms\', function(){
         var btn      = $(this);
-        var taxonomy = $(\'#wpb-reorder-taxonomy\').val();
+        var taxonomy = $(\'#suite-barrio-reorder-taxonomy\').val();
         var items    = [];
-        $(\'#wpb-sortable-terms .wpb-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
+        $(\'#suite-barrio-sortable-terms .suite-barrio-orders-item\').each(function(i){ items.push($(this).data(\'id\')); });
         if (!items.length || !taxonomy) return;
 
         btn.prop(\'disabled\', true).text(\'Salvataggio...\');
-        $.post(ajaxUrl, { action:\'wpb_orders_save_terms\', nonce:nonce, taxonomy:taxonomy, items:items },
+        $.post(ajaxUrl, { action:\'suite_barrio_orders_save_terms\', nonce:nonce, taxonomy:taxonomy, items:items },
         function(res){
             btn.prop(\'disabled\', false).text(\'Salva ordine\');
             if (res.success) {
-                var badge = $(\'#wpb-terms-saved\');
+                var badge = $(\'#suite-barrio-terms-saved\');
                 badge.addClass(\'show\');
                 setTimeout(function(){ badge.removeClass(\'show\'); }, 2500);
             }
@@ -635,69 +635,69 @@ function wpb_orders_sortable_js(): string
 /* ─────────────────────────────────────────
    PAGINA ADMIN — Configurazione
    ───────────────────────────────────────── */
-function wpb_orders_admin_page()
+function suite_barrio_orders_admin_page()
 {
     if (!current_user_can('manage_options'))
         wp_die('Accesso negato.');
 
-    $post_types = wpb_orders_get_post_types();
-    $taxonomies = wpb_orders_get_taxonomies();
-    $enabled_pts = wpb_orders_enabled_post_types();
-    $enabled_taxs = wpb_orders_enabled_taxonomies();
+    $post_types = suite_barrio_orders_get_post_types();
+    $taxonomies = suite_barrio_orders_get_taxonomies();
+    $enabled_pts = suite_barrio_orders_enabled_post_types();
+    $enabled_taxs = suite_barrio_orders_enabled_taxonomies();
     ?>
-    <div id="wpb-orders-wrap" class="wrap wpb-wrap">
+    <div id="suite-barrio-orders-wrap" class="wrap suite-barrio-wrap">
 
         <!-- Header -->
-        <div class="wpb-ord-header">
-            <div class="wpb-ord-header-icon"><span class="dashicons dashicons-sort"></span></div>
+        <div class="suite-barrio-ord-header">
+            <div class="suite-barrio-ord-header-icon"><span class="dashicons dashicons-sort"></span></div>
             <div>
-                <h1>WP Barrio <span class="wpb-ord-breadcrumb">/ Orders</span></h1>
-                <p class="wpb-ord-sub">Attiva il riordinamento drag &amp; drop per post type e tassonomie</p>
+                <h1>Suite Barrio <span class="suite-barrio-ord-breadcrumb">/ Orders</span></h1>
+                <p class="suite-barrio-ord-sub">Attiva il riordinamento drag &amp; drop per post type e tassonomie</p>
             </div>
         </div>
-        <hr class="wpb-ord-divider">
+        <hr class="suite-barrio-ord-divider">
 
         <!-- Tabs -->
-        <div class="wpb-orders-tabs">
-            <div class="wpb-orders-tab active" data-tab="post-types">
+        <div class="suite-barrio-orders-tabs">
+            <div class="suite-barrio-orders-tab active" data-tab="post-types">
                 <span class="dashicons dashicons-admin-post"></span>
                 Post Type
                 <?php if (!empty($enabled_pts)): ?>
-                    <span class="wpb-orders-tab-badge"><?php echo count($enabled_pts); ?></span>
+                    <span class="suite-barrio-orders-tab-badge"><?php echo count($enabled_pts); ?></span>
                 <?php endif; ?>
             </div>
-            <div class="wpb-orders-tab" data-tab="taxonomies">
+            <div class="suite-barrio-orders-tab" data-tab="taxonomies">
                 <span class="dashicons dashicons-tag"></span>
                 Tassonomie
                 <?php if (!empty($enabled_taxs)): ?>
-                    <span class="wpb-orders-tab-badge"><?php echo count($enabled_taxs); ?></span>
+                    <span class="suite-barrio-orders-tab-badge"><?php echo count($enabled_taxs); ?></span>
                 <?php endif; ?>
             </div>
         </div>
 
         <!-- Panel: Post Type -->
-        <div id="wpb-orders-panel-post-types" class="wpb-orders-panel active">
-            <div class="wpb-orders-notice">
+        <div id="suite-barrio-orders-panel-post-types" class="suite-barrio-orders-panel active">
+            <div class="suite-barrio-orders-notice">
                 <span class="dashicons dashicons-info"></span>
                 <div>Attiva il riordinamento per un post type: apparirà la voce <strong>Riordina</strong> nel menu del post
                     type, dove trascinare i post nell'ordine desiderato. L'ordine viene applicato automaticamente nel
                     front-end.</div>
             </div>
-            <div class="wpb-orders-card">
+            <div class="suite-barrio-orders-card">
                 <?php foreach ($post_types as $pt):
                     $is_enabled = in_array($pt['slug'], $enabled_pts, true);
                     ?>
-                    <div class="wpb-orders-row">
-                        <div class="wpb-orders-row-info">
-                            <div class="wpb-orders-row-label"><?php echo esc_html($pt['label']); ?></div>
-                            <div class="wpb-orders-row-slug"><?php echo esc_html($pt['slug']); ?></div>
-                            <div class="wpb-pt-hint" <?php echo $is_enabled ? '' : 'style="display:none;"'; ?>>
+                    <div class="suite-barrio-orders-row">
+                        <div class="suite-barrio-orders-row-info">
+                            <div class="suite-barrio-orders-row-label"><?php echo esc_html($pt['label']); ?></div>
+                            <div class="suite-barrio-orders-row-slug"><?php echo esc_html($pt['slug']); ?></div>
+                            <div class="suite-barrio-pt-hint" <?php echo $is_enabled ? '' : 'style="display:none;"'; ?>>
                                 &#x2713; «Riordina» visibile nel menu <?php echo esc_html($pt['label']); ?>
                             </div>
                         </div>
-                        <label class="wpb-toggle">
-                            <input type="checkbox" class="wpb-pt-toggle" data-pt="<?php echo esc_attr($pt['slug']); ?>" <?php checked($is_enabled); ?>>
-                            <span class="wpb-toggle-track"></span>
+                        <label class="suite-barrio-toggle">
+                            <input type="checkbox" class="suite-barrio-pt-toggle" data-pt="<?php echo esc_attr($pt['slug']); ?>" <?php checked($is_enabled); ?>>
+                            <span class="suite-barrio-toggle-track"></span>
                         </label>
                     </div>
                 <?php endforeach; ?>
@@ -705,33 +705,33 @@ function wpb_orders_admin_page()
         </div>
 
         <!-- Panel: Tassonomie -->
-        <div id="wpb-orders-panel-taxonomies" class="wpb-orders-panel">
-            <div class="wpb-orders-notice">
+        <div id="suite-barrio-orders-panel-taxonomies" class="suite-barrio-orders-panel">
+            <div class="suite-barrio-orders-notice">
                 <span class="dashicons dashicons-info"></span>
                 <div>Attiva il riordinamento per una tassonomia: potrai ordinare i termini direttamente qui. Gli utenti con
                     permesso di modifica troveranno la voce <strong>Riordina Categorie</strong> nel menu principale.</div>
             </div>
-            <div class="wpb-orders-card">
+            <div class="suite-barrio-orders-card">
                 <?php foreach ($taxonomies as $tax):
                     if ($tax['slug'] === 'post_format')
                         continue;
                     $is_enabled = in_array($tax['slug'], $enabled_taxs, true);
                     ?>
-                    <div class="wpb-orders-row" style="flex-wrap:wrap; align-items:flex-start;">
-                        <div class="wpb-orders-row-info">
-                            <div class="wpb-orders-row-label"><?php echo esc_html($tax['label']); ?></div>
-                            <div class="wpb-orders-row-slug"><?php echo esc_html($tax['slug']); ?></div>
+                    <div class="suite-barrio-orders-row" style="flex-wrap:wrap; align-items:flex-start;">
+                        <div class="suite-barrio-orders-row-info">
+                            <div class="suite-barrio-orders-row-label"><?php echo esc_html($tax['label']); ?></div>
+                            <div class="suite-barrio-orders-row-slug"><?php echo esc_html($tax['slug']); ?></div>
                         </div>
-                        <label class="wpb-toggle" style="margin-top:2px;">
-                            <input type="checkbox" class="wpb-tax-toggle" data-tax="<?php echo esc_attr($tax['slug']); ?>" <?php checked($is_enabled); ?>>
-                            <span class="wpb-toggle-track"></span>
+                        <label class="suite-barrio-toggle" style="margin-top:2px;">
+                            <input type="checkbox" class="suite-barrio-tax-toggle" data-tax="<?php echo esc_attr($tax['slug']); ?>" <?php checked($is_enabled); ?>>
+                            <span class="suite-barrio-toggle-track"></span>
                         </label>
                         <!-- Blocco riordino inline -->
-                        <div class="wpb-orders-tax-reorder" <?php echo $is_enabled ? '' : 'style="display:none;"'; ?>>
-                            <div class="wpb-orders-tax-reorder-title">Ordine termini — <?php echo esc_html($tax['label']); ?>
+                        <div class="suite-barrio-orders-tax-reorder" <?php echo $is_enabled ? '' : 'style="display:none;"'; ?>>
+                            <div class="suite-barrio-orders-tax-reorder-title">Ordine termini — <?php echo esc_html($tax['label']); ?>
                             </div>
-                            <div class="wpb-tax-inline-list">
-                                <div class="wpb-orders-loading">Caricamento…</div>
+                            <div class="suite-barrio-tax-inline-list">
+                                <div class="suite-barrio-orders-loading">Caricamento…</div>
                             </div>
                         </div>
                     </div>
@@ -746,7 +746,7 @@ function wpb_orders_admin_page()
 /* ─────────────────────────────────────────
    PAGINA "Riordina" — sotto un post type
    ───────────────────────────────────────── */
-function wpb_orders_reorder_posts_page(string $post_type)
+function suite_barrio_orders_reorder_posts_page(string $post_type)
 {
     if (!current_user_can('edit_posts'))
         wp_die('Accesso negato.');
@@ -754,32 +754,32 @@ function wpb_orders_reorder_posts_page(string $post_type)
     $pt_obj = get_post_type_object($post_type);
     $label = $pt_obj ? $pt_obj->labels->name : $post_type;
     ?>
-    <div class="wpb-reorder-wrap wrap">
+    <div class="suite-barrio-reorder-wrap wrap">
 
         <!-- Header -->
-        <div class="wpb-ord-header">
-            <div class="wpb-ord-header-icon"><span class="dashicons dashicons-sort"></span></div>
+        <div class="suite-barrio-ord-header">
+            <div class="suite-barrio-ord-header-icon"><span class="dashicons dashicons-sort"></span></div>
             <div>
                 <h1>Riordina &mdash; <?php echo esc_html($label); ?></h1>
-                <p class="wpb-ord-sub">Trascina i post nell'ordine desiderato e clicca Salva ordine</p>
+                <p class="suite-barrio-ord-sub">Trascina i post nell'ordine desiderato e clicca Salva ordine</p>
             </div>
         </div>
-        <hr class="wpb-ord-divider">
+        <hr class="suite-barrio-ord-divider">
 
-        <input type="hidden" id="wpb-reorder-post-type" value="<?php echo esc_attr($post_type); ?>">
+        <input type="hidden" id="suite-barrio-reorder-post-type" value="<?php echo esc_attr($post_type); ?>">
 
-        <div class="wpb-reorder-list-wrap">
-            <div id="wpb-reorder-list">
-                <div class="wpb-orders-loading">Caricamento…</div>
+        <div class="suite-barrio-reorder-list-wrap">
+            <div id="suite-barrio-reorder-list">
+                <div class="suite-barrio-orders-loading">Caricamento…</div>
             </div>
         </div>
 
-        <div class="wpb-orders-actions">
-            <button id="wpb-save-posts" class="wpb-orders-btn">
+        <div class="suite-barrio-orders-actions">
+            <button id="suite-barrio-save-posts" class="suite-barrio-orders-btn">
                 <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
                 Salva ordine
             </button>
-            <span id="wpb-posts-saved" class="wpb-orders-saved-badge">
+            <span id="suite-barrio-posts-saved" class="suite-barrio-orders-saved-badge">
                 <span class="dashicons dashicons-yes-alt"
                     style="font-size:18px;width:18px;height:18px;color:#059669;"></span>
                 Ordine salvato
@@ -792,37 +792,37 @@ function wpb_orders_reorder_posts_page(string $post_type)
 /* ─────────────────────────────────────────
    PAGINA "Riordina Categorie" — per tutti
    ───────────────────────────────────────── */
-function wpb_orders_reorder_terms_page()
+function suite_barrio_orders_reorder_terms_page()
 {
     if (!current_user_can('edit_posts'))
         wp_die('Accesso negato.');
 
-    $enabled_taxs = wpb_orders_enabled_taxonomies();
-    $taxonomies = array_filter(wpb_orders_get_taxonomies(), fn($t) => in_array($t['slug'], $enabled_taxs, true));
+    $enabled_taxs = suite_barrio_orders_enabled_taxonomies();
+    $taxonomies = array_filter(suite_barrio_orders_get_taxonomies(), fn($t) => in_array($t['slug'], $enabled_taxs, true));
     $taxonomies = array_values($taxonomies);
     $first_tax = $taxonomies[0]['slug'] ?? '';
     ?>
-    <div class="wpb-reorder-wrap wrap">
+    <div class="suite-barrio-reorder-wrap wrap">
 
         <!-- Header -->
-        <div class="wpb-ord-header">
-            <div class="wpb-ord-header-icon"><span class="dashicons dashicons-sort"></span></div>
+        <div class="suite-barrio-ord-header">
+            <div class="suite-barrio-ord-header-icon"><span class="dashicons dashicons-sort"></span></div>
             <div>
                 <h1>Riordina Categorie</h1>
-                <p class="wpb-ord-sub">Seleziona una tassonomia, trascina i termini e clicca Salva ordine</p>
+                <p class="suite-barrio-ord-sub">Seleziona una tassonomia, trascina i termini e clicca Salva ordine</p>
             </div>
         </div>
-        <hr class="wpb-ord-divider">
+        <hr class="suite-barrio-ord-divider">
 
         <?php if (empty($taxonomies)): ?>
-            <div class="wpb-orders-notice" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">
+            <div class="suite-barrio-orders-notice" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">
                 <span class="dashicons dashicons-warning" style="color:#d97706;"></span>
                 <div>Nessuna tassonomia è stata abilitata al riordinamento. Chiedi all'amministratore di attivarle in <strong>WP
                         Barrio → Orders</strong>.</div>
             </div>
         <?php else: ?>
-            <div class="wpb-reorder-selector">
-                <select id="wpb-reorder-taxonomy">
+            <div class="suite-barrio-reorder-selector">
+                <select id="suite-barrio-reorder-taxonomy">
                     <?php foreach ($taxonomies as $tax): ?>
                         <option value="<?php echo esc_attr($tax['slug']); ?>" <?php selected($tax['slug'], $first_tax); ?>>
                             <?php echo esc_html($tax['label']); ?>
@@ -831,18 +831,18 @@ function wpb_orders_reorder_terms_page()
                 </select>
             </div>
 
-            <div class="wpb-reorder-list-wrap">
-                <div id="wpb-reorder-list">
-                    <div class="wpb-orders-loading">Caricamento…</div>
+            <div class="suite-barrio-reorder-list-wrap">
+                <div id="suite-barrio-reorder-list">
+                    <div class="suite-barrio-orders-loading">Caricamento…</div>
                 </div>
             </div>
 
-            <div class="wpb-orders-actions">
-                <button id="wpb-save-terms" class="wpb-orders-btn">
+            <div class="suite-barrio-orders-actions">
+                <button id="suite-barrio-save-terms" class="suite-barrio-orders-btn">
                     <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
                     Salva ordine
                 </button>
-                <span id="wpb-terms-saved" class="wpb-orders-saved-badge">
+                <span id="suite-barrio-terms-saved" class="suite-barrio-orders-saved-badge">
                     <span class="dashicons dashicons-yes-alt"
                         style="font-size:18px;width:18px;height:18px;color:#059669;"></span>
                     Ordine salvato
