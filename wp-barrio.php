@@ -39,6 +39,15 @@ define('WP_ALT_AI_LOG_MAX', 200);
 define('WP_ALT_AI_JOB_OPTION', 'wp_alt_ai_bulk_job');
 define('WP_ALT_AI_CRON_HOOK', 'wp_alt_ai_process_batch');
 define('WP_ALT_AI_BATCH_SIZE', 5);
+define('WPB_LICENSE_KEY', '!mBppEGsKquoL9qjq^4ahz');
+
+/* ─────────────────────────────────────────
+   LICENSE GATE — caricato sempre, prima di ogni
+   altro modulo. Definisce wpb_license_is_active().
+   ───────────────────────────────────────── */
+require_once WP_ALT_AI_PLUGIN_DIR . 'modules/license/license.php';
+
+if (wpb_license_is_active()) {
 
 /* ─────────────────────────────────────────
    MODULI CORE
@@ -104,3 +113,5 @@ require_once WP_ALT_AI_PLUGIN_DIR . 'modules/graphql.php';
    CACHE INVALIDATION (Vercel)
    ───────────────────────────────────────── */
 require_once WP_ALT_AI_PLUGIN_DIR . 'cache.php';
+
+} // wpb_license_is_active()
