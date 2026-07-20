@@ -61,6 +61,10 @@ function suite_barrio_tools_modules_list()
             'label' => 'Cookie Banner',
             'desc'  => 'Banner di consenso cookie nativo con Service Registry, scanner automatico e widget preferenze. Compatibile con siti PHP e Next.js headless.',
         ],
+        'columns' => [
+            'label' => 'Columns',
+            'desc' => 'Gestisci le colonne delle liste in bacheca per ogni post type: attiva, riordina, rinomina e ordina colonne native, tassonomie e campi ACF.',
+        ],
         'duplicate' => [
             'label' => 'Duplicate',
             'desc' => 'Duplica post e termini di tassonomia direttamente dalla lista, con un click.',

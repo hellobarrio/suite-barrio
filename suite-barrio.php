@@ -84,6 +84,9 @@ if (suite_barrio_tools_module_enabled('popups'))
 if (suite_barrio_tools_module_enabled('banners'))
    require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/banners/banners.php';
 
+if (suite_barrio_tools_module_enabled('columns'))
+   require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/columns/columns.php';
+
 
 if (suite_barrio_tools_module_enabled('cookie_privacy'))
    require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/cookie-privacy/cookie-privacy.php';
