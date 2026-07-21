@@ -687,7 +687,7 @@ add_action('wp_ajax_suite_barrio_llms_generate', function () {
     suite_barrio_llms_log('success', $type, 'Generato con ' . $provider . ($model ? ' / ' . $model : ''));
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:llms');
     }
     wp_send_json_success($results);
 });
@@ -723,7 +723,7 @@ add_action('wp_ajax_suite_barrio_llms_save_inclusion', function () {
     update_option('wpb_llms_tax_modes', $tax_modes, false);
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:llms');
     }
 
     wp_send_json_success();

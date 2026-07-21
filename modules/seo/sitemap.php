@@ -89,7 +89,7 @@ add_action('admin_post_suite_barrio_sitemap_save', function () {
 
     update_option(SUITE_BARRIO_SITEMAP_OPTION, $settings);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:sitemap');
     }
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-sitemap&saved=1'));
     exit;

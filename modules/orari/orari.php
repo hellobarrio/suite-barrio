@@ -139,7 +139,7 @@ function suite_barrio_orari_fetch_and_save(): array
 
     // Invalida cache Vercel se la funzione è disponibile
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:orari');
     }
 
     return ['success' => true, 'message' => 'Orari aggiornati con successo.', 'data' => $data];

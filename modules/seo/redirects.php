@@ -293,7 +293,7 @@ add_action('wp_ajax_suite_barrio_redirect_save', function () {
 
     update_option(SUITE_BARRIO_REDIRECTS_OPTION, $rows, false);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:redirects');
     }
     wp_send_json_success(['rows' => suite_barrio_redirects_get_all()]);
 });
@@ -314,7 +314,7 @@ add_action('wp_ajax_suite_barrio_redirect_delete', function () {
     $rows = array_values(array_filter($rows, fn($r) => ($r['id'] ?? '') !== $id));
     update_option(SUITE_BARRIO_REDIRECTS_OPTION, $rows, false);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:redirects');
     }
     wp_send_json_success(['rows' => suite_barrio_redirects_get_all()]);
 });

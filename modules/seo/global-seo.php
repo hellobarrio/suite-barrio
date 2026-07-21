@@ -105,7 +105,7 @@ add_action('admin_post_suite_barrio_meta_content_save', function () {
 
     update_option(SUITE_BARRIO_META_CONTENT_OPTION, $current);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:seo');
     }
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-global-seo&tab=content&saved=1'));
     exit;
@@ -151,7 +151,7 @@ add_action('admin_post_suite_barrio_meta_settings_save', function () {
         delete_option('site_icon');
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:seo');
     }
 
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-global-seo&tab=settings&saved=1'));

@@ -418,7 +418,7 @@ add_action('wp_ajax_suite_barrio_banners_save', function () {
         wp_send_json_error('Errore DB: ' . $wpdb->last_error);
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:banner');
     }
 
     wp_send_json_success(['id' => $id, 'message' => 'Banner salvato.']);
@@ -445,7 +445,7 @@ add_action('wp_ajax_suite_barrio_banners_set_active', function () {
     }
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:banner');
     }
 
     wp_send_json_success('Banner attivo aggiornato.');
@@ -468,7 +468,7 @@ add_action('wp_ajax_suite_barrio_banners_delete', function () {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_BANNERS_TABLE, ['id' => $id], ['%d']);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:banner');
     }
     wp_send_json_success('Banner eliminato.');
 });
@@ -513,7 +513,7 @@ add_action('wp_ajax_suite_barrio_banners_save_translation', function () {
         wp_send_json_error('Errore DB.');
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:banner');
     }
 
     wp_send_json_success(['message' => 'Traduzione salvata.']);
@@ -591,7 +591,7 @@ add_action('wp_ajax_suite_barrio_banners_save_limit', function () {
     $limit = max(1, intval($_POST['banner_limit'] ?? 1));
     update_option('wpb_banners_limit', $limit, false);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:banner');
     }
     wp_send_json_success('Limite salvato.');
 });
