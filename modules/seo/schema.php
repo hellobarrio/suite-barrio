@@ -80,7 +80,7 @@ add_action('admin_post_suite_barrio_schema_save', function () {
 
     update_option(SUITE_BARRIO_SCHEMA_OPTION, $settings);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:schema');
     }
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-schema&saved=1'));
     exit;

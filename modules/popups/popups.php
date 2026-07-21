@@ -589,7 +589,7 @@ add_action('wp_ajax_suite_barrio_popups_save', function () {
         wp_send_json_error('Errore DB: ' . $wpdb->last_error);
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:popup');
     }
 
     wp_send_json_success(['id' => $id, 'message' => 'Popup salvato.']);
@@ -618,7 +618,7 @@ add_action('wp_ajax_suite_barrio_popups_set_active', function () {
     }
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:popup');
     }
 
     wp_send_json_success('Popup attivo aggiornato.');
@@ -643,7 +643,7 @@ add_action('wp_ajax_suite_barrio_popups_delete', function () {
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_POPUPS_TABLE, ['id' => $id], ['%d']);
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:popup');
     }
     wp_send_json_success('Popup eliminato.');
 });
@@ -691,7 +691,7 @@ add_action('wp_ajax_suite_barrio_popups_save_translation', function () {
         wp_send_json_error('Errore DB.');
 
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:popup');
     }
 
     wp_send_json_success(['message' => 'Traduzione salvata.']);
@@ -775,7 +775,7 @@ add_action('wp_ajax_suite_barrio_popups_save_limit', function () {
     $limit = max(1, intval($_POST['popup_limit'] ?? 1));
     update_option('wpb_popups_limit', $limit, false);
     if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+        invalidate_vercel_cache('wp:popup');
     }
     wp_send_json_success('Limite salvato.');
 });

@@ -61,10 +61,10 @@ if (!function_exists('invalidate_vercel_cache')) {
             // Controlla se si tratta di una option page
             if (current_action() === 'wp_update_nav_menu') {
                 // Se l'azione è wp_update_nav_menu, è sicuramente un menu
-                $tags = 'wp:global';
+                $tags = 'wp:menu';
             } else if (is_string($post_id) && !is_numeric($post_id)) {
                 // Tag arbitrario passato direttamente (es. "form_123")
-                $tags = $post_id == "wp:global" ? "wp:global,home" : $post_id;
+                $tags = $post_id == "wp:global" ? "wp:global" : $post_id;
             } else {
                 // Recupera l'oggetto post
                 $post = get_post($post_id);
@@ -74,24 +74,16 @@ if (!function_exists('invalidate_vercel_cache')) {
                     // Tag globale per menu
                     $tags = 'wp:global';
                 } else if ($post) {
-                    // Controlla se è la homepage
-                    $is_homepage = (int) get_option('page_on_front') === (int) $post_id;
+                    // Tag 1: L'URI specifico (es. wp:uri:chi-siamo)
+                    // Usiamo wp_make_link_relative per avere solo il path
+                    $full_url = get_permalink($post_id);
+                    $uri = wp_make_link_relative($full_url);
 
-                    if ($is_homepage) {
-                        // Tag specifico per homepage
-                        $tags = 'home';
-                    } else {
-                        // Tag 1: L'URI specifico (es. wp:uri:chi-siamo)
-                        // Usiamo wp_make_link_relative per avere solo il path
-                        $full_url = get_permalink($post_id);
-                        $uri = wp_make_link_relative($full_url);
+                    // Rimuovi gli slash iniziali e finali, poi sostituisci tutti gli slash con underscore
+                    $uri = trim($uri, '/');
+                    $uri = str_replace('/', '_', $uri);
 
-                        // Rimuovi gli slash iniziali e finali, poi sostituisci tutti gli slash con underscore
-                        $uri = trim($uri, '/');
-                        $uri = str_replace('/', '_', $uri);
-
-                        $tags = 'wp:uri:' . $uri . ',wp:type:' . $post->post_type;
-                    }
+                    $tags = 'wp:uri:' . $uri . ',wp:type:' . $post->post_type . ',page_' . $post_id;
                 } else {
                     return; // Non è né un post né un menu valido
                 }
@@ -252,7 +244,8 @@ if (!function_exists('suite_barrio_cache_purge_render')) {
         $nonce = wp_create_nonce('suite_barrio_cache_purge');
         $ajax_url = admin_url('admin-ajax.php');
         ?>
-        <div class="suite-barrio-cache-purge" data-ajax="<?php echo esc_url($ajax_url); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
+        <div class="suite-barrio-cache-purge" data-ajax="<?php echo esc_url($ajax_url); ?>"
+            data-nonce="<?php echo esc_attr($nonce); ?>">
             <div class="suite-barrio-cache-purge-icon">
                 <span class="dashicons dashicons-trash"></span>
             </div>
