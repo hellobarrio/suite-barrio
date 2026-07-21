@@ -968,7 +968,6 @@ function suite_barrio_graphql_register_schema(): void
                 // Title
                 $custom_title = get_post_meta($post_id, '_wpb_seo_title', true);
                 $base_title = $custom_title ?: get_the_title($post);
-                $full_title = get_option('page_on_front') == $post_id ? $base_title . " " . $sep . " " . $site_name : $base_title;
 
                 // Description
                 $description = get_post_meta($post_id, '_wpb_seo_description', true);
@@ -999,16 +998,16 @@ function suite_barrio_graphql_register_schema(): void
                 $robots = ($idx ? 'index' : 'noindex') . ',' . ($follow ? 'follow' : 'nofollow');
 
                 return [
-                    'title' => $full_title,
+                    'title' => $base_title,
                     'description' => $description,
                     'robots' => $robots,
                     'canonical' => get_permalink($post_id) ?: '',
-                    'ogTitle' => $full_title,
+                    'ogTitle' => $base_title,
                     'ogDescription' => $description,
                     'ogImage' => $og_image_url ?: null,
                     'ogType' => 'article',
                     'twitterCard' => $s['twitter_card'] ?? 'summary_large_image',
-                    'twitterTitle' => $full_title,
+                    'twitterTitle' => $base_title,
                     'twitterImage' => $og_image_url ?: null,
                     'isIndexed' => $idx,
                     'isInSitemap' => $sitemap,
