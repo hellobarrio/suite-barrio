@@ -61,12 +61,12 @@ register_activation_hook(SUITE_BARRIO_PLUGIN_DIR . 'suite-barrio.php', 'suite_ba
 add_action('plugins_loaded', function () {
     suite_barrio_banners_install();
 
-    $installed_version = get_option('wpb_banners_db_version', '0');
+    $installed_version = get_option('suite_barrio_banners_db_version', '0');
 
     // Migrazione v1.1: crea la tabella traduzioni se non esiste ancora
     if (version_compare($installed_version, '1.1.0', '<')) {
         suite_barrio_banners_install();
-        update_option('wpb_banners_db_version', SUITE_BARRIO_BANNERS_VERSION, false);
+        update_option('suite_barrio_banners_db_version', SUITE_BARRIO_BANNERS_VERSION, false);
     }
 });
 
@@ -171,6 +171,7 @@ if (!function_exists('suite_barrio_get_template')) {
             return '';
 
         ob_start();
+        // phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- pattern standard per rendere un file di template sovrascrivibile dal tema, con EXTR_SKIP a protezione delle variabili locali gia' definite
         extract($data, EXTR_SKIP);
         include $file;
         return ob_get_clean();
@@ -182,7 +183,8 @@ if (!function_exists('suite_barrio_get_template')) {
    Template override: suite-barrio/banner.php nel tema.
    Variabili disponibili nel template: $uid, $title, $link, $link_target, $rel
    ───────────────────────────────────────── */
-add_shortcode('wpb_banner', 'suite_barrio_banner_shortcode');
+add_shortcode('suite_barrio_banner', 'suite_barrio_banner_shortcode');
+add_shortcode('wpb_banner', 'suite_barrio_banner_shortcode'); // alias retrocompatibile: contenuti già pubblicati con [wpb_banner]
 
 function suite_barrio_banner_shortcode(): string
 {
@@ -225,6 +227,7 @@ function suite_barrio_banner_resolve_active(): ?array
     if (defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
         $lang = ICL_LANGUAGE_CODE;
     } elseif (function_exists('apply_filters')) {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
         $lang = (string) apply_filters('wpml_current_language', '');
     }
     if ($lang) {
@@ -417,8 +420,8 @@ add_action('wp_ajax_suite_barrio_banners_save', function () {
     if ($ok === false)
         wp_send_json_error('Errore DB: ' . $wpdb->last_error);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:banner');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:banner');
     }
 
     wp_send_json_success(['id' => $id, 'message' => 'Banner salvato.']);
@@ -444,8 +447,8 @@ add_action('wp_ajax_suite_barrio_banners_set_active', function () {
         $wpdb->update($table, ['active' => 1], ['id' => $id], ['%d'], ['%d']);
     }
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:banner');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:banner');
     }
 
     wp_send_json_success('Banner attivo aggiornato.');
@@ -467,8 +470,8 @@ add_action('wp_ajax_suite_barrio_banners_delete', function () {
     suite_barrio_banners_delete_translations($id);
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_BANNERS_TABLE, ['id' => $id], ['%d']);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:banner');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:banner');
     }
     wp_send_json_success('Banner eliminato.');
 });
@@ -512,8 +515,8 @@ add_action('wp_ajax_suite_barrio_banners_save_translation', function () {
     if (!$ok)
         wp_send_json_error('Errore DB.');
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:banner');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:banner');
     }
 
     wp_send_json_success(['message' => 'Traduzione salvata.']);
@@ -589,9 +592,9 @@ add_action('wp_ajax_suite_barrio_banners_save_limit', function () {
         wp_send_json_error('Permesso negato.');
 
     $limit = max(1, intval($_POST['banner_limit'] ?? 1));
-    update_option('wpb_banners_limit', $limit, false);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:banner');
+    update_option('suite_barrio_banners_limit', $limit, false);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:banner');
     }
     wp_send_json_success('Limite salvato.');
 });
@@ -663,7 +666,7 @@ function suite_barrio_banners_admin_page(): void
     $banners = suite_barrio_banners_get_all();
     $active = suite_barrio_banners_get_active();
     $active_id = $active ? (int) $active->id : 0;
-    $banner_limit = (int) get_option('wpb_banners_limit', 1);
+    $banner_limit = (int) get_option('suite_barrio_banners_limit', 1);
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $list_tab = isset($_GET['list_tab']) ? sanitize_key($_GET['list_tab']) : 'banners';
 

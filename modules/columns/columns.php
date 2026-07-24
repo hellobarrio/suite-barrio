@@ -22,7 +22,7 @@ if (!defined('ABSPATH'))
    COSTANTI
    ───────────────────────────────────────── */
 define('SUITE_BARRIO_COLUMNS_VERSION', '1.0.0');
-define('SUITE_BARRIO_COLUMNS_OPTION', 'wpb_columns_settings');
+define('SUITE_BARRIO_COLUMNS_OPTION', 'suite_barrio_columns_settings');
 
 /* ─────────────────────────────────────────
    HELPER: impostazioni e configurazione per post type
@@ -338,7 +338,7 @@ function suite_barrio_columns_render_cell(string $column, int $post_id, string $
 
     switch ($column) {
         case 'sbc_id':
-            echo $post_id;
+            echo (int) $post_id;
             return;
 
         case 'sbc_slug':
@@ -355,11 +355,13 @@ function suite_barrio_columns_render_cell(string $column, int $post_id, string $
             if (has_post_thumbnail($post_id))
                 echo get_the_post_thumbnail($post_id, [40, 40]);
             else
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
                 echo suite_barrio_columns_empty();
             return;
 
         case 'sbc_modified':
             $modified = get_post_modified_time(get_option('date_format') . ' ' . get_option('time_format'), false, $post_id, true);
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
             echo $modified ? esc_html($modified) : suite_barrio_columns_empty();
             return;
     }
@@ -369,6 +371,7 @@ function suite_barrio_columns_render_cell(string $column, int $post_id, string $
         if ($entry)
             suite_barrio_columns_render_acf($entry, $post_id);
         else
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
             echo suite_barrio_columns_empty();
     }
 }
@@ -382,6 +385,7 @@ function suite_barrio_columns_render_cell(string $column, int $post_id, string $
 function suite_barrio_columns_render_acf(array $entry, int $post_id): void
 {
     if (!function_exists('get_field')) {
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
         echo suite_barrio_columns_empty();
         return;
     }
@@ -391,6 +395,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
     $type = is_array($field) && !empty($field['type']) ? $field['type'] : (string) ($entry['field_type'] ?? 'text');
 
     if ($name === '') {
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
         echo suite_barrio_columns_empty();
         return;
     }
@@ -406,6 +411,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
     }
 
     if ($value === null || $value === false || $value === '' || (is_array($value) && $value === [])) {
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
         echo suite_barrio_columns_empty();
         return;
     }
@@ -414,6 +420,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
         case 'image':
             $attachment_id = (int) (is_array($value) ? ($value['ID'] ?? $value['id'] ?? 0) : $value);
             $img = $attachment_id ? wp_get_attachment_image($attachment_id, [40, 40]) : '';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $img e' l'HTML gia' escapato restituito da wp_get_attachment_image()
             echo $img !== '' ? $img : suite_barrio_columns_empty();
             return;
 
@@ -427,6 +434,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
             $extra = count($ids) - 3;
             if ($extra > 0)
                 $thumbs .= '<span class="suite-barrio-cols-more">+' . $extra . '</span>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $thumbs e' costruito solo da wp_get_attachment_image() (gia' escapato) + markup statico
             echo $thumbs !== '' ? '<span class="suite-barrio-cols-gallery">' . $thumbs . '</span>' : suite_barrio_columns_empty();
             return;
 
@@ -436,6 +444,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
             if ($url)
                 echo '<a href="' . esc_url($url) . '" target="_blank" rel="noopener">' . esc_html(wp_basename($url)) . '</a>';
             else
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
                 echo suite_barrio_columns_empty();
             return;
 
@@ -452,6 +461,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
                     continue;
                 $labels[] = isset($choices[$v]) ? (string) $choices[$v] : $v;
             }
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
             echo $labels ? esc_html(implode(', ', $labels)) : suite_barrio_columns_empty();
             return;
 
@@ -479,6 +489,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
             $extra = count($ids) - 3;
             if ($extra > 0)
                 $links[] = '<span class="suite-barrio-cols-more">+' . $extra . '</span>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- ogni elemento di $links e' gia' passato per esc_html()/esc_url() sopra
             echo $links ? implode(', ', $links) : suite_barrio_columns_empty();
             return;
 
@@ -489,6 +500,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
                 if ($term instanceof WP_Term)
                     $names[] = $term->name;
             }
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
             echo $names ? esc_html(implode(', ', $names)) : suite_barrio_columns_empty();
             return;
 
@@ -499,6 +511,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
                 if ($user)
                     $names[] = $user->display_name;
             }
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
             echo $names ? esc_html(implode(', ', $names)) : suite_barrio_columns_empty();
             return;
 
@@ -533,6 +546,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
             $url = is_array($value) ? (string) ($value['url'] ?? '') : (string) $value;
             $title = is_array($value) && !empty($value['title']) ? (string) $value['title'] : $url;
             if ($url === '') {
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
                 echo suite_barrio_columns_empty();
                 return;
             }
@@ -563,6 +577,7 @@ function suite_barrio_columns_render_acf(array $entry, int $post_id): void
             // text, textarea, wysiwyg, oembed e tipi non gestiti esplicitamente
             $text = is_array($value) ? implode(', ', array_map('strval', array_filter($value, 'is_scalar'))) : (string) $value;
             $text = wp_strip_all_tags($text);
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- suite_barrio_columns_empty() restituisce solo markup statico hardcoded, nessun dato variabile
             echo $text !== '' ? esc_html(mb_strimwidth($text, 0, 80, '…')) : suite_barrio_columns_empty();
             return;
     }
@@ -676,6 +691,7 @@ function suite_barrio_columns_default_config(string $pt): array
    ───────────────────────────────────────── */
 function suite_barrio_columns_validate_request(): string
 {
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da check_ajax_referer() in entrambi i chiamanti prima di invocare questa funzione
     $pt = sanitize_key($_POST['post_type'] ?? '');
     if ($pt === '' || !suite_barrio_columns_can_manage($pt))
         wp_send_json_error('Permesso negato.');
@@ -738,10 +754,11 @@ add_action('wp_ajax_suite_barrio_columns_save', function () {
     check_ajax_referer('suite_barrio_columns_nonce', 'nonce');
     $pt = suite_barrio_columns_validate_request();
 
-    $raw_json = $_POST['columns'] ?? '';
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON grezzo, decodificato con json_decode() e validato contro il registro server-side in suite_barrio_columns_sanitize_payload()
+    $raw_json = wp_unslash($_POST['columns'] ?? '');
     if (!is_string($raw_json))
         wp_send_json_error('Payload non valido.');
-    $raw = json_decode(wp_unslash($raw_json), true);
+    $raw = json_decode($raw_json, true);
     if (!is_array($raw) || $raw === [])
         wp_send_json_error('Nessuna colonna ricevuta.');
     if (count($raw) > 30)

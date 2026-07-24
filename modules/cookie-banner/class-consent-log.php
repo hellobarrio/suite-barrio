@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 class SUITE_BARRIO_Consent_Log {
 
     const DB_VERSION      = '1.0.0';
-    const DB_VERSION_OPT  = 'wpb_cb_log_db_version';
+    const DB_VERSION_OPT  = 'suite_barrio_cb_log_db_version';
     const THROTTLE_MAX    = 20;   // insert massimi per IP anonimizzato
     const THROTTLE_WINDOW = 60;   // finestra in secondi
 
@@ -19,7 +19,7 @@ class SUITE_BARRIO_Consent_Log {
         $table   = self::table();
         $charset = $wpdb->get_charset_collate();
 
-        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- nome tabella e charset fissi definiti dal plugin, non input utente; operazione di installazione/aggiornamento schema, eseguita una tantum, non un dato di runtime
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery.NoCaching -- nome tabella e charset fissi definiti dal plugin, non input utente; operazione di installazione/aggiornamento schema, eseguita una tantum, non un dato di runtime
         $wpdb->query(
             "CREATE TABLE IF NOT EXISTS `{$table}` (
                 id           VARCHAR(36)   NOT NULL,
@@ -66,7 +66,7 @@ class SUITE_BARRIO_Consent_Log {
     /* ── Anti-abuso: throttle per IP anonimizzato ── */
     public static function is_throttled(string $ip_anon): bool {
         if ($ip_anon === '') return false;
-        $key   = 'wpb_cb_log_rate_' . md5($ip_anon);
+        $key   = 'suite_barrio_cb_log_rate_' . md5($ip_anon);
         $count = (int) get_transient($key);
         if ($count >= self::THROTTLE_MAX) return true;
         set_transient($key, $count + 1, self::THROTTLE_WINDOW);
@@ -76,7 +76,7 @@ class SUITE_BARRIO_Consent_Log {
     /* ── Insert (created_at è affidato al DEFAULT CURRENT_TIMESTAMP della tabella) ── */
     public static function insert(array $row): bool {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- insert su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery -- insert su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $ok = $wpdb->insert(self::table(), [
             'id'           => $row['id'],
             'status'       => $row['status'],
@@ -86,6 +86,7 @@ class SUITE_BARRIO_Consent_Log {
             'categories'   => $row['categories'],
             'consent_text' => $row['consent_text'],
         ]);
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
         if ($ok === false) {
             return false;
         }

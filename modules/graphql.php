@@ -25,10 +25,10 @@ if (!defined('ABSPATH'))
     exit;
 
 if (!defined('SUITE_BARRIO_META_OPTION')) {
-    define('SUITE_BARRIO_META_OPTION', 'wpb_meta_settings');
+    define('SUITE_BARRIO_META_OPTION', 'suite_barrio_meta_settings');
 }
 if (!defined('SUITE_BARRIO_META_CONTENT_OPTION')) {
-    define('SUITE_BARRIO_META_CONTENT_OPTION', 'wpb_meta_content');
+    define('SUITE_BARRIO_META_CONTENT_OPTION', 'suite_barrio_meta_content');
 }
 // Serve anche questa per i form
 if (!defined('SUITE_BARRIO_FORMS_SUB_TABLE')) {
@@ -537,7 +537,7 @@ function suite_barrio_graphql_register_schema(): void
             };
 
             // ── lettura dati dal DB ───────────────────────────────────────────
-            $data_option = defined('SUITE_BARRIO_ORARI_DATA_OPTION') ? SUITE_BARRIO_ORARI_DATA_OPTION : 'wpb_orari_data';
+            $data_option = defined('SUITE_BARRIO_ORARI_DATA_OPTION') ? SUITE_BARRIO_ORARI_DATA_OPTION : 'suite_barrio_orari_data';
             $data = get_option($data_option, []);
 
             // ── costruzione risposta localizzata ──────────────────────────────
@@ -745,6 +745,7 @@ function suite_barrio_graphql_register_schema(): void
                             && !empty($file_data['content'])
                             && !empty($file_data['filename'])
                         ) {
+                            // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodifica un allegato caricato in base64 dalla mutation GraphQL, non offuscamento
                             $decoded = base64_decode($file_data['content'], true);
 
                             if ($decoded !== false) {
@@ -754,6 +755,7 @@ function suite_barrio_graphql_register_schema(): void
                                 $file_path = $upload['path'] . DIRECTORY_SEPARATOR . $safe_name;
                                 $file_url = $upload['url'] . '/' . $safe_name;
 
+                                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- scrittura diretta in wp-uploads, stesso pattern di wp_handle_upload(); WP_Filesystem richiederebbe credenziali FTP non disponibili in questo contesto (mutazione GraphQL)
                                 file_put_contents($file_path, $decoded);
 
                                 $attachments[] = $file_path;
@@ -796,6 +798,7 @@ function suite_barrio_graphql_register_schema(): void
                     $submission_lang = ICL_LANGUAGE_CODE;
                 }
                 if (!$submission_lang) {
+                    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
                     $submission_lang = sanitize_key(apply_filters('wpml_current_language', ''));
                 }
                 if ($submission_lang) {
@@ -966,11 +969,11 @@ function suite_barrio_graphql_register_schema(): void
                 $site_name = $s['site_title'] ?? get_bloginfo('name');
 
                 // Title
-                $custom_title = get_post_meta($post_id, '_wpb_seo_title', true);
+                $custom_title = get_post_meta($post_id, '_suite_barrio_seo_title', true);
                 $base_title = $custom_title ?: get_the_title($post);
 
                 // Description
-                $description = get_post_meta($post_id, '_wpb_seo_description', true);
+                $description = get_post_meta($post_id, '_suite_barrio_seo_description', true);
                 if (empty($description))
                     $description = get_the_excerpt($post);
                 if (empty($description))
@@ -979,7 +982,7 @@ function suite_barrio_graphql_register_schema(): void
 
                 // OG Image
                 $og_image_url = '';
-                $custom_og_id = (int) get_post_meta($post_id, '_wpb_seo_og_image_id', true);
+                $custom_og_id = (int) get_post_meta($post_id, '_suite_barrio_seo_og_image_id', true);
                 if ($custom_og_id)
                     $og_image_url = wp_get_attachment_image_url($custom_og_id, 'full');
                 if (empty($og_image_url) && has_post_thumbnail($post_id))
@@ -989,9 +992,9 @@ function suite_barrio_graphql_register_schema(): void
 
                 // Robots (override per-post + fallback post type config)
                 $cfg = $content['post_types'][$pt_slug] ?? ['index' => 1, 'follow' => 1];
-                $post_index = get_post_meta($post_id, '_wpb_seo_index', true);
-                $post_follow = get_post_meta($post_id, '_wpb_seo_follow', true);
-                $post_sitemap = get_post_meta($post_id, '_wpb_seo_sitemap', true);
+                $post_index = get_post_meta($post_id, '_suite_barrio_seo_index', true);
+                $post_follow = get_post_meta($post_id, '_suite_barrio_seo_follow', true);
+                $post_sitemap = get_post_meta($post_id, '_suite_barrio_seo_sitemap', true);
                 $idx = $post_index !== '' ? (bool) (int) $post_index : (bool) ($cfg['index'] ?? 1);
                 $follow = $post_follow !== '' ? (bool) (int) $post_follow : (bool) ($cfg['follow'] ?? 1);
                 $sitemap = $post_sitemap !== '' ? (bool) (int) $post_sitemap : (bool) ($cfg['sitemap'] ?? 1);
@@ -1012,7 +1015,7 @@ function suite_barrio_graphql_register_schema(): void
                     'isIndexed' => $idx,
                     'isInSitemap' => $sitemap,
                     'keywords' => (function () use ($post_id) {
-                        $raw = get_post_meta($post_id, '_wpb_seo_keywords', true);
+                        $raw = get_post_meta($post_id, '_suite_barrio_seo_keywords', true);
                         if (!$raw)
                             return [];
                         $kws = json_decode($raw, true);

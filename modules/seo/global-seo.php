@@ -13,9 +13,9 @@ if (!defined('ABSPATH'))
    COSTANTI
    ───────────────────────────────────────── */
 if (!defined('SUITE_BARRIO_META_OPTION'))
-    define('SUITE_BARRIO_META_OPTION', 'wpb_meta_settings');
+    define('SUITE_BARRIO_META_OPTION', 'suite_barrio_meta_settings');
 if (!defined('SUITE_BARRIO_META_CONTENT_OPTION'))
-    define('SUITE_BARRIO_META_CONTENT_OPTION', 'wpb_meta_content');
+    define('SUITE_BARRIO_META_CONTENT_OPTION', 'suite_barrio_meta_content');
 
 /* ─────────────────────────────────────────
    MENU — voce nascosta ma con parent corretto
@@ -104,8 +104,8 @@ add_action('admin_post_suite_barrio_meta_content_save', function () {
     }
 
     update_option(SUITE_BARRIO_META_CONTENT_OPTION, $current);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:seo');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:seo');
     }
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-global-seo&tab=content&saved=1'));
     exit;
@@ -150,8 +150,8 @@ add_action('admin_post_suite_barrio_meta_settings_save', function () {
     else
         delete_option('site_icon');
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:seo');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:seo');
     }
 
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-global-seo&tab=settings&saved=1'));
@@ -182,8 +182,8 @@ function suite_barrio_meta_output_tags()
         $cfg = $content['post_types'][$pt] ?? ['index' => 1, 'follow' => 1];
 
         // Legge override per-post ('' = non impostato, usa default post type)
-        $post_index = get_post_meta(get_the_ID(), '_wpb_seo_index', true);
-        $post_follow = get_post_meta(get_the_ID(), '_wpb_seo_follow', true);
+        $post_index = get_post_meta(get_the_ID(), '_suite_barrio_seo_index', true);
+        $post_follow = get_post_meta(get_the_ID(), '_suite_barrio_seo_follow', true);
 
         $idx = $post_index !== '' ? (bool) (int) $post_index : (bool) ($cfg['index'] ?? 1);
         $follow = $post_follow !== '' ? (bool) (int) $post_follow : (bool) ($cfg['follow'] ?? 1);
@@ -194,8 +194,8 @@ function suite_barrio_meta_output_tags()
         $cfg = $content['taxonomies'][$tax] ?? ['index' => 1, 'follow' => 1];
 
         // Legge override per-termine ('1'/'0') o usa default tassonomia ('')
-        $term_index = $term ? get_term_meta($term->term_id, '_wpb_seo_index', true) : '';
-        $term_follow = $term ? get_term_meta($term->term_id, '_wpb_seo_follow', true) : '';
+        $term_index = $term ? get_term_meta($term->term_id, '_suite_barrio_seo_index', true) : '';
+        $term_follow = $term ? get_term_meta($term->term_id, '_suite_barrio_seo_follow', true) : '';
 
         $idx = $term_index !== '' ? (bool) (int) $term_index : (bool) ($cfg['index'] ?? 1);
         $follow = $term_follow !== '' ? (bool) (int) $term_follow : (bool) ($cfg['follow'] ?? 1);
@@ -204,7 +204,7 @@ function suite_barrio_meta_output_tags()
 
     // ── Title personalizzato ─────────────────────────────────────────────
     if (is_singular()) {
-        $custom_title = get_post_meta(get_the_ID(), '_wpb_seo_title', true);
+        $custom_title = get_post_meta(get_the_ID(), '_suite_barrio_seo_title', true);
         if (!empty($custom_title)) {
             add_filter('document_title_parts', function ($parts) use ($custom_title) {
                 $parts['title'] = $custom_title;
@@ -214,7 +214,7 @@ function suite_barrio_meta_output_tags()
     } elseif (is_tax() || is_category() || is_tag()) {
         $term = get_queried_object();
         if ($term) {
-            $custom_title = get_term_meta($term->term_id, '_wpb_seo_title', true);
+            $custom_title = get_term_meta($term->term_id, '_suite_barrio_seo_title', true);
             if (!empty($custom_title)) {
                 add_filter('document_title_parts', function ($parts) use ($custom_title) {
                     $parts['title'] = $custom_title;
@@ -229,13 +229,13 @@ function suite_barrio_meta_output_tags()
     // ── Description ──────────────────────────────────────────────────────
     $description = '';
     if (is_singular()) {
-        $description = get_post_meta(get_the_ID(), '_wpb_seo_description', true);
+        $description = get_post_meta(get_the_ID(), '_suite_barrio_seo_description', true);
         if (empty($description))
             $description = mb_substr(wp_strip_all_tags(strip_shortcodes(get_post_field('post_content', get_the_ID()))), 0, 160);
     } elseif (is_tax() || is_category() || is_tag()) {
         $term = get_queried_object();
         if ($term) {
-            $description = get_term_meta($term->term_id, '_wpb_seo_description', true);
+            $description = get_term_meta($term->term_id, '_suite_barrio_seo_description', true);
             if (empty($description))
                 $description = term_description($term->term_id);
         }
@@ -247,7 +247,7 @@ function suite_barrio_meta_output_tags()
     // ── OG Image ─────────────────────────────────────────────────────────
     $og_image_url = '';
     if (is_singular()) {
-        $custom_og_id = (int) get_post_meta(get_the_ID(), '_wpb_seo_og_image_id', true);
+        $custom_og_id = (int) get_post_meta(get_the_ID(), '_suite_barrio_seo_og_image_id', true);
         if ($custom_og_id)
             $og_image_url = wp_get_attachment_image_url($custom_og_id, 'large');
         if (empty($og_image_url) && has_post_thumbnail())
@@ -255,7 +255,7 @@ function suite_barrio_meta_output_tags()
     } elseif (is_tax() || is_category() || is_tag()) {
         $term = get_queried_object();
         if ($term) {
-            $custom_og_id = (int) get_term_meta($term->term_id, '_wpb_seo_og_image_id', true);
+            $custom_og_id = (int) get_term_meta($term->term_id, '_suite_barrio_seo_og_image_id', true);
             if ($custom_og_id)
                 $og_image_url = wp_get_attachment_image_url($custom_og_id, 'large');
         }
@@ -350,11 +350,11 @@ function suite_barrio_meta_render_post_metabox($post)
 {
     wp_nonce_field('suite_barrio_seo_post_meta_save_' . $post->ID, '_suite_barrio_seo_nonce');
 
-    $custom_title = get_post_meta($post->ID, '_wpb_seo_title', true);
-    $custom_desc = get_post_meta($post->ID, '_wpb_seo_description', true);
-    $custom_og_id = (int) get_post_meta($post->ID, '_wpb_seo_og_image_id', true);
+    $custom_title = get_post_meta($post->ID, '_suite_barrio_seo_title', true);
+    $custom_desc = get_post_meta($post->ID, '_suite_barrio_seo_description', true);
+    $custom_og_id = (int) get_post_meta($post->ID, '_suite_barrio_seo_og_image_id', true);
 
-    $raw_kw = get_post_meta($post->ID, '_wpb_seo_keywords', true);
+    $raw_kw = get_post_meta($post->ID, '_suite_barrio_seo_keywords', true);
     $keywords = $raw_kw ? (array) json_decode($raw_kw, true) : [];
 
     // Robots: custom per post oppure default del post type
@@ -362,9 +362,9 @@ function suite_barrio_meta_render_post_metabox($post)
     $pt_slug = $post->post_type;
     $pt_cfg = $content['post_types'][$pt_slug] ?? ['index' => 1, 'follow' => 1, 'sitemap' => 1];
 
-    $custom_index = get_post_meta($post->ID, '_wpb_seo_index', true);
-    $custom_follow = get_post_meta($post->ID, '_wpb_seo_follow', true);
-    $custom_sitemap = get_post_meta($post->ID, '_wpb_seo_sitemap', true);
+    $custom_index = get_post_meta($post->ID, '_suite_barrio_seo_index', true);
+    $custom_follow = get_post_meta($post->ID, '_suite_barrio_seo_follow', true);
+    $custom_sitemap = get_post_meta($post->ID, '_suite_barrio_seo_sitemap', true);
     // '' = non impostato (usa default post type), '1' = sì, '0' = no
     $index_val = $custom_index !== '' ? (bool) (int) $custom_index : (bool) $pt_cfg['index'];
     $follow_val = $custom_follow !== '' ? (bool) (int) $custom_follow : (bool) $pt_cfg['follow'];
@@ -403,7 +403,7 @@ function suite_barrio_meta_render_post_metabox($post)
             <!-- Title -->
             <div class="suite-barrio-seo-field-row">
                 <span class="suite-barrio-seo-field-label">Title</span>
-                <input type="text" id="suite-barrio-mb-title" name="_wpb_seo_title" value="<?php echo esc_attr($custom_title); ?>"
+                <input type="text" id="suite-barrio-mb-title" name="_suite_barrio_seo_title" value="<?php echo esc_attr($custom_title); ?>"
                     placeholder="<?php echo esc_attr($default_title); ?>">
                 <span class="suite-barrio-seo-counter" id="suite-barrio-mb-title-ctr">
                     <span id="suite-barrio-mb-title-len"><?php echo esc_html(mb_strlen($display_title)); ?></span>/60
@@ -413,7 +413,7 @@ function suite_barrio_meta_render_post_metabox($post)
             <!-- Description -->
             <div class="suite-barrio-seo-field-row">
                 <span class="suite-barrio-seo-field-label">Description</span>
-                <textarea id="suite-barrio-mb-desc" name="_wpb_seo_description" rows="3"
+                <textarea id="suite-barrio-mb-desc" name="_suite_barrio_seo_description" rows="3"
                     placeholder="<?php echo esc_attr($default_desc ?: 'Estratto del post…'); ?>"><?php echo esc_textarea($custom_desc); ?></textarea>
                 <span class="suite-barrio-seo-counter" id="suite-barrio-mb-desc-ctr">
                     <span id="suite-barrio-mb-desc-len"><?php echo esc_html(mb_strlen($display_desc)); ?></span>/160
@@ -423,7 +423,7 @@ function suite_barrio_meta_render_post_metabox($post)
             <!-- OG Image -->
             <div class="suite-barrio-seo-field-row">
                 <span class="suite-barrio-seo-field-label">Immagine OG</span>
-                <input type="hidden" name="_wpb_seo_og_image_id" id="suite-barrio-mb-og-id"
+                <input type="hidden" name="_suite_barrio_seo_og_image_id" id="suite-barrio-mb-og-id"
                     value="<?php echo esc_attr($custom_og_id ?: ''); ?>">
                 <div class="suite-barrio-seo-og-row">
                     <div class="suite-barrio-seo-og-thumb" id="suite-barrio-mb-og-thumb" title="Clicca per cambiare">
@@ -448,7 +448,7 @@ function suite_barrio_meta_render_post_metabox($post)
             <!-- Keywords -->
             <div class="suite-barrio-seo-field-row">
                 <span class="suite-barrio-seo-field-label">Keywords</span>
-                <input type="hidden" name="_wpb_seo_keywords" id="suite-barrio-mb-kw-hidden"
+                <input type="hidden" name="_suite_barrio_seo_keywords" id="suite-barrio-mb-kw-hidden"
                     value="<?php echo esc_attr($raw_kw ?: '[]'); ?>">
                 <div class="suite-barrio-kw-wrap" id="suite-barrio-mb-kw-wrap">
                     <?php foreach ($keywords as $i => $kw): ?>
@@ -475,7 +475,7 @@ function suite_barrio_meta_render_post_metabox($post)
                     <div class="suite-barrio-seo-robots-item">
                         <label>
                             <span class="suite-barrio-tog">
-                                <input type="checkbox" id="suite-barrio-mb-index" name="_wpb_seo_index" value="1" <?php checked($index_val); ?>>
+                                <input type="checkbox" id="suite-barrio-mb-index" name="_suite_barrio_seo_index" value="1" <?php checked($index_val); ?>>
                                 <span class="suite-barrio-tog-sl"></span>
                             </span>
                             Index
@@ -487,7 +487,7 @@ function suite_barrio_meta_render_post_metabox($post)
                     <div class="suite-barrio-seo-robots-item">
                         <label>
                             <span class="suite-barrio-tog">
-                                <input type="checkbox" id="suite-barrio-mb-follow" name="_wpb_seo_follow" value="1" <?php checked($follow_val); ?>>
+                                <input type="checkbox" id="suite-barrio-mb-follow" name="_suite_barrio_seo_follow" value="1" <?php checked($follow_val); ?>>
                                 <span class="suite-barrio-tog-sl"></span>
                             </span>
                             Follow
@@ -499,7 +499,7 @@ function suite_barrio_meta_render_post_metabox($post)
                     <div class="suite-barrio-seo-robots-item">
                         <label>
                             <span class="suite-barrio-tog">
-                                <input type="checkbox" id="suite-barrio-mb-sitemap" name="_wpb_seo_sitemap" value="1" <?php checked($sitemap_val); ?>>
+                                <input type="checkbox" id="suite-barrio-mb-sitemap" name="_suite_barrio_seo_sitemap" value="1" <?php checked($sitemap_val); ?>>
                                 <span class="suite-barrio-tog-sl"></span>
                             </span>
                             Sitemap
@@ -998,11 +998,11 @@ add_action('save_post', function ($post_id) {
     if (!current_user_can('edit_post', $post_id))
         return;
 
-    $fields = ['_wpb_seo_title', '_wpb_seo_description', '_wpb_seo_og_image_id'];
+    $fields = ['_suite_barrio_seo_title', '_suite_barrio_seo_description', '_suite_barrio_seo_og_image_id'];
     foreach ($fields as $field) {
         if (!isset($_POST[$field]))
             continue;
-        $val = $field === '_wpb_seo_og_image_id'
+        $val = $field === '_suite_barrio_seo_og_image_id'
             ? absint($_POST[$field])
             : sanitize_textarea_field(wp_unslash($_POST[$field]));
         if ($val === '' || $val === 0)
@@ -1012,15 +1012,15 @@ add_action('save_post', function ($post_id) {
     }
 
     // Keywords
-    if (isset($_POST['_wpb_seo_keywords'])) {
+    if (isset($_POST['_suite_barrio_seo_keywords'])) {
         // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON array, valori sanificati singolarmente con sanitize_text_field subito sotto
-        $kws = json_decode(wp_unslash($_POST['_wpb_seo_keywords']), true);
+        $kws = json_decode(wp_unslash($_POST['_suite_barrio_seo_keywords']), true);
         if (is_array($kws)) {
             $kws = array_values(array_filter(array_map('sanitize_text_field', $kws)));
             if (empty($kws))
-                delete_post_meta($post_id, '_wpb_seo_keywords');
+                delete_post_meta($post_id, '_suite_barrio_seo_keywords');
             else
-                update_post_meta($post_id, '_wpb_seo_keywords', wp_json_encode($kws));
+                update_post_meta($post_id, '_suite_barrio_seo_keywords', wp_json_encode($kws));
         }
     }
 
@@ -1028,24 +1028,24 @@ add_action('save_post', function ($post_id) {
     // Il valore è '1' se il checkbox è spuntato, altrimenti non è nei POST
     // Salviamo '1' o '0' — stringa vuota significa "usa default post type"
     if (isset($_POST['_suite_barrio_seo_index_set'])) {
-        update_post_meta($post_id, '_wpb_seo_index', isset($_POST['_wpb_seo_index']) ? '1' : '0');
+        update_post_meta($post_id, '_suite_barrio_seo_index', isset($_POST['_suite_barrio_seo_index']) ? '1' : '0');
     }
     if (isset($_POST['_suite_barrio_seo_follow_set'])) {
-        update_post_meta($post_id, '_wpb_seo_follow', isset($_POST['_wpb_seo_follow']) ? '1' : '0');
+        update_post_meta($post_id, '_suite_barrio_seo_follow', isset($_POST['_suite_barrio_seo_follow']) ? '1' : '0');
     }
     if (isset($_POST['_suite_barrio_seo_sitemap_set'])) {
-        update_post_meta($post_id, '_wpb_seo_sitemap', isset($_POST['_wpb_seo_sitemap']) ? '1' : '0');
+        update_post_meta($post_id, '_suite_barrio_seo_sitemap', isset($_POST['_suite_barrio_seo_sitemap']) ? '1' : '0');
     }
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache($post_id);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache($post_id);
     }
 });
 
 /* ─────────────────────────────────────────
    WPML — copia meta di indicizzazione alla duplicazione
-   Quando WPML crea una traduzione, copia _wpb_seo_index,
-   _wpb_seo_follow e _wpb_seo_sitemap dall'originale.
+   Quando WPML crea una traduzione, copia _suite_barrio_seo_index,
+   _suite_barrio_seo_follow e _suite_barrio_seo_sitemap dall'originale.
    Il post tradotto potrà poi modificarli indipendentemente.
    ───────────────────────────────────────── */
 
@@ -1056,7 +1056,7 @@ add_action('save_post', function ($post_id) {
  */
 function suite_barrio_seo_copy_indexing_meta(int $original_id, int $new_id): void
 {
-    foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $key) {
+    foreach (['_suite_barrio_seo_index', '_suite_barrio_seo_follow', '_suite_barrio_seo_sitemap'] as $key) {
         $val = get_post_meta($original_id, $key, true);
         // Se l'originale non ha valore esplicito (è su "default"), leggi il default
         // del post type e scrivilo esplicitamente nella traduzione.
@@ -1064,11 +1064,11 @@ function suite_barrio_seo_copy_indexing_meta(int $original_id, int $new_id): voi
             $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
             $pt = get_post_type($original_id);
             $cfg = $content['post_types'][$pt] ?? [];
-            if ($key === '_wpb_seo_sitemap') {
-                $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
+            if ($key === '_suite_barrio_seo_sitemap') {
+                $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'suite_barrio_sitemap_settings', []);
                 $val = isset($sm_settings['post_types'][$pt]) ? '1' : '0';
             } else {
-                $field = str_replace('_wpb_seo_', '', $key); // 'index' o 'follow'
+                $field = str_replace('_suite_barrio_seo_', '', $key); // 'index' o 'follow'
                 $val = isset($cfg[$field]) ? (string) (int) $cfg[$field] : '1';
             }
         }
@@ -1089,12 +1089,13 @@ add_action('wpml_set_element_language_details', function ($args) {
     if (empty($args['trid']))
         return;
 
+    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
     $original = apply_filters('wpml_object_id', $new_id, get_post_type($new_id) ?: 'post', false, $args['source_language_code']);
     if (!$original || $original === $new_id)
         return;
 
     // Copia solo se il post tradotto non ha ancora valori espliciti (appena creato)
-    $already_set = get_post_meta($new_id, '_wpb_seo_index', true);
+    $already_set = get_post_meta($new_id, '_suite_barrio_seo_index', true);
     if ($already_set !== '')
         return;
 
@@ -1111,7 +1112,7 @@ add_action('wpml_after_save_post', function ($post_id, $post_array, $job) {
         return;
 
     // Copia solo se il tradotto non ha ancora valori propri
-    if (get_post_meta($post_id, '_wpb_seo_index', true) !== '')
+    if (get_post_meta($post_id, '_suite_barrio_seo_index', true) !== '')
         return;
 
     suite_barrio_seo_copy_indexing_meta($original_id, (int) $post_id);
@@ -1139,7 +1140,7 @@ function suite_barrio_meta_render_term_add_fields($taxonomy)
 
     // Default dal config del post type nella tab Contenuti
     $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
-    $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
+    $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'suite_barrio_sitemap_settings', []);
     $tax_cfg = $content['taxonomies'][$taxonomy] ?? ['index' => 1, 'follow' => 1];
 
     // Sitemap: cascade SUITE_BARRIO_SITEMAP_OPTION → SUITE_BARRIO_META_CONTENT_OPTION → 1
@@ -1152,7 +1153,7 @@ function suite_barrio_meta_render_term_add_fields($taxonomy)
             <span style="font-size:11px;color:#a7aaad;font-weight:400;margin-left:4px;">(lascia vuoto per usare il nome del
                 termine)</span>
         </label>
-        <input type="text" name="_wpb_seo_title" id="suite_barrio_seo_title" value="" maxlength="100">
+        <input type="text" name="_suite_barrio_seo_title" id="suite_barrio_seo_title" value="" maxlength="100">
         <p class="description">Titolo personalizzato per i meta tag SEO. Max 60 caratteri consigliati.</p>
     </div>
     <div class="form-field">
@@ -1160,14 +1161,14 @@ function suite_barrio_meta_render_term_add_fields($taxonomy)
             <span style="font-size:11px;color:#a7aaad;font-weight:400;margin-left:4px;">(lascia vuoto per usare la
                 descrizione del termine)</span>
         </label>
-        <textarea name="_wpb_seo_description" id="suite_barrio_seo_description" rows="3"></textarea>
+        <textarea name="_suite_barrio_seo_description" id="suite_barrio_seo_description" rows="3"></textarea>
         <p class="description">Descrizione personalizzata. Max 160 caratteri consigliati.</p>
     </div>
     <div class="form-field">
         <label>OG Image
             <span style="font-size:11px;color:#a7aaad;font-weight:400;margin-left:4px;">(opzionale)</span>
         </label>
-        <input type="hidden" name="_wpb_seo_og_image_id" id="suite_barrio_seo_og_image_id_add" value="">
+        <input type="hidden" name="_suite_barrio_seo_og_image_id" id="suite_barrio_seo_og_image_id_add" value="">
         <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
             <div id="suite-barrio-add-og-thumb"
                 style="width:100px;height:53px;border:1px solid #dcdcde;border-radius:3px;background:#f6f7f7;display:flex;align-items:center;justify-content:center;overflow:hidden;">
@@ -1190,9 +1191,9 @@ function suite_barrio_meta_render_term_add_fields($taxonomy)
         <input type="hidden" name="_suite_barrio_seo_sitemap_set" value="1">
         <div style="display:flex;gap:16px;margin-top:4px;">
             <?php foreach ([
-                '_wpb_seo_index' => ['label' => 'Index', 'default' => $tax_cfg['index'] ?? 1],
-                '_wpb_seo_follow' => ['label' => 'Follow', 'default' => $tax_cfg['follow'] ?? 1],
-                '_wpb_seo_sitemap' => ['label' => 'Sitemap', 'default' => $sitemap_default],
+                '_suite_barrio_seo_index' => ['label' => 'Index', 'default' => $tax_cfg['index'] ?? 1],
+                '_suite_barrio_seo_follow' => ['label' => 'Follow', 'default' => $tax_cfg['follow'] ?? 1],
+                '_suite_barrio_seo_sitemap' => ['label' => 'Sitemap', 'default' => $sitemap_default],
             ] as $name => $cfg): ?>
                 <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
                     <input type="checkbox" name="<?php echo esc_attr($name); ?>" value="1" <?php checked((bool) $cfg['default']); ?>>
@@ -1206,7 +1207,7 @@ function suite_barrio_meta_render_term_add_fields($taxonomy)
         <label>Keywords
             <span style="font-size:11px;color:#a7aaad;font-weight:400;margin-left:4px;">(prima = primaria)</span>
         </label>
-        <input type="hidden" name="_wpb_seo_keywords" id="suite_barrio_seo_kw_hidden_add" value="[]">
+        <input type="hidden" name="_suite_barrio_seo_keywords" id="suite_barrio_seo_kw_hidden_add" value="[]">
         <div class="suite-barrio-kw-wrap" id="suite-barrio-kw-wrap-add">
             <input type="text" class="suite-barrio-kw-input" id="suite-barrio-kw-input-add" placeholder="Aggiungi keyword…">
         </div>
@@ -1219,9 +1220,9 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
 {
     wp_nonce_field('suite_barrio_seo_term_meta_save', '_suite_barrio_seo_term_nonce');
 
-    $custom_title = get_term_meta($term->term_id, '_wpb_seo_title', true);
-    $custom_desc = get_term_meta($term->term_id, '_wpb_seo_description', true);
-    $custom_og_id = (int) get_term_meta($term->term_id, '_wpb_seo_og_image_id', true);
+    $custom_title = get_term_meta($term->term_id, '_suite_barrio_seo_title', true);
+    $custom_desc = get_term_meta($term->term_id, '_suite_barrio_seo_description', true);
+    $custom_og_id = (int) get_term_meta($term->term_id, '_suite_barrio_seo_og_image_id', true);
     $custom_og_url = $custom_og_id ? wp_get_attachment_image_url($custom_og_id, 'thumbnail') : '';
 
     $default_title = $term->name;
@@ -1237,7 +1238,7 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
             <label for="suite_barrio_seo_title_edit">SEO Title</label>
         </th>
         <td>
-            <input type="text" name="_wpb_seo_title" id="suite_barrio_seo_title_edit" value="<?php echo esc_attr($custom_title); ?>"
+            <input type="text" name="_suite_barrio_seo_title" id="suite_barrio_seo_title_edit" value="<?php echo esc_attr($custom_title); ?>"
                 placeholder="<?php echo esc_attr($default_title); ?>" class="regular-text" maxlength="100">
             <p class="description">
                 Lascia vuoto per usare il nome del termine (<em><?php echo esc_html($default_title); ?></em>).
@@ -1263,7 +1264,7 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
             <label for="suite_barrio_seo_desc_edit">SEO Description</label>
         </th>
         <td>
-            <textarea name="_wpb_seo_description" id="suite_barrio_seo_desc_edit" rows="3" class="regular-text"
+            <textarea name="_suite_barrio_seo_description" id="suite_barrio_seo_desc_edit" rows="3" class="regular-text"
                 placeholder="<?php echo esc_attr($default_desc ?: 'Descrizione del termine…'); ?>"><?php echo esc_textarea($custom_desc); ?></textarea>
             <p class="description">
                 Lascia vuoto per usare la descrizione del termine.
@@ -1277,7 +1278,7 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
     <tr class="form-field">
         <th scope="row"><label>OG Image</label></th>
         <td>
-            <input type="hidden" name="_wpb_seo_og_image_id" id="suite_barrio_seo_og_image_id_edit"
+            <input type="hidden" name="_suite_barrio_seo_og_image_id" id="suite_barrio_seo_og_image_id_edit"
                 value="<?php echo esc_attr($custom_og_id ?: ''); ?>">
             <div style="display:flex;gap:12px;align-items:flex-start;">
                 <div id="suite-barrio-edit-og-thumb"
@@ -1307,7 +1308,7 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
         <td>
             <?php
             $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
-            $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
+            $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'suite_barrio_sitemap_settings', []);
             $tax_cfg = $content['taxonomies'][$taxonomy] ?? ['index' => 1, 'follow' => 1];
 
             // Sitemap: cascade SUITE_BARRIO_SITEMAP_OPTION → SUITE_BARRIO_META_CONTENT_OPTION → 1
@@ -1316,9 +1317,9 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
                 : (bool) ($content['taxonomies'][$taxonomy]['sitemap'] ?? 1);
 
             // Legge override per-termine ('1'/'0') o usa default tassonomia ('')
-            $custom_index = get_term_meta($term->term_id, '_wpb_seo_index', true);
-            $custom_follow = get_term_meta($term->term_id, '_wpb_seo_follow', true);
-            $custom_sitemap = get_term_meta($term->term_id, '_wpb_seo_sitemap', true);
+            $custom_index = get_term_meta($term->term_id, '_suite_barrio_seo_index', true);
+            $custom_follow = get_term_meta($term->term_id, '_suite_barrio_seo_follow', true);
+            $custom_sitemap = get_term_meta($term->term_id, '_suite_barrio_seo_sitemap', true);
 
             $index_val = $custom_index !== '' ? (bool) (int) $custom_index : (bool) ($tax_cfg['index'] ?? 1);
             $follow_val = $custom_follow !== '' ? (bool) (int) $custom_follow : (bool) ($tax_cfg['follow'] ?? 1);
@@ -1329,9 +1330,9 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
             <input type="hidden" name="_suite_barrio_seo_sitemap_set" value="1">
             <div style="display:flex;gap:16px;">
                 <?php foreach ([
-                    '_wpb_seo_index' => ['label' => 'Index', 'val' => $index_val, 'custom' => $custom_index],
-                    '_wpb_seo_follow' => ['label' => 'Follow', 'val' => $follow_val, 'custom' => $custom_follow],
-                    '_wpb_seo_sitemap' => ['label' => 'Sitemap', 'val' => $sitemap_val, 'custom' => $custom_sitemap],
+                    '_suite_barrio_seo_index' => ['label' => 'Index', 'val' => $index_val, 'custom' => $custom_index],
+                    '_suite_barrio_seo_follow' => ['label' => 'Follow', 'val' => $follow_val, 'custom' => $custom_follow],
+                    '_suite_barrio_seo_sitemap' => ['label' => 'Sitemap', 'val' => $sitemap_val, 'custom' => $custom_sitemap],
                 ] as $name => $cfg): ?>
                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                         <input type="checkbox" name="<?php echo esc_attr($name); ?>" value="1" <?php checked($cfg['val']); ?>>
@@ -1350,10 +1351,10 @@ function suite_barrio_meta_render_term_edit_fields($term, $taxonomy)
         <th scope="row"><label>Keywords</label></th>
         <td>
             <?php
-            $raw_kw_term = get_term_meta($term->term_id, '_wpb_seo_keywords', true);
+            $raw_kw_term = get_term_meta($term->term_id, '_suite_barrio_seo_keywords', true);
             $kws_term = $raw_kw_term ? (array) json_decode($raw_kw_term, true) : [];
             ?>
-            <input type="hidden" name="_wpb_seo_keywords" id="suite_barrio_seo_kw_hidden_edit"
+            <input type="hidden" name="_suite_barrio_seo_keywords" id="suite_barrio_seo_kw_hidden_edit"
                 value="<?php echo esc_attr($raw_kw_term ?: '[]'); ?>">
             <div class="suite-barrio-kw-wrap" id="suite-barrio-kw-wrap-edit">
                 <?php foreach ($kws_term as $i => $kw): ?>
@@ -1657,11 +1658,11 @@ function suite_barrio_meta_save_term_fields($term_id)
     if (!current_user_can('manage_categories'))
         return;
 
-    $fields = ['_wpb_seo_title', '_wpb_seo_description', '_wpb_seo_og_image_id'];
+    $fields = ['_suite_barrio_seo_title', '_suite_barrio_seo_description', '_suite_barrio_seo_og_image_id'];
     foreach ($fields as $field) {
         if (!isset($_POST[$field]))
             continue;
-        $val = $field === '_wpb_seo_og_image_id'
+        $val = $field === '_suite_barrio_seo_og_image_id'
             ? absint($_POST[$field])
             : sanitize_textarea_field(wp_unslash($_POST[$field]));
         if ($val === '' || $val === 0)
@@ -1671,7 +1672,7 @@ function suite_barrio_meta_save_term_fields($term_id)
     }
 
     // Index / Follow / Sitemap per-termine
-    foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $field) {
+    foreach (['_suite_barrio_seo_index', '_suite_barrio_seo_follow', '_suite_barrio_seo_sitemap'] as $field) {
         $set_key = $field . '_set';
         if (!isset($_POST[$set_key]))
             continue;
@@ -1679,15 +1680,15 @@ function suite_barrio_meta_save_term_fields($term_id)
     }
 
     // Keywords
-    if (isset($_POST['_wpb_seo_keywords'])) {
+    if (isset($_POST['_suite_barrio_seo_keywords'])) {
         // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON array, valori sanificati singolarmente con sanitize_text_field subito sotto
-        $kws = json_decode(wp_unslash($_POST['_wpb_seo_keywords']), true);
+        $kws = json_decode(wp_unslash($_POST['_suite_barrio_seo_keywords']), true);
         if (is_array($kws)) {
             $kws = array_values(array_filter(array_map('sanitize_text_field', $kws)));
             if (empty($kws))
-                delete_term_meta($term_id, '_wpb_seo_keywords');
+                delete_term_meta($term_id, '_suite_barrio_seo_keywords');
             else
-                update_term_meta($term_id, '_wpb_seo_keywords', wp_json_encode($kws));
+                update_term_meta($term_id, '_suite_barrio_seo_keywords', wp_json_encode($kws));
         }
     }
 }
@@ -1701,15 +1702,15 @@ function suite_barrio_seo_copy_indexing_term_meta(int $original_term_id, int $ne
     $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
     $tax = $taxonomy ?: get_term($original_term_id)->taxonomy ?? '';
     $cfg = $content['taxonomies'][$tax] ?? [];
-    $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
+    $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'suite_barrio_sitemap_settings', []);
 
-    foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $key) {
+    foreach (['_suite_barrio_seo_index', '_suite_barrio_seo_follow', '_suite_barrio_seo_sitemap'] as $key) {
         $val = get_term_meta($original_term_id, $key, true);
         if ($val === '') {
-            if ($key === '_wpb_seo_sitemap') {
+            if ($key === '_suite_barrio_seo_sitemap') {
                 $val = isset($sm_settings['taxonomies'][$tax]) ? '1' : '0';
             } else {
-                $field = str_replace('_wpb_seo_', '', $key);
+                $field = str_replace('_suite_barrio_seo_', '', $key);
                 $val = isset($cfg[$field]) ? (string) (int) $cfg[$field] : '1';
             }
         }
@@ -1718,9 +1719,9 @@ function suite_barrio_seo_copy_indexing_term_meta(int $original_term_id, int $ne
 }
 
 // wpml_copy_term_metadata è il filtro corretto per la sincronizzazione dei termini
-foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $_suite_barrio_dup_term_key) {
-    add_filter('wpml_copy_term_metadata', function ($value, $meta_key, $original_term_id) use ($_suite_barrio_dup_term_key) {
-        if ($meta_key !== $_suite_barrio_dup_term_key)
+foreach (['_suite_barrio_seo_index', '_suite_barrio_seo_follow', '_suite_barrio_seo_sitemap'] as $suite_barrio_dup_term_key) {
+    add_filter('wpml_copy_term_metadata', function ($value, $meta_key, $original_term_id) use ($suite_barrio_dup_term_key) {
+        if ($meta_key !== $suite_barrio_dup_term_key)
             return $value;
         $original_val = get_term_meta((int) $original_term_id, $meta_key, true);
         // Se l'originale non ha valore esplicito, risolvi il default della tassonomia
@@ -1729,11 +1730,11 @@ foreach (['_wpb_seo_index', '_wpb_seo_follow', '_wpb_seo_sitemap'] as $_suite_ba
             $tax = $term->taxonomy ?? '';
             $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);
             $cfg = $content['taxonomies'][$tax] ?? [];
-            $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'wpb_sitemap_settings', []);
-            if ($meta_key === '_wpb_seo_sitemap') {
+            $sm_settings = get_option(defined('SUITE_BARRIO_SITEMAP_OPTION') ? SUITE_BARRIO_SITEMAP_OPTION : 'suite_barrio_sitemap_settings', []);
+            if ($meta_key === '_suite_barrio_seo_sitemap') {
                 $original_val = isset($sm_settings['taxonomies'][$tax]) ? '1' : '0';
             } else {
-                $field = str_replace('_wpb_seo_', '', $meta_key);
+                $field = str_replace('_suite_barrio_seo_', '', $meta_key);
                 $original_val = isset($cfg[$field]) ? (string) (int) $cfg[$field] : '1';
             }
         }

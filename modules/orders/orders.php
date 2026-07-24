@@ -16,7 +16,7 @@ if (!defined('ABSPATH'))
     exit;
 
 define('SUITE_BARRIO_ORDERS_VERSION', '1.0.0');
-define('SUITE_BARRIO_ORDERS_OPTION', 'wpb_orders_settings');
+define('SUITE_BARRIO_ORDERS_OPTION', 'suite_barrio_orders_settings');
 
 /* ─────────────────────────────────────────
    HELPERS: lettura impostazioni
@@ -165,7 +165,7 @@ add_action('wp_ajax_suite_barrio_orders_toggle_pt', function () {
         $list = array_values(array_diff($list, [$pt]));
         // Azzera anche i menu_order esistenti
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- query interna del plugin su tabella core WP, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query interna del plugin su tabella core WP, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
         $wpdb->update($wpdb->posts, ['menu_order' => 0], ['post_type' => $pt], ['%d'], ['%s']);
     }
 
@@ -199,7 +199,7 @@ add_action('wp_ajax_suite_barrio_orders_toggle_tax', function () {
         $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => false]);
         if (!is_wp_error($terms)) {
             foreach ($terms as $t)
-                delete_term_meta($t->term_id, 'wpb_term_order');
+                delete_term_meta($t->term_id, 'suite_barrio_term_order');
         }
     }
 
@@ -228,8 +228,8 @@ add_action('wp_ajax_suite_barrio_orders_save_posts', function () {
             continue;
         wp_update_post(['ID' => $post_id, 'menu_order' => (int) $order]);
     }
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:type:' . $post_type);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:type:' . $post_type);
     }
     wp_send_json_success('Ordine salvato.');
 });
@@ -252,10 +252,10 @@ add_action('wp_ajax_suite_barrio_orders_save_terms', function () {
         $term_id = absint($term_id);
         if (!$term_id)
             continue;
-        update_term_meta($term_id, 'wpb_term_order', (int) $order);
+        update_term_meta($term_id, 'suite_barrio_term_order', (int) $order);
     }
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:type:' . $taxonomy);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:type:' . $taxonomy);
     }
     wp_send_json_success('Ordine salvato.');
 });
@@ -308,7 +308,7 @@ add_action('wp_ajax_suite_barrio_orders_get_terms', function () {
     $without_order = [];
 
     foreach ($terms as $t) {
-        $order = get_term_meta($t->term_id, 'wpb_term_order', true);
+        $order = get_term_meta($t->term_id, 'suite_barrio_term_order', true);
         $item = ['id' => $t->term_id, 'name' => $t->name, 'count' => $t->count, 'order' => (int) $order];
         if ($order !== '')
             $with_order[] = $item;
@@ -369,7 +369,7 @@ add_filter('terms_clauses', function ($clauses, $taxonomies, $args) {
         return $clauses;
 
     global $wpdb;
-    $clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} suite_barrio_tm ON (t.term_id = suite_barrio_tm.term_id AND suite_barrio_tm.meta_key = 'wpb_term_order')";
+    $clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} suite_barrio_tm ON (t.term_id = suite_barrio_tm.term_id AND suite_barrio_tm.meta_key = 'suite_barrio_term_order')";
     $clauses['orderby'] = 'ORDER BY CAST(COALESCE(suite_barrio_tm.meta_value, 9999) AS UNSIGNED) ASC, t.name ASC';
     return $clauses;
 }, 10, 3);

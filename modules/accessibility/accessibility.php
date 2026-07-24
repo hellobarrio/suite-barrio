@@ -10,7 +10,7 @@ if (!defined('ABSPATH'))
     exit;
 
 define('SUITE_BARRIO_ACCESSIBILITY_VERSION', '1.0.0');
-define('SUITE_BARRIO_ACCESSIBILITY_OPTION', 'wpb_accessibility_settings');
+define('SUITE_BARRIO_ACCESSIBILITY_OPTION', 'suite_barrio_accessibility_settings');
 
 /* ─────────────────────────────────────────
    HELPERS
@@ -95,16 +95,20 @@ add_action('admin_post_suite_barrio_accessibility_save', function () {
 
 /* ─────────────────────────────────────────
    REST API — script embed per Next.js / headless
-   Endpoint: GET /wp-json/wp-barrio/v1/accessibility
+   Endpoint: GET /wp-json/suite-barrio/v1/accessibility
    Restituisce application/javascript con CSS + JS
    già configurati (colori, posizione) pronti all'uso.
+   'wp-barrio/v1' resta registrato come alias retrocompatibile:
+   siti già live possono avere questo URL incollato nel proprio layout.
    ───────────────────────────────────────── */
 add_action('rest_api_init', function () {
-    register_rest_route('wp-barrio/v1', '/accessibility', [
-        'methods'             => 'GET',
-        'callback'            => 'suite_barrio_accessibility_embed_handler',
-        'permission_callback' => '__return_true',
-    ]);
+    foreach (['suite-barrio/v1', 'wp-barrio/v1'] as $ns) {
+        register_rest_route($ns, '/accessibility', [
+            'methods'             => 'GET',
+            'callback'            => 'suite_barrio_accessibility_embed_handler',
+            'permission_callback' => '__return_true',
+        ]);
+    }
 });
 
 function suite_barrio_accessibility_embed_handler(): void
@@ -117,7 +121,9 @@ function suite_barrio_accessibility_embed_handler(): void
     $css_path = SUITE_BARRIO_PLUGIN_DIR . 'modules/accessibility/assets/accessibility-widget.css';
     $js_path  = SUITE_BARRIO_PLUGIN_DIR . 'modules/accessibility/assets/accessibility-widget.js';
 
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- lettura locale degli asset del plugin, non un URL remoto
     $css = (string) file_get_contents($css_path);
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- lettura locale degli asset del plugin, non un URL remoto
     $js  = (string) file_get_contents($js_path);
 
     // Prepend CSS variable + position overrides
@@ -137,8 +143,8 @@ function suite_barrio_accessibility_embed_handler(): void
     $full_css = $css . $overrides;
 
     // Embed: inietta lo <style> nel <head> poi esegue il JS del widget
-    $css_json    = json_encode($full_css, JSON_UNESCAPED_UNICODE);
-    $config_json = json_encode([
+    $css_json    = wp_json_encode($full_css, JSON_UNESCAPED_UNICODE);
+    $config_json = wp_json_encode([
         'declaration' => [
             'enabled' => !empty($s['declaration_enabled']),
             'content' => $s['declaration_content'] ?? '',
@@ -208,7 +214,7 @@ add_action('wp_enqueue_scripts', function () {
 
     wp_add_inline_style('suite-barrio-accessibility-widget', $inline);
 
-    $config_json = (string) json_encode([
+    $config_json = (string) wp_json_encode([
         'declaration' => [
             'enabled' => !empty($s['declaration_enabled']),
             'content' => $s['declaration_content'] ?? '',
@@ -434,7 +440,7 @@ function suite_barrio_accessibility_admin_page()
     </div>
 
         <?php
-        $embed_url  = rest_url('wp-barrio/v1/accessibility');
+        $embed_url  = rest_url('suite-barrio/v1/accessibility');
         $parsed_url = wp_parse_url(home_url());
         $wp_origin  = $parsed_url['scheme'] . '://' . $parsed_url['host']
             . (isset($parsed_url['port']) ? ':' . $parsed_url['port'] : '');

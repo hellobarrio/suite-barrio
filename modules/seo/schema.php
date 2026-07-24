@@ -13,7 +13,7 @@ if (!defined('ABSPATH'))
     exit;
 
 if (!defined('SUITE_BARRIO_SCHEMA_OPTION'))
-    define('SUITE_BARRIO_SCHEMA_OPTION', 'wpb_schema_settings');
+    define('SUITE_BARRIO_SCHEMA_OPTION', 'suite_barrio_schema_settings');
 
 /* ─────────────────────────────────────────
    MENU
@@ -79,8 +79,8 @@ add_action('admin_post_suite_barrio_schema_save', function () {
     ];
 
     update_option(SUITE_BARRIO_SCHEMA_OPTION, $settings);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:schema');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:schema');
     }
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-schema&saved=1'));
     exit;
@@ -245,7 +245,7 @@ function suite_barrio_schema_find_webpage(string $requested_url): ?array
         if (empty($cfg['index']))
             return null;
 
-        $post_idx = get_post_meta($post_id, '_wpb_seo_index', true);
+        $post_idx = get_post_meta($post_id, '_suite_barrio_seo_index', true);
         if ($post_idx === '0')
             return null;
 
@@ -254,16 +254,16 @@ function suite_barrio_schema_find_webpage(string $requested_url): ?array
         $page_uri = wp_make_link_relative($permalink);
         $page_id = $site_url . $page_uri . '#webpage';
 
-        $seo_title = get_post_meta($post_id, '_wpb_seo_title', true) ?: get_the_title($post_id);
-        $seo_desc = get_post_meta($post_id, '_wpb_seo_description', true)
+        $seo_title = get_post_meta($post_id, '_suite_barrio_seo_title', true) ?: get_the_title($post_id);
+        $seo_desc = get_post_meta($post_id, '_suite_barrio_seo_description', true)
             ?: wp_strip_all_tags(get_the_excerpt($post_id))
             ?: ($meta['default_desc'] ?? '');
 
-        $kw_raw = get_post_meta($post_id, '_wpb_seo_keywords', true);
+        $kw_raw = get_post_meta($post_id, '_suite_barrio_seo_keywords', true);
         $kws = $kw_raw ? (array) json_decode($kw_raw, true) : [];
 
         $og_img = '';
-        $custom_og = (int) get_post_meta($post_id, '_wpb_seo_og_image_id', true);
+        $custom_og = (int) get_post_meta($post_id, '_suite_barrio_seo_og_image_id', true);
         if ($custom_og)
             $og_img = wp_get_attachment_image_url($custom_og, 'full') ?: '';
         if (!$og_img && has_post_thumbnail($post_id))
@@ -273,6 +273,7 @@ function suite_barrio_schema_find_webpage(string $requested_url): ?array
 
         $node_lang = $lang;
         if ($wpml_active) {
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
             $lang_details = apply_filters('wpml_element_language_details', null, [
                 'element_id' => $post_id,
                 'element_type' => $post_type,
@@ -342,23 +343,23 @@ function suite_barrio_schema_find_webpage(string $requested_url): ?array
             if (rtrim($frontend_url, '/') !== $req_norm)
                 continue;
 
-            $term_idx = get_term_meta($term->term_id, '_wpb_seo_index', true);
+            $term_idx = get_term_meta($term->term_id, '_suite_barrio_seo_index', true);
             if ($term_idx === '0')
                 return null;
 
             $page_uri = wp_make_link_relative($link);
             $page_id = $site_url . $page_uri . '#webpage';
 
-            $seo_title = get_term_meta($term->term_id, '_wpb_seo_title', true) ?: $term->name;
-            $seo_desc = get_term_meta($term->term_id, '_wpb_seo_description', true)
+            $seo_title = get_term_meta($term->term_id, '_suite_barrio_seo_title', true) ?: $term->name;
+            $seo_desc = get_term_meta($term->term_id, '_suite_barrio_seo_description', true)
                 ?: wp_strip_all_tags($term->description)
                 ?: ($meta['default_desc'] ?? '');
 
-            $kw_raw = get_term_meta($term->term_id, '_wpb_seo_keywords', true);
+            $kw_raw = get_term_meta($term->term_id, '_suite_barrio_seo_keywords', true);
             $kws = $kw_raw ? (array) json_decode($kw_raw, true) : [];
 
             $og_img = '';
-            $custom_og = (int) get_term_meta($term->term_id, '_wpb_seo_og_image_id', true);
+            $custom_og = (int) get_term_meta($term->term_id, '_suite_barrio_seo_og_image_id', true);
             if ($custom_og)
                 $og_img = wp_get_attachment_image_url($custom_og, 'full') ?: '';
             if (!$og_img && !empty($meta['og_image_id']))
@@ -366,7 +367,8 @@ function suite_barrio_schema_find_webpage(string $requested_url): ?array
 
             $node_lang = $lang;
             if ($wpml_active) {
-                $lang_details = apply_filters('wpml_element_language_details', null, [
+                // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
+            $lang_details = apply_filters('wpml_element_language_details', null, [
                     'element_id' => $term->term_taxonomy_id,
                     'element_type' => 'tax_' . $tax,
                 ]);
@@ -475,249 +477,252 @@ function suite_barrio_schema_admin_page()
         'Dentist' => 'Dentist',
         'Physician' => 'Physician',
         'RealEstateAgent' => 'RealEstateAgent',
+        'LodgingBusiness' => 'LodgingBusiness'
     ];
     ?>
     <div id="suite-barrio-schema-wrap" class="wrap suite-barrio-wrap">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-                <div class="suite-barrio-sch-header">
-                    <div class="suite-barrio-sch-header-icon"><span class="dashicons dashicons-networking"></span></div>
-                    <div>
-                        <h1>Suite Barrio <span class="suite-barrio-sch-breadcrumb">/ SEO / Schema</span></h1>
-                        <p class="suite-barrio-sch-sub">Dati strutturati JSON-LD &mdash; esportati via GraphQL per il frontend headless
-                        </p>
-                    </div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+            <div class="suite-barrio-sch-header">
+                <div class="suite-barrio-sch-header-icon"><span class="dashicons dashicons-networking"></span></div>
+                <div>
+                    <h1>Suite Barrio <span class="suite-barrio-sch-breadcrumb">/ SEO / Schema</span></h1>
+                    <p class="suite-barrio-sch-sub">Dati strutturati JSON-LD &mdash; esportati via GraphQL per il frontend
+                        headless
+                    </p>
                 </div>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-seo')); ?>"
-                    style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:12.5px;font-weight:600;background:#f3f4f6;color:#374151 !important;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none !important;white-space:nowrap;flex-shrink:0;align-self:flex-start;">
-                    <span class="dashicons dashicons-arrow-left-alt2"
-                        style="font-size:14px;width:14px;height:14px;margin-top:1px;"></span>
-                    Strumenti SEO
-                </a>
             </div>
-            <hr class="suite-barrio-sch-divider">
-
-            <?php if ($saved): ?>
-                    <div class="suite-barrio-sch-notice-success">
-                        <span class="dashicons dashicons-yes-alt"></span>
-                        <div>Impostazioni salvate.</div>
-                    </div>
-            <?php endif; ?>
-
-            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('suite_barrio_schema_save'); ?>
-                <input type="hidden" name="action" value="suite_barrio_schema_save">
-
-                <!-- Business -->
-                <div class="suite-barrio-schema-panel">
-                    <div class="suite-barrio-schema-panel-header">
-                        <span class="dashicons dashicons-building"></span>
-                        <span class="suite-barrio-schema-panel-header-title">Identità Business</span>
-                    </div>
-                    <div class="suite-barrio-schema-section">
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Tipo<small>Schema.org @type</small></div>
-                            <div class="suite-barrio-sf-input">
-                                <select name="business_type">
-                                    <?php foreach ($business_types as $val => $label): ?>
-                                            <option value="<?php echo esc_attr($val); ?>" <?php selected($s['business_type'] ?? 'LocalBusiness', $val); ?>><?php echo esc_html($label); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Nome<small>Nome del business</small></div>
-                            <div class="suite-barrio-sf-input"><input type="text" name="business_name"
-                                    value="<?php echo esc_attr($s['business_name'] ?? ''); ?>"
-                                    placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>"></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Descrizione</div>
-                            <div class="suite-barrio-sf-input"><textarea
-                                    name="description"><?php echo esc_textarea($s['description'] ?? ''); ?></textarea></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">URL sito</div>
-                            <div class="suite-barrio-sf-input"><input type="url" name="url"
-                                    value="<?php echo esc_attr($s['url'] ?? home_url()); ?>"></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Logo URL</div>
-                            <div class="suite-barrio-sf-input"><input type="url" name="logo"
-                                    value="<?php echo esc_attr($s['logo'] ?? ''); ?>" placeholder="https://…/logo.png"></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Immagine principale</div>
-                            <div class="suite-barrio-sf-input"><input type="url" name="image"
-                                    value="<?php echo esc_attr($s['image'] ?? ''); ?>" placeholder="https://…/cover.jpg"></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Lingua<small>Lingua principale del sito</small></div>
-                            <div class="suite-barrio-sf-input">
-                                <?php
-                                $current_lang = $s['language'] ?? 'it-IT';
-                                $lang_options = [
-                                    'it-IT' => '🇮🇹 Italiano',
-                                    'en-US' => '🇺🇸 English (US)',
-                                    'en-GB' => '🇬🇧 English (UK)',
-                                    'fr-FR' => '🇫🇷 Français',
-                                    'de-DE' => '🇩🇪 Deutsch',
-                                    'es-ES' => '🇪🇸 Español',
-                                    'pt-PT' => '🇵🇹 Português (PT)',
-                                    'pt-BR' => '🇧🇷 Português (BR)',
-                                    'nl-NL' => '🇳🇱 Nederlands',
-                                    'pl-PL' => '🇵🇱 Polski',
-                                    'ru-RU' => '🇷🇺 Русский',
-                                    'zh-CN' => '🇨🇳 中文 (简体)',
-                                    'zh-TW' => '🇹🇼 中文 (繁體)',
-                                    'ja-JP' => '🇯🇵 日本語',
-                                    'ar-SA' => '🇸🇦 العربية',
-                                    'sv-SE' => '🇸🇪 Svenska',
-                                    'da-DK' => '🇩🇰 Dansk',
-                                    'fi-FI' => '🇫🇮 Suomi',
-                                    'nb-NO' => '🇳🇴 Norsk',
-                                    'cs-CZ' => '🇨🇿 Čeština',
-                                    'hu-HU' => '🇭🇺 Magyar',
-                                    'ro-RO' => '🇷🇴 Română',
-                                    'tr-TR' => '🇹🇷 Türkçe',
-                                    'el-GR' => '🇬🇷 Ελληνικά',
-                                    'uk-UA' => '🇺🇦 Українська',
-                                    'ca-ES' => '🏴󠁥󠁳󠁣󠁴󠁿 Català',
-                                ];
-                                ?>
-                                <select name="language" style="min-width:200px;">
-                                    <?php foreach ($lang_options as $code => $label): ?>
-                                            <option value="<?php echo esc_attr($code); ?>" <?php selected($current_lang, $code); ?>>
-                                                <?php echo esc_html($label); ?>
-                                            </option>
-                                    <?php endforeach; ?>
-                                    <?php if ($current_lang && !isset($lang_options[$current_lang])): ?>
-                                            <option value="<?php echo esc_attr($current_lang); ?>" selected>
-                                                <?php echo esc_html($current_lang); ?>
-                                            </option>
-                                    <?php endif; ?>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Contatti -->
-                <div class="suite-barrio-schema-panel">
-                    <div class="suite-barrio-schema-panel-header">
-                        <span class="dashicons dashicons-phone"></span>
-                        <span class="suite-barrio-schema-panel-header-title">Contatti</span>
-                    </div>
-                    <div class="suite-barrio-schema-section">
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Telefono</div>
-                            <div class="suite-barrio-sf-input"><input type="text" name="telephone"
-                                    value="<?php echo esc_attr($s['telephone'] ?? ''); ?>" placeholder="+390000000000"></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Email</div>
-                            <div class="suite-barrio-sf-input"><input type="email" name="email"
-                                    value="<?php echo esc_attr($s['email'] ?? ''); ?>"></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Partita IVA</div>
-                            <div class="suite-barrio-sf-input"><input type="text" name="vat_id"
-                                    value="<?php echo esc_attr($s['vat_id'] ?? ''); ?>" placeholder="IT00000000000"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Indirizzo -->
-                <div class="suite-barrio-schema-panel">
-                    <div class="suite-barrio-schema-panel-header">
-                        <span class="dashicons dashicons-location"></span>
-                        <span class="suite-barrio-schema-panel-header-title">Indirizzo &amp; Posizione</span>
-                    </div>
-                    <div class="suite-barrio-schema-section">
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Via / Indirizzo</div>
-                            <div class="suite-barrio-sf-input"><input type="text" name="street_address"
-                                    value="<?php echo esc_attr($s['street_address'] ?? ''); ?>"></div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">CAP e Città</div>
-                            <div class="suite-barrio-sf-input">
-                                <div class="suite-barrio-sf-pair">
-                                    <input type="text" name="postal_code"
-                                        value="<?php echo esc_attr($s['postal_code'] ?? ''); ?>" placeholder="CAP"
-                                        style="max-width:100px;">
-                                    <input type="text" name="locality" value="<?php echo esc_attr($s['locality'] ?? ''); ?>"
-                                        placeholder="Città">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Provincia / Nazione</div>
-                            <div class="suite-barrio-sf-input">
-                                <div class="suite-barrio-sf-pair">
-                                    <input type="text" name="region" value="<?php echo esc_attr($s['region'] ?? ''); ?>"
-                                        placeholder="Provincia" style="max-width:100px;">
-                                    <input type="text" name="country" value="<?php echo esc_attr($s['country'] ?? 'IT'); ?>"
-                                        placeholder="IT" style="max-width:80px;">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="suite-barrio-sf-row">
-                            <div class="suite-barrio-sf-label">Coordinate GPS<small>latitudine, longitudine</small></div>
-                            <div class="suite-barrio-sf-input">
-                                <div class="suite-barrio-sf-pair">
-                                    <input type="text" name="latitude" value="<?php echo esc_attr($s['latitude'] ?? ''); ?>"
-                                        placeholder="44.1234">
-                                    <input type="text" name="longitude" value="<?php echo esc_attr($s['longitude'] ?? ''); ?>"
-                                        placeholder="7.1234">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Social -->
-                <div class="suite-barrio-schema-panel">
-                    <div class="suite-barrio-schema-panel-header">
-                        <span class="dashicons dashicons-share"></span>
-                        <span class="suite-barrio-schema-panel-header-title">Social (sameAs)</span>
-                    </div>
-                    <div class="suite-barrio-schema-section">
-                        <?php foreach ([
-                            'facebook' => ['Facebook', 'https://www.facebook.com/…'],
-                            'instagram' => ['Instagram', 'https://www.instagram.com/…'],
-                            'twitter' => ['Twitter/X', 'https://x.com/…'],
-                            'linkedin' => ['LinkedIn', 'https://www.linkedin.com/…'],
-                        ] as $field => [$label, $ph]): ?>
-                                <div class="suite-barrio-sf-row">
-                                    <div class="suite-barrio-sf-label"><?php echo esc_html($label); ?></div>
-                                    <div class="suite-barrio-sf-input"><input type="url" name="<?php echo esc_attr($field); ?>"
-                                            value="<?php echo esc_attr($s[$field] ?? ''); ?>"
-                                            placeholder="<?php echo esc_attr($ph); ?>"></div>
-                                </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-
-                <button type="submit" class="suite-barrio-sch-save-btn">
-                    <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
-                    Salva impostazioni
-                </button>
-            </form>
-
-            <!-- Anteprima globale -->
-            <div style="margin-top:32px;">
-                <h2 style="font-size:14px;font-weight:700;color:#111827;margin:0 0 10px;">Anteprima Schema globale (LocalBusiness + WebSite)</h2>
-                <?php
-                $preview = suite_barrio_schema_build_global();
-                $json = wp_json_encode($preview, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-                $json_hl = preg_replace(
-                    ['/"([^"]+)"\s*:/', '/"([^"]*)"(?!\s*:)/', '/\b(\d+\.?\d*)\b/', '/\b(true|false|null)\b/'],
-                    ['<span class="key">"$1"</span>:', '<span class="str">"$1"</span>', '<span class="num">$1</span>', '<span class="bool">$1</span>'],
-                    htmlspecialchars($json)
-                );
-                ?>
-                <div class="suite-barrio-schema-preview"><?php echo wp_kses_post($json_hl); ?></div>
-            </div>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-seo')); ?>"
+                style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:12.5px;font-weight:600;background:#f3f4f6;color:#374151 !important;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none !important;white-space:nowrap;flex-shrink:0;align-self:flex-start;">
+                <span class="dashicons dashicons-arrow-left-alt2"
+                    style="font-size:14px;width:14px;height:14px;margin-top:1px;"></span>
+                Strumenti SEO
+            </a>
         </div>
-        <?php
+        <hr class="suite-barrio-sch-divider">
+
+        <?php if ($saved): ?>
+            <div class="suite-barrio-sch-notice-success">
+                <span class="dashicons dashicons-yes-alt"></span>
+                <div>Impostazioni salvate.</div>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('suite_barrio_schema_save'); ?>
+            <input type="hidden" name="action" value="suite_barrio_schema_save">
+
+            <!-- Business -->
+            <div class="suite-barrio-schema-panel">
+                <div class="suite-barrio-schema-panel-header">
+                    <span class="dashicons dashicons-building"></span>
+                    <span class="suite-barrio-schema-panel-header-title">Identità Business</span>
+                </div>
+                <div class="suite-barrio-schema-section">
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Tipo<small>Schema.org @type</small></div>
+                        <div class="suite-barrio-sf-input">
+                            <select name="business_type">
+                                <?php foreach ($business_types as $val => $label): ?>
+                                    <option value="<?php echo esc_attr($val); ?>" <?php selected($s['business_type'] ?? 'LocalBusiness', $val); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Nome<small>Nome del business</small></div>
+                        <div class="suite-barrio-sf-input"><input type="text" name="business_name"
+                                value="<?php echo esc_attr($s['business_name'] ?? ''); ?>"
+                                placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Descrizione</div>
+                        <div class="suite-barrio-sf-input"><textarea
+                                name="description"><?php echo esc_textarea($s['description'] ?? ''); ?></textarea></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">URL sito</div>
+                        <div class="suite-barrio-sf-input"><input type="url" name="url"
+                                value="<?php echo esc_attr($s['url'] ?? home_url()); ?>"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Logo URL</div>
+                        <div class="suite-barrio-sf-input"><input type="url" name="logo"
+                                value="<?php echo esc_attr($s['logo'] ?? ''); ?>" placeholder="https://…/logo.png"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Immagine principale</div>
+                        <div class="suite-barrio-sf-input"><input type="url" name="image"
+                                value="<?php echo esc_attr($s['image'] ?? ''); ?>" placeholder="https://…/cover.jpg"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Lingua<small>Lingua principale del sito</small></div>
+                        <div class="suite-barrio-sf-input">
+                            <?php
+                            $current_lang = $s['language'] ?? 'it-IT';
+                            $lang_options = [
+                                'it-IT' => '🇮🇹 Italiano',
+                                'en-US' => '🇺🇸 English (US)',
+                                'en-GB' => '🇬🇧 English (UK)',
+                                'fr-FR' => '🇫🇷 Français',
+                                'de-DE' => '🇩🇪 Deutsch',
+                                'es-ES' => '🇪🇸 Español',
+                                'pt-PT' => '🇵🇹 Português (PT)',
+                                'pt-BR' => '🇧🇷 Português (BR)',
+                                'nl-NL' => '🇳🇱 Nederlands',
+                                'pl-PL' => '🇵🇱 Polski',
+                                'ru-RU' => '🇷🇺 Русский',
+                                'zh-CN' => '🇨🇳 中文 (简体)',
+                                'zh-TW' => '🇹🇼 中文 (繁體)',
+                                'ja-JP' => '🇯🇵 日本語',
+                                'ar-SA' => '🇸🇦 العربية',
+                                'sv-SE' => '🇸🇪 Svenska',
+                                'da-DK' => '🇩🇰 Dansk',
+                                'fi-FI' => '🇫🇮 Suomi',
+                                'nb-NO' => '🇳🇴 Norsk',
+                                'cs-CZ' => '🇨🇿 Čeština',
+                                'hu-HU' => '🇭🇺 Magyar',
+                                'ro-RO' => '🇷🇴 Română',
+                                'tr-TR' => '🇹🇷 Türkçe',
+                                'el-GR' => '🇬🇷 Ελληνικά',
+                                'uk-UA' => '🇺🇦 Українська',
+                                'ca-ES' => '🏴󠁥󠁳󠁣󠁴󠁿 Català',
+                            ];
+                            ?>
+                            <select name="language" style="min-width:200px;">
+                                <?php foreach ($lang_options as $code => $label): ?>
+                                    <option value="<?php echo esc_attr($code); ?>" <?php selected($current_lang, $code); ?>>
+                                        <?php echo esc_html($label); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                                <?php if ($current_lang && !isset($lang_options[$current_lang])): ?>
+                                    <option value="<?php echo esc_attr($current_lang); ?>" selected>
+                                        <?php echo esc_html($current_lang); ?>
+                                    </option>
+                                <?php endif; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contatti -->
+            <div class="suite-barrio-schema-panel">
+                <div class="suite-barrio-schema-panel-header">
+                    <span class="dashicons dashicons-phone"></span>
+                    <span class="suite-barrio-schema-panel-header-title">Contatti</span>
+                </div>
+                <div class="suite-barrio-schema-section">
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Telefono</div>
+                        <div class="suite-barrio-sf-input"><input type="text" name="telephone"
+                                value="<?php echo esc_attr($s['telephone'] ?? ''); ?>" placeholder="+390000000000"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Email</div>
+                        <div class="suite-barrio-sf-input"><input type="email" name="email"
+                                value="<?php echo esc_attr($s['email'] ?? ''); ?>"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Partita IVA</div>
+                        <div class="suite-barrio-sf-input"><input type="text" name="vat_id"
+                                value="<?php echo esc_attr($s['vat_id'] ?? ''); ?>" placeholder="IT00000000000"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Indirizzo -->
+            <div class="suite-barrio-schema-panel">
+                <div class="suite-barrio-schema-panel-header">
+                    <span class="dashicons dashicons-location"></span>
+                    <span class="suite-barrio-schema-panel-header-title">Indirizzo &amp; Posizione</span>
+                </div>
+                <div class="suite-barrio-schema-section">
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Via / Indirizzo</div>
+                        <div class="suite-barrio-sf-input"><input type="text" name="street_address"
+                                value="<?php echo esc_attr($s['street_address'] ?? ''); ?>"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">CAP e Città</div>
+                        <div class="suite-barrio-sf-input">
+                            <div class="suite-barrio-sf-pair">
+                                <input type="text" name="postal_code"
+                                    value="<?php echo esc_attr($s['postal_code'] ?? ''); ?>" placeholder="CAP"
+                                    style="max-width:100px;">
+                                <input type="text" name="locality" value="<?php echo esc_attr($s['locality'] ?? ''); ?>"
+                                    placeholder="Città">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Provincia / Nazione</div>
+                        <div class="suite-barrio-sf-input">
+                            <div class="suite-barrio-sf-pair">
+                                <input type="text" name="region" value="<?php echo esc_attr($s['region'] ?? ''); ?>"
+                                    placeholder="Provincia" style="max-width:100px;">
+                                <input type="text" name="country" value="<?php echo esc_attr($s['country'] ?? 'IT'); ?>"
+                                    placeholder="IT" style="max-width:80px;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Coordinate GPS<small>latitudine, longitudine</small></div>
+                        <div class="suite-barrio-sf-input">
+                            <div class="suite-barrio-sf-pair">
+                                <input type="text" name="latitude" value="<?php echo esc_attr($s['latitude'] ?? ''); ?>"
+                                    placeholder="44.1234">
+                                <input type="text" name="longitude" value="<?php echo esc_attr($s['longitude'] ?? ''); ?>"
+                                    placeholder="7.1234">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social -->
+            <div class="suite-barrio-schema-panel">
+                <div class="suite-barrio-schema-panel-header">
+                    <span class="dashicons dashicons-share"></span>
+                    <span class="suite-barrio-schema-panel-header-title">Social (sameAs)</span>
+                </div>
+                <div class="suite-barrio-schema-section">
+                    <?php foreach ([
+                        'facebook' => ['Facebook', 'https://www.facebook.com/…'],
+                        'instagram' => ['Instagram', 'https://www.instagram.com/…'],
+                        'twitter' => ['Twitter/X', 'https://x.com/…'],
+                        'linkedin' => ['LinkedIn', 'https://www.linkedin.com/…'],
+                    ] as $field => [$label, $ph]): ?>
+                        <div class="suite-barrio-sf-row">
+                            <div class="suite-barrio-sf-label"><?php echo esc_html($label); ?></div>
+                            <div class="suite-barrio-sf-input"><input type="url" name="<?php echo esc_attr($field); ?>"
+                                    value="<?php echo esc_attr($s[$field] ?? ''); ?>"
+                                    placeholder="<?php echo esc_attr($ph); ?>"></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <button type="submit" class="suite-barrio-sch-save-btn">
+                <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
+                Salva impostazioni
+            </button>
+        </form>
+
+        <!-- Anteprima globale -->
+        <div style="margin-top:32px;">
+            <h2 style="font-size:14px;font-weight:700;color:#111827;margin:0 0 10px;">Anteprima Schema globale
+                (LocalBusiness + WebSite)</h2>
+            <?php
+            $preview = suite_barrio_schema_build_global();
+            $json = wp_json_encode($preview, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+            $json_hl = preg_replace(
+                ['/"([^"]+)"\s*:/', '/"([^"]*)"(?!\s*:)/', '/\b(\d+\.?\d*)\b/', '/\b(true|false|null)\b/'],
+                ['<span class="key">"$1"</span>:', '<span class="str">"$1"</span>', '<span class="num">$1</span>', '<span class="bool">$1</span>'],
+                htmlspecialchars($json)
+            );
+            ?>
+            <div class="suite-barrio-schema-preview"><?php echo wp_kses_post($json_hl); ?></div>
+        </div>
+    </div>
+    <?php
 }

@@ -68,7 +68,7 @@ register_activation_hook(SUITE_BARRIO_PLUGIN_DIR . 'suite-barrio.php', 'suite_ba
 add_action('plugins_loaded', function () {
     suite_barrio_popups_install();
 
-    $installed_version = get_option('wpb_popups_db_version', '0');
+    $installed_version = get_option('suite_barrio_popups_db_version', '0');
 
     // Migrazione v1.0: aggiunge le colonne link_title e link_target se mancano
     global $wpdb;
@@ -87,7 +87,7 @@ add_action('plugins_loaded', function () {
     // Migrazione v1.1: crea la tabella traduzioni se non esiste ancora
     if (version_compare($installed_version, '1.1.0', '<')) {
         suite_barrio_popups_install();
-        update_option('wpb_popups_db_version', SUITE_BARRIO_POPUPS_VERSION, false);
+        update_option('suite_barrio_popups_db_version', SUITE_BARRIO_POPUPS_VERSION, false);
     }
 });
 
@@ -206,6 +206,7 @@ if (!function_exists('suite_barrio_get_template')) {
             return '';
 
         ob_start();
+        // phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- pattern standard per rendere un file di template sovrascrivibile dal tema, con EXTR_SKIP a protezione delle variabili locali gia' definite
         extract($data, EXTR_SKIP);
         include $file;
         return ob_get_clean();
@@ -230,7 +231,8 @@ if (!function_exists('suite_barrio_get_template')) {
 
    Es.: [suite_barrio_popup]  oppure  [suite_barrio_popup delay="1500" days="30"]
    ───────────────────────────────────────── */
-add_shortcode('wpb_popup', 'suite_barrio_popup_shortcode');
+add_shortcode('suite_barrio_popup', 'suite_barrio_popup_shortcode');
+add_shortcode('wpb_popup', 'suite_barrio_popup_shortcode'); // alias retrocompatibile: contenuti già pubblicati con [wpb_popup]
 
 /* ─────────────────────────────────────────
    ENQUEUE: CSS del popup frontend
@@ -241,7 +243,7 @@ add_action('wp_enqueue_scripts', function () {
         return;
     }
 
-    wp_register_style('suite-barrio-popup', '');
+    wp_register_style('suite-barrio-popup', '', [], SUITE_BARRIO_POPUPS_VERSION);
     wp_enqueue_style('suite-barrio-popup');
     wp_add_inline_style('suite-barrio-popup', '
 .suite-barrio-popup {
@@ -389,6 +391,7 @@ function suite_barrio_popup_shortcode($atts = []): string
     if (defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
         $lang = ICL_LANGUAGE_CODE;
     } elseif (function_exists('apply_filters')) {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
         $lang = (string) apply_filters('wpml_current_language', '');
     }
     if ($lang) {
@@ -588,8 +591,8 @@ add_action('wp_ajax_suite_barrio_popups_save', function () {
     if ($ok === false)
         wp_send_json_error('Errore DB: ' . $wpdb->last_error);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:popup');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:popup');
     }
 
     wp_send_json_success(['id' => $id, 'message' => 'Popup salvato.']);
@@ -617,8 +620,8 @@ add_action('wp_ajax_suite_barrio_popups_set_active', function () {
         $wpdb->update($table, ['active' => 1], ['id' => $id], ['%d'], ['%d']);
     }
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:popup');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:popup');
     }
 
     wp_send_json_success('Popup attivo aggiornato.');
@@ -642,8 +645,8 @@ add_action('wp_ajax_suite_barrio_popups_delete', function () {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_POPUPS_TABLE, ['id' => $id], ['%d']);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:popup');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:popup');
     }
     wp_send_json_success('Popup eliminato.');
 });
@@ -690,8 +693,8 @@ add_action('wp_ajax_suite_barrio_popups_save_translation', function () {
     if (!$ok)
         wp_send_json_error('Errore DB.');
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:popup');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:popup');
     }
 
     wp_send_json_success(['message' => 'Traduzione salvata.']);
@@ -773,9 +776,9 @@ add_action('wp_ajax_suite_barrio_popups_save_limit', function () {
         wp_send_json_error('Permesso negato.');
 
     $limit = max(1, intval($_POST['popup_limit'] ?? 1));
-    update_option('wpb_popups_limit', $limit, false);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:popup');
+    update_option('suite_barrio_popups_limit', $limit, false);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:popup');
     }
     wp_send_json_success('Limite salvato.');
 });
@@ -789,7 +792,7 @@ function suite_barrio_popups_admin_page(): void
     $popups = suite_barrio_popups_get_all();
     $active = suite_barrio_popups_get_active();
     $active_id = $active ? (int) $active->id : 0;
-    $popup_limit = (int) get_option('wpb_popups_limit', 1);
+    $popup_limit = (int) get_option('suite_barrio_popups_limit', 1);
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $list_tab = isset($_GET['list_tab']) ? sanitize_key($_GET['list_tab']) : 'popups';
 

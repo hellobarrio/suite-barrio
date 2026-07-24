@@ -9,9 +9,9 @@
 if (!defined('ABSPATH'))
     exit;
 
-if (!function_exists('invalidate_vercel_cache')) {
+if (!function_exists('suite_barrio_invalidate_vercel_cache')) {
 
-    function invalidate_vercel_cache($post_id = 0)
+    function suite_barrio_invalidate_vercel_cache($post_id = 0)
     {
         // Previeni chiamate multiple per lo stesso post nella stessa richiesta
         static $processed = [];
@@ -122,11 +122,11 @@ if (!function_exists('invalidate_vercel_cache')) {
         ]);
     }
 
-    add_action('acf/save_post', 'invalidate_vercel_cache');
-    add_action('wp_update_nav_menu', 'invalidate_vercel_cache');
-    add_action('before_delete_post', 'invalidate_vercel_cache');  // eliminazione definitiva
-    add_action('wp_trash_post', 'invalidate_vercel_cache');        // spostamento nel cestino
-    add_action('untrashed_post', 'invalidate_vercel_cache');
+    add_action('acf/save_post', 'suite_barrio_invalidate_vercel_cache');
+    add_action('wp_update_nav_menu', 'suite_barrio_invalidate_vercel_cache');
+    add_action('before_delete_post', 'suite_barrio_invalidate_vercel_cache');  // eliminazione definitiva
+    add_action('wp_trash_post', 'suite_barrio_invalidate_vercel_cache');        // spostamento nel cestino
+    add_action('untrashed_post', 'suite_barrio_invalidate_vercel_cache');
 }
 
 /* ─────────────────────────────────────────
@@ -146,11 +146,11 @@ if (!function_exists('suite_barrio_cache_purge_ajax')) {
             wp_send_json_error(['message' => 'Specifica un tag.']);
         }
 
-        if (!function_exists('invalidate_vercel_cache')) {
+        if (!function_exists('suite_barrio_invalidate_vercel_cache')) {
             wp_send_json_error(['message' => 'Funzione di invalidazione non disponibile.']);
         }
 
-        invalidate_vercel_cache($tag);
+        suite_barrio_invalidate_vercel_cache($tag);
         wp_send_json_success(['message' => 'Richiesta di invalidazione inviata per il tag: ' . $tag]);
     }
     add_action('wp_ajax_suite_barrio_cache_purge', 'suite_barrio_cache_purge_ajax');

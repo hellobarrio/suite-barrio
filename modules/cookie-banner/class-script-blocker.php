@@ -19,6 +19,11 @@ class SUITE_BARRIO_Script_Blocker {
         'googletagmanager.com/gtag/js',
     ];
 
+    // Livello di ob_get_level() precedente all'apertura del nostro buffer,
+    // usato da end_buffer() per chiuderlo esplicitamente senza toccare
+    // eventuali altri buffer aperti da altro codice.
+    private static int $level = 0;
+
     public static function init(): void {
         // Solo frontend, non admin, non AJAX, non REST
         if (is_admin()) return;
@@ -28,7 +33,17 @@ class SUITE_BARRIO_Script_Blocker {
     }
 
     public static function start_buffer(): void {
+        self::$level = ob_get_level();
         ob_start([self::class, 'filter_output']);
+        // Chiusura esplicita: non ci affidiamo al flush automatico generico
+        // di WordPress a fine richiesta, ma chiudiamo qui il nostro buffer.
+        add_action('shutdown', [self::class, 'end_buffer'], 0);
+    }
+
+    public static function end_buffer(): void {
+        if (ob_get_level() > self::$level) {
+            ob_end_flush();
+        }
     }
 
     /**

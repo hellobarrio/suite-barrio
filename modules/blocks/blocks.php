@@ -9,7 +9,7 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('SUITE_BARRIO_BLOCKS_OPTION', 'wpb_blocks_settings');
+define('SUITE_BARRIO_BLOCKS_OPTION', 'suite_barrio_blocks_settings');
 
 /* ─────────────────────────────────────────
    HELPERS

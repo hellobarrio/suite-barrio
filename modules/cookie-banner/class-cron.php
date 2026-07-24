@@ -2,8 +2,8 @@
 if (!defined('ABSPATH')) exit;
 
 class SUITE_BARRIO_Cron {
-    const HOOK         = 'wpb_cb_monthly_scan';
-    const SCHEDULE_KEY = 'wpb_cb_monthly';
+    const HOOK         = 'suite_barrio_cb_monthly_scan';
+    const SCHEDULE_KEY = 'suite_barrio_cb_monthly';
 
     public static function init(): void {
         add_filter('cron_schedules', [self::class, 'add_schedule']);

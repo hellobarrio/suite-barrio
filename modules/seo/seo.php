@@ -57,7 +57,7 @@ function suite_barrio_seo_page()
     $adv_log = get_option(SUITE_BARRIO_ADVISOR_LOG_OPTION, []);
     $adv_success = count(array_filter($adv_log, fn($e) => ($e['status'] ?? '') === 'success'));
     $llms_key_ok = function_exists('suite_barrio_llms_active_key') && !empty(suite_barrio_llms_active_key());
-    $llms_cache = get_option('wpb_llms_last_generated', []);
+    $llms_cache = get_option('suite_barrio_llms_last_generated', []);
     $llms_last = !empty($llms_cache['time']) ? date_i18n('d/m/Y H:i', $llms_cache['time']) : '—';
     $s = get_option(SUITE_BARRIO_META_OPTION, []);
     $content = get_option(SUITE_BARRIO_META_CONTENT_OPTION, []);

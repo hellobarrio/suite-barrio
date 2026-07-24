@@ -129,9 +129,9 @@ function suite_barrio_dashboard_page()
         $total_images = array_sum((array) wp_count_attachments());
         $missing_count = suite_barrio_count_incomplete();
         $done_count = max(0, $total_images - $missing_count);
-        $provider = get_option('wp_alt_ai_provider', 'anthropic');
+        $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
         $provider_name = $provider === 'gemini' ? 'Google Gemini' : 'Anthropic Claude';
-        $auto_upload = get_option('wp_alt_ai_auto_upload', 0);
+        $auto_upload = get_option('suite_barrio_alt_ai_auto_upload', 0);
     }
 
     if (suite_barrio_tools_module_enabled('forms')) {
@@ -193,13 +193,13 @@ function suite_barrio_dashboard_page()
         $cp_domain = function_exists('suite_barrio_cp_get_domain')
             ? suite_barrio_cp_get_domain()
             : (string) wp_parse_url(home_url(), PHP_URL_HOST);
-        $cp_privacy_page_id = (int) get_option('wpb_cp_privacy_page_id', 0);
-        $cp_cookie_page_id = (int) get_option('wpb_cp_cookie_page_id', 0);
-        $cp_provider = get_option('wpb_cp_provider', 'gemini');
+        $cp_privacy_page_id = (int) get_option('suite_barrio_cp_privacy_page_id', 0);
+        $cp_cookie_page_id = (int) get_option('suite_barrio_cp_cookie_page_id', 0);
+        $cp_provider = get_option('suite_barrio_cp_provider', 'gemini');
         $cp_provider_name = $cp_provider === 'anthropic' ? 'Anthropic Claude' : 'Google Gemini';
         $cp_privacy_page = $cp_privacy_page_id ? get_post($cp_privacy_page_id) : null;
         $cp_cookie_page = $cp_cookie_page_id ? get_post($cp_cookie_page_id) : null;
-        $cp_log = get_option('wpb_cp_log', []);
+        $cp_log = get_option('suite_barrio_cp_log', []);
         $cp_configured = !empty($cp_domain)
             && $cp_privacy_page instanceof WP_Post
             && $cp_cookie_page instanceof WP_Post

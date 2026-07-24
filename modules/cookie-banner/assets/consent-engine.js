@@ -131,11 +131,15 @@
       },
     );
     var status = categories.length > 0 ? "accept" : "reject";
+    var headers = { "Content-Type": "application/json" };
+    if (cfg && cfg.consentNonce) {
+      headers["X-WP-Nonce"] = cfg.consentNonce;
+    }
     try {
-      fetch(restBase() + "/wpb/v1/cookie-banner/consent-log", {
+      fetch(restBase() + "/suite-barrio/v1/cookie-banner/consent-log", {
         method: "POST",
         keepalive: true,
-        headers: { "Content-Type": "application/json" },
+        headers: headers,
         body: JSON.stringify({
           id: uuidv4(),
           status: status,
@@ -198,7 +202,7 @@
       (d.currentScript && d.currentScript.src
         ? new URL(d.currentScript.src).origin + "/wp-json"
         : location.origin + "/wp-json");
-    return fetch(base + "/wpb/v1/cookie-banner/config", { cache: "no-store" })
+    return fetch(base + "/suite-barrio/v1/cookie-banner/config", { cache: "no-store" })
       .then(function (r) {
         return r.json();
       })
@@ -213,7 +217,7 @@
     if (prefHtml) return Promise.resolve(prefHtml);
     var url =
       (config && config.preferencesUrl) ||
-      "/wp-json/wpb/v1/cookie-banner/preferences-html";
+      "/wp-json/suite-barrio/v1/cookie-banner/preferences-html";
     return fetch(url)
       .then(function (r) {
         return r.json();

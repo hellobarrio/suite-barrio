@@ -14,7 +14,7 @@ if (!defined('ABSPATH'))
    ───────────────────────────────────────── */
 function suite_barrio_log($attachment_id, $status, $alt = '', $title = '', $note = '')
 {
-    if (!get_option('wp_alt_ai_log_enabled', 1))
+    if (!get_option('suite_barrio_alt_ai_log_enabled', 1))
         return;
     $log = get_option(SUITE_BARRIO_LOG_OPTION, []);
     $entry = [
@@ -31,6 +31,31 @@ function suite_barrio_log($attachment_id, $status, $alt = '', $title = '', $note
         $log = array_slice($log, 0, SUITE_BARRIO_LOG_MAX);
     }
     update_option(SUITE_BARRIO_LOG_OPTION, $log, false);
+}
+
+/* ─────────────────────────────────────────
+   HELPER: legge i byte di un'immagine dalla libreria media.
+   Preferisce il file locale; se assente (es. storage offloaded su un
+   CDN/bucket esterno) recupera l'URL pubblico con la HTTP API di WP.
+   ───────────────────────────────────────── */
+function suite_barrio_alt_ai_read_image_data(int $attachment_id)
+{
+    $image_path = get_attached_file($attachment_id);
+    if ($image_path && file_exists($image_path)) {
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- lettura locale di un file gia' verificato con file_exists(), non un URL remoto
+        return file_get_contents($image_path);
+    }
+
+    $image_url = wp_get_attachment_url($attachment_id);
+    if (!$image_url) {
+        return false;
+    }
+
+    $response = wp_remote_get($image_url, ['timeout' => 20]);
+    if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+        return false;
+    }
+    return wp_remote_retrieve_body($response);
 }
 
 /* ─────────────────────────────────────────
@@ -80,7 +105,7 @@ function suite_barrio_process_batch()
     $batch_done = 0;
     $batch_errors = 0;
 
-    $lang = get_option('wp_alt_ai_language', 'it');
+    $lang = get_option('suite_barrio_alt_ai_language', 'it');
     $lang_map = ['it' => 'italiano', 'en' => 'English', 'es' => 'español', 'fr' => 'français', 'de' => 'Deutsch'];
     $lang_name = $lang_map[$lang] ?? 'italiano';
 
@@ -89,13 +114,7 @@ function suite_barrio_process_batch()
         if (!$id)
             continue;
 
-        $image_path = get_attached_file($id);
-        if ($image_path && file_exists($image_path)) {
-            $image_data = file_get_contents($image_path);
-        } else {
-            $image_url = wp_get_attachment_url($id);
-            $image_data = $image_url ? @file_get_contents($image_url) : false;
-        }
+        $image_data = suite_barrio_alt_ai_read_image_data($id);
 
         if (!$image_data) {
             suite_barrio_log($id, 'error', '', '', 'Batch: impossibile leggere il file');
@@ -137,12 +156,12 @@ function suite_barrio_process_batch()
                 wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
             }
             if ((!$has_alt && !empty($result['alt'])) || (!$has_title && !empty($result['title']))) {
-                if (function_exists('invalidate_vercel_cache')) {
+                if (function_exists('suite_barrio_invalidate_vercel_cache')) {
                     $parent_id = wp_get_post_parent_id($id);
-                    invalidate_vercel_cache($parent_id ?: 'wp:global');
+                    suite_barrio_invalidate_vercel_cache($parent_id ?: 'wp:global');
                 }
             }
-            $provider = get_option('wp_alt_ai_provider', 'anthropic');
+            $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
             $saved_fields = implode(' + ', array_filter([
                 !$has_alt ? 'alt' : '',
                 !$has_title ? 'title' : '',
@@ -188,11 +207,11 @@ function suite_barrio_process_batch()
    ───────────────────────────────────────── */
 function suite_barrio_active_key()
 {
-    $provider = get_option('wp_alt_ai_provider', 'anthropic');
+    $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
     if ($provider === 'gemini') {
-        return get_option('wp_alt_ai_gemini_key', '');
+        return get_option('suite_barrio_alt_ai_gemini_key', '');
     }
-    return get_option('wp_alt_ai_api_key', '');
+    return get_option('suite_barrio_alt_ai_api_key', '');
 }
 
 /* ─────────────────────────────────────────
@@ -253,19 +272,20 @@ function suite_barrio_count_incomplete()
    ───────────────────────────────────────── */
 function suite_barrio_call_api($attachment_id, $image_data, $mime, $lang_name, $fields = 'both')
 {
-    $provider = get_option('wp_alt_ai_provider', 'anthropic');
-    $model = get_option('wp_alt_ai_model', 'claude-opus-4-6') ?: 'claude-opus-4-6';
+    $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
+    $model = get_option('suite_barrio_alt_ai_model', 'claude-opus-4-6') ?: 'claude-opus-4-6';
 
     $allowed_mime = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!in_array($mime, $allowed_mime))
         $mime = 'image/jpeg';
+    // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- codifica dell'immagine richiesta dal payload JSON delle API vision di Anthropic/Gemini, non offuscamento
     $b64 = base64_encode($image_data);
 
     // Costruzione prompt dinamica in base alle impostazioni
-    $tone = get_option('wp_alt_ai_tone', 'neutral');
-    $style = get_option('wp_alt_ai_style', 'descriptive');
-    $context = get_option('wp_alt_ai_context', '');
-    $keywords = get_option('wp_alt_ai_keywords', '');
+    $tone = get_option('suite_barrio_alt_ai_tone', 'neutral');
+    $style = get_option('suite_barrio_alt_ai_style', 'descriptive');
+    $context = get_option('suite_barrio_alt_ai_context', '');
+    $keywords = get_option('suite_barrio_alt_ai_keywords', '');
 
     $tone_map = [
         'neutral' => 'neutro e oggettivo',
@@ -325,11 +345,11 @@ function suite_barrio_call_api($attachment_id, $image_data, $mime, $lang_name, $
     $raw = '';
 
     if ($provider === 'gemini') {
-        $api_key = get_option('wp_alt_ai_gemini_key', '');
+        $api_key = get_option('suite_barrio_alt_ai_gemini_key', '');
         if (empty($api_key))
             return ['error' => 'Chiave API Gemini non configurata'];
 
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . urlencode($model) . ':generateContent?key=' . $api_key;
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . $api_key;
         $response = wp_remote_post($url, [
             'timeout' => 60,
             'headers' => ['Content-Type' => 'application/json'],
@@ -367,7 +387,7 @@ function suite_barrio_call_api($attachment_id, $image_data, $mime, $lang_name, $
 
     } else {
         // Anthropic (default)
-        $api_key = get_option('wp_alt_ai_api_key', '');
+        $api_key = get_option('suite_barrio_alt_ai_api_key', '');
         if (empty($api_key))
             return ['error' => 'Chiave API Anthropic non configurata'];
 
@@ -479,7 +499,7 @@ function suite_barrio_call_api($attachment_id, $image_data, $mime, $lang_name, $
    ───────────────────────────────────────── */
 function suite_barrio_fetch_models($provider)
 {
-    $cache_key = 'wp_alt_ai_models_' . $provider;
+    $cache_key = 'suite_barrio_alt_ai_models_' . $provider;
     $cached = get_transient($cache_key);
     if ($cached !== false)
         return $cached;
@@ -487,7 +507,7 @@ function suite_barrio_fetch_models($provider)
     $models = [];
 
     if ($provider === 'anthropic') {
-        $api_key = get_option('wp_alt_ai_api_key', '');
+        $api_key = get_option('suite_barrio_alt_ai_api_key', '');
         if (empty($api_key))
             return null;
 
@@ -515,7 +535,7 @@ function suite_barrio_fetch_models($provider)
         }
 
     } elseif ($provider === 'gemini') {
-        $api_key = get_option('wp_alt_ai_gemini_key', '');
+        $api_key = get_option('suite_barrio_alt_ai_gemini_key', '');
         if (empty($api_key))
             return null;
 
@@ -580,7 +600,7 @@ add_action('wp_ajax_suite_barrio_fetch_models', function () {
     $provider = sanitize_key($_POST['provider'] ?? 'anthropic');
     $force = !empty($_POST['force']); // force = ignora cache
     if ($force)
-        delete_transient('wp_alt_ai_models_' . $provider);
+        delete_transient('suite_barrio_alt_ai_models_' . $provider);
 
     $models = suite_barrio_fetch_models($provider);
     if ($models === null) {
@@ -608,18 +628,18 @@ add_action('admin_menu', function () {
    2. IMPOSTAZIONI
    ───────────────────────────────────────── */
 add_action('admin_init', function () {
-    register_setting('suite_barrio_settings', 'wp_alt_ai_provider', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_api_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_language', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_auto_upload', ['sanitize_callback' => 'absint']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_model', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_provider', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_api_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_language', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_auto_upload', ['sanitize_callback' => 'absint']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_model', ['sanitize_callback' => 'sanitize_text_field']);
     // Impostazioni prompt
-    register_setting('suite_barrio_settings', 'wp_alt_ai_tone', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'neutral']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_style', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'descriptive']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_context', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_keywords', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
-    register_setting('suite_barrio_settings', 'wp_alt_ai_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_tone', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'neutral']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_style', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'descriptive']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_context', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_keywords', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
+    register_setting('suite_barrio_settings', 'suite_barrio_alt_ai_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
 });
 
 /* ─────────────────────────────────────────
@@ -627,25 +647,19 @@ add_action('admin_init', function () {
    ───────────────────────────────────────── */
 add_action('add_attachment', function ($attachment_id) {
 
-    if (!get_option('wp_alt_ai_auto_upload', 0))
+    if (!get_option('suite_barrio_alt_ai_auto_upload', 0))
         return;
     if (strpos(get_post_mime_type($attachment_id), 'image/') === false)
         return;
 
     $api_key = suite_barrio_active_key();
     if (empty($api_key)) {
-        $provider = get_option('wp_alt_ai_provider', 'anthropic');
+        $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
         suite_barrio_log($attachment_id, 'error', '', '', 'Chiave API non configurata per il provider: ' . $provider);
         return;
     }
 
-    $image_path = get_attached_file($attachment_id);
-    if ($image_path && file_exists($image_path)) {
-        $image_data = file_get_contents($image_path);
-    } else {
-        $image_url = wp_get_attachment_url($attachment_id);
-        $image_data = $image_url ? @file_get_contents($image_url) : false;
-    }
+    $image_data = suite_barrio_alt_ai_read_image_data($attachment_id);
 
     if (!$image_data) {
         suite_barrio_log($attachment_id, 'error', '', '', 'Impossibile leggere il file immagine');
@@ -653,7 +667,7 @@ add_action('add_attachment', function ($attachment_id) {
     }
 
     $mime = get_post_mime_type($attachment_id) ?: 'image/jpeg';
-    $lang = get_option('wp_alt_ai_language', 'it');
+    $lang = get_option('suite_barrio_alt_ai_language', 'it');
     $lang_map = ['it' => 'italiano', 'en' => 'English', 'es' => 'español', 'fr' => 'français', 'de' => 'Deutsch'];
     $lang_name = $lang_map[$lang] ?? 'italiano';
 
@@ -667,9 +681,9 @@ add_action('add_attachment', function ($attachment_id) {
     update_post_meta($attachment_id, '_wp_attachment_image_alt', $result['alt']);
     wp_update_post(['ID' => $attachment_id, 'post_title' => $result['title']]);
 
-    if (function_exists('invalidate_vercel_cache')) {
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
         $parent_id = wp_get_post_parent_id($attachment_id);
-        invalidate_vercel_cache($parent_id ?: 'wp:global');
+        suite_barrio_invalidate_vercel_cache($parent_id ?: 'wp:global');
     }
 
     suite_barrio_log($attachment_id, 'success', $result['alt'], $result['title'], 'Auto-generato su upload');
@@ -723,6 +737,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
     if (strpos($hook, 'suite-barrio-auto-alt') !== false) {
         wp_enqueue_media();
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
         $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'review';
 
         // JS della tab "Impostazioni" (selezione provider/modello AI)
@@ -755,7 +770,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
             var lbl = document.createElement(\'label\');
             lbl.className = \'suite-barrio-model-label\' + (chk ? \' selected\' : \'\');
             lbl.innerHTML =
-                \'<input type="radio" name="wp_alt_ai_model" value="\' + id + \'"\' +
+                \'<input type="radio" name="suite_barrio_alt_ai_model" value="\' + id + \'"\' +
                 (chk ? \' checked\' : \'\') + \' style="margin-top:2px;accent-color:#111827;flex-shrink:0;">\' +
                 \'<div><div class="suite-barrio-model-name">\' + (m.name || id) + \'</div>\' +
                 (m.desc ? \'<div class="suite-barrio-model-desc">\' + m.desc + \'</div>\' : \'\') +
@@ -792,7 +807,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
         });
     });
 
-    document.querySelectorAll(\'input[name="wp_alt_ai_provider"]\').forEach(function (radio) {
+    document.querySelectorAll(\'input[name="suite_barrio_alt_ai_provider"]\').forEach(function (radio) {
         radio.addEventListener(\'change\', function () {
             var sel = this.value;
             document.querySelectorAll(\'.suite-barrio-provider-card\').forEach(function (c) {
@@ -802,7 +817,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
                 var prov = panel.id.replace(\'keys-\', \'\');
                 var active = (prov === sel);
                 panel.classList.toggle(\'visible\', active);
-                panel.querySelectorAll(\'input[type=radio][name="wp_alt_ai_model"]\').forEach(function (r) { r.disabled = !active; });
+                panel.querySelectorAll(\'input[type=radio][name="suite_barrio_alt_ai_model"]\').forEach(function (r) { r.disabled = !active; });
                 if (active) { currentModel = \'\'; loadModels(prov, panel, false); }
             });
         });
@@ -817,7 +832,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
             $settings_js = strtr($settings_js, [
                 '%%AJAX_URL%%' => wp_json_encode(admin_url('admin-ajax.php')),
                 '%%NONCE%%' => wp_json_encode(wp_create_nonce('suite_barrio_nonce')),
-                '%%CURRENT_MODEL%%' => wp_json_encode(get_option('wp_alt_ai_model', '')),
+                '%%CURRENT_MODEL%%' => wp_json_encode(get_option('suite_barrio_alt_ai_model', '')),
             ]);
 
             wp_add_inline_script('suite-barrio-auto-alt-settings', $settings_js);
@@ -1014,7 +1029,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
 function suite_barrio_admin_page()
 {
     $api_key = suite_barrio_active_key();
-    $auto_upload = get_option('wp_alt_ai_auto_upload', 0);
+    $auto_upload = get_option('suite_barrio_alt_ai_auto_upload', 0);
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'review';
     $per_page = 12;
     $paged = max(1, intval($_GET['paged'] ?? 1));
@@ -1207,7 +1222,7 @@ function suite_barrio_admin_page()
                ════════════════════════════════════════ */
         elseif ($tab === 'log'):
 
-            if (!get_option('wp_alt_ai_log_enabled', 1)): ?>
+            if (!get_option('suite_barrio_alt_ai_log_enabled', 1)): ?>
                 <div class="suite-barrio-notice suite-barrio-notice-warning">
                     <span class="dashicons dashicons-warning"></span>
                     <div><strong>Registrazione log disabilitata.</strong> <a href="?page=suite-barrio-auto-alt&tab=settings">Riattiva
@@ -1333,16 +1348,16 @@ function suite_barrio_admin_page()
             endif;
 
         elseif ($tab === 'settings'):
-            $provider = get_option('wp_alt_ai_provider', 'anthropic');
-            $model = get_option('wp_alt_ai_model', 'claude-opus-4-6');
-            $key_anthropic = get_option('wp_alt_ai_api_key', '');
-            $key_gemini = get_option('wp_alt_ai_gemini_key', '');
+            $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
+            $model = get_option('suite_barrio_alt_ai_model', 'claude-opus-4-6');
+            $key_anthropic = get_option('suite_barrio_alt_ai_api_key', '');
+            $key_gemini = get_option('suite_barrio_alt_ai_gemini_key', '');
 
             $providers = [
                 'anthropic' => [
                     'name' => 'Anthropic — Claude',
                     'desc' => 'Claude Opus, Sonnet, Haiku — eccellente per descrizioni contestuali',
-                    'key_field' => 'wp_alt_ai_api_key',
+                    'key_field' => 'suite_barrio_alt_ai_api_key',
                     'key_val' => $key_anthropic,
                     'key_ph' => 'sk-ant-api03-…',
                     'key_url' => 'https://console.anthropic.com/',
@@ -1357,7 +1372,7 @@ function suite_barrio_admin_page()
                 'gemini' => [
                     'name' => 'Google — Gemini',
                     'desc' => 'Gemini 2.0 / 2.5 Flash & Pro — ottimo rapporto qualità/costo',
-                    'key_field' => 'wp_alt_ai_gemini_key',
+                    'key_field' => 'suite_barrio_alt_ai_gemini_key',
                     'key_val' => $key_gemini,
                     'key_ph' => 'AIza…',
                     'key_url' => 'https://aistudio.google.com/app/apikey',
@@ -1386,7 +1401,7 @@ function suite_barrio_admin_page()
                             ?>
                             <label class="suite-barrio-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
                                 data-provider="<?php echo esc_attr($pval); ?>">
-                                <input type="radio" name="wp_alt_ai_provider" value="<?php echo esc_attr($pval); ?>" <?php checked($provider, $pval); ?>>
+                                <input type="radio" name="suite_barrio_alt_ai_provider" value="<?php echo esc_attr($pval); ?>" <?php checked($provider, $pval); ?>>
                                 <div>
                                     <div class="suite-barrio-pc-name"><?php echo esc_html($pdata['name']); ?></div>
                                     <div class="suite-barrio-pc-desc"><?php echo esc_html($pdata['desc']); ?></div>
@@ -1415,7 +1430,7 @@ function suite_barrio_admin_page()
                                             $m_checked = ($active_model === $mval);
                                             ?>
                                             <label class="suite-barrio-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
-                                                <input type="radio" name="wp_alt_ai_model" value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
+                                                <input type="radio" name="suite_barrio_alt_ai_model" value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
                                                 <div>
                                                     <div class="suite-barrio-model-name"><?php echo esc_html($mdata['name']); ?></div>
                                                     <div class="suite-barrio-model-desc"><?php echo esc_html($mdata['desc']); ?></div>
@@ -1434,9 +1449,9 @@ function suite_barrio_admin_page()
                 <div class="suite-barrio-section-box">
                     <div class="suite-barrio-section-head"><span class="dashicons dashicons-translation"></span> Lingua output</div>
                     <div class="suite-barrio-section-body">
-                        <?php $lang = get_option('wp_alt_ai_language', 'it'); ?>
+                        <?php $lang = get_option('suite_barrio_alt_ai_language', 'it'); ?>
                         <label class="suite-barrio-field-label">Lingua dei testi generati</label>
-                        <select name="wp_alt_ai_language" class="suite-barrio-select">
+                        <select name="suite_barrio_alt_ai_language" class="suite-barrio-select">
                             <option value="it" <?php selected($lang, 'it'); ?>>🇮🇹 Italiano</option>
                             <option value="en" <?php selected($lang, 'en'); ?>>🇬🇧 English</option>
                             <option value="es" <?php selected($lang, 'es'); ?>>🇪🇸 Español</option>
@@ -1453,7 +1468,7 @@ function suite_barrio_admin_page()
 
                         <div class="suite-barrio-toggle-row">
                             <label class="suite-barrio-toggle">
-                                <input type="checkbox" name="wp_alt_ai_auto_upload" value="1" <?php checked($auto_upload, 1); ?>><span class="suite-barrio-toggle-track"></span>
+                                <input type="checkbox" name="suite_barrio_alt_ai_auto_upload" value="1" <?php checked($auto_upload, 1); ?>><span class="suite-barrio-toggle-track"></span>
                             </label>
                             <div class="suite-barrio-toggle-info">
                                 <div class="suite-barrio-toggle-label">Generazione automatica su upload</div>
@@ -1462,10 +1477,10 @@ function suite_barrio_admin_page()
                             </div>
                         </div>
 
-                        <?php $log_enabled = get_option('wp_alt_ai_log_enabled', 1); ?>
+                        <?php $log_enabled = get_option('suite_barrio_alt_ai_log_enabled', 1); ?>
                         <div class="suite-barrio-toggle-row">
                             <label class="suite-barrio-toggle">
-                                <input type="checkbox" name="wp_alt_ai_log_enabled" value="1" <?php checked($log_enabled, 1); ?>><span class="suite-barrio-toggle-track"></span>
+                                <input type="checkbox" name="suite_barrio_alt_ai_log_enabled" value="1" <?php checked($log_enabled, 1); ?>><span class="suite-barrio-toggle-track"></span>
                             </label>
                             <div class="suite-barrio-toggle-info">
                                 <div class="suite-barrio-toggle-label">Registrazione log</div>
@@ -1482,9 +1497,9 @@ function suite_barrio_admin_page()
                     <div class="suite-barrio-section-body">
 
                         <div style="margin-bottom:18px;">
-                            <label class="suite-barrio-field-label" for="wp_alt_ai_tone">Registro linguistico</label>
-                            <?php $tone = get_option('wp_alt_ai_tone', 'neutral'); ?>
-                            <select name="wp_alt_ai_tone" id="wp_alt_ai_tone" class="suite-barrio-select">
+                            <label class="suite-barrio-field-label" for="suite_barrio_alt_ai_tone">Registro linguistico</label>
+                            <?php $tone = get_option('suite_barrio_alt_ai_tone', 'neutral'); ?>
+                            <select name="suite_barrio_alt_ai_tone" id="suite_barrio_alt_ai_tone" class="suite-barrio-select">
                                 <option value="neutral" <?php selected($tone, 'neutral'); ?>>Neutro e oggettivo</option>
                                 <option value="professional" <?php selected($tone, 'professional'); ?>>Professionale e formale
                                 </option>
@@ -1497,9 +1512,9 @@ function suite_barrio_admin_page()
                         </div>
 
                         <div style="margin-bottom:18px;">
-                            <label class="suite-barrio-field-label" for="wp_alt_ai_style">Stile descrittivo</label>
-                            <?php $style = get_option('wp_alt_ai_style', 'descriptive'); ?>
-                            <select name="wp_alt_ai_style" id="wp_alt_ai_style" class="suite-barrio-select">
+                            <label class="suite-barrio-field-label" for="suite_barrio_alt_ai_style">Stile descrittivo</label>
+                            <?php $style = get_option('suite_barrio_alt_ai_style', 'descriptive'); ?>
+                            <select name="suite_barrio_alt_ai_style" id="suite_barrio_alt_ai_style" class="suite-barrio-select">
                                 <option value="descriptive" <?php selected($style, 'descriptive'); ?>>Descrittivo — elenca gli
                                     elementi visivi</option>
                                 <option value="contextual" <?php selected($style, 'contextual'); ?>>Contestuale — interpreta
@@ -1513,20 +1528,20 @@ function suite_barrio_admin_page()
                         </div>
 
                         <div style="margin-bottom:18px;">
-                            <label class="suite-barrio-field-label" for="wp_alt_ai_context">Contesto del sito</label>
-                            <input type="text" name="wp_alt_ai_context" id="wp_alt_ai_context" class="suite-barrio-input"
+                            <label class="suite-barrio-field-label" for="suite_barrio_alt_ai_context">Contesto del sito</label>
+                            <input type="text" name="suite_barrio_alt_ai_context" id="suite_barrio_alt_ai_context" class="suite-barrio-input"
                                 style="width:100%;max-width:460px;"
-                                value="<?php echo esc_attr(get_option('wp_alt_ai_context', '')); ?>"
+                                value="<?php echo esc_attr(get_option('suite_barrio_alt_ai_context', '')); ?>"
                                 placeholder="es. e-commerce di moda sostenibile, blog di cucina italiana…">
                             <p class="suite-barrio-field-desc">Fornisce contesto all'AI per generare testi più pertinenti al tuo settore.
                             </p>
                         </div>
 
                         <div>
-                            <label class="suite-barrio-field-label" for="wp_alt_ai_keywords">Parole chiave SEO</label>
-                            <input type="text" name="wp_alt_ai_keywords" id="wp_alt_ai_keywords" class="suite-barrio-input"
+                            <label class="suite-barrio-field-label" for="suite_barrio_alt_ai_keywords">Parole chiave SEO</label>
+                            <input type="text" name="suite_barrio_alt_ai_keywords" id="suite_barrio_alt_ai_keywords" class="suite-barrio-input"
                                 style="width:100%;max-width:460px;"
-                                value="<?php echo esc_attr(get_option('wp_alt_ai_keywords', '')); ?>"
+                                value="<?php echo esc_attr(get_option('suite_barrio_alt_ai_keywords', '')); ?>"
                                 placeholder="es. scarpe artigianali, pelle italiana, handmade…">
                             <p class="suite-barrio-field-desc">Parole chiave da includere nell'alt text se pertinenti. Separate da
                                 virgola.</p>
@@ -1571,9 +1586,9 @@ add_action('wp_ajax_suite_barrio_save', function () {
     update_post_meta($id, '_wp_attachment_image_alt', $alt);
     wp_update_post(['ID' => $id, 'post_title' => $title]);
 
-    if (function_exists('invalidate_vercel_cache')) {
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
         $parent_id = wp_get_post_parent_id($id);
-        invalidate_vercel_cache($parent_id ?: 'wp:global');
+        suite_barrio_invalidate_vercel_cache($parent_id ?: 'wp:global');
     }
 
     $status = ($source === 'ai') ? 'success' : 'manual';
@@ -1597,13 +1612,7 @@ add_action('wp_ajax_suite_barrio_generate', function () {
     }
 
     // Leggi immagine da filesystem (più veloce) o da URL
-    $image_path = get_attached_file($id);
-    if ($image_path && file_exists($image_path)) {
-        $image_data = file_get_contents($image_path);
-    } else {
-        $image_url = wp_get_attachment_url($id);
-        $image_data = $image_url ? @file_get_contents($image_url) : false;
-    }
+    $image_data = suite_barrio_alt_ai_read_image_data($id);
 
     if (!$image_data) {
         suite_barrio_log($id, 'error', '', '', 'Impossibile leggere il file immagine');
@@ -1611,7 +1620,7 @@ add_action('wp_ajax_suite_barrio_generate', function () {
     }
 
     $mime = get_post_mime_type($id) ?: 'image/jpeg';
-    $lang = get_option('wp_alt_ai_language', 'it');
+    $lang = get_option('suite_barrio_alt_ai_language', 'it');
     $lang_map = ['it' => 'italiano', 'en' => 'English', 'es' => 'español', 'fr' => 'français', 'de' => 'Deutsch'];
     $lang_name = $lang_map[$lang] ?? 'italiano';
 
@@ -1623,8 +1632,8 @@ add_action('wp_ajax_suite_barrio_generate', function () {
         wp_send_json_error($result['error']);
     }
 
-    $provider = get_option('wp_alt_ai_provider', 'anthropic');
-    $model = get_option('wp_alt_ai_model', '');
+    $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
+    $model = get_option('suite_barrio_alt_ai_model', '');
     $note = 'Generato con AI (' . $provider . ($model ? ' / ' . $model : '') . ')';
 
     // Se richiesto (es. bulk), salva direttamente qui
@@ -1632,9 +1641,9 @@ add_action('wp_ajax_suite_barrio_generate', function () {
     if ($save) {
         update_post_meta($id, '_wp_attachment_image_alt', $result['alt']);
         wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
-        if (function_exists('invalidate_vercel_cache')) {
+        if (function_exists('suite_barrio_invalidate_vercel_cache')) {
             $parent_id = wp_get_post_parent_id($id);
-            invalidate_vercel_cache($parent_id ?: 'wp:global');
+            suite_barrio_invalidate_vercel_cache($parent_id ?: 'wp:global');
         }
         $note .= ' — auto-salvato';
     }
@@ -1755,12 +1764,7 @@ add_filter('attachment_fields_to_edit', function ($form_fields, $post) {
     if (strpos($post->post_mime_type, 'image/') === false)
         return $form_fields;
 
-    // Mostra il pulsante solo all'admin con email specifica
-    $current_user = wp_get_current_user();
-    if (
-        !current_user_can('administrator') ||
-        $current_user->user_email !== 'support@hellobarrio.it'
-    ) {
+    if (!current_user_can('manage_options')) {
         return $form_fields;
     }
 
@@ -1824,13 +1828,7 @@ add_action('wp_ajax_suite_barrio_generate_force', function () {
         wp_send_json_error('Il file non è un\'immagine.');
 
     // Leggi immagine da filesystem o da URL
-    $image_path = get_attached_file($id);
-    if ($image_path && file_exists($image_path)) {
-        $image_data = file_get_contents($image_path);
-    } else {
-        $image_url = wp_get_attachment_url($id);
-        $image_data = $image_url ? @file_get_contents($image_url) : false;
-    }
+    $image_data = suite_barrio_alt_ai_read_image_data($id);
 
     if (!$image_data) {
         suite_barrio_log($id, 'error', '', '', 'Media detail: impossibile leggere il file immagine');
@@ -1838,7 +1836,7 @@ add_action('wp_ajax_suite_barrio_generate_force', function () {
     }
 
     $mime = get_post_mime_type($id) ?: 'image/jpeg';
-    $lang = get_option('wp_alt_ai_language', 'it');
+    $lang = get_option('suite_barrio_alt_ai_language', 'it');
     $lang_map = ['it' => 'italiano', 'en' => 'English', 'es' => 'español', 'fr' => 'français', 'de' => 'Deutsch'];
     $lang_name = $lang_map[$lang] ?? 'italiano';
 
@@ -1854,13 +1852,13 @@ add_action('wp_ajax_suite_barrio_generate_force', function () {
     update_post_meta($id, '_wp_attachment_image_alt', $result['alt']);
     wp_update_post(['ID' => $id, 'post_title' => $result['title']]);
 
-    if (function_exists('invalidate_vercel_cache')) {
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
         $parent_id = wp_get_post_parent_id($id);
-        invalidate_vercel_cache($parent_id ?: 'wp:global');
+        suite_barrio_invalidate_vercel_cache($parent_id ?: 'wp:global');
     }
 
-    $provider = get_option('wp_alt_ai_provider', 'anthropic');
-    $model = get_option('wp_alt_ai_model', '');
+    $provider = get_option('suite_barrio_alt_ai_provider', 'anthropic');
+    $model = get_option('suite_barrio_alt_ai_model', '');
     suite_barrio_log(
         $id,
         'success',

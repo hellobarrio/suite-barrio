@@ -12,9 +12,9 @@ if (!defined('ABSPATH'))
     exit;
 
 define('SUITE_BARRIO_ORARI_VERSION', '1.0.0');
-define('SUITE_BARRIO_ORARI_OPTION', 'wpb_orari_settings');   // credenziali globali
-define('SUITE_BARRIO_ORARI_DATA_OPTION', 'wpb_orari_data');        // dati orari salvati
-define('SUITE_BARRIO_ORARI_CRON_HOOK', 'wpb_cron_aggiorna_orari');
+define('SUITE_BARRIO_ORARI_OPTION', 'suite_barrio_orari_settings');   // credenziali globali
+define('SUITE_BARRIO_ORARI_DATA_OPTION', 'suite_barrio_orari_data');        // dati orari salvati
+define('SUITE_BARRIO_ORARI_CRON_HOOK', 'suite_barrio_cron_aggiorna_orari');
 
 /* ─────────────────────────────────────────
    MENU ADMIN
@@ -138,8 +138,8 @@ function suite_barrio_orari_fetch_and_save(): array
     update_option(SUITE_BARRIO_ORARI_DATA_OPTION, $data, false);
 
     // Invalida cache Vercel se la funzione è disponibile
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:orari');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:orari');
     }
 
     return ['success' => true, 'message' => 'Orari aggiornati con successo.', 'data' => $data];

@@ -12,7 +12,7 @@ if (!defined('ABSPATH'))
     exit;
 
 if (!defined('SUITE_BARRIO_REDIRECTS_OPTION'))
-    define('SUITE_BARRIO_REDIRECTS_OPTION', 'wpb_redirects');
+    define('SUITE_BARRIO_REDIRECTS_OPTION', 'suite_barrio_redirects');
 
 /* ─────────────────────────────────────────
    MENU
@@ -292,8 +292,8 @@ add_action('wp_ajax_suite_barrio_redirect_save', function () {
     }
 
     update_option(SUITE_BARRIO_REDIRECTS_OPTION, $rows, false);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:redirects');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:redirects');
     }
     wp_send_json_success(['rows' => suite_barrio_redirects_get_all()]);
 });
@@ -313,8 +313,8 @@ add_action('wp_ajax_suite_barrio_redirect_delete', function () {
 
     $rows = array_values(array_filter($rows, fn($r) => ($r['id'] ?? '') !== $id));
     update_option(SUITE_BARRIO_REDIRECTS_OPTION, $rows, false);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:redirects');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:redirects');
     }
     wp_send_json_success(['rows' => suite_barrio_redirects_get_all()]);
 });
@@ -444,8 +444,8 @@ add_action('wp_ajax_inline-save', function () {
         return;
     $uri = wp_make_link_relative(get_permalink($post_id) ?: '');
     if ($uri)
-        update_post_meta($post_id, '_wpb_pre_update_link_uri', $uri);
-    update_post_meta($post_id, '_wpb_pre_update_slug', $post->post_name);
+        update_post_meta($post_id, '_suite_barrio_pre_update_link_uri', $uri);
+    update_post_meta($post_id, '_suite_barrio_pre_update_slug', $post->post_name);
 }, 0);
 
 /* ─────────────────────────────────────────
@@ -461,8 +461,8 @@ add_action('pre_post_update', function ($post_id, $data) {
         return;
     $uri = wp_make_link_relative(get_permalink($post_id) ?: '');
     if ($uri)
-        update_post_meta($post_id, '_wpb_pre_update_link_uri', $uri);
-    update_post_meta($post_id, '_wpb_pre_update_slug', $post->post_name);
+        update_post_meta($post_id, '_suite_barrio_pre_update_link_uri', $uri);
+    update_post_meta($post_id, '_suite_barrio_pre_update_slug', $post->post_name);
 }, 9, 2);
 
 add_action('post_updated', function ($post_id, $post_after, $post_before) {
@@ -473,12 +473,12 @@ add_action('post_updated', function ($post_id, $post_after, $post_before) {
     if (wp_is_post_revision($post_id))
         return;
 
-    $old_slug = get_post_meta($post_id, '_wpb_pre_update_slug', true);
+    $old_slug = get_post_meta($post_id, '_suite_barrio_pre_update_slug', true);
     $new_slug = $post_after->post_name;
-    $old_uri = get_post_meta($post_id, '_wpb_pre_update_link_uri', true);
+    $old_uri = get_post_meta($post_id, '_suite_barrio_pre_update_link_uri', true);
 
-    delete_post_meta($post_id, '_wpb_pre_update_slug');
-    delete_post_meta($post_id, '_wpb_pre_update_link_uri');
+    delete_post_meta($post_id, '_suite_barrio_pre_update_slug');
+    delete_post_meta($post_id, '_suite_barrio_pre_update_link_uri');
 
     if (empty($old_slug) || $old_slug === $new_slug)
         return;
@@ -512,14 +512,14 @@ add_action('edit_term', function ($term_id, $tt_id, $taxonomy) {
     $link = get_term_link($term, $taxonomy);
     if (is_wp_error($link))
         return;
-    set_transient('wpb_term_pre_uri_' . $term_id, wp_make_link_relative($link), 60);
+    set_transient('suite_barrio_term_pre_uri_' . $term_id, wp_make_link_relative($link), 60);
 }, 10, 3);
 
 add_action('edited_term', function ($term_id, $tt_id, $taxonomy) {
     if (!suite_barrio_tools_module_enabled('seo'))
         return;
-    $old_uri = get_transient('wpb_term_pre_uri_' . $term_id);
-    delete_transient('wpb_term_pre_uri_' . $term_id);
+    $old_uri = get_transient('suite_barrio_term_pre_uri_' . $term_id);
+    delete_transient('suite_barrio_term_pre_uri_' . $term_id);
     if (!$old_uri)
         return;
     $term = get_term($term_id, $taxonomy);

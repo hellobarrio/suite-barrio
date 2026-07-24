@@ -1,6 +1,21 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+/* ── Sanifica lo script di embed di un servizio: campo pensato per
+   contenere markup/<script> del servizio di terze parti (es. tag di
+   tracciamento). Solo chi ha unfiltered_html può salvarlo invariato;
+   per tutti gli altri viene passato da wp_kses. ── */
+function suite_barrio_cb_sanitize_service_script(string $raw): string {
+    $raw = trim($raw);
+    if ($raw === '') {
+        return '';
+    }
+    if (!current_user_can('unfiltered_html')) {
+        $raw = wp_kses($raw, wp_kses_allowed_html('post'));
+    }
+    return $raw;
+}
+
 /* ── Assets: JS/CSS dei tab Servizi, GTM e Banner, caricati solo sulla
    pagina/tab corrispondente della schermata Cookie e Privacy ── */
 add_action('admin_enqueue_scripts', function () {
@@ -334,8 +349,8 @@ add_action('wp_ajax_suite_barrio_cb_service_add', function () {
         'privacy_url' => esc_url_raw(wp_unslash($_POST['privacy_url'] ?? '')),
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da suite_barrio_cb_check_ajax() a inizio funzione
         'cookies'     => array_filter(array_map('trim', explode(',', sanitize_text_field(wp_unslash($_POST['cookies'] ?? ''))))),
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verificato da suite_barrio_cb_check_ajax() a inizio funzione; campo script contiene markup/script intenzionale, sanitize_text_field lo corromperebbe
-        'script'      => wp_unslash($_POST['script'] ?? ''),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verificato da suite_barrio_cb_check_ajax(); valore sanificato da suite_barrio_cb_sanitize_service_script()
+        'script'      => suite_barrio_cb_sanitize_service_script(wp_unslash($_POST['script'] ?? '')),
         'active'      => true,
         'source'      => 'manual',
     ];
@@ -361,8 +376,8 @@ add_action('wp_ajax_suite_barrio_cb_service_update', function () {
         'privacy_url' => esc_url_raw(wp_unslash($_POST['privacy_url'] ?? '')),
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da suite_barrio_cb_check_ajax() a inizio funzione
         'cookies'     => array_filter(array_map('trim', explode(',', sanitize_text_field(wp_unslash($_POST['cookies'] ?? ''))))),
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verificato da suite_barrio_cb_check_ajax() a inizio funzione; campo script contiene markup/script intenzionale, sanitize_text_field lo corromperebbe
-        'script'      => wp_unslash($_POST['script'] ?? ''),
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verificato da suite_barrio_cb_check_ajax(); valore sanificato da suite_barrio_cb_sanitize_service_script()
+        'script'      => suite_barrio_cb_sanitize_service_script(wp_unslash($_POST['script'] ?? '')),
     ];
     SUITE_BARRIO_Service_Registry::update_service($id, $data);
     wp_send_json_success();
@@ -401,9 +416,9 @@ add_action('wp_ajax_suite_barrio_cb_banner_save', function () {
     }
     // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verificato da suite_barrio_cb_check_ajax() a inizio funzione
     $config['show_widget'] = !empty($_POST['show_widget']);
-    update_option('wpb_cb_banner_config', $config, false);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+    update_option('suite_barrio_cb_banner_config', $config, false);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:global');
     }
     wp_send_json_success();
 });
@@ -545,7 +560,7 @@ add_action('wp_ajax_suite_barrio_cb_service_list', function () {
 /* ── AJAX: avvia scansione manuale (sincrona con time limit esteso) ── */
 add_action('wp_ajax_suite_barrio_cb_run_scan', function () {
     suite_barrio_cb_check_ajax();
-    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
+    // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged -- alcuni host disabilitano set_time_limit(); @ evita il warning, necessario per operazioni batch lunghe
     if (function_exists('set_time_limit')) @set_time_limit(120);
     $results = SUITE_BARRIO_Scanner::run();
     if (isset($results['error'])) {
@@ -713,7 +728,7 @@ function suite_barrio_cb_render_tab_gtm(): void {
 
 /* ── Render: tab Banner (Task 5) ── */
 function suite_barrio_cb_render_tab_banner(): void {
-    $cfg   = get_option('wpb_cb_banner_config', []);
+    $cfg   = get_option('suite_barrio_cb_banner_config', []);
     $f = function(string $key, string $default) use ($cfg): string {
         return esc_attr($cfg[$key] ?? $default);
     };
