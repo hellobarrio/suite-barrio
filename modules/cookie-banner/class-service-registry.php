@@ -3,8 +3,8 @@ if (!defined('ABSPATH')) exit;
 
 class SUITE_BARRIO_Service_Registry {
 
-    const CATEGORIES_OPTION = 'wpb_cb_categories';
-    const SERVICES_OPTION   = 'wpb_cb_services';
+    const CATEGORIES_OPTION = 'suite_barrio_cb_categories';
+    const SERVICES_OPTION   = 'suite_barrio_cb_services';
 
     /* ── Categorie ── */
 

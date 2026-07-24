@@ -3,8 +3,8 @@ if (!defined('ABSPATH')) exit;
 
 class SUITE_BARRIO_Scanner {
 
-    const RESULTS_OPTION     = 'wpb_cb_scan_results';
-    const PROGRESS_TRANSIENT = 'wpb_cb_scan_progress';
+    const RESULTS_OPTION     = 'suite_barrio_cb_scan_results';
+    const PROGRESS_TRANSIENT = 'suite_barrio_cb_scan_progress';
     const MAX_PAGES          = 15;
 
     /* ── Provider database (pubblico per SUITE_BARRIO_Script_Blocker) ── */
@@ -375,7 +375,7 @@ class SUITE_BARRIO_Scanner {
      */
     private static function scan_gtm_container(string $container_id): array {
         $response = wp_remote_get(
-            'https://www.googletagmanager.com/gtm.js?id=' . urlencode($container_id),
+            'https://www.googletagmanager.com/gtm.js?id=' . rawurlencode($container_id),
             ['timeout' => 15, 'user-agent' => 'SuiteBarrio-Scanner/1.0 (+https://hellobarrio.it)']
         );
 

@@ -10,7 +10,7 @@ if (!defined('ABSPATH'))
     exit;
 
 if (!defined('SUITE_BARRIO_SITEMAP_OPTION'))
-    define('SUITE_BARRIO_SITEMAP_OPTION', 'wpb_sitemap_settings');
+    define('SUITE_BARRIO_SITEMAP_OPTION', 'suite_barrio_sitemap_settings');
 
 /* ─────────────────────────────────────────
    MENU (nascosto, raggiungibile via URL)
@@ -88,8 +88,8 @@ add_action('admin_post_suite_barrio_sitemap_save', function () {
     }
 
     update_option(SUITE_BARRIO_SITEMAP_OPTION, $settings);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:sitemap');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:sitemap');
     }
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-sitemap&saved=1'));
     exit;
@@ -168,6 +168,7 @@ function suite_barrio_sitemap_build_entries()
 
         // Switcha contesto lingua WPML (no-op se WPML non è attivo)
         if ($wpml_active) {
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoca l'hook di WPML, non ne definisce uno nuovo
             do_action('wpml_switch_language', $lang_code);
         }
 
@@ -195,7 +196,7 @@ function suite_barrio_sitemap_build_entries()
             ]);
 
             foreach ($posts as $post_id) {
-                $post_sitemap = get_post_meta($post_id, '_wpb_seo_sitemap', true);
+                $post_sitemap = get_post_meta($post_id, '_suite_barrio_seo_sitemap', true);
                 if ($post_sitemap === '0')
                     continue;
 
@@ -267,6 +268,7 @@ function suite_barrio_sitemap_build_entries()
 
     // Ripristina la lingua corrente WPML
     if ($wpml_active) {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoca l'hook di WPML, non ne definisce uno nuovo
         do_action('wpml_switch_language', null);
     }
 

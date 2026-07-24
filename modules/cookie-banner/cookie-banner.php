@@ -22,7 +22,7 @@ function suite_barrio_cb_get_services_for_prompt(): string {
 
 /* ── Config condivisa tra frontend.php e rest-api.php ── */
 function suite_barrio_cb_build_frontend_config(): array {
-    $banner  = get_option('wpb_cb_banner_config', []);
+    $banner  = get_option('suite_barrio_cb_banner_config', []);
     $cats    = SUITE_BARRIO_Service_Registry::get_categories();
 
     return [
@@ -45,7 +45,11 @@ function suite_barrio_cb_build_frontend_config(): array {
             'show_widget' => $banner['show_widget'] ?? true,
             'widget_pos'  => $banner['widget_pos']  ?? 'bottom-right',
         ],
-        'preferencesUrl' => rest_url('wpb/v1/cookie-banner/preferences-html'),
+        'preferencesUrl' => rest_url('suite-barrio/v1/cookie-banner/preferences-html'),
+        // Provato dal frontend nella richiesta di consent-log: dimostra che il
+        // chiamante ha prima caricato questa config dal sito, invece di essere
+        // uno script/bot esterno che invia POST alla cieca sull'endpoint pubblico.
+        'consentNonce'   => wp_create_nonce('suite_barrio_cb_consent_log'),
     ];
 }
 

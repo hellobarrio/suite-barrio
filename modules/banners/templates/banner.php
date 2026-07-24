@@ -15,8 +15,10 @@
 
 if (!defined('ABSPATH')) exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- variabili locali di questo file di template, iniettate da extract() in suite_barrio_get_template(), non variabili globali
 $item  = '<div class="suite-barrio-banner__item">' . esc_html($title) . '</div>';
 $items = str_repeat($item, 15);
+// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
 ?>
 
 <div id="<?php echo esc_attr($uid); ?>" class="suite-barrio-banner">

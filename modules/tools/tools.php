@@ -1,8 +1,7 @@
 <?php
 /**
  * Suite Barrio — Strumenti
- * Pagina di amministrazione riservata a support@hellobarrio.it
- * Permette di attivare/disattivare i singoli moduli del plugin.
+ * Pagina di amministrazione per attivare/disattivare i singoli moduli del plugin.
  *
  * @package Suite_Barrio
  */
@@ -13,18 +12,14 @@ if (!defined('ABSPATH'))
 /* ─────────────────────────────────────────
    COSTANTI
    ───────────────────────────────────────── */
-define('SUITE_BARRIO_TOOLS_OPTION', 'wpb_tools_modules');
-define('SUITE_BARRIO_TOOLS_ALLOWED_EMAIL', 'support@hellobarrio.it');
+define('SUITE_BARRIO_TOOLS_OPTION', 'suite_barrio_tools_modules');
 
 /* ─────────────────────────────────────────
    HELPER: l'utente corrente può accedere?
    ───────────────────────────────────────── */
 function suite_barrio_tools_can_access()
 {
-    if (!is_user_logged_in())
-        return false;
-    $user = wp_get_current_user();
-    return strtolower($user->user_email) === SUITE_BARRIO_TOOLS_ALLOWED_EMAIL;
+    return current_user_can('manage_options');
 }
 
 /* ─────────────────────────────────────────

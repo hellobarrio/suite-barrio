@@ -15,6 +15,14 @@ add_action('wp_enqueue_scripts', function () {
         'window.SuiteBarrioConfig = ' . wp_json_encode(suite_barrio_cb_build_frontend_config()) . ';',
         'before'
     );
+
+    // Handle "vuoto" (nessun file esterno) usato come contenitore per il CSS
+    // del widget preferenze, caricato via REST come frammento HTML: non
+    // possiamo agganciare wp_enqueue_style al frammento stesso, quindi lo
+    // registriamo qui in modo che sia sempre presente in pagina.
+    wp_register_style('suite-barrio-cb-preferences', '', [], SUITE_BARRIO_VERSION);
+    wp_enqueue_style('suite-barrio-cb-preferences');
+    wp_add_inline_style('suite-barrio-cb-preferences', suite_barrio_cb_preferences_css());
 }, 1); // Priorità 1: prima di qualsiasi altro enqueue
 
 /* ── Blocca script non-necessari registrati nel Service Registry ── */

@@ -9,7 +9,26 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('SUITE_BARRIO_WIZARD_PROGRESS_OPTION', 'wpb_wizard_progress');
+define('SUITE_BARRIO_WIZARD_PROGRESS_OPTION', 'suite_barrio_wizard_progress');
+
+/* ─────────────────────────────────────────
+   Sanifica il cookie report script (condivisa con il modulo Cookie e
+   Privacy: definita qui perché il wizard è sempre caricato, mentre
+   quel modulo può essere disattivato dalla pagina Strumenti).
+   ───────────────────────────────────────── */
+if (!function_exists('suite_barrio_cp_sanitize_report_script')) {
+    function suite_barrio_cp_sanitize_report_script(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        if (!current_user_can('unfiltered_html')) {
+            $raw = wp_kses($raw, wp_kses_allowed_html('post'));
+        }
+        return $raw;
+    }
+}
 
 /* ─────────────────────────────────────────
    DEFINIZIONE PASSI
@@ -161,6 +180,7 @@ add_action('admin_menu', function () {
     global $menu;
     foreach ($menu as $k => $item) {
         if (isset($item[2]) && $item[2] === 'suite-barrio') {
+            // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- aggiorna solo la propria voce di menu (slug 'suite-barrio'), nessun'altra viene toccata
             $menu[$k][0] .= ' <span class="update-plugins count-' . $count
                 . '"><span class="update-count">' . $count . '</span></span>';
             break;
@@ -280,8 +300,8 @@ add_action('admin_post_suite_barrio_wizard_step1_save', function () {
     $existing = get_option(SUITE_BARRIO_COMPANY_INFO_OPTION, []);
     update_option(SUITE_BARRIO_COMPANY_INFO_OPTION, array_merge((array) $existing, $clean));
 
-    if (function_exists('invalidate_vercel_cache'))
-        invalidate_vercel_cache('wp:option');
+    if (function_exists('suite_barrio_invalidate_vercel_cache'))
+        suite_barrio_invalidate_vercel_cache('wp:option');
 
     $progress = suite_barrio_wizard_get_progress();
     $progress['step_1'] = 'done';
@@ -331,7 +351,7 @@ add_action('admin_post_suite_barrio_wizard_step3_save', function () {
     if (!empty($gtm_id) && !str_starts_with(strtoupper($gtm_id), 'GTM-')) {
         $gtm_id = 'GTM-' . strtoupper($gtm_id);
     }
-    update_option('wpb_gtm_container_id', $gtm_id);
+    update_option('suite_barrio_gtm_container_id', $gtm_id);
 
     $progress           = suite_barrio_wizard_get_progress();
     $progress['step_3'] = 'done';
@@ -356,11 +376,11 @@ add_action('admin_post_suite_barrio_wizard_step4_save', function () {
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- già sanitizzato con sanitize_text_field(); il trim() intermedio non viene riconosciuto dal sniff
     $mj_secret_key = sanitize_text_field(trim(wp_unslash($_POST['mailjet_secret_key'] ?? '')));
 
-    $existing = get_option('wpb_forms_mailjet', []);
+    $existing = get_option('suite_barrio_forms_mailjet', []);
     if (!is_array($existing)) $existing = [];
     if ($mj_api_key !== '')    $existing['api_key']    = $mj_api_key;
     if ($mj_secret_key !== '') $existing['secret_key'] = $mj_secret_key;
-    update_option('wpb_forms_mailjet', $existing);
+    update_option('suite_barrio_forms_mailjet', $existing);
 
     $progress           = suite_barrio_wizard_get_progress();
     $progress['step_4'] = 'done';
@@ -382,11 +402,11 @@ add_action('admin_post_suite_barrio_wizard_step5_save', function () {
     check_admin_referer('suite_barrio_wizard_step5_save');
 
     // Salva il cookie report script nello stesso option usato dallo strumento Cookie e Privacy.
-    if (isset($_POST['wpb_cp_cookie_report_script'])) {
+    if (isset($_POST['suite_barrio_cp_cookie_report_script'])) {
         update_option(
-            'wpb_cp_cookie_report_script',
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- contenuto script/HTML intenzionale (cookie report script), sanitize_text_field ne corromperebbe il markup
-            trim(wp_unslash($_POST['wpb_cp_cookie_report_script']))
+            'suite_barrio_cp_cookie_report_script',
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanificato da suite_barrio_cp_sanitize_report_script() (wp_kses se l'utente non ha unfiltered_html)
+            suite_barrio_cp_sanitize_report_script(wp_unslash($_POST['suite_barrio_cp_cookie_report_script']))
         );
     }
 
@@ -432,46 +452,46 @@ add_action('admin_post_suite_barrio_wizard_step6_save', function () {
     $cp  = function_exists($fn) && suite_barrio_tools_module_enabled('cookie_privacy');
 
     // ── Provider ──────────────────────────────────────────────────────
-    if ($alt) update_option('wp_alt_ai_provider',    $provider);
-    if ($seo) { update_option('wpb_llms_provider',   $provider); update_option('wpb_advisor_provider', $provider); }
-    if ($cp)  update_option('wpb_cp_provider',       $provider);
+    if ($alt) update_option('suite_barrio_alt_ai_provider',    $provider);
+    if ($seo) { update_option('suite_barrio_llms_provider',   $provider); update_option('suite_barrio_advisor_provider', $provider); }
+    if ($cp)  update_option('suite_barrio_cp_provider',       $provider);
 
     // ── Chiavi API ────────────────────────────────────────────────────
     if ($key_anth !== '') {
-        if ($alt) update_option('wp_alt_ai_api_key',    $key_anth);
-        if ($seo) { update_option('wpb_llms_api_key',   $key_anth); update_option('wpb_advisor_api_key', $key_anth); }
-        if ($cp)  update_option('wpb_cp_anthropic_key', $key_anth);
+        if ($alt) update_option('suite_barrio_alt_ai_api_key',    $key_anth);
+        if ($seo) { update_option('suite_barrio_llms_api_key',   $key_anth); update_option('suite_barrio_advisor_api_key', $key_anth); }
+        if ($cp)  update_option('suite_barrio_cp_anthropic_key', $key_anth);
     }
     if ($key_gem !== '') {
-        if ($alt) update_option('wp_alt_ai_gemini_key',    $key_gem);
-        if ($seo) { update_option('wpb_llms_gemini_key',   $key_gem); update_option('wpb_advisor_gemini_key', $key_gem); }
-        if ($cp)  update_option('wpb_cp_gemini_key',       $key_gem);
+        if ($alt) update_option('suite_barrio_alt_ai_gemini_key',    $key_gem);
+        if ($seo) { update_option('suite_barrio_llms_gemini_key',   $key_gem); update_option('suite_barrio_advisor_gemini_key', $key_gem); }
+        if ($cp)  update_option('suite_barrio_cp_gemini_key',       $key_gem);
     }
 
     // ── Modello ───────────────────────────────────────────────────────
     if ($model !== '') {
-        if ($alt) update_option('wp_alt_ai_model',    $model);
-        if ($seo) { update_option('wpb_llms_model',   $model); update_option('wpb_advisor_model', $model); }
-        if ($cp)  update_option('wpb_cp_model',       $model);
+        if ($alt) update_option('suite_barrio_alt_ai_model',    $model);
+        if ($seo) { update_option('suite_barrio_llms_model',   $model); update_option('suite_barrio_advisor_model', $model); }
+        if ($cp)  update_option('suite_barrio_cp_model',       $model);
     }
 
     // ── Lingua ────────────────────────────────────────────────────────
-    if ($alt) update_option('wp_alt_ai_language',    $language);
-    if ($seo) { update_option('wpb_llms_language',   $language); update_option('wpb_advisor_language', $language); }
+    if ($alt) update_option('suite_barrio_alt_ai_language',    $language);
+    if ($seo) { update_option('suite_barrio_llms_language',   $language); update_option('suite_barrio_advisor_language', $language); }
 
     // ── Tone ──────────────────────────────────────────────────────────
-    if ($alt) update_option('wp_alt_ai_tone',    $tone);
-    if ($seo) { update_option('wpb_llms_tone',   $tone); update_option('wpb_advisor_tone', $tone); }
+    if ($alt) update_option('suite_barrio_alt_ai_tone',    $tone);
+    if ($seo) { update_option('suite_barrio_llms_tone',   $tone); update_option('suite_barrio_advisor_tone', $tone); }
 
     // ── Style ─────────────────────────────────────────────────────────
-    if ($alt) update_option('wp_alt_ai_style',    $style);
-    if ($seo) update_option('wpb_advisor_style',  $style);
+    if ($alt) update_option('suite_barrio_alt_ai_style',    $style);
+    if ($seo) update_option('suite_barrio_advisor_style',  $style);
 
     // ── Contesto / keywords ───────────────────────────────────────────
-    if ($alt) update_option('wp_alt_ai_context',    $context);
-    if ($seo) { update_option('wpb_advisor_context', $context); update_option('wpb_llms_focus', $context); }
-    if ($alt) update_option('wp_alt_ai_keywords',   $keywords);
-    if ($seo) update_option('wpb_advisor_keywords', $keywords);
+    if ($alt) update_option('suite_barrio_alt_ai_context',    $context);
+    if ($seo) { update_option('suite_barrio_advisor_context', $context); update_option('suite_barrio_llms_focus', $context); }
+    if ($alt) update_option('suite_barrio_alt_ai_keywords',   $keywords);
+    if ($seo) update_option('suite_barrio_advisor_keywords', $keywords);
 
     $progress           = suite_barrio_wizard_get_progress();
     $progress['step_6'] = 'done';
@@ -508,13 +528,13 @@ function suite_barrio_wizard_seo_mark(int $substep, string $status): void
 // Sotto-step 1 — SEO Globale
 add_action('admin_post_suite_barrio_wizard_step7_sub1_save', function () {
     check_admin_referer('suite_barrio_wizard_step7_sub1_save');
-    $settings = get_option('wpb_meta_settings', []);
+    $settings = get_option('suite_barrio_meta_settings', []);
     if (!is_array($settings)) $settings = [];
     $settings['site_title']  = sanitize_text_field(wp_unslash($_POST['suite_barrio_meta_site_title']  ?? ''));
     $settings['separator']   = sanitize_text_field(wp_unslash($_POST['suite_barrio_meta_separator']   ?? '—'));
     $settings['title_order'] = sanitize_text_field(wp_unslash($_POST['suite_barrio_meta_title_order'] ?? 'page_site'));
     $settings['default_desc'] = sanitize_textarea_field(wp_unslash($_POST['suite_barrio_meta_default_desc'] ?? ''));
-    update_option('wpb_meta_settings', $settings);
+    update_option('suite_barrio_meta_settings', $settings);
     if (!empty($settings['site_title']))
         update_option('blogname', $settings['site_title']);
     suite_barrio_wizard_seo_mark(1, 'done');
@@ -532,7 +552,7 @@ add_action('admin_post_suite_barrio_wizard_step7_sub2_save', function () {
         $settings['post_types'][$pt] = isset($_POST['pt'][$pt]) ? 1 : 0;
     foreach ($taxonomies as $tax)
         $settings['taxonomies'][$tax] = isset($_POST['tax'][$tax]) ? 1 : 0;
-    update_option('wpb_sitemap_settings', $settings);
+    update_option('suite_barrio_sitemap_settings', $settings);
     suite_barrio_wizard_seo_mark(2, 'done');
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-wizard&step=7&substep=3'));
     exit;
@@ -565,10 +585,10 @@ add_action('admin_post_suite_barrio_wizard_step7_sub3_save', function () {
         'language'       => sanitize_text_field(wp_unslash($_POST['language']       ?? 'it-IT')),
     ];
     // Mantieni i campi esistenti non presenti nel form del wizard.
-    $existing = get_option('wpb_schema_settings', []);
+    $existing = get_option('suite_barrio_schema_settings', []);
     if (is_array($existing))
         $s = array_merge($existing, $s);
-    update_option('wpb_schema_settings', $s);
+    update_option('suite_barrio_schema_settings', $s);
     suite_barrio_wizard_seo_mark(3, 'done');
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-wizard&step=7&substep=4'));
     exit;
@@ -581,7 +601,7 @@ add_action('admin_post_suite_barrio_wizard_step7_sub4_save', function () {
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array grezzo di righe; ogni campo (from/to/code/note) viene unslashed e sanitizzato singolarmente nel foreach sottostante
     $rows      = isset($_POST['redirects']) && is_array($_POST['redirects']) ? $_POST['redirects'] : [];
     $valid_codes = [301, 302, 307, 308, 410];
-    $saved     = get_option('wpb_redirects', []);
+    $saved     = get_option('suite_barrio_redirects', []);
     if (!is_array($saved)) $saved = [];
 
     foreach ($rows as $row) {
@@ -597,7 +617,7 @@ add_action('admin_post_suite_barrio_wizard_step7_sub4_save', function () {
             'note' => sanitize_text_field(wp_unslash($row['note'] ?? '')),
         ];
     }
-    update_option('wpb_redirects', $saved);
+    update_option('suite_barrio_redirects', $saved);
 
     suite_barrio_wizard_seo_mark(4, 'done');
     $next = suite_barrio_wizard_next_step(7);
@@ -631,6 +651,7 @@ add_action('admin_post_suite_barrio_wizard_step8_save', function () {
     check_admin_referer('suite_barrio_wizard_step8_save');
 
     $allowed = ['gtm_analytics', 'mailjet_recaptcha', 'email_forms', 'orari_gmaps', 'popup_banner', 'auto_alt', 'cookie_policy', 'accessibility'];
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- wp_unslash() sull'array e sanitize_key() su ogni chiave estratta, poi filtrate contro $allowed subito sotto
     $submitted = isset($_POST['checks']) && is_array($_POST['checks']) ? array_map('sanitize_key', array_keys(wp_unslash($_POST['checks']))) : [];
     $checks = array_filter($submitted, fn($k) => in_array($k, $allowed, true));
 
@@ -926,7 +947,7 @@ function suite_barrio_wizard_page()
         <?php elseif ($current === 3):
 
             $site_url     = trim($data['sito_web'] ?? '');
-            $saved_gtm_id = get_option('wpb_gtm_container_id', '');
+            $saved_gtm_id = get_option('suite_barrio_gtm_container_id', '');
             $gtm_detected = '';
             $check_status = 'unchecked'; // 'found' | 'not_found' | 'error' | 'no_url'
 
@@ -1050,7 +1071,7 @@ function suite_barrio_wizard_page()
 
         <?php elseif ($current === 4):
 
-            $mj = get_option('wpb_forms_mailjet', []);
+            $mj = get_option('suite_barrio_forms_mailjet', []);
             if (!is_array($mj)) $mj = [];
             $mj_api_key    = $mj['api_key']    ?? '';
             $mj_secret_key = $mj['secret_key'] ?? '';
@@ -1190,7 +1211,7 @@ function suite_barrio_wizard_page()
                 //    nell'HTML statico — ma sono scritti in chiaro nel file JS
                 //    del container, accessibile pubblicamente). ────────────────
                 if ($check_status !== 'found' && $check_status !== 'error') {
-                    $gtm_id = strtoupper(trim(get_option('wpb_gtm_container_id', '')));
+                    $gtm_id = strtoupper(trim(get_option('suite_barrio_gtm_container_id', '')));
                     if (!empty($gtm_id)) {
                         $gtm_url      = 'https://www.googletagmanager.com/gtm.js?id=' . rawurlencode($gtm_id);
                         $gtm_response = wp_remote_get($gtm_url, [
@@ -1278,11 +1299,11 @@ function suite_barrio_wizard_page()
                                 </label>
                                 <textarea
                                     id="suite_barrio_cp_cookie_report_script_wiz"
-                                    name="wpb_cp_cookie_report_script"
+                                    name="suite_barrio_cp_cookie_report_script"
                                     rows="6"
                                     placeholder="<script id=&quot;CookieDeclaration&quot; ...></script>"
                                     class="suite-barrio-wizard-textarea"
-                                ><?php echo esc_textarea(get_option('wpb_cp_cookie_report_script', '')); ?></textarea>
+                                ><?php echo esc_textarea(get_option('suite_barrio_cp_cookie_report_script', '')); ?></textarea>
                             </div>
                         <?php endif; ?>
 
@@ -1327,16 +1348,16 @@ function suite_barrio_wizard_page()
             ]);
 
             // Legge i valori correnti dal primo modulo attivo che li ha.
-            $ref        = $active_alt ? 'wp_alt_ai' : ($active_seo ? 'suite_barrio_llms' : 'suite_barrio_advisor');
+            $ref        = $active_alt ? 'suite_barrio_alt_ai' : ($active_seo ? 'suite_barrio_llms' : 'suite_barrio_advisor');
             $provider   = (string) get_option($ref . '_provider', 'anthropic');
-            $key_anth   = (string) get_option($active_alt ? 'wp_alt_ai_api_key'    : ($active_seo ? 'wpb_llms_api_key'   : 'wpb_advisor_api_key'),    '');
-            $key_gem    = (string) get_option($active_alt ? 'wp_alt_ai_gemini_key' : ($active_seo ? 'wpb_llms_gemini_key' : 'wpb_advisor_gemini_key'), '');
+            $key_anth   = (string) get_option($active_alt ? 'suite_barrio_alt_ai_api_key'    : ($active_seo ? 'suite_barrio_llms_api_key'   : 'suite_barrio_advisor_api_key'),    '');
+            $key_gem    = (string) get_option($active_alt ? 'suite_barrio_alt_ai_gemini_key' : ($active_seo ? 'suite_barrio_llms_gemini_key' : 'suite_barrio_advisor_gemini_key'), '');
             $model      = (string) get_option($ref . '_model',    '');
             $language   = (string) get_option($ref . '_language', 'it');
             $tone       = (string) get_option($ref . '_tone',     'neutral');
-            $style      = (string) get_option($active_alt ? 'wp_alt_ai_style' : 'wpb_advisor_style', 'descriptive');
-            $context    = (string) get_option($active_alt ? 'wp_alt_ai_context'  : ($active_seo ? 'wpb_llms_focus' : 'wpb_advisor_context'), '');
-            $keywords   = (string) get_option($active_alt ? 'wp_alt_ai_keywords' : 'wpb_advisor_keywords', '');
+            $style      = (string) get_option($active_alt ? 'suite_barrio_alt_ai_style' : 'suite_barrio_advisor_style', 'descriptive');
+            $context    = (string) get_option($active_alt ? 'suite_barrio_alt_ai_context'  : ($active_seo ? 'suite_barrio_llms_focus' : 'suite_barrio_advisor_context'), '');
+            $keywords   = (string) get_option($active_alt ? 'suite_barrio_alt_ai_keywords' : 'suite_barrio_advisor_keywords', '');
 
             $providers_cfg = [
                 'anthropic' => [
@@ -1583,9 +1604,9 @@ function suite_barrio_wizard_page()
             $company = function_exists('suite_barrio_company_info_get') ? suite_barrio_company_info_get() : [];
 
             // Legge impostazioni esistenti dei sotto-strumenti.
-            $meta_s   = get_option('wpb_meta_settings',   []);  if (!is_array($meta_s))   $meta_s   = [];
-            $sitemap_s = get_option('wpb_sitemap_settings', []); if (!is_array($sitemap_s)) $sitemap_s = [];
-            $schema_s  = get_option('wpb_schema_settings',  []); if (!is_array($schema_s))  $schema_s  = [];
+            $meta_s   = get_option('suite_barrio_meta_settings',   []);  if (!is_array($meta_s))   $meta_s   = [];
+            $sitemap_s = get_option('suite_barrio_sitemap_settings', []); if (!is_array($sitemap_s)) $sitemap_s = [];
+            $schema_s  = get_option('suite_barrio_schema_settings',  []); if (!is_array($schema_s))  $schema_s  = [];
         ?>
 
             <!-- Card step 6 — SEO -->
@@ -1914,7 +1935,7 @@ function suite_barrio_wizard_page()
 
                     <!-- ═══════ SUB-STEP 4: Redirects ═══════ -->
                     <?php elseif ($cur_sub === 4):
-                        $existing_redirects = get_option('wpb_redirects', []);
+                        $existing_redirects = get_option('suite_barrio_redirects', []);
                         if (!is_array($existing_redirects)) $existing_redirects = [];
                     ?>
 

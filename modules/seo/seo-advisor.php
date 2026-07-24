@@ -14,7 +14,7 @@ if (!defined('ABSPATH'))
    COSTANTI
    ───────────────────────────────────────── */
 if (!defined('SUITE_BARRIO_ADVISOR_LOG_OPTION'))
-    define('SUITE_BARRIO_ADVISOR_LOG_OPTION', 'wpb_advisor_log');
+    define('SUITE_BARRIO_ADVISOR_LOG_OPTION', 'suite_barrio_advisor_log');
 if (!defined('SUITE_BARRIO_ADVISOR_LOG_MAX'))
     define('SUITE_BARRIO_ADVISOR_LOG_MAX', 100);
 
@@ -270,17 +270,17 @@ add_filter('submenu_file', function ($submenu_file) {
    IMPOSTAZIONI
    ───────────────────────────────────────── */
 add_action('admin_init', function () {
-    register_setting('wpb_advisor_settings', 'wpb_advisor_provider', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'anthropic']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_api_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_model', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_provider', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'anthropic']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_api_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_model', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
     // Impostazioni prompt
-    register_setting('wpb_advisor_settings', 'wpb_advisor_language', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'it']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_tone', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'seo']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_style', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'contextual']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_context', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
-    register_setting('wpb_advisor_settings', 'wpb_advisor_keywords', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_language', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'it']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_tone', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'seo']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_style', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'contextual']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_context', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
+    register_setting('suite_barrio_advisor_settings', 'suite_barrio_advisor_keywords', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
 });
 
 /* ─────────────────────────────────────────
@@ -288,10 +288,10 @@ add_action('admin_init', function () {
    ───────────────────────────────────────── */
 function suite_barrio_advisor_active_key(): string
 {
-    $provider = get_option('wpb_advisor_provider', 'anthropic');
+    $provider = get_option('suite_barrio_advisor_provider', 'anthropic');
     return $provider === 'gemini'
-        ? get_option('wpb_advisor_gemini_key', '')
-        : get_option('wpb_advisor_api_key', '');
+        ? get_option('suite_barrio_advisor_gemini_key', '')
+        : get_option('suite_barrio_advisor_api_key', '');
 }
 
 /* ─────────────────────────────────────────
@@ -299,7 +299,7 @@ function suite_barrio_advisor_active_key(): string
    ───────────────────────────────────────── */
 function suite_barrio_advisor_log(string $status, string $target, string $note): void
 {
-    if (!get_option('wpb_advisor_log_enabled', 1))
+    if (!get_option('suite_barrio_advisor_log_enabled', 1))
         return;
     $log = get_option(SUITE_BARRIO_ADVISOR_LOG_OPTION, []);
     array_unshift($log, [
@@ -311,6 +311,51 @@ function suite_barrio_advisor_log(string $status, string $target, string $note):
     if (count($log) > SUITE_BARRIO_ADVISOR_LOG_MAX)
         $log = array_slice($log, 0, SUITE_BARRIO_ADVISOR_LOG_MAX);
     update_option(SUITE_BARRIO_ADVISOR_LOG_OPTION, $log, false);
+}
+
+/* ─────────────────────────────────────────
+   HELPER: confronto "fuzzy" col nome del sito
+   Normalizza rimuovendo accenti, maiuscole/minuscole e
+   qualsiasi carattere non alfanumerico, cosi' da riconoscere
+   varianti come "hello barrio" / "Hello-Barrio" per il sito "hellobarrio".
+   ───────────────────────────────────────── */
+function suite_barrio_advisor_normalize_for_match(string $str): string
+{
+    $str = remove_accents($str);
+    $str = strtolower($str);
+    return preg_replace('/[^a-z0-9]/', '', $str);
+}
+
+function suite_barrio_advisor_title_has_site_name(string $title, string $site_name): bool
+{
+    $site_norm = suite_barrio_advisor_normalize_for_match($site_name);
+    if (mb_strlen($site_norm) < 2)
+        return false;
+    return str_contains(suite_barrio_advisor_normalize_for_match($title), $site_norm);
+}
+
+/**
+ * Ultima misura (dopo che i tentativi di rigenerazione sono falliti):
+ * rimuove dal title qualsiasi sequenza delle lettere del nome del sito,
+ * anche separate da spazi/trattini/punteggiatura, e ripulisce i residui.
+ */
+function suite_barrio_advisor_strip_site_name(string $title, string $site_name): string
+{
+    $site_norm = suite_barrio_advisor_normalize_for_match($site_name);
+    if ($site_norm === '')
+        return trim($title);
+
+    $working = remove_accents($title);
+    $letters = array_map(fn($c) => preg_quote($c, '/'), str_split($site_norm));
+    $pattern = '/' . implode('[^a-z0-9]*', $letters) . '/i';
+    $cleaned = preg_replace($pattern, '', $working);
+
+    // Ripulisce separatori/spazi rimasti orfani dopo la rimozione
+    $cleaned = preg_replace('/^\s*[-–—|:,]+\s*/', '', $cleaned);
+    $cleaned = preg_replace('/\s*[-–—|:,]+\s*$/', '', $cleaned);
+    $cleaned = preg_replace('/\s{2,}/', ' ', $cleaned);
+
+    return trim($cleaned);
 }
 
 /* ─────────────────────────────────────────
@@ -348,9 +393,9 @@ function suite_barrio_advisor_get_content(string $type, int $id): array
    ───────────────────────────────────────── */
 function suite_barrio_advisor_generate(array $content_data): array
 {
-    $provider = get_option('wpb_advisor_provider', 'anthropic');
+    $provider = get_option('suite_barrio_advisor_provider', 'anthropic');
     $api_key = suite_barrio_advisor_active_key();
-    $model = get_option('wpb_advisor_model', '');
+    $model = get_option('suite_barrio_advisor_model', '');
     $s = get_option(SUITE_BARRIO_META_OPTION, []);
     $sep = $s['separator'] ?? '—';
     $site = $s['site_title'] ?? get_bloginfo('name');
@@ -363,7 +408,7 @@ function suite_barrio_advisor_generate(array $content_data): array
     $excerpt = $content_data['excerpt'] ?? '';
 
     // Lingua: usa l'impostazione del modulo, fallback alla lingua del sito
-    $lang_code = get_option('wpb_advisor_language', 'it');
+    $lang_code = get_option('suite_barrio_advisor_language', 'it');
     $lang_map = [
         'it' => 'italiano',
         'en' => 'English',
@@ -388,12 +433,12 @@ function suite_barrio_advisor_generate(array $content_data): array
         'emotional' => 'evocativo, trasmette sensazioni e atmosfera',
         'journalistic' => 'giornalistico, sintetico come una didascalia',
     ];
-    $tone_key = get_option('wpb_advisor_tone', 'seo');
-    $style_key = get_option('wpb_advisor_style', 'contextual');
+    $tone_key = get_option('suite_barrio_advisor_tone', 'seo');
+    $style_key = get_option('suite_barrio_advisor_style', 'contextual');
     $tone_str = $tone_map[$tone_key] ?? $tone_map['seo'];
     $style_str = $style_map[$style_key] ?? $style_map['contextual'];
-    $context_str = trim((string) get_option('wpb_advisor_context', ''));
-    $keywords_str = trim((string) get_option('wpb_advisor_keywords', ''));
+    $context_str = trim((string) get_option('suite_barrio_advisor_context', ''));
+    $keywords_str = trim((string) get_option('suite_barrio_advisor_keywords', ''));
 
     $extra_lines = '';
     if ($context_str !== '') {
@@ -403,9 +448,28 @@ function suite_barrio_advisor_generate(array $content_data): array
         $extra_lines .= "Parole chiave da includere se pertinenti: {$keywords_str}\n";
     }
 
-    $prompt = "Sei un esperto SEO. Analizza il contenuto e genera elementi SEO ottimizzati.\n\nSito: $site\nLingua: $lang\nRegistro linguistico: $tone_str\nStile: $style_str\n{$extra_lines}Titolo: $title\nExcerpt: $excerpt\nContenuto: $content\n\nGenera in $lang:\n1. SEO Title: max 60 caratteri, keyword primaria inclusa.\n2. SEO Description: 120-160 caratteri, keyword inclusa.\n3. Keywords: 5-8 keyword, la PRIMA e' la primaria.\n\nRispondi SOLO con JSON su UNA SOLA RIGA senza newline interni ne markdown:\n{\"title\":\"...\",\"description\":\"...\",\"keywords\":[\"kw1\",\"kw2\"]}";
+    $prompt = "Sei un esperto SEO. Analizza il contenuto e genera elementi SEO ottimizzati.\n\nSito: $site\nLingua: $lang\nRegistro linguistico: $tone_str\nStile: $style_str\n{$extra_lines}Titolo: $title\nExcerpt: $excerpt\nContenuto: $content\n\nGenera in $lang:\n1. SEO Title: max 60 caratteri, keyword primaria inclusa. IMPORTANTE: il title NON deve MAI contenere il nome del sito (\"$site\") ne' varianti (con/senza spazi, maiuscole/minuscole, trattini o punteggiatura) — il nome del sito viene aggiunto automaticamente altrove.\n2. SEO Description: 120-160 caratteri, keyword inclusa.\n3. Keywords: 5-8 keyword, la PRIMA e' la primaria.\n\nRispondi SOLO con JSON su UNA SOLA RIGA senza newline interni ne markdown:\n{\"title\":\"...\",\"description\":\"...\",\"keywords\":[\"kw1\",\"kw2\"]}";
 
+    $max_attempts = 3;
+    $result = ['error' => 'Generazione fallita.'];
+    for ($attempt = 1; $attempt <= $max_attempts; $attempt++) {
+        $result = suite_barrio_advisor_call_ai($prompt, $provider, $api_key, $model);
+        if (isset($result['error']))
+            return $result;
+        if (!suite_barrio_advisor_title_has_site_name($result['title'], $site))
+            return $result;
+    }
 
+    // Tutti i tentativi hanno restituito il nome del sito nel title: lo rimuoviamo come ultima misura
+    $result['title'] = suite_barrio_advisor_strip_site_name($result['title'], $site);
+    return $result;
+}
+
+/* ─────────────────────────────────────────
+   HELPER: chiama l'API AI e ne interpreta la risposta JSON
+   ───────────────────────────────────────── */
+function suite_barrio_advisor_call_ai(string $prompt, string $provider, string $api_key, string $model): array
+{
     if ($provider === 'anthropic') {
         if (empty($model))
             $model = 'claude-opus-4-6';
@@ -562,7 +626,7 @@ add_action('wp_ajax_suite_barrio_advisor_fetch_models', function () {
 
     $provider = sanitize_key($_POST['provider'] ?? 'anthropic');
     $force = !empty($_POST['force']);
-    $cache_key = 'wpb_advisor_models_' . $provider;
+    $cache_key = 'suite_barrio_advisor_models_' . $provider;
     if ($force)
         delete_transient($cache_key);
     $cached = get_transient($cache_key);
@@ -572,8 +636,8 @@ add_action('wp_ajax_suite_barrio_advisor_fetch_models', function () {
     }
 
     $api_key = $provider === 'gemini'
-        ? get_option('wpb_advisor_gemini_key', '')
-        : get_option('wpb_advisor_api_key', '');
+        ? get_option('suite_barrio_advisor_gemini_key', '')
+        : get_option('suite_barrio_advisor_api_key', '');
     if (empty($api_key)) {
         wp_send_json_success(['error' => 'Chiave API non configurata.']);
         return;
@@ -612,8 +676,8 @@ add_action('wp_ajax_suite_barrio_advisor_fetch_models', function () {
    AJAX: genera meta SEO
    ───────────────────────────────────────── */
 add_action('wp_ajax_suite_barrio_advisor_generate', function () {
-    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
-    @set_time_limit(120);
+    // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged -- alcuni host disabilitano set_time_limit(); @ evita il warning, necessario per operazioni batch lunghe
+    if (function_exists('set_time_limit')) @set_time_limit(120);
     check_ajax_referer('suite_barrio_advisor_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.', 403);
@@ -667,25 +731,25 @@ add_action('wp_ajax_suite_barrio_advisor_save', function () {
 
     if ($obj_type === 'post') {
         if ($title)
-            update_post_meta($obj_id, '_wpb_seo_title', $title);
+            update_post_meta($obj_id, '_suite_barrio_seo_title', $title);
         if ($desc)
-            update_post_meta($obj_id, '_wpb_seo_description', $desc);
+            update_post_meta($obj_id, '_suite_barrio_seo_description', $desc);
         if (!empty($kws))
-            update_post_meta($obj_id, '_wpb_seo_keywords', wp_json_encode($kws));
+            update_post_meta($obj_id, '_suite_barrio_seo_keywords', wp_json_encode($kws));
     } else {
         if ($title)
-            update_term_meta($obj_id, '_wpb_seo_title', $title);
+            update_term_meta($obj_id, '_suite_barrio_seo_title', $title);
         if ($desc)
-            update_term_meta($obj_id, '_wpb_seo_description', $desc);
+            update_term_meta($obj_id, '_suite_barrio_seo_description', $desc);
         if (!empty($kws))
-            update_term_meta($obj_id, '_wpb_seo_keywords', wp_json_encode($kws));
+            update_term_meta($obj_id, '_suite_barrio_seo_keywords', wp_json_encode($kws));
     }
 
-    if (function_exists('invalidate_vercel_cache')) {
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
         if ($obj_type === 'post') {
-            invalidate_vercel_cache($obj_id);
+            suite_barrio_invalidate_vercel_cache($obj_id);
         } else {
-            invalidate_vercel_cache('wp:global');
+            suite_barrio_invalidate_vercel_cache('wp:global');
         }
     }
 
@@ -851,8 +915,8 @@ function suite_barrio_advisor_admin_page()
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'generate';
     $api_key = suite_barrio_advisor_active_key();
-    $provider = get_option('wpb_advisor_provider', 'anthropic');
-    $model = get_option('wpb_advisor_model', '');
+    $provider = get_option('suite_barrio_advisor_provider', 'anthropic');
+    $model = get_option('suite_barrio_advisor_model', '');
     $log = get_option(SUITE_BARRIO_ADVISOR_LOG_OPTION, []);
 
     $s = get_option(SUITE_BARRIO_META_OPTION, []);
@@ -1083,7 +1147,7 @@ function suite_barrio_advisor_admin_page()
             <?php endif; ?>
 
             <form method="post" action="options.php" style="max-width:640px;">
-                <?php settings_fields('wpb_advisor_settings'); ?>
+                <?php settings_fields('suite_barrio_advisor_settings'); ?>
 
                 <div class="suite-barrio-settings-card">
                     <div class="suite-barrio-settings-card-header">Provider AI</div>
@@ -1091,7 +1155,7 @@ function suite_barrio_advisor_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Provider<small>Seleziona il servizio AI</small></div>
                             <div class="suite-barrio-settings-input">
-                                <select name="wpb_advisor_provider" id="suite-barrio-adv-provider-sel">
+                                <select name="suite_barrio_advisor_provider" id="suite-barrio-adv-provider-sel">
                                     <option value="anthropic" <?php selected($provider, 'anthropic'); ?>>Anthropic Claude
                                     </option>
                                     <option value="gemini" <?php selected($provider, 'gemini'); ?>>Google Gemini</option>
@@ -1102,8 +1166,8 @@ function suite_barrio_advisor_admin_page()
                             style="<?php echo $provider === 'gemini' ? 'display:none;' : ''; ?>">
                             <div class="suite-barrio-settings-label">Chiave API Anthropic<small>sk-ant-…</small></div>
                             <div class="suite-barrio-settings-input">
-                                <input type="password" name="wpb_advisor_api_key"
-                                    value="<?php echo esc_attr(get_option('wpb_advisor_api_key', '')); ?>"
+                                <input type="password" name="suite_barrio_advisor_api_key"
+                                    value="<?php echo esc_attr(get_option('suite_barrio_advisor_api_key', '')); ?>"
                                     placeholder="sk-ant-api03-…" autocomplete="off">
                             </div>
                         </div>
@@ -1111,8 +1175,8 @@ function suite_barrio_advisor_admin_page()
                             style="<?php echo $provider !== 'gemini' ? 'display:none;' : ''; ?>">
                             <div class="suite-barrio-settings-label">Chiave API Gemini<small>AIza…</small></div>
                             <div class="suite-barrio-settings-input">
-                                <input type="password" name="wpb_advisor_gemini_key"
-                                    value="<?php echo esc_attr(get_option('wpb_advisor_gemini_key', '')); ?>"
+                                <input type="password" name="suite_barrio_advisor_gemini_key"
+                                    value="<?php echo esc_attr(get_option('suite_barrio_advisor_gemini_key', '')); ?>"
                                     placeholder="AIzaSy…" autocomplete="off">
                             </div>
                         </div>
@@ -1120,7 +1184,7 @@ function suite_barrio_advisor_admin_page()
                             <div class="suite-barrio-settings-label">Modello<small>Lascia vuoto per il default</small></div>
                             <div class="suite-barrio-settings-input">
                                 <div class="suite-barrio-model-row">
-                                    <select name="wpb_advisor_model" id="suite-barrio-adv-model-sel">
+                                    <select name="suite_barrio_advisor_model" id="suite-barrio-adv-model-sel">
                                         <option value="">— Default —</option>
                                         <?php if ($model): ?>
                                             <option value="<?php echo esc_attr($model); ?>" selected><?php echo esc_html($model); ?>
@@ -1140,8 +1204,8 @@ function suite_barrio_advisor_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Lingua<small>Lingua dei testi generati</small></div>
                             <div class="suite-barrio-settings-input">
-                                <?php $adv_lang = get_option('wpb_advisor_language', 'it'); ?>
-                                <select name="wpb_advisor_language">
+                                <?php $adv_lang = get_option('suite_barrio_advisor_language', 'it'); ?>
+                                <select name="suite_barrio_advisor_language">
                                     <option value="it" <?php selected($adv_lang, 'it'); ?>>🇮🇹 Italiano</option>
                                     <option value="en" <?php selected($adv_lang, 'en'); ?>>🇬🇧 English</option>
                                     <option value="es" <?php selected($adv_lang, 'es'); ?>>🇪🇸 Español</option>
@@ -1159,8 +1223,8 @@ function suite_barrio_advisor_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Registro linguistico<small>Tono dei testi generati</small></div>
                             <div class="suite-barrio-settings-input">
-                                <?php $adv_tone = get_option('wpb_advisor_tone', 'seo'); ?>
-                                <select name="wpb_advisor_tone">
+                                <?php $adv_tone = get_option('suite_barrio_advisor_tone', 'seo'); ?>
+                                <select name="suite_barrio_advisor_tone">
                                     <option value="neutral" <?php selected($adv_tone, 'neutral'); ?>>Neutro e oggettivo</option>
                                     <option value="professional" <?php selected($adv_tone, 'professional'); ?>>Professionale e formale</option>
                                     <option value="friendly" <?php selected($adv_tone, 'friendly'); ?>>Amichevole e accessibile</option>
@@ -1173,8 +1237,8 @@ function suite_barrio_advisor_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Stile descrittivo<small>Approccio dell'AI</small></div>
                             <div class="suite-barrio-settings-input">
-                                <?php $adv_style = get_option('wpb_advisor_style', 'contextual'); ?>
-                                <select name="wpb_advisor_style">
+                                <?php $adv_style = get_option('suite_barrio_advisor_style', 'contextual'); ?>
+                                <select name="suite_barrio_advisor_style">
                                     <option value="descriptive" <?php selected($adv_style, 'descriptive'); ?>>Descrittivo — elenca gli elementi</option>
                                     <option value="contextual" <?php selected($adv_style, 'contextual'); ?>>Contestuale — interpreta significato e scopo</option>
                                     <option value="emotional" <?php selected($adv_style, 'emotional'); ?>>Evocativo — trasmette sensazioni e atmosfera</option>
@@ -1185,8 +1249,8 @@ function suite_barrio_advisor_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Contesto del sito<small>Fornisce contesto all'AI</small></div>
                             <div class="suite-barrio-settings-input">
-                                <input type="text" name="wpb_advisor_context"
-                                    value="<?php echo esc_attr(get_option('wpb_advisor_context', '')); ?>"
+                                <input type="text" name="suite_barrio_advisor_context"
+                                    value="<?php echo esc_attr(get_option('suite_barrio_advisor_context', '')); ?>"
                                     placeholder="es. e-commerce di moda sostenibile, blog di cucina italiana…"
                                     style="width:100%;">
                             </div>
@@ -1194,8 +1258,8 @@ function suite_barrio_advisor_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Parole chiave SEO<small>Separate da virgola</small></div>
                             <div class="suite-barrio-settings-input">
-                                <input type="text" name="wpb_advisor_keywords"
-                                    value="<?php echo esc_attr(get_option('wpb_advisor_keywords', '')); ?>"
+                                <input type="text" name="suite_barrio_advisor_keywords"
+                                    value="<?php echo esc_attr(get_option('suite_barrio_advisor_keywords', '')); ?>"
                                     placeholder="es. scarpe artigianali, pelle italiana, handmade…"
                                     style="width:100%;">
                             </div>
@@ -1210,7 +1274,7 @@ function suite_barrio_advisor_admin_page()
                             <div class="suite-barrio-settings-label">Abilita log<small>Registra operazioni</small></div>
                             <div class="suite-barrio-settings-input">
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                                    <input type="checkbox" name="wpb_advisor_log_enabled" value="1" <?php checked(get_option('wpb_advisor_log_enabled', 1)); ?>>
+                                    <input type="checkbox" name="suite_barrio_advisor_log_enabled" value="1" <?php checked(get_option('suite_barrio_advisor_log_enabled', 1)); ?>>
                                     <span style="font-size:13px;color:#374151;">Attivo</span>
                                 </label>
                             </div>

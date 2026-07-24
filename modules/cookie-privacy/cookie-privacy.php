@@ -2,7 +2,7 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('SUITE_BARRIO_CP_LOG_OPTION', 'wpb_cp_log');
+define('SUITE_BARRIO_CP_LOG_OPTION', 'suite_barrio_cp_log');
 define('SUITE_BARRIO_CP_LOG_MAX', 100);
 
 add_action('admin_menu', function () {
@@ -206,7 +206,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
     if ($suite_barrio_cp_tab === 'settings') {
         $suite_barrio_cp_settings_js = 'document.getElementById(\'suite-barrio-cp-use-endpoint\').addEventListener(\'click\', function(){
     if (!confirm(\'Sovrascrivere il Cookie report script con l\\\'endpoint Suite Barrio?\')) return;
-    document.getElementById(\'wpb_cp_cookie_report_script\').value =
+    document.getElementById(\'suite_barrio_cp_cookie_report_script\').value =
         \'<script>\\nfetch(\\\'\' + SUITE_BARRIO_CP_PREFERENCES_ENDPOINT + \'\\\')\\n\'
         + \'  .then(function(r){ return r.json(); })\\n\'
         + \'  .then(function(res){ document.getElementById(\\\'suite-barrio-cookie-preferences\\\').innerHTML = res.html || \\\'\\\'; });\\n\'
@@ -215,7 +215,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
 
         $suite_barrio_cp_settings_js = str_replace(
             'SUITE_BARRIO_CP_PREFERENCES_ENDPOINT',
-            wp_json_encode(rest_url('wpb/v1/cookie-banner/preferences-html')),
+            wp_json_encode(rest_url('suite-barrio/v1/cookie-banner/preferences-html')),
             $suite_barrio_cp_settings_js
         );
 
@@ -224,17 +224,39 @@ add_action('admin_enqueue_scripts', function ($hook) {
 });
 
 add_action('admin_init', function () {
-    register_setting('wpb_cp_content_settings', 'wpb_cp_privacy_page_id', ['sanitize_callback' => 'absint']);
-    register_setting('wpb_cp_content_settings', 'wpb_cp_cookie_page_id', ['sanitize_callback' => 'absint']);
-    // wpb_cp_cookie_report_script NON è registrata come setting:
+    register_setting('suite_barrio_cp_content_settings', 'suite_barrio_cp_privacy_page_id', ['sanitize_callback' => 'absint']);
+    register_setting('suite_barrio_cp_content_settings', 'suite_barrio_cp_cookie_page_id', ['sanitize_callback' => 'absint']);
+    // suite_barrio_cp_cookie_report_script NON è registrata come setting:
     // il salvataggio avviene manualmente qui sotto, in base64, per bypassare
     // ogni filtro kses/WAF che stripperebbe <script>/<iframe>.
-    register_setting('wpb_cp_settings', 'wpb_cp_provider', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'gemini']);
-    register_setting('wpb_cp_settings', 'wpb_cp_anthropic_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_cp_settings', 'wpb_cp_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_cp_settings', 'wpb_cp_model', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_cp_settings', 'wpb_cp_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
+    register_setting('suite_barrio_cp_settings', 'suite_barrio_cp_provider', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'gemini']);
+    register_setting('suite_barrio_cp_settings', 'suite_barrio_cp_anthropic_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_cp_settings', 'suite_barrio_cp_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_cp_settings', 'suite_barrio_cp_model', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_cp_settings', 'suite_barrio_cp_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
 });
+
+/* ─────────────────────────────────────────
+   Sanifica il cookie report script: campo pensato per contenere lo
+   snippet <script> grezzo di un provider di cookie-scan esterno.
+   Solo chi ha unfiltered_html (di norma gli Amministratori, tranne
+   sui sub-site di una rete multisito) può salvarlo invariato; per
+   tutti gli altri viene passato da wp_kses così da rimuovere
+   tag/script non consentiti invece di fidarsi ciecamente dell'input.
+   ───────────────────────────────────────── */
+if (!function_exists('suite_barrio_cp_sanitize_report_script')) {
+    function suite_barrio_cp_sanitize_report_script(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        if (!current_user_can('unfiltered_html')) {
+            $raw = wp_kses($raw, wp_kses_allowed_html('post'));
+        }
+        return $raw;
+    }
+}
 
 /* ─────────────────────────────────────────
    Salvataggio manuale del cookie report script.
@@ -245,19 +267,20 @@ add_action('admin_init', function () {
 add_action('admin_init', function () {
     if (
         !empty($_POST['option_page'])
-        && $_POST['option_page'] === 'wpb_cp_content_settings'
+        && $_POST['option_page'] === 'suite_barrio_cp_content_settings'
         && current_user_can('manage_options')
     ) {
         // Il nonce viene verificato da options.php subito dopo, ma
         // noi verifichiamo preventivamente per non salvare su richieste invalide.
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- il valore è verificato da wp_verify_nonce() nella stessa riga, non necessita sanitizzazione aggiuntiva
-        if (wp_verify_nonce(wp_unslash($_POST['_wpnonce'] ?? ''), 'wpb_cp_content_settings-options')) {
-            $raw = isset($_POST['wpb_cp_cookie_report_script'])
-                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- script grezzo del provider cookie, salvato in base64 per non farlo strippare da kses/WAF (vedi commento sopra add_action)
-                ? trim(wp_unslash($_POST['wpb_cp_cookie_report_script']))
+        $suite_barrio_cp_nonce = sanitize_text_field(wp_unslash($_POST['_wpnonce'] ?? ''));
+        if (wp_verify_nonce($suite_barrio_cp_nonce, 'suite_barrio_cp_content_settings-options')) {
+            $raw = isset($_POST['suite_barrio_cp_cookie_report_script'])
+                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanificato da suite_barrio_cp_sanitize_report_script() (wp_kses se l'utente non ha unfiltered_html)
+                ? suite_barrio_cp_sanitize_report_script(wp_unslash($_POST['suite_barrio_cp_cookie_report_script']))
                 : '';
             update_option(
-                'wpb_cp_cookie_report_script',
+                'suite_barrio_cp_cookie_report_script',
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- codifica dello script cookie-report per evitare che kses/WAF lo strippino, non offuscamento
                 $raw !== '' ? base64_encode($raw) : '',
                 false // no autoload
             );
@@ -275,13 +298,15 @@ add_action('admin_init', function () {
    ───────────────────────────────────────── */
 function suite_barrio_cp_get_cookie_report_script(): string
 {
-    $raw = (string) get_option('wpb_cp_cookie_report_script', '');
+    $raw = (string) get_option('suite_barrio_cp_cookie_report_script', '');
     if ($raw === '') {
         return '';
     }
     // Prova a decodificare. In strict mode restituisce false se non è base64 valido
     // (gestisce migrazione da valore legacy non codificato).
+    // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodifica dello script cookie-report salvato in base64, non offuscamento
     $decoded = base64_decode($raw, true);
+    // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- verifica di round-trip per rilevare un valore legacy non codificato, non offuscamento
     if ($decoded !== false && base64_encode($decoded) === $raw) {
         return $decoded;
     }
@@ -296,7 +321,7 @@ function suite_barrio_cp_get_cookie_report_script(): string
    ───────────────────────────────────────── */
 function suite_barrio_cp_sync_report_script_to_page(): void
 {
-    $cookie_id = absint(get_option('wpb_cp_cookie_page_id', 0));
+    $cookie_id = absint(get_option('suite_barrio_cp_cookie_page_id', 0));
     if (!$cookie_id) return;
 
     $page = get_post($cookie_id);
@@ -327,8 +352,8 @@ function suite_barrio_cp_sync_report_script_to_page(): void
     wp_update_post(['ID' => $cookie_id, 'post_content' => $new_content]);
     kses_init_filters();
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache($cookie_id);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache($cookie_id);
     }
 }
 
@@ -587,7 +612,7 @@ function suite_barrio_cp_ajax_generate(string $policy_type): void
 
     // Tentativo di estendere il time limit (best-effort, alcuni host lo proibiscono).
     if (function_exists('set_time_limit')) {
-        // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
+        // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged -- alcuni host disabilitano set_time_limit(); @ evita il warning, necessario per operazioni batch lunghe
         @set_time_limit(180);
     }
 
@@ -609,8 +634,8 @@ function suite_barrio_cp_ajax_generate(string $policy_type): void
         ]);
     }
 
-    $privacy_id = absint(get_option('wpb_cp_privacy_page_id', 0));
-    $cookie_id = absint(get_option('wpb_cp_cookie_page_id', 0));
+    $privacy_id = absint(get_option('suite_barrio_cp_privacy_page_id', 0));
+    $cookie_id = absint(get_option('suite_barrio_cp_cookie_page_id', 0));
     if (!$privacy_id || !$cookie_id) {
         wp_send_json_error(['message' => 'Seleziona entrambe le pagine (Privacy e Cookie) e salva prima di generare.']);
     }
@@ -622,15 +647,15 @@ function suite_barrio_cp_ajax_generate(string $policy_type): void
     $result = suite_barrio_cp_generate_and_save_policy($policy_type, $page_id, $company, $domain);
 
     if (!$result['success']) {
-        wpb_cp_log('error', $domain, ucfirst($policy_type) . ' Policy: ' . $result['message']);
+        suite_barrio_cp_log('error', $domain, ucfirst($policy_type) . ' Policy: ' . $result['message']);
         wp_send_json_error(['message' => $result['message']]);
     }
 
-    wpb_cp_log('success', $domain, ucfirst($policy_type) . ' Policy aggiornata: ' . $result['page_title']);
+    suite_barrio_cp_log('success', $domain, ucfirst($policy_type) . ' Policy aggiornata: ' . $result['page_title']);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache($privacy_id);
-        invalidate_vercel_cache($cookie_id);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache($privacy_id);
+        suite_barrio_invalidate_vercel_cache($cookie_id);
     }
 
     wp_send_json_success([
@@ -647,9 +672,9 @@ add_action('wp_ajax_suite_barrio_cp_generate_cookie', function () {
     suite_barrio_cp_ajax_generate('cookie');
 });
 
-function wpb_cp_log(string $status, string $target, string $note): void
+function suite_barrio_cp_log(string $status, string $target, string $note): void
 {
-    if (!get_option('wpb_cp_log_enabled', 1))
+    if (!get_option('suite_barrio_cp_log_enabled', 1))
         return;
     $log = get_option(SUITE_BARRIO_CP_LOG_OPTION, []);
     array_unshift($log, [
@@ -665,17 +690,17 @@ function wpb_cp_log(string $status, string $target, string $note): void
 
 function suite_barrio_cp_active_key(): string
 {
-    $provider = get_option('wpb_cp_provider', 'gemini');
+    $provider = get_option('suite_barrio_cp_provider', 'gemini');
     return $provider === 'anthropic'
-        ? get_option('wpb_cp_anthropic_key', '')
-        : get_option('wpb_cp_gemini_key', '');
+        ? get_option('suite_barrio_cp_anthropic_key', '')
+        : get_option('suite_barrio_cp_gemini_key', '');
 }
 
 function suite_barrio_cp_call_ai(string $prompt): array
 {
-    $provider = get_option('wpb_cp_provider', 'gemini');
+    $provider = get_option('suite_barrio_cp_provider', 'gemini');
     $key = suite_barrio_cp_active_key();
-    $model = get_option('wpb_cp_model', '');
+    $model = get_option('suite_barrio_cp_model', '');
     if (!$key)
         return ['error' => 'Chiave API non configurata.'];
 
@@ -823,8 +848,8 @@ add_action('wp_ajax_suite_barrio_cp_fetch_models', function () {
     }
 
     $api_key = $provider === 'gemini'
-        ? get_option('wpb_cp_gemini_key', '')
-        : get_option('wpb_cp_anthropic_key', '');
+        ? get_option('suite_barrio_cp_gemini_key', '')
+        : get_option('suite_barrio_cp_anthropic_key', '');
     if (empty($api_key)) {
         wp_send_json_success(['error' => 'Chiave API non configurata.']);
         return;
@@ -864,14 +889,14 @@ function suite_barrio_cp_admin_page()
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $tab = sanitize_key($_GET['tab'] ?? 'generate');
     $nonce = wp_create_nonce('suite_barrio_cp_nonce');
-    $provider = get_option('wpb_cp_provider', 'gemini');
-    $model = get_option('wpb_cp_model', '');
+    $provider = get_option('suite_barrio_cp_provider', 'gemini');
+    $model = get_option('suite_barrio_cp_model', '');
     $log = get_option(SUITE_BARRIO_CP_LOG_OPTION, []);
     $pages = get_pages(['sort_column' => 'post_title', 'sort_order' => 'ASC', 'post_status' => ['publish', 'draft', 'private']]);
     $notice = [];
     $saved_domain = suite_barrio_cp_get_domain();
-    $selected_privacy_page_id = absint(get_option('wpb_cp_privacy_page_id', 0));
-    $selected_cookie_page_id = absint(get_option('wpb_cp_cookie_page_id', 0));
+    $selected_privacy_page_id = absint(get_option('suite_barrio_cp_privacy_page_id', 0));
+    $selected_cookie_page_id = absint(get_option('suite_barrio_cp_cookie_page_id', 0));
     $cookie_report_script = suite_barrio_cp_get_cookie_report_script();
     ?>
 <div id="suite-barrio-cp-wrap" class="wrap suite-barrio-wrap">
@@ -894,7 +919,7 @@ function suite_barrio_cp_admin_page()
         <div class="suite-barrio-cp-tabs">
             <?php foreach ($registered_tabs as $tab_key => $tab_def): ?>
                 <a class="suite-barrio-cp-tab <?php echo $tab === $tab_key ? 'active' : ''; ?>"
-                   href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-cookie-privacy&tab=' . urlencode($tab_key))); ?>">
+                   href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-cookie-privacy&tab=' . rawurlencode($tab_key))); ?>">
                     <span class="dashicons dashicons-<?php echo esc_attr($tab_def['icon']); ?>"></span>
                     <?php echo esc_html($tab_def['label']); ?>
                 </a>
@@ -910,7 +935,7 @@ function suite_barrio_cp_admin_page()
             <?php endif; ?>
 
             <form method="post" action="options.php" style="max-width:640px;">
-                <?php settings_fields('wpb_cp_settings'); ?>
+                <?php settings_fields('suite_barrio_cp_settings'); ?>
 
                 <div class="suite-barrio-settings-card">
                     <div class="suite-barrio-settings-card-header">Provider AI</div>
@@ -918,7 +943,7 @@ function suite_barrio_cp_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Provider<small>Seleziona il servizio AI</small></div>
                             <div class="suite-barrio-settings-input">
-                                <select name="wpb_cp_provider" id="suite-barrio-cp-provider-sel">
+                                <select name="suite_barrio_cp_provider" id="suite-barrio-cp-provider-sel">
                                     <option value="anthropic" <?php selected($provider, 'anthropic'); ?>>Anthropic Claude
                                     </option>
                                     <option value="gemini" <?php selected($provider, 'gemini'); ?>>Google Gemini</option>
@@ -929,8 +954,8 @@ function suite_barrio_cp_admin_page()
                             style="<?php echo $provider === 'gemini' ? 'display:none;' : ''; ?>">
                             <div class="suite-barrio-settings-label">Chiave API Anthropic<small>sk-ant-...</small></div>
                             <div class="suite-barrio-settings-input">
-                                <input type="password" name="wpb_cp_anthropic_key"
-                                    value="<?php echo esc_attr(get_option('wpb_cp_anthropic_key', '')); ?>"
+                                <input type="password" name="suite_barrio_cp_anthropic_key"
+                                    value="<?php echo esc_attr(get_option('suite_barrio_cp_anthropic_key', '')); ?>"
                                     placeholder="sk-ant-api03-..." autocomplete="off">
                             </div>
                         </div>
@@ -938,8 +963,8 @@ function suite_barrio_cp_admin_page()
                             style="<?php echo $provider !== 'gemini' ? 'display:none;' : ''; ?>">
                             <div class="suite-barrio-settings-label">Chiave API Gemini<small>AIza...</small></div>
                             <div class="suite-barrio-settings-input">
-                                <input type="password" name="wpb_cp_gemini_key"
-                                    value="<?php echo esc_attr(get_option('wpb_cp_gemini_key', '')); ?>" placeholder="AIzaSy..."
+                                <input type="password" name="suite_barrio_cp_gemini_key"
+                                    value="<?php echo esc_attr(get_option('suite_barrio_cp_gemini_key', '')); ?>" placeholder="AIzaSy..."
                                     autocomplete="off">
                             </div>
                         </div>
@@ -947,7 +972,7 @@ function suite_barrio_cp_admin_page()
                             <div class="suite-barrio-settings-label">Modello<small>Lascia vuoto per il default</small></div>
                             <div class="suite-barrio-settings-input">
                                 <div class="suite-barrio-model-row">
-                                    <select name="wpb_cp_model" id="suite-barrio-cp-model-sel">
+                                    <select name="suite_barrio_cp_model" id="suite-barrio-cp-model-sel">
                                         <option value="">— Default —</option>
                                         <?php if ($model): ?>
                                             <option value="<?php echo esc_attr($model); ?>" selected><?php echo esc_html($model); ?>
@@ -968,9 +993,9 @@ function suite_barrio_cp_admin_page()
                         <div class="suite-barrio-settings-row">
                             <div class="suite-barrio-settings-label">Abilita log<small>Registra operazioni</small></div>
                             <div class="suite-barrio-settings-input">
-                                <input type="hidden" name="wpb_cp_log_enabled" value="0">
+                                <input type="hidden" name="suite_barrio_cp_log_enabled" value="0">
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                                    <input type="checkbox" name="wpb_cp_log_enabled" value="1" <?php checked(get_option('wpb_cp_log_enabled', 1)); ?>>
+                                    <input type="checkbox" name="suite_barrio_cp_log_enabled" value="1" <?php checked(get_option('suite_barrio_cp_log_enabled', 1)); ?>>
                                     <span style="font-size:13px;color:#374151;">Attivo</span>
                                 </label>
                             </div>
@@ -1048,7 +1073,7 @@ function suite_barrio_cp_admin_page()
                 </div>
                 <div class="suite-barrio-cp-panel-body">
                     <form method="post" action="options.php">
-                        <?php settings_fields('wpb_cp_content_settings'); ?>
+                        <?php settings_fields('suite_barrio_cp_content_settings'); ?>
                         <div class="suite-barrio-cp-field-row">
                             <label class="suite-barrio-cp-field-label" for="suite_barrio_cp_domain">Dominio<span>Sincronizzato automaticamente dal
                                     campo "Sito web" di
@@ -1073,7 +1098,7 @@ function suite_barrio_cp_admin_page()
                             <label class="suite-barrio-cp-field-label" for="suite_barrio_cp_privacy_page">Privacy Policy<span>Pagina in cui
                                     salvare solo la Privacy Policy.</span></label>
                             <div class="suite-barrio-cp-field-input">
-                                <select id="suite_barrio_cp_privacy_page" name="wpb_cp_privacy_page_id" required>
+                                <select id="suite_barrio_cp_privacy_page" name="suite_barrio_cp_privacy_page_id" required>
                                     <option value="">— Seleziona pagina —</option>
                                     <?php foreach ($pages as $page): ?>
                                         <option value="<?php echo esc_attr($page->ID); ?>" <?php selected($selected_privacy_page_id, $page->ID); ?>>
@@ -1087,7 +1112,7 @@ function suite_barrio_cp_admin_page()
                             <label class="suite-barrio-cp-field-label" for="suite_barrio_cp_cookie_page">Cookie Policy<span>Pagina in cui salvare
                                     solo la Cookie Policy.</span></label>
                             <div class="suite-barrio-cp-field-input">
-                                <select id="suite_barrio_cp_cookie_page" name="wpb_cp_cookie_page_id" required>
+                                <select id="suite_barrio_cp_cookie_page" name="suite_barrio_cp_cookie_page_id" required>
                                     <option value="">— Seleziona pagina —</option>
                                     <?php foreach ($pages as $page): ?>
                                         <option value="<?php echo esc_attr($page->ID); ?>" <?php selected($selected_cookie_page_id, $page->ID); ?>>
@@ -1098,12 +1123,12 @@ function suite_barrio_cp_admin_page()
                             </div>
                         </div>
                         <div class="suite-barrio-cp-field-row">
-                            <label class="suite-barrio-cp-field-label" for="wpb_cp_cookie_report_script">Cookie report script<span>Codice
+                            <label class="suite-barrio-cp-field-label" for="suite_barrio_cp_cookie_report_script">Cookie report script<span>Codice
                                     fornito dal tuo servizio
                                     di cookie management (Iubenda, Cookiebot, CookieYes…). Verrà inserito automaticamente in
                                     coda alla Cookie Policy. Lascia vuoto per non includere alcun report.</span></label>
                             <div class="suite-barrio-cp-field-input">
-                                <textarea id="wpb_cp_cookie_report_script" name="wpb_cp_cookie_report_script" rows="6"
+                                <textarea id="suite_barrio_cp_cookie_report_script" name="suite_barrio_cp_cookie_report_script" rows="6"
                                     placeholder="&lt;script type=&quot;text/javascript&quot; src=&quot;https://...&quot;&gt;&lt;/script&gt;"
                                     style="width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:10px 12px;border:1px solid #d1d5db;border-radius:7px;resize:vertical;"><?php echo esc_textarea($cookie_report_script); ?></textarea>
                                 <button type="button" class="button" id="suite-barrio-cp-use-endpoint"

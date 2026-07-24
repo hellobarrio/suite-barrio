@@ -43,9 +43,62 @@ A suite of WordPress tools developed by **HelloBarrio**. This plugin bundles thr
 
 ## Installation
 
-1. Copy the `wp-barrio` folder into your WordPress installation's `wp-content/plugins/` directory.
+1. Copy the `suite-barrio` folder into your WordPress installation's `wp-content/plugins/` directory.
 2. Activate the plugin via the **Plugins** page in the WordPress admin dashboard.
 3. Access the **Suite Barrio** item in the sidebar menu to configure the modules.
+
+---
+
+## External services
+
+Some modules connect to third-party services to provide their functionality. Every connection below is optional: it only happens when the corresponding module is enabled and, where noted, only after you enter your own API key/account for that service.
+
+### AI providers (Auto Alt, Cookie & Privacy Policy generator, SEO Advisor, Auto LLMs)
+
+These four modules can generate text with an AI model of your choice. You must supply your own API key for the provider you pick; nothing is sent until you trigger a generation action from the admin screen.
+
+- **Anthropic Claude API** — used to generate image alt/title text (Auto Alt), draft Privacy/Cookie Policy content and detect embedded third-party services (Cookie & Privacy Policy), SEO title/description/keyword suggestions (SEO Advisor), and `llms.txt` / `llms-full.txt` content (Auto LLMs). Data sent: the image being described (Auto Alt only), and/or the site/page text, keywords and settings you provide as prompt context.
+  Terms: https://www.anthropic.com/legal/commercial-terms — Privacy: https://www.anthropic.com/legal/privacy
+- **Google Gemini API** — alternative provider for the same four modules above, same data sent.
+  Terms: https://ai.google.dev/gemini-api/terms — Privacy: https://policies.google.com/privacy
+
+### Google Analytics (Stats module)
+
+Connects to your own Google Analytics 4 property (via OAuth you authorize) to fetch traffic reports shown in the WordPress dashboard. Sends the OAuth token, your GA4 property ID and the selected date range; no data is sent until you connect your Google account from the Stats settings screen.
+Terms: https://policies.google.com/terms — Privacy: https://policies.google.com/privacy
+
+### Google Places API (Orari / Opening Hours module)
+
+Fetches your business's opening hours from your Google Business Profile, using the Place ID and API key you provide.
+Terms: https://policies.google.com/terms — Privacy: https://policies.google.com/privacy
+
+### Google Tag Manager (Cookie Banner scanner and setup wizard)
+
+To help you categorize cookies for the consent banner, the plugin fetches the public `gtm.js` file of the GTM container ID you configure, to detect which tracking tags are already set up inside it. No site or visitor data is sent — this is a read-only fetch of your own container's public script.
+Terms: https://policies.google.com/terms — Privacy: https://policies.google.com/privacy
+
+### ipify (Forms → MailUp settings)
+
+Looks up your own server's public IP address, so you can allow-list it in your MailUp account. No site data is sent; the response only contains your server's IP.
+https://www.ipify.org
+
+### Mailjet API (Forms module, optional)
+
+If you configure Mailjet as the delivery method for a form, submitted entries (the field values, plus sender/recipient email addresses) are sent to Mailjet to deliver the notification email. Only active if you enter your own Mailjet API/secret key.
+Terms: https://www.mailjet.com/legal/terms-of-use/ — Privacy: https://www.mailjet.com/legal/privacy-policy/
+
+### MailUp (Forms module, optional)
+
+If you enable the MailUp newsletter integration on a form, the submitted field values you map are sent to your MailUp list to subscribe the visitor. Only active if you configure this integration.
+Terms & Privacy: https://www.optimizely.com/legal/
+
+### Your own headless frontend (cache invalidation)
+
+If you run this site headless with a separate frontend (e.g. Next.js on Vercel), the plugin can call an on-demand cache-revalidation endpoint on *your own* frontend domain after content changes in WordPress, so the frontend cache stays in sync. This is not a HelloBarrio-operated service — it calls whatever frontend URL you configure.
+
+### Auto Fields — "Analyze URL"
+
+When you enter a URL in the Auto Fields tool, the plugin fetches that page's HTML to detect its structure and draft matching ACF fields. The URL is whatever you type in (e.g. a mockup or reference site); no data besides the HTTP request itself is sent.
 
 ---
 
@@ -94,7 +147,7 @@ A drag-and-drop builder to create custom **contact forms**, save submissions, an
 #### Features
 
 - **Visual builder**: Create and edit forms seamlessly with drag-and-drop mechanics inside the admin panel.
-- **Shortcode**: Insert any form into your WP pages using `[wpb_form id="X"]`.
+- **Shortcode**: Insert any form into your WP pages using `[suite_barrio_form id="X"]` (the legacy `[wpb_form id="X"]` shortcode still works for content created with earlier versions).
 - **Submissions**: Form entries are saved securely in the database along with the user's IP, user agent, and timestamp. These can be reviewed from the form's admin page.
 - **Conditional logic**: Show or hide fields dynamically based on other field values using operators (`=`, `!=`, `contains`, `empty`, `notempty`) and logical relations (`AND`/`OR`).
 - **Post-submission behavior**: Display a custom success message or redirect users to a specific URL.
@@ -118,7 +171,7 @@ When WPGraphQL is active, the module automatically registers:
 To allow GraphQL mutations from an external domain (e.g., Next.js), define the following in your `wp-config.php`:
 
 ```php
-define('WPB_GRAPHQL_ALLOWED_ORIGINS', 'https://www.mysite.com,https://staging.mysite.com');
+define('SUITE_BARRIO_GRAPHQL_ALLOWED_ORIGINS', 'https://www.mysite.com,https://staging.mysite.com');
 ```
 
 ---
@@ -159,8 +212,8 @@ Analyzes the HTML structure of a web page (via URL) and automatically generates 
 ## Plugin Structure
 
 ```
-wp-barrio/
-├── wp-barrio.php                    # Entry point, global constants, module loader
+suite-barrio/
+├── suite-barrio.php                 # Entry point, global constants, module loader
 ├── modules/
 │   ├── dashboard/
 │   │   └── dashboard.php            # Main dashboard featuring module overview cards

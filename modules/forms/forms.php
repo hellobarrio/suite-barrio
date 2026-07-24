@@ -16,7 +16,7 @@ define('SUITE_BARRIO_FORMS_SUB_TABLE', 'wpb_form_submissions');
 /* ─────────────────────────────────────────
    INSTALL: crea le tabelle al primo avvio
    ───────────────────────────────────────── */
-register_activation_hook(SUITE_BARRIO_PLUGIN_DIR . 'wp-alt-ai.php', 'suite_barrio_forms_install');
+register_activation_hook(SUITE_BARRIO_PLUGIN_DIR . 'suite-barrio.php', 'suite_barrio_forms_install');
 
 function suite_barrio_forms_install()
 {
@@ -25,7 +25,7 @@ function suite_barrio_forms_install()
 
     // CREATE TABLE IF NOT EXISTS — non dipende da dbDelta
     // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$charset} viene da $wpdb->get_charset_collate(), valore fisso non da input utente
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- operazione di installazione/aggiornamento schema, eseguita una tantum in attivazione plugin; nessun object-cache group dedicato, il caching non ha senso su una CREATE TABLE
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- operazione di installazione/aggiornamento schema, eseguita una tantum in attivazione plugin; nessun object-cache group dedicato, il caching non ha senso su una CREATE TABLE
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_forms` (
             id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -38,7 +38,6 @@ function suite_barrio_forms_install()
         ) {$charset};"
     );
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- operazione di installazione/aggiornamento schema, eseguita una tantum in attivazione plugin; nessun object-cache group dedicato, il caching non ha senso su una CREATE TABLE
     $wpdb->query(
         "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_form_submissions` (
             id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -51,16 +50,16 @@ function suite_barrio_forms_install()
             KEY form_id (form_id)
         ) {$charset};"
     );
-    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 }
 
 add_action('plugins_loaded', 'suite_barrio_forms_install');
 
 // Fallback: crea le tabelle anche alla prima visita admin
 add_action('admin_init', function () {
-    if (!get_option('wpb_forms_db_version')) {
+    if (!get_option('suite_barrio_forms_db_version')) {
         suite_barrio_forms_install();
-        update_option('wpb_forms_db_version', SUITE_BARRIO_FORMS_VERSION, false);
+        update_option('suite_barrio_forms_db_version', SUITE_BARRIO_FORMS_VERSION, false);
     }
 });
 
@@ -146,7 +145,8 @@ add_action('wp_enqueue_scripts', function () {
 /* ─────────────────────────────────────────
    SHORTCODE: [suite_barrio_form id="X"]
    ───────────────────────────────────────── */
-add_shortcode('wpb_form', 'suite_barrio_forms_shortcode');
+add_shortcode('suite_barrio_form', 'suite_barrio_forms_shortcode');
+add_shortcode('wpb_form', 'suite_barrio_forms_shortcode'); // alias retrocompatibile: contenuti già pubblicati con [wpb_form]
 
 function suite_barrio_forms_shortcode($atts)
 {
@@ -882,7 +882,7 @@ function suite_barrio_forms_send_notifications(object $form, array $settings, ar
         }
 
         // ── Sceglie il metodo di invio: Mailjet API o wp_mail ────────────────
-        $global_mj = get_option('wpb_forms_mailjet', []);
+        $global_mj = get_option('suite_barrio_forms_mailjet', []);
         $mj_api_key = trim($global_mj['api_key'] ?? '');
         $mj_secret_key = trim($global_mj['secret_key'] ?? '');
 
@@ -991,6 +991,7 @@ function suite_barrio_mailjet_send(
             $mj_attachments[] = [
                 'ContentType' => mime_content_type($path) ?: 'application/octet-stream',
                 'Filename' => basename($path),
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode, WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- allegato locale codificato in base64 come richiesto dall'API Mailjet, non offuscamento; $path e' un file locale, non un URL
                 'Base64Content' => base64_encode(file_get_contents($path)),
             ];
         }
@@ -1007,6 +1008,7 @@ function suite_barrio_mailjet_send(
             'timeout' => 15,
             'headers' => [
                 'Content-Type' => 'application/json',
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- codifica richiesta dallo schema HTTP Basic Auth, non offuscamento
                 'Authorization' => 'Basic ' . base64_encode($api_key . ':' . $secret_key),
             ],
             'body' => $body,
@@ -1234,16 +1236,16 @@ add_action('wp_ajax_suite_barrio_forms_save_global_settings', function () {
     $api_key = sanitize_text_field(wp_unslash($_POST['mailjet_api_key'] ?? ''));
     $secret_key = sanitize_text_field(wp_unslash($_POST['mailjet_secret_key'] ?? ''));
 
-    update_option('wpb_forms_mailjet', [
+    update_option('suite_barrio_forms_mailjet', [
         'api_key' => $api_key,
         'secret_key' => $secret_key,
     ], false);
 
     // MailUp: nessuna credenziale necessaria — la chiamata è pubblica
-    update_option('wpb_forms_mailup', [], false);
+    update_option('suite_barrio_forms_mailup', [], false);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:global');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:global');
     }
     wp_send_json_success('Impostazioni salvate.');
 });
@@ -1325,6 +1327,26 @@ function suite_barrio_mailup_subscribe(
     }
 
     return true;
+}
+
+/* ─────────────────────────────────────────
+   HELPER: sanifica ricorsivamente ogni stringa di una struttura
+   fields/settings decodificata dal JSON del form builder (nomi,
+   etichette, placeholder, opzioni...), lasciando intatti bool/numeri
+   e la struttura degli array.
+   ───────────────────────────────────────── */
+function suite_barrio_forms_sanitize_recursive($value)
+{
+    if (is_array($value)) {
+        return array_map('suite_barrio_forms_sanitize_recursive', $value);
+    }
+    if (is_string($value)) {
+        // textarea_field invece di text_field: preserva eventuali interruzioni
+        // di riga intenzionali (es. un valore predefinito multi-riga) mentre
+        // rimuove comunque tag HTML e caratteri di controllo non validi.
+        return sanitize_textarea_field($value);
+    }
+    return $value;
 }
 
 /* ─────────────────────────────────────────
@@ -1428,7 +1450,12 @@ add_action('wp_ajax_suite_barrio_forms_save', function () {
             }
         }
         unset($field);
-        $fields = wp_json_encode($fields_arr);
+        $fields = wp_json_encode(suite_barrio_forms_sanitize_recursive($fields_arr));
+    }
+
+    $settings_arr = json_decode($settings, true);
+    if (is_array($settings_arr)) {
+        $settings = wp_json_encode(suite_barrio_forms_sanitize_recursive($settings_arr));
     }
 
     $table = $wpdb->prefix . SUITE_BARRIO_FORMS_TABLE;
@@ -1445,8 +1472,8 @@ add_action('wp_ajax_suite_barrio_forms_save', function () {
         if ($ok === false)
             wp_send_json_error('Errore DB: ' . $wpdb->last_error);
         suite_barrio_forms_revalidate_cache($id);
-        if (function_exists('invalidate_vercel_cache')) {
-            invalidate_vercel_cache('form_' . $id);
+        if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+            suite_barrio_invalidate_vercel_cache('form_' . $id);
         }
         wp_send_json_success(['id' => $id, 'message' => 'Form salvato.']);
     } else {
@@ -1460,8 +1487,8 @@ add_action('wp_ajax_suite_barrio_forms_save', function () {
             wp_send_json_error('Errore DB: ' . $wpdb->last_error);
         $new_id = $wpdb->insert_id;
         suite_barrio_forms_revalidate_cache($new_id);
-        if (function_exists('invalidate_vercel_cache')) {
-            invalidate_vercel_cache('form_' . $id);
+        if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+            suite_barrio_invalidate_vercel_cache('form_' . $id);
         }
         wp_send_json_success(['id' => $new_id, 'message' => 'Form creato.']);
     }
@@ -1482,8 +1509,8 @@ add_action('wp_ajax_suite_barrio_forms_delete', function () {
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_FORMS_TABLE, ['id' => $id], ['%d']);
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_FORMS_SUB_TABLE, ['form_id' => $id], ['%d']);
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('form_' . $id);
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('form_' . $id);
     }
     wp_send_json_success('Form eliminato.');
 });
@@ -3111,7 +3138,7 @@ function suite_barrio_forms_admin_page()
             </div>
             <hr class="suite-barrio-divider">
             <?php
-            $mj_global = get_option('wpb_forms_mailjet', []);
+            $mj_global = get_option('suite_barrio_forms_mailjet', []);
             $mj_missing = empty(trim($mj_global['api_key'] ?? '')) || empty(trim($mj_global['secret_key'] ?? ''));
             if ($mj_missing): ?>
                 <div class="suite-barrio-notice suite-barrio-notice-warning">
@@ -3138,7 +3165,7 @@ function suite_barrio_forms_admin_page()
             <?php endif; ?>
 
             <?php /* ══════ IMPOSTAZIONI GLOBALI ══════ */ if ($tab === 'settings'):
-                $mj_opts = get_option('wpb_forms_mailjet', []);
+                $mj_opts = get_option('suite_barrio_forms_mailjet', []);
                 ?>
                 <div style="max-width:600px;">
                     <div class="suite-barrio-section-box" style="margin-bottom:20px;">
@@ -3217,7 +3244,8 @@ function suite_barrio_forms_admin_page()
                                         <td>
                                             <p>
                                                 <?php
-                                                $ip = file_get_contents('https://api4.ipify.org'); // forza IPv4
+                                                $ip_response = wp_remote_get('https://api4.ipify.org', ['timeout' => 5]); // forza IPv4
+                                                $ip = !is_wp_error($ip_response) ? wp_remote_retrieve_body($ip_response) : '';
                                                 echo esc_html($ip);
                                                 ?>
                                                 <br>

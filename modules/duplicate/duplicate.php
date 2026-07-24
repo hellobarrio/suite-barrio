@@ -16,7 +16,7 @@ if (!defined('ABSPATH'))
     exit;
 
 define('SUITE_BARRIO_DUPLICATE_VERSION', '1.0.0');
-define('SUITE_BARRIO_DUPLICATE_OPTION', 'wpb_duplicate_settings');
+define('SUITE_BARRIO_DUPLICATE_OPTION', 'suite_barrio_duplicate_settings');
 
 /* ─────────────────────────────────────────
    HELPERS
@@ -306,7 +306,7 @@ add_action('admin_action_suite_barrio_duplicate_term', function () {
             if (in_array($meta_key, $acf_keys, true))
                 continue;
             // Salta l'ordine personalizzato Suite Barrio Orders: il termine è nuovo
-            if ($meta_key === 'wpb_term_order')
+            if ($meta_key === 'suite_barrio_term_order')
                 continue;
             foreach ($meta_values as $meta_value) {
                 add_term_meta($new_term_id, $meta_key, maybe_unserialize($meta_value));
@@ -316,7 +316,7 @@ add_action('admin_action_suite_barrio_duplicate_term', function () {
         // ── ACF non attivo: copia raw ─────────────────────────────
         $meta_list = get_term_meta($term_id);
         foreach ($meta_list as $meta_key => $meta_values) {
-            if ($meta_key === 'wpb_term_order')
+            if ($meta_key === 'suite_barrio_term_order')
                 continue;
             foreach ($meta_values as $meta_value) {
                 add_term_meta($new_term_id, $meta_key, maybe_unserialize($meta_value));

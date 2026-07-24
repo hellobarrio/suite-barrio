@@ -2,8 +2,9 @@
 if (!defined('ABSPATH')) exit;
 
 add_action('rest_api_init', function () {
-    $ns = 'wpb/v1/cookie-banner';
-
+    // 'wpb/v1/cookie-banner' resta registrato come alias retrocompatibile:
+    // tag GTM Custom HTML già pubblicati sui siti live puntano a quell'URL.
+    foreach (['suite-barrio/v1/cookie-banner', 'wpb/v1/cookie-banner'] as $ns) {
     register_rest_route($ns, '/config', [
         'methods'             => 'GET',
         'callback'            => function () {
@@ -23,7 +24,7 @@ add_action('rest_api_init', function () {
     register_rest_route($ns, '/scan', [
         'methods'             => 'POST',
         'callback'            => function (WP_REST_Request $req) {
-            // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
+            // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged -- alcuni host disabilitano set_time_limit(); @ evita il warning, necessario per operazioni batch lunghe
             if (function_exists('set_time_limit')) @set_time_limit(120);
             $results = SUITE_BARRIO_Scanner::run();
             return isset($results['error'])
@@ -60,9 +61,27 @@ add_action('rest_api_init', function () {
     register_rest_route($ns, '/consent-log', [
         'methods'             => 'POST',
         'callback'            => 'suite_barrio_cb_handle_consent_log',
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'suite_barrio_cb_consent_log_permission',
     ]);
+    }
 });
+
+/* ── Permission callback del consent-log: l'endpoint resta accessibile ai
+      visitatori anonimi (il consenso va registrato anche senza login), ma
+      richiede il nonce restituito da /config, cosi' solo chi ha prima
+      caricato la config dal nostro sito puo' scrivere un log — non uno
+      script esterno che invia POST alla cieca. ── */
+function suite_barrio_cb_consent_log_permission(WP_REST_Request $req) {
+    $nonce = $req->get_header('X-WP-Nonce');
+    if (!$nonce || !wp_verify_nonce($nonce, 'suite_barrio_cb_consent_log')) {
+        return new WP_Error(
+            'suite_barrio_cb_forbidden',
+            __('Richiesta non valida.', 'suite-barrio'),
+            ['status' => 403]
+        );
+    }
+    return true;
+}
 
 /* ── Salva un evento di consenso nel log DB (chiamato dal consent-engine) ── */
 function suite_barrio_cb_handle_consent_log(WP_REST_Request $req): WP_REST_Response {
@@ -151,13 +170,10 @@ window.SuiteBarrioRestBase = "' . esc_js($rest_base) . '";
     // phpcs:enable WordPress.WP.EnqueuedResources.NonEnqueuedScript
 }
 
-/* ── Genera HTML widget preferenze ── */
-function suite_barrio_cb_generate_preferences_html(): string {
-    $categories = SUITE_BARRIO_Service_Registry::get_categories();
-    ob_start();
-    ?>
-<div class="suite-barrio-preferences" data-suite-barrio-preferences>
-<style>
+/* ── CSS del widget preferenze, iniettato in pagina via wp_add_inline_style
+      (vedi frontend.php) invece che con un tag <style> dentro il frammento HTML ── */
+function suite_barrio_cb_preferences_css(): string {
+    return '
 .suite-barrio-preferences{font-family:system-ui,sans-serif;max-width:100%;}
 .suite-barrio-pref-category{border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;overflow:hidden;}
 .suite-barrio-pref-header{padding:14px 16px;background:#f8fafc;}
@@ -174,7 +190,15 @@ function suite_barrio_cb_generate_preferences_html(): string {
 .suite-barrio-pref-btn{padding:9px 18px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600;}
 .suite-barrio-pref-btn-primary{background:#1A56DB;color:#fff;}
 .suite-barrio-pref-btn-secondary{background:#f1f5f9;color:#374151;}
-</style>
+';
+}
+
+/* ── Genera HTML widget preferenze ── */
+function suite_barrio_cb_generate_preferences_html(): string {
+    $categories = SUITE_BARRIO_Service_Registry::get_categories();
+    ob_start();
+    ?>
+<div class="suite-barrio-preferences" data-suite-barrio-preferences>
     <?php foreach ($categories as $cat_id => $cat):
         $services = SUITE_BARRIO_Service_Registry::get_services_by_category($cat_id);
         if ($cat_id !== 'necessary' && empty($services)) continue;

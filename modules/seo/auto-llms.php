@@ -13,18 +13,18 @@ if (!defined('ABSPATH'))
    COSTANTI
    ───────────────────────────────────────── */
 if (!defined('SUITE_BARRIO_LLMS_LOG_OPTION'))
-    define('SUITE_BARRIO_LLMS_LOG_OPTION', 'wpb_llms_log');
+    define('SUITE_BARRIO_LLMS_LOG_OPTION', 'suite_barrio_llms_log');
 if (!defined('SUITE_BARRIO_LLMS_LOG_MAX'))
     define('SUITE_BARRIO_LLMS_LOG_MAX', 100);
 if (!defined('SUITE_BARRIO_LLMS_CACHE_OPTION'))
-    define('SUITE_BARRIO_LLMS_CACHE_OPTION', 'wpb_llms_last_generated');
+    define('SUITE_BARRIO_LLMS_CACHE_OPTION', 'suite_barrio_llms_last_generated');
 
 /* ─────────────────────────────────────────
    HELPER: scrivi una riga nel log
    ───────────────────────────────────────── */
 function suite_barrio_llms_log($status, $type = '', $note = '')
 {
-    if (!get_option('wpb_llms_log_enabled', 1))
+    if (!get_option('suite_barrio_llms_log_enabled', 1))
         return;
 
     $log = get_option(SUITE_BARRIO_LLMS_LOG_OPTION, []);
@@ -45,10 +45,10 @@ function suite_barrio_llms_log($status, $type = '', $note = '')
    ───────────────────────────────────────── */
 function suite_barrio_llms_active_key()
 {
-    $provider = get_option('wpb_llms_provider', 'anthropic');
+    $provider = get_option('suite_barrio_llms_provider', 'anthropic');
     return $provider === 'gemini'
-        ? get_option('wpb_llms_gemini_key', '')
-        : get_option('wpb_llms_api_key', '');
+        ? get_option('suite_barrio_llms_gemini_key', '')
+        : get_option('suite_barrio_llms_api_key', '');
 }
 
 /* ─────────────────────────────────────────
@@ -56,7 +56,7 @@ function suite_barrio_llms_active_key()
    ───────────────────────────────────────── */
 function suite_barrio_llms_fetch_models($provider)
 {
-    $cache_key = 'wpb_llms_models_' . $provider;
+    $cache_key = 'suite_barrio_llms_models_' . $provider;
     $cached = get_transient($cache_key);
     if ($cached !== false)
         return $cached;
@@ -64,7 +64,7 @@ function suite_barrio_llms_fetch_models($provider)
     $models = [];
 
     if ($provider === 'anthropic') {
-        $api_key = get_option('wpb_llms_api_key', '');
+        $api_key = get_option('suite_barrio_llms_api_key', '');
         if (empty($api_key))
             return null;
 
@@ -86,7 +86,7 @@ function suite_barrio_llms_fetch_models($provider)
             }
         }
     } elseif ($provider === 'gemini') {
-        $api_key = get_option('wpb_llms_gemini_key', '');
+        $api_key = get_option('suite_barrio_llms_gemini_key', '');
         if (empty($api_key))
             return null;
 
@@ -188,6 +188,7 @@ function suite_barrio_llms_build_markdown($include_full = false, $pt_modes = [],
 
         // Forza la lingua corrente per tutte le query WPML
         if ($wpml_active) {
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoca l'hook di WPML, non ne definisce uno nuovo
             do_action('wpml_switch_language', $lang_code);
             // Filtro aggiuntivo: assicura che WP_Query riceva il lang corretto
             add_filter('wpml_current_language', function () use ($lang_code) {
@@ -269,7 +270,7 @@ function suite_barrio_llms_build_markdown($include_full = false, $pt_modes = [],
                 $md .= "### [{$post->post_title}]({$permalink})\n\n";
 
                 if ($include_full) {
-                    $text = wp_strip_all_tags(apply_filters('the_content', $post->post_content));
+                    $text = wp_strip_all_tags(apply_filters('the_content', $post->post_content) /* phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- hook core di WordPress, non definito da noi */);
                     $text = preg_replace('/\s+/', ' ', trim($text));
                     if (!empty($text)) {
                         $max_chars = ($slug === 'page') ? 3000 : 4000;
@@ -278,7 +279,7 @@ function suite_barrio_llms_build_markdown($include_full = false, $pt_modes = [],
                 } else {
                     $excerpt = get_the_excerpt($post->ID);
                     if (empty($excerpt)) {
-                        $text = wp_strip_all_tags(apply_filters('the_content', $post->post_content));
+                        $text = wp_strip_all_tags(apply_filters('the_content', $post->post_content) /* phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- hook core di WordPress, non definito da noi */);
                         $excerpt = mb_substr(preg_replace('/\s+/', ' ', trim($text)), 0, 300);
                     }
                     if (!empty($excerpt)) {
@@ -402,6 +403,7 @@ function suite_barrio_llms_build_markdown($include_full = false, $pt_modes = [],
     // Ripristina lingua WPML e rimuove il filtro temporaneo
     if ($wpml_active) {
         remove_all_filters('wpml_current_language', 999);
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoca l'hook di WPML, non ne definisce uno nuovo
         do_action('wpml_switch_language', null);
     }
 
@@ -429,11 +431,11 @@ function suite_barrio_llms_collect_site_content($include_full = false, $pt_modes
    ───────────────────────────────────────── */
 function suite_barrio_llms_generate_intro($site_info, $generate_type)
 {
-    $provider = get_option('wpb_llms_provider', 'anthropic');
-    $model = get_option('wpb_llms_model', 'claude-sonnet-4-6') ?: 'claude-sonnet-4-6';
-    $lang = get_option('wpb_llms_language', 'it');
-    $tone = get_option('wpb_llms_tone', 'professional');
-    $focus = get_option('wpb_llms_focus', '');
+    $provider = get_option('suite_barrio_llms_provider', 'anthropic');
+    $model = get_option('suite_barrio_llms_model', 'claude-sonnet-4-6') ?: 'claude-sonnet-4-6';
+    $lang = get_option('suite_barrio_llms_language', 'it');
+    $tone = get_option('suite_barrio_llms_tone', 'professional');
+    $focus = get_option('suite_barrio_llms_focus', '');
 
     $lang_map = ['it' => 'italiano', 'en' => 'inglese', 'es' => 'spagnolo', 'fr' => 'francese', 'de' => 'tedesco'];
     $lang_name = $lang_map[$lang] ?? 'italiano';
@@ -478,11 +480,11 @@ function suite_barrio_llms_generate_intro($site_info, $generate_type)
     $raw = '';
 
     if ($provider === 'gemini') {
-        $api_key = get_option('wpb_llms_gemini_key', '');
+        $api_key = get_option('suite_barrio_llms_gemini_key', '');
         if (empty($api_key))
             return ['error' => 'Chiave API Gemini non configurata'];
 
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . urlencode($model) . ':generateContent?key=' . $api_key;
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . $api_key;
         $response = wp_remote_post($url, [
             'timeout' => 60,
             'headers' => ['Content-Type' => 'application/json'],
@@ -507,7 +509,7 @@ function suite_barrio_llms_generate_intro($site_info, $generate_type)
         }
 
     } else {
-        $api_key = get_option('wpb_llms_api_key', '');
+        $api_key = get_option('suite_barrio_llms_api_key', '');
         if (empty($api_key))
             return ['error' => 'Chiave API Anthropic non configurata'];
 
@@ -557,7 +559,7 @@ function suite_barrio_llms_call_api($site_content, $generate_type, $pt_modes = [
 function suite_barrio_llms_write_file($filename, $content)
 {
     $path = ABSPATH . $filename;
-    // phpcs:ignore PluginCheck.CodeAnalysis.WriteFile.ABSPATHDetected -- il file deve risiedere nella webroot per essere raggiungibile pubblicamente
+    // phpcs:ignore PluginCheck.CodeAnalysis.WriteFile.ABSPATHDetected, WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- il file deve risiedere nella webroot per essere raggiungibile pubblicamente; WP_Filesystem richiederebbe credenziali FTP non disponibili in questo contesto (salvataggio da AJAX admin)
     $result = file_put_contents($path, $content);
     if ($result === false) {
         return ['error' => 'Impossibile scrivere ' . $filename . '. Verifica i permessi sulla root del sito.'];
@@ -573,6 +575,7 @@ function suite_barrio_llms_read_file($filename)
     $path = ABSPATH . $filename;
     if (!file_exists($path))
         return null;
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- lettura locale del file nella webroot appena scritto da suite_barrio_llms_write_file(), non un URL remoto
     return file_get_contents($path);
 }
 
@@ -587,7 +590,7 @@ add_action('wp_ajax_suite_barrio_llms_fetch_models', function () {
     $provider = sanitize_key($_POST['provider'] ?? 'anthropic');
     $force = !empty($_POST['force']);
     if ($force)
-        delete_transient('wpb_llms_models_' . $provider);
+        delete_transient('suite_barrio_llms_models_' . $provider);
 
     $models = suite_barrio_llms_fetch_models($provider);
     if ($models === null) {
@@ -600,10 +603,8 @@ add_action('wp_ajax_suite_barrio_llms_fetch_models', function () {
    AJAX: genera i file llms
    ───────────────────────────────────────── */
 add_action('wp_ajax_suite_barrio_llms_generate', function () {
-    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
-    @set_time_limit(300);
-    // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- necessario per operazioni batch lunghe
-    @ini_set('max_execution_time', '300');
+    // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged -- alcuni host disabilitano set_time_limit(); @ evita il warning, necessario per operazioni batch lunghe
+    if (function_exists('set_time_limit')) @set_time_limit(300);
 
     check_ajax_referer('suite_barrio_llms_nonce', 'nonce');
     if (!current_user_can('manage_options'))
@@ -613,7 +614,7 @@ add_action('wp_ajax_suite_barrio_llms_generate', function () {
 
     $api_key = suite_barrio_llms_active_key();
     if (empty($api_key)) {
-        $provider = get_option('wpb_llms_provider', 'anthropic');
+        $provider = get_option('suite_barrio_llms_provider', 'anthropic');
         $msg = 'Chiave API non configurata per il provider: ' . $provider;
         suite_barrio_llms_log('error', $type, $msg);
         wp_send_json_success(['error' => $msg]);
@@ -623,9 +624,9 @@ add_action('wp_ajax_suite_barrio_llms_generate', function () {
     $pt_modes = [];
     $tax_modes = [];
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array validato elemento per elemento nel foreach successivo (sanitize_key + whitelist $allowed)
-    $raw_pt = !empty($_POST['pt_modes']) ? (array) wp_unslash($_POST['pt_modes']) : get_option('wpb_llms_pt_modes', []);
+    $raw_pt = !empty($_POST['pt_modes']) ? (array) wp_unslash($_POST['pt_modes']) : get_option('suite_barrio_llms_pt_modes', []);
     // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array validato elemento per elemento nel foreach successivo (sanitize_key + whitelist $allowed)
-    $raw_tax = !empty($_POST['tax_modes']) ? (array) wp_unslash($_POST['tax_modes']) : get_option('wpb_llms_tax_modes', []);
+    $raw_tax = !empty($_POST['tax_modes']) ? (array) wp_unslash($_POST['tax_modes']) : get_option('suite_barrio_llms_tax_modes', []);
     foreach ($raw_pt as $slug => $mode) {
         $slug = sanitize_key($slug);
         if ($slug && in_array($mode, $allowed))
@@ -682,12 +683,12 @@ add_action('wp_ajax_suite_barrio_llms_generate', function () {
     }
 
     update_option(SUITE_BARRIO_LLMS_CACHE_OPTION, ['ts' => current_time('timestamp'), 'type' => $type], false);
-    $provider = get_option('wpb_llms_provider', 'anthropic');
-    $model = get_option('wpb_llms_model', '');
+    $provider = get_option('suite_barrio_llms_provider', 'anthropic');
+    $model = get_option('suite_barrio_llms_model', '');
     suite_barrio_llms_log('success', $type, 'Generato con ' . $provider . ($model ? ' / ' . $model : ''));
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:llms');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:llms');
     }
     wp_send_json_success($results);
 });
@@ -719,11 +720,11 @@ add_action('wp_ajax_suite_barrio_llms_save_inclusion', function () {
             $tax_modes[$slug] = $mode;
     }
 
-    update_option('wpb_llms_pt_modes', $pt_modes, false);
-    update_option('wpb_llms_tax_modes', $tax_modes, false);
+    update_option('suite_barrio_llms_pt_modes', $pt_modes, false);
+    update_option('suite_barrio_llms_tax_modes', $tax_modes, false);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:llms');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:llms');
     }
 
     wp_send_json_success();
@@ -857,14 +858,14 @@ add_filter('submenu_file', function ($submenu_file) {
    2. IMPOSTAZIONI
    ───────────────────────────────────────── */
 add_action('admin_init', function () {
-    register_setting('wpb_llms_settings', 'wpb_llms_provider', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_llms_settings', 'wpb_llms_api_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_llms_settings', 'wpb_llms_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_llms_settings', 'wpb_llms_model', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_llms_settings', 'wpb_llms_language', ['sanitize_callback' => 'sanitize_text_field']);
-    register_setting('wpb_llms_settings', 'wpb_llms_tone', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'professional']);
-    register_setting('wpb_llms_settings', 'wpb_llms_focus', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
-    register_setting('wpb_llms_settings', 'wpb_llms_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_provider', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_api_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_gemini_key', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_model', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_language', ['sanitize_callback' => 'sanitize_text_field']);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_tone', ['sanitize_callback' => 'sanitize_text_field', 'default' => 'professional']);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_focus', ['sanitize_callback' => 'sanitize_text_field', 'default' => '']);
+    register_setting('suite_barrio_llms_settings', 'suite_barrio_llms_log_enabled', ['sanitize_callback' => 'absint', 'default' => 1]);
 });
 
 /* ─────────────────────────────────────────
@@ -960,8 +961,8 @@ function suite_barrio_llms_admin_page()
                 // Raccoglie CPT e tassonomie per il pannello
                 $all_post_types = suite_barrio_llms_get_configurable_post_types();
                 $all_taxonomies = suite_barrio_llms_get_configurable_taxonomies();
-                $saved_pt_modes = get_option('wpb_llms_pt_modes', []);
-                $saved_tax_modes = get_option('wpb_llms_tax_modes', []);
+                $saved_pt_modes = get_option('suite_barrio_llms_pt_modes', []);
+                $saved_tax_modes = get_option('suite_barrio_llms_tax_modes', []);
                 ?>
 
                     <!-- Pannello inclusione CPT e tassonomie -->
@@ -1152,7 +1153,7 @@ function suite_barrio_llms_admin_page()
                    ══════════════════════════════════════ */
             elseif ($tab === 'log'):
 
-                if (!get_option('wpb_llms_log_enabled', 1)): ?>
+                if (!get_option('suite_barrio_llms_log_enabled', 1)): ?>
                             <div class="notice notice-warning inline">
                                 <p>
                                     <strong>Registrazione log disabilitata.</strong>
@@ -1237,21 +1238,21 @@ function suite_barrio_llms_admin_page()
                    TAB: IMPOSTAZIONI
                    ══════════════════════════════════════ */
             elseif ($tab === 'settings'):
-                $provider = get_option('wpb_llms_provider', 'anthropic');
-                $model = get_option('wpb_llms_model', 'claude-sonnet-4-6');
-                $key_anth = get_option('wpb_llms_api_key', '');
-                $key_gem = get_option('wpb_llms_gemini_key', '');
-                $lang = get_option('wpb_llms_language', 'it');
-                $tone = get_option('wpb_llms_tone', 'professional');
-                $focus = get_option('wpb_llms_focus', '');
-                $log_en = get_option('wpb_llms_log_enabled', 1);
+                $provider = get_option('suite_barrio_llms_provider', 'anthropic');
+                $model = get_option('suite_barrio_llms_model', 'claude-sonnet-4-6');
+                $key_anth = get_option('suite_barrio_llms_api_key', '');
+                $key_gem = get_option('suite_barrio_llms_gemini_key', '');
+                $lang = get_option('suite_barrio_llms_language', 'it');
+                $tone = get_option('suite_barrio_llms_tone', 'professional');
+                $focus = get_option('suite_barrio_llms_focus', '');
+                $log_en = get_option('suite_barrio_llms_log_enabled', 1);
 
                 $providers = [
                     'anthropic' => [
                         'logo' => '🟣',
                         'name' => 'Anthropic — Claude',
                         'desc' => 'Claude Opus, Sonnet, Haiku — eccellente per testi strutturati e documentazione',
-                        'key_field' => 'wpb_llms_api_key',
+                        'key_field' => 'suite_barrio_llms_api_key',
                         'key_val' => $key_anth,
                         'key_ph' => 'sk-ant-api03-...',
                         'key_url' => 'https://console.anthropic.com/',
@@ -1267,7 +1268,7 @@ function suite_barrio_llms_admin_page()
                         'logo' => '🔵',
                         'name' => 'Google — Gemini',
                         'desc' => 'Gemini 2.x Flash & Pro — ottimo rapporto qualità/costo',
-                        'key_field' => 'wpb_llms_gemini_key',
+                        'key_field' => 'suite_barrio_llms_gemini_key',
                         'key_val' => $key_gem,
                         'key_ph' => 'AIza...',
                         'key_url' => 'https://aistudio.google.com/app/apikey',
@@ -1284,7 +1285,7 @@ function suite_barrio_llms_admin_page()
                 ?>
 
                     <form method="post" action="options.php">
-                        <?php settings_fields('wpb_llms_settings'); ?>
+                        <?php settings_fields('suite_barrio_llms_settings'); ?>
 
                         <table class="form-table" role="presentation">
                             <tbody>
@@ -1302,7 +1303,7 @@ function suite_barrio_llms_admin_page()
                                                     <div class="suite-barrio-provider-block">
                                                         <label class="suite-barrio-provider-card <?php echo $is_sel ? 'selected' : ''; ?>"
                                                             data-provider="<?php echo esc_attr($pval); ?>">
-                                                            <input type="radio" name="wpb_llms_provider" value="<?php echo esc_attr($pval); ?>"
+                                                            <input type="radio" name="suite_barrio_llms_provider" value="<?php echo esc_attr($pval); ?>"
                                                                 <?php checked($provider, $pval); ?>>
                                                             <span class="suite-barrio-pc-logo"><?php echo esc_html($pdata['logo']); ?></span>
                                                             <div>
@@ -1330,7 +1331,7 @@ function suite_barrio_llms_admin_page()
                                                                         $m_checked = ($active_model === $mval);
                                                                         ?>
                                                                             <label class="suite-barrio-model-label <?php echo $m_checked ? 'selected' : ''; ?>">
-                                                                                <input type="radio" name="wpb_llms_model"
+                                                                                <input type="radio" name="suite_barrio_llms_model"
                                                                                     value="<?php echo esc_attr($mval); ?>" <?php checked($active_model, $mval); ?>                                 <?php echo !$is_sel ? 'disabled' : ''; ?>>
                                                                                 <div>
                                                                                     <div class="suite-barrio-model-name"><?php echo esc_html($mdata['name']); ?>
@@ -1352,9 +1353,9 @@ function suite_barrio_llms_admin_page()
 
                                 <!-- Lingua -->
                                 <tr>
-                                    <th scope="row"><label for="wpb_llms_language">Lingua dell'output</label></th>
+                                    <th scope="row"><label for="suite_barrio_llms_language">Lingua dell'output</label></th>
                                     <td>
-                                        <select name="wpb_llms_language" id="wpb_llms_language">
+                                        <select name="suite_barrio_llms_language" id="suite_barrio_llms_language">
                                             <option value="it" <?php selected($lang, 'it'); ?>>🇮🇹 Italiano</option>
                                             <option value="en" <?php selected($lang, 'en'); ?>>🇬🇧 English</option>
                                             <option value="es" <?php selected($lang, 'es'); ?>>🇪🇸 Español</option>
@@ -1367,9 +1368,9 @@ function suite_barrio_llms_admin_page()
 
                                 <!-- Tono -->
                                 <tr>
-                                    <th scope="row"><label for="wpb_llms_tone">Registro linguistico</label></th>
+                                    <th scope="row"><label for="suite_barrio_llms_tone">Registro linguistico</label></th>
                                     <td>
-                                        <select name="wpb_llms_tone" id="wpb_llms_tone">
+                                        <select name="suite_barrio_llms_tone" id="suite_barrio_llms_tone">
                                             <option value="professional" <?php selected($tone, 'professional'); ?>>Professionale e
                                                 chiaro</option>
                                             <option value="technical" <?php selected($tone, 'technical'); ?>>Tecnico e preciso</option>
@@ -1383,9 +1384,9 @@ function suite_barrio_llms_admin_page()
 
                                 <!-- Focus tematico -->
                                 <tr>
-                                    <th scope="row"><label for="wpb_llms_focus">Focus tematico</label></th>
+                                    <th scope="row"><label for="suite_barrio_llms_focus">Focus tematico</label></th>
                                     <td>
-                                        <input type="text" name="wpb_llms_focus" id="wpb_llms_focus"
+                                        <input type="text" name="suite_barrio_llms_focus" id="suite_barrio_llms_focus"
                                             value="<?php echo esc_attr($focus); ?>" class="regular-text"
                                             placeholder="es. agenzia di comunicazione, e-commerce di moda, blog tech…">
                                         <p class="description">Descrive in breve il tema principale del sito. Aiuta l'AI a
@@ -1399,7 +1400,7 @@ function suite_barrio_llms_admin_page()
                                     <td>
                                         <div class="suite-barrio-toggle-row">
                                             <label class="suite-barrio-toggle">
-                                                <input type="checkbox" name="wpb_llms_log_enabled" value="1" <?php checked($log_en, 1); ?>>
+                                                <input type="checkbox" name="suite_barrio_llms_log_enabled" value="1" <?php checked($log_en, 1); ?>>
                                                 <span class="suite-barrio-toggle-track"></span>
                                             </label>
                                             <div class="suite-barrio-toggle-info">
@@ -1425,7 +1426,7 @@ function suite_barrio_llms_admin_page()
                         (function () {
                             var ajaxUrl = '<?php echo esc_js(admin_url("admin-ajax.php")); ?>';
                             var nonce = '<?php echo esc_js(wp_create_nonce("suite_barrio_llms_nonce")); ?>';
-                            var currentModel = '<?php echo esc_js(get_option("wpb_llms_model", "")); ?>';
+                            var currentModel = '<?php echo esc_js(get_option("suite_barrio_llms_model", "")); ?>';
                             var modelDefaults = { anthropic: 'claude-sonnet-4-6', gemini: 'gemini-2.5-flash' };
 
                             function updateModelHighlight() {
@@ -1447,7 +1448,7 @@ function suite_barrio_llms_admin_page()
                                     var lbl = document.createElement('label');
                                     lbl.className = 'suite-barrio-model-label' + (chk ? ' selected' : '');
                                     lbl.innerHTML =
-                                        '<input type="radio" name="wpb_llms_model" value="' + id + '"' + (chk ? ' checked' : '') + ' style="margin-top:2px;flex-shrink:0;">' +
+                                        '<input type="radio" name="suite_barrio_llms_model" value="' + id + '"' + (chk ? ' checked' : '') + ' style="margin-top:2px;flex-shrink:0;">' +
                                         '<div>' +
                                         '<div class="suite-barrio-model-name">' + (m.name || id) + '</div>' +
                                         (m.desc ? '<div class="suite-barrio-model-desc">' + m.desc + '</div>' : '') +
@@ -1494,7 +1495,7 @@ function suite_barrio_llms_admin_page()
                                 });
                             });
 
-                            document.querySelectorAll('input[name="wpb_llms_provider"]').forEach(function (radio) {
+                            document.querySelectorAll('input[name="suite_barrio_llms_provider"]').forEach(function (radio) {
                                 radio.addEventListener('change', function () {
                                     var sel = this.value;
                                     document.querySelectorAll('.suite-barrio-provider-card').forEach(function (c) {
@@ -1504,7 +1505,7 @@ function suite_barrio_llms_admin_page()
                                         var prov = panel.id.replace('suite-barrio-llms-keys-', '');
                                         var active = (prov === sel);
                                         panel.classList.toggle('visible', active);
-                                        panel.querySelectorAll('input[type=radio][name="wpb_llms_model"]').forEach(function (r) {
+                                        panel.querySelectorAll('input[type=radio][name="suite_barrio_llms_model"]').forEach(function (r) {
                                             r.disabled = !active;
                                         });
                                         if (active) { currentModel = ''; loadModels(prov, panel, false); }

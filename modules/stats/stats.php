@@ -19,14 +19,14 @@ if (!defined('ABSPATH'))
     exit;
 
 define('SUITE_BARRIO_STATS_VERSION', '3.0.0');
-define('SUITE_BARRIO_STATS_OPTION', 'wpb_stats_settings');
-define('SUITE_BARRIO_STATS_TOKEN_OPTION', 'wpb_stats_tokens');
+define('SUITE_BARRIO_STATS_OPTION', 'suite_barrio_stats_settings');
+define('SUITE_BARRIO_STATS_TOKEN_OPTION', 'suite_barrio_stats_tokens');
 define('SUITE_BARRIO_STATS_API_BASE', 'https://analyticsdata.googleapis.com/v1beta/properties/');
 define('SUITE_BARRIO_STATS_TOKEN_URL', 'https://oauth2.googleapis.com/token');
 define('SUITE_BARRIO_STATS_AUTH_URL', 'https://accounts.google.com/o/oauth2/v2/auth');
 define('SUITE_BARRIO_STATS_CACHE_TTL', 1800); // 30 minuti
 define('SUITE_BARRIO_STATS_OAUTH_SCOPE', 'https://www.googleapis.com/auth/analytics.readonly');
-define('SUITE_BARRIO_STATS_REDIRECT_PATH', 'admin.php?page=wp-barrio-stats&wpb_oauth_callback=1');
+define('SUITE_BARRIO_STATS_REDIRECT_PATH', 'admin.php?page=wp-barrio-stats&suite_barrio_oauth_callback=1');
 
 /* ─────────────────────────────────────────
    HELPERS — impostazioni e token
@@ -173,7 +173,7 @@ function suite_barrio_stats_run_report(
                 'Authorization' => 'Bearer ' . $token,
                 'Content-Type' => 'application/json',
             ],
-            'body' => json_encode($body),
+            'body' => wp_json_encode($body),
         ]
     );
 
@@ -204,7 +204,7 @@ function suite_barrio_stats_get_dashboard_data(bool $force = false): array|false
     if (!$property_id || !suite_barrio_stats_is_connected())
         return false;
 
-    $cache_key = 'wpb_stats_dash_' . $property_id;
+    $cache_key = 'suite_barrio_stats_dash_' . $property_id;
 
     if (!$force) {
         $cached = get_transient($cache_key);
@@ -333,11 +333,11 @@ function suite_barrio_stats_get_dashboard_data(bool $force = false): array|false
 
 /* ─────────────────────────────────────────
    GESTIONE CALLBACK OAUTH
-   Intercetta ?wpb_oauth_callback=1 prima che
+   Intercetta ?suite_barrio_oauth_callback=1 prima che
    WordPress carichi la pagina admin.
    ───────────────────────────────────────── */
 add_action('admin_init', function () {
-    if (empty($_GET['wpb_oauth_callback']))
+    if (empty($_GET['suite_barrio_oauth_callback']))
         return;
     if (!current_user_can('manage_options'))
         return;
@@ -345,7 +345,7 @@ add_action('admin_init', function () {
     // Errore restituito da Google.
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- callback OAuth di Google: la verifica CSRF avviene tramite il parametro 'state' (nonce 'suite_barrio_stats_oauth_state') controllato subito sotto; questo ramo si limita a rilanciare l'errore ricevuto, nessuna azione di stato.
     if (!empty($_GET['error'])) {
-        wp_safe_redirect(admin_url('admin.php?page=suite-barrio-stats&oauth_error=' . urlencode(sanitize_text_field(wp_unslash($_GET['error'])))));
+        wp_safe_redirect(admin_url('admin.php?page=suite-barrio-stats&oauth_error=' . rawurlencode(sanitize_text_field(wp_unslash($_GET['error'])))));
         exit;
     }
 
@@ -371,7 +371,7 @@ add_action('admin_init', function () {
     // Successo
     $s = suite_barrio_stats_settings();
     if (!empty($s['property_id'])) {
-        delete_transient('wpb_stats_dash_' . $s['property_id']);
+        delete_transient('suite_barrio_stats_dash_' . $s['property_id']);
     }
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-stats&oauth_success=1'));
     exit;
@@ -414,7 +414,7 @@ add_action('admin_post_suite_barrio_stats_save', function () {
     }
 
     if ($property_id) {
-        delete_transient('wpb_stats_dash_' . $property_id);
+        delete_transient('suite_barrio_stats_dash_' . $property_id);
     }
 
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-stats&saved=1'));
@@ -432,7 +432,7 @@ add_action('admin_post_suite_barrio_stats_disconnect', function () {
     delete_option(SUITE_BARRIO_STATS_TOKEN_OPTION);
     $s = suite_barrio_stats_settings();
     if (!empty($s['property_id'])) {
-        delete_transient('wpb_stats_dash_' . $s['property_id']);
+        delete_transient('suite_barrio_stats_dash_' . $s['property_id']);
     }
 
     wp_safe_redirect(admin_url('admin.php?page=suite-barrio-stats&disconnected=1'));
@@ -705,6 +705,7 @@ add_action('wp_dashboard_setup', function () {
         return;
 
     global $wp_meta_boxes;
+    // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- "bacheca sostitutiva" e' una feature opt-in (suite_barrio_stats_replace_active()) che rimuove intenzionalmente tutti i widget dashboard per mostrare solo le statistiche
     $wp_meta_boxes['dashboard'] = [];
 
     wp_add_dashboard_widget('suite_barrio_stats_widget', 'Statistiche', 'suite_barrio_stats_dashboard_widget');

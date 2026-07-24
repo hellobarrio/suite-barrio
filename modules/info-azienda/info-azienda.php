@@ -3,7 +3,7 @@
  * Suite Barrio — Info Azienda
  * Pagina di gestione delle informazioni anagrafiche dell'azienda,
  * organizzata in 3 tab: Dati azienda, Contatti, Social.
- * I dati vengono salvati in un'unica option `wpb_company_info`
+ * I dati vengono salvati in un'unica option `suite_barrio_company_info`
  * e sono accessibili a tutti i moduli tramite la helper suite_barrio_company_info_get().
  *
  * @package Suite_Barrio
@@ -16,7 +16,7 @@ if (!defined('ABSPATH'))
    COSTANTI
    ───────────────────────────────────────── */
 define('SUITE_BARRIO_COMPANY_INFO_VERSION', '1.1.0');
-define('SUITE_BARRIO_COMPANY_INFO_OPTION', 'wpb_company_info');
+define('SUITE_BARRIO_COMPANY_INFO_OPTION', 'suite_barrio_company_info');
 
 /* ─────────────────────────────────────────
    HELPER: definizione piatta dei campi.
@@ -191,8 +191,8 @@ add_action('admin_post_suite_barrio_company_info_save', function () {
 
     update_option(SUITE_BARRIO_COMPANY_INFO_OPTION, $clean);
 
-    if (function_exists('invalidate_vercel_cache')) {
-        invalidate_vercel_cache('wp:option');
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('wp:option');
     }
 
     // Mantieni la tab attiva nel redirect

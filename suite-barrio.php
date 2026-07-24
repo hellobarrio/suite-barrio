@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  Suite Barrio
  * Description:  Suite Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      9.0.0
+ * Version:      9.1.0
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -31,23 +31,22 @@ add_action('admin_enqueue_scripts', function ($hook) {
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('SUITE_BARRIO_VERSION', '9.0.0');
+define('SUITE_BARRIO_VERSION', '9.1.0');
 define('SUITE_BARRIO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SUITE_BARRIO_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('SUITE_BARRIO_LOG_OPTION', 'wp_alt_ai_log');
+define('SUITE_BARRIO_LOG_OPTION', 'suite_barrio_alt_ai_log');
 define('SUITE_BARRIO_LOG_MAX', 200);
-define('SUITE_BARRIO_JOB_OPTION', 'wp_alt_ai_bulk_job');
-define('SUITE_BARRIO_CRON_HOOK', 'wp_alt_ai_process_batch');
+define('SUITE_BARRIO_JOB_OPTION', 'suite_barrio_alt_ai_bulk_job');
+define('SUITE_BARRIO_CRON_HOOK', 'suite_barrio_alt_ai_process_batch');
 define('SUITE_BARRIO_BATCH_SIZE', 5);
-define('SUITE_BARRIO_LICENSE_KEY', '!mBppEGsKquoL9qjq^4ahz');
 
 /* ─────────────────────────────────────────
-   LICENSE GATE — caricato sempre, prima di ogni
-   altro modulo. Definisce suite_barrio_license_is_active().
+   MIGRAZIONE — rinomina una tantum di opzioni/meta dal vecchio
+   prefisso "wpb_"/"wp_alt_ai_" al nuovo "suite_barrio_". Deve girare
+   PRIMA di ogni modulo, incluso "tools" da cui dipende quali moduli
+   caricare.
    ───────────────────────────────────────── */
-require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/license/license.php';
-
-if (suite_barrio_license_is_active()) {
+require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/migrations.php';
 
 /* ─────────────────────────────────────────
    MODULI CORE
@@ -116,5 +115,3 @@ require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/graphql.php';
    CACHE INVALIDATION (Vercel)
    ───────────────────────────────────────── */
 require_once SUITE_BARRIO_PLUGIN_DIR . 'cache.php';
-
-} // suite_barrio_license_is_active()
