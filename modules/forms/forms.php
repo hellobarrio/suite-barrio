@@ -180,7 +180,19 @@ function suite_barrio_forms_log(string $message): void
  */
 function suite_barrio_forms_translatable_settings(): array
 {
-    return ['submit_text', 'redirect_url', 'success_message', 'mailup_list_id', 'mailup_group_id', 'mailchimp_list_id'];
+    return [
+        'submit_text',
+        'redirect_url',
+        'success_message',
+        'mailup_list_id',
+        'mailup_group_id',
+        'mailchimp_list_id',
+        // I tag sono traducibili come l'Audience ID: servono a segmentare gli
+        // iscritti per lingua (es. "Newsletter IT" / "Newsletter EN") e poi a
+        // inviare campagne nella lingua giusta.
+        'mailchimp_tags',
+        'mailchimp_consent_tags',
+    ];
 }
 
 function suite_barrio_forms_translatable_notif(): array
@@ -429,8 +441,11 @@ function suite_barrio_forms_shortcode($atts)
                         <select id="suite-barrio-<?php echo $fid; ?>" name="<?php echo $fid; ?>" <?php echo $req_attr; ?>>
                             <option value="" disabled selected hidden><?php echo esc_html($field['placeholder'] ?? 'Seleziona…'); ?>
                             </option>
-                            <?php foreach ($options as $opt): ?>
-                                <option value="<?php echo esc_attr($opt); ?>"><?php echo esc_html($opt); ?></option>
+                            <?php foreach ($options as $opt):
+                                // In un <option> il markup non può renderizzare: testo puro.
+                                $opt_text = wp_strip_all_tags($opt);
+                                ?>
+                                <option value="<?php echo esc_attr($opt_text); ?>"><?php echo esc_html($opt_text); ?></option>
                             <?php endforeach; ?>
                         </select>
 
@@ -440,11 +455,15 @@ function suite_barrio_forms_shortcode($atts)
                         <div class="suite-barrio-choice-group">
                             <?php foreach ($options as $oi => $opt):
                                 $opt_id = 'suite-barrio-' . $fid . '-' . intval($oi);
+                                // Il valore inviato è sempre testo puro: è quello che finisce
+                                // nelle registrazioni, nelle email e nei confronti della logica
+                                // condizionale, dove il markup dell'etichetta sarebbe rumore.
+                                $opt_value = wp_strip_all_tags($opt);
                                 ?>
                                 <div class="suite-barrio-choice-label">
                                     <input type="<?php echo esc_attr($type); ?>" id="<?php echo esc_attr($opt_id); ?>"
                                         name="<?php echo $fid . ($type === 'checkbox' ? '[]' : ''); ?>"
-                                        value="<?php echo esc_attr($opt); ?>">
+                                        value="<?php echo esc_attr($opt_value); ?>">
                                     <?php // wp_kses_post: l'admin può mettere un link nell'etichetta (es. privacy policy),
                                         // ma script e attributi pericolosi restano fuori. ?>
                                     <label for="<?php echo esc_attr($opt_id); ?>"><?php echo wp_kses_post($opt); ?></label>
@@ -1804,15 +1823,17 @@ function suite_barrio_forms_handle_submit()
                 }
             }
 
-            // Tag applicati al contatto. Il tag "Newsletter" segnala il consenso
-            // commerciale; per liste di tag specifiche del progetto usa il filtro.
-            $mc_tags = [];
+            // Tag configurati per questo form: quelli "sempre" vanno su ogni
+            // iscritto, quelli di consenso solo se la checkbox è spuntata.
+            $mc_tags = suite_barrio_forms_parse_tags($settings['mailchimp_tags'] ?? '');
+            $mc_consent_tags = suite_barrio_forms_parse_tags($settings['mailchimp_consent_tags'] ?? '');
             if ($commercial_consent) {
-                $mc_tags[] = 'Newsletter';
-            } else {
-                suite_barrio_forms_log('[Mailchimp] Consenso commerciale assente (campo: ' . $mc_optin_field . ') — iscritto senza il tag "Newsletter".');
+                $mc_tags = array_merge($mc_tags, $mc_consent_tags);
+            } elseif ($mc_consent_tags) {
+                suite_barrio_forms_log('[Mailchimp] Consenso commerciale assente (campo: ' . $mc_optin_field . ') — iscritto senza i tag: ' . implode(', ', $mc_consent_tags));
             }
-            $mc_tags = apply_filters('suite_barrio_mailchimp_tags', $mc_tags, $form_id, $submission_data, $commercial_consent);
+            // Il filtro resta l'ultima parola, per casi che l'interfaccia non copre.
+            $mc_tags = apply_filters('suite_barrio_mailchimp_tags', array_values(array_unique($mc_tags)), $form_id, $submission_data, $commercial_consent);
 
             $result = suite_barrio_mailchimp_subscribe($mc_email, $mc_list_id, $mc_merge_fields, (array) $mc_tags);
             if (is_wp_error($result)) {
@@ -1953,6 +1974,28 @@ function suite_barrio_mailup_subscribe(
 }
 
 /* ─────────────────────────────────────────
+   HELPER: lista di tag da stringa separata da virgole
+   ───────────────────────────────────────── */
+/**
+ * Converte "Sito web, Newsletter" in ['Sito web', 'Newsletter'].
+ * Scarta i valori vuoti e i duplicati, così una virgola di troppo o un tag
+ * ripetuto non generano chiamate inutili a Mailchimp.
+ *
+ * @param string $raw Valore così come digitato nell'interfaccia.
+ * @return string[]
+ */
+function suite_barrio_forms_parse_tags($raw): array
+{
+    if (!is_string($raw) || '' === trim($raw))
+        return [];
+
+    $tags = array_map('sanitize_text_field', explode(',', $raw));
+    $tags = array_filter(array_map('trim', $tags), static fn($t) => '' !== $t);
+
+    return array_values(array_unique($tags));
+}
+
+/* ─────────────────────────────────────────
    HELPER: iscrizione tramite Mailchimp Marketing API v3
    ───────────────────────────────────────── */
 /**
@@ -2054,12 +2097,27 @@ function suite_barrio_mailchimp_subscribe(string $email, string $list_id, array 
    etichette, placeholder, opzioni...), lasciando intatti bool/numeri
    e la struttura degli array.
    ───────────────────────────────────────── */
-function suite_barrio_forms_sanitize_recursive($value)
+function suite_barrio_forms_sanitize_recursive($value, string $key = '')
 {
     if (is_array($value)) {
-        return array_map('suite_barrio_forms_sanitize_recursive', $value);
+        $out = [];
+        foreach ($value as $k => $v) {
+            // Le chiavi numeriche sono elementi di lista: ereditano la chiave del
+            // contenitore, così 'options' => [0 => '…'] resta riconoscibile come
+            // opzione anche scendendo di un livello.
+            $out[$k] = suite_barrio_forms_sanitize_recursive($v, is_int($k) ? $key : (string) $k);
+        }
+        return $out;
     }
     if (is_string($value)) {
+        // Le etichette di radio/checkbox vengono stampate come HTML dallo
+        // shortcode (wp_kses_post), quindi qui il markup consentito va
+        // conservato: un link alla privacy policy nell'etichetta di una
+        // checkbox di consenso è un caso d'uso normale. Stesso allowlist usato
+        // dal salvataggio traduzioni, così i due percorsi non divergono.
+        if ('options' === $key) {
+            return wp_kses_post($value);
+        }
         // textarea_field invece di text_field: preserva eventuali interruzioni
         // di riga intenzionali (es. un valore predefinito multi-riga) mentre
         // rimuove comunque tag HTML e caratteri di controllo non validi.
@@ -2322,6 +2380,8 @@ add_action('wp_ajax_suite_barrio_forms_save_translation', function () {
         'mailup_list_id' => sanitize_text_field($si18n['mailup_list_id'] ?? ''),
         'mailup_group_id' => sanitize_text_field($si18n['mailup_group_id'] ?? ''),
         'mailchimp_list_id' => sanitize_text_field($si18n['mailchimp_list_id'] ?? ''),
+        'mailchimp_tags' => sanitize_text_field($si18n['mailchimp_tags'] ?? ''),
+        'mailchimp_consent_tags' => sanitize_text_field($si18n['mailchimp_consent_tags'] ?? ''),
         'notifications' => [],
     ];
     foreach ((array) ($si18n['notifications'] ?? []) as $notif) {
@@ -5021,6 +5081,56 @@ function suite_barrio_forms_admin_page()
                                         di questo form. Default: <code>email</code>.</p>
                                 </div>
 
+                                <!-- Tag applicati al contatto -->
+                                <div style="margin-bottom:24px;">
+                                    <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;">
+                                        Tag applicati al contatto
+                                        <span style="font-weight:400;color:#a7aaad;">(opzionale)</span>
+                                    </label>
+                                    <p class="description" style="margin-bottom:12px;margin-top:0;">
+                                        Etichette con cui segmentare gli iscritti dentro l'Audience. Scrivili
+                                        <strong>separati da virgola</strong>; gli spazi ai bordi vengono ignorati.
+                                        I tag che non esistono ancora vengono creati da Mailchimp al primo utilizzo,
+                                        e riapplicarli a un contatto che li ha già non fa danni.
+                                    </p>
+                                    <?php if ($ml_active): ?>
+                                        <p class="description"
+                                            style="margin-bottom:12px;margin-top:0;padding:10px 12px;background:#f0f6fc;border:1px solid #c6d9ef;border-radius:3px;color:#0a4b78;">
+                                            <?php if ($is_translation_mode): ?>
+                                                Stai impostando i tag per
+                                                <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>:
+                                                usali per separare gli iscritti di questa lingua (es.
+                                                <code>Newsletter EN</code>) e poter inviare campagne nella lingua giusta.
+                                                <strong>Lascia vuoto</strong> per ereditare i tag della lingua principale.
+                                            <?php else: ?>
+                                                Questi sono i tag della <strong>lingua principale</strong>. Ogni lingua può
+                                                averne di propri: apri il form nella lingua che ti interessa dalle pill in
+                                                <a
+                                                    href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-forms')); ?>">elenco
+                                                    form</a> e compila i tag lì. Le lingue che li lasciano vuoti usano
+                                                questi.
+                                            <?php endif; ?>
+                                        </p>
+                                    <?php endif; ?>
+
+                                    <label style="display:block;font-weight:600;font-size:12px;margin-bottom:4px;"
+                                        for="suite-barrio-setting-mailchimp-tags">Tag sempre applicati</label>
+                                    <input type="text" id="suite-barrio-setting-mailchimp-tags" class="regular-text"
+                                        style="width:100%;" placeholder="es. Sito web, Richieste contatto">
+                                    <p class="description" style="margin-top:4px;margin-bottom:16px;">Assegnati a
+                                        <strong>ogni</strong> contatto iscritto da questo form, indipendentemente dal
+                                        consenso commerciale. Servono a sapere da dove arriva l'iscritto.</p>
+
+                                    <label style="display:block;font-weight:600;font-size:12px;margin-bottom:4px;"
+                                        for="suite-barrio-setting-mailchimp-consent-tags">Tag con consenso commerciale</label>
+                                    <input type="text" id="suite-barrio-setting-mailchimp-consent-tags" class="regular-text"
+                                        style="width:100%;" placeholder="es. Newsletter">
+                                    <p class="description" style="margin-top:4px;">Aggiunti <strong>solo</strong> quando il
+                                        campo di consenso qui sotto risulta spuntato. Se non configuri un campo di consenso,
+                                        vengono applicati sempre. Lascia vuoto se questo form non raccoglie un consenso
+                                        commerciale.</p>
+                                </div>
+
                                 <!-- Campo consenso commerciale -->
                                 <div
                                     style="margin-bottom:24px;padding:16px;background:#f6f7f7;border-radius:3px;border:1px solid #e2e4e7;">
@@ -5030,17 +5140,16 @@ function suite_barrio_forms_admin_page()
                                         <span style="font-weight:400;color:#a7aaad;"> (opzionale)</span>
                                     </label>
                                     <p class="description" style="margin-bottom:10px;margin-top:0;">Il contatto viene
-                                        <strong>sempre</strong> iscritto. Questo campo decide solo se aggiungere il tag
-                                        <code>Newsletter</code>: se la checkbox non è spuntata, il contatto viene
-                                        iscritto senza quel tag. Per applicare tag diversi usa il filtro
-                                        <code>suite_barrio_mailchimp_tags</code>.</p>
+                                        <strong>sempre</strong> iscritto, spuntato o no: questo campo decide soltanto se
+                                        applicare i <strong>tag con consenso commerciale</strong> impostati sopra. I
+                                        <strong>tag sempre applicati</strong> non dipendono da questa scelta.</p>
                                     <select id="suite-barrio-setting-mailchimp-optin-field"
                                         style="width:100%;max-width:340px;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
-                                        <option value="">— Nessuno (sempre tag Newsletter) —</option>
+                                        <option value="">— Nessuno (consenso implicito) —</option>
                                     </select>
                                     <p class="description" style="margin-top:6px;">Seleziona la <strong>checkbox</strong> di
                                         consenso commerciale del form. Lascia "Nessuno" sui form di sola iscrizione
-                                        newsletter, dove il consenso è implicito.</p>
+                                        newsletter, dove il consenso è implicito nell'invio.</p>
                                 </div>
 
                                 <!-- Mapping campi form → merge tag Mailchimp -->
@@ -5405,6 +5514,10 @@ function suite_barrio_forms_admin_page()
         s.mailchimp_list_id || '';
         if (el('suite-barrio-setting-mailchimp-email-field')) el('suite-barrio-setting-mailchimp-email-field').value =
         s.mailchimp_email_field || '';
+        if (el('suite-barrio-setting-mailchimp-tags')) el('suite-barrio-setting-mailchimp-tags').value =
+        s.mailchimp_tags || '';
+        if (el('suite-barrio-setting-mailchimp-consent-tags')) el('suite-barrio-setting-mailchimp-consent-tags').value =
+        s.mailchimp_consent_tags || '';
         // Consenso commerciale: popola con i campi checkbox presenti nel form
         const mcOptinSel = el('suite-barrio-setting-mailchimp-optin-field');
         if (mcOptinSel) {
@@ -5585,6 +5698,10 @@ function suite_barrio_forms_admin_page()
         el('suite-barrio-setting-mailchimp-email-field').value.trim() : (settings.mailchimp_email_field || 'email'),
         mailchimp_optin_field: el('suite-barrio-setting-mailchimp-optin-field') ?
         el('suite-barrio-setting-mailchimp-optin-field').value : (settings.mailchimp_optin_field || ''),
+        mailchimp_tags: el('suite-barrio-setting-mailchimp-tags') ?
+        el('suite-barrio-setting-mailchimp-tags').value.trim() : (settings.mailchimp_tags || ''),
+        mailchimp_consent_tags: el('suite-barrio-setting-mailchimp-consent-tags') ?
+        el('suite-barrio-setting-mailchimp-consent-tags').value.trim() : (settings.mailchimp_consent_tags || ''),
         mailchimp_field_map: mailchimpFieldMap.filter(r => r.form_field && r.mailchimp_field_name),
         };
         }
@@ -5999,6 +6116,15 @@ function suite_barrio_forms_admin_page()
         function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;' ).replace( />/g,
         '&gt;').replace(/"/g, '&quot;'); }
 
+        // Le opzioni di radio/checkbox possono contenere markup (es. link privacy).
+        // Nelle anteprime compatte mostriamo il solo testo: i tag escapati si
+        // leggerebbero come "&lt;a href…&gt;" e sembrerebbero un errore.
+        function escOptText(s) {
+        const d = document.createElement('div');
+        d.innerHTML = String(s || '');
+        return esc(d.textContent || '');
+        }
+
         // Formatta valore checkbox/radio: "Label: true | Label: false" → HTML con ✓/✗
         function formatCheckVal(val) {
         if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
@@ -6144,12 +6270,12 @@ function suite_barrio_forms_admin_page()
             const opts = (f.options || []).slice(0, 3);
             preview = `<div class="suite-barrio-preview-choices">${opts.map(o => `<label
                     class="suite-barrio-preview-choice"><span
-                        class="suite-barrio-preview-radio"></span>${esc(o)}</label>`).join('')}</div>`;
+                        class="suite-barrio-preview-radio"></span>${escOptText(o)}</label>`).join('')}</div>`;
             } else if (f.type === 'checkbox') {
             const opts = (f.options || []).slice(0, 3);
             preview = `<div class="suite-barrio-preview-choices">${opts.map(o => `<label
                     class="suite-barrio-preview-choice"><span
-                        class="suite-barrio-preview-checkbox"></span>${esc(o)}</label>`).join('')}</div>`;
+                        class="suite-barrio-preview-checkbox"></span>${escOptText(o)}</label>`).join('')}</div>`;
             } else if (f.type === 'datepicker') {
             preview = `<div class="suite-barrio-preview-date"><span>${esc(f.placeholder || 'gg/mm/aaaa')}</span><svg
                     width="14" height="14" viewBox="0 0 14 14" fill="none">
