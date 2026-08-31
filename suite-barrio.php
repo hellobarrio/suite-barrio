@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  Suite Barrio
  * Description:  Suite Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      9.1.1
+ * Version:      9.1.2
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -31,7 +31,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('SUITE_BARRIO_VERSION', '9.1.1');
+define('SUITE_BARRIO_VERSION', '9.1.2');
 define('SUITE_BARRIO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SUITE_BARRIO_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SUITE_BARRIO_LOG_OPTION', 'suite_barrio_alt_ai_log');
