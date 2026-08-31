@@ -9,9 +9,10 @@
 if (!defined('ABSPATH'))
     exit;
 
-define('SUITE_BARRIO_FORMS_VERSION', '1.0.14');
+define('SUITE_BARRIO_FORMS_VERSION', '1.1.0');
 define('SUITE_BARRIO_FORMS_TABLE', 'wpb_forms');
 define('SUITE_BARRIO_FORMS_SUB_TABLE', 'wpb_form_submissions');
+define('SUITE_BARRIO_FORMS_TRANS_TABLE', 'wpb_forms_translations');
 
 /* ─────────────────────────────────────────
    INSTALL: crea le tabelle al primo avvio
@@ -43,6 +44,7 @@ function suite_barrio_forms_install()
             id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             form_id    BIGINT UNSIGNED NOT NULL,
             data       LONGTEXT        NOT NULL,
+            lang       VARCHAR(10)     NOT NULL DEFAULT '',
             ip         VARCHAR(45)     NOT NULL DEFAULT '',
             user_agent TEXT,
             created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -50,6 +52,27 @@ function suite_barrio_forms_install()
             KEY form_id (form_id)
         ) {$charset};"
     );
+
+    // Tabella traduzioni form (v1.1.0)
+    $wpdb->query(
+        "CREATE TABLE IF NOT EXISTS `{$wpdb->prefix}wpb_forms_translations` (
+            id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            form_id       BIGINT UNSIGNED NOT NULL,
+            lang          VARCHAR(10)     NOT NULL DEFAULT '',
+            fields_i18n   LONGTEXT        NOT NULL,
+            settings_i18n LONGTEXT        NOT NULL,
+            updated_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY form_lang (form_id, lang)
+        ) {$charset};"
+    );
+
+    // Migrazione v1.1: aggiunge la colonna lang alle installazioni preesistenti.
+    $sub_table = $wpdb->prefix . SUITE_BARRIO_FORMS_SUB_TABLE;
+    $cols = $wpdb->get_col("SHOW COLUMNS FROM `{$sub_table}`", 0);
+    if ($cols && !in_array('lang', $cols, true)) {
+        $wpdb->query("ALTER TABLE `{$sub_table}` ADD COLUMN `lang` VARCHAR(10) NOT NULL DEFAULT '' AFTER `data`");
+    }
     // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 }
 
@@ -57,7 +80,8 @@ add_action('plugins_loaded', 'suite_barrio_forms_install');
 
 // Fallback: crea le tabelle anche alla prima visita admin
 add_action('admin_init', function () {
-    if (!get_option('suite_barrio_forms_db_version')) {
+    $installed = get_option('suite_barrio_forms_db_version', '0');
+    if (version_compare($installed, SUITE_BARRIO_FORMS_VERSION, '<')) {
         suite_barrio_forms_install();
         update_option('suite_barrio_forms_db_version', SUITE_BARRIO_FORMS_VERSION, false);
     }
@@ -131,6 +155,183 @@ function suite_barrio_forms_get_submission($id)
 
 
 /* ─────────────────────────────────────────
+   HELPER: log diagnostico.
+   Scrive solo con WP_DEBUG attivo: in produzione è un no-op, così le
+   integrazioni esterne (Mailjet, MailUp, Mailchimp, reCAPTCHA) restano
+   diagnosticabili senza sporcare i log di un sito live.
+   ───────────────────────────────────────── */
+function suite_barrio_forms_log(string $message): void
+{
+    if (!defined('WP_DEBUG') || !WP_DEBUG)
+        return;
+    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- log diagnostico volontario, attivo solo con WP_DEBUG
+    error_log('[Suite Barrio][Forms] ' . $message);
+}
+
+/* ─────────────────────────────────────────
+   HELPER DB — TRADUZIONI FORM
+   ───────────────────────────────────────── */
+
+/**
+ * Chiavi traducibili — unica fonte di verità (usata da apply/extract, dal
+ * sanitize AJAX e dal JS dell'editor, così non possono divergere).
+ * I nomi devono combaciare con quelli letti da suite_barrio_forms_send_notifications():
+ * message / email_title / to_name / replyto_name.
+ */
+function suite_barrio_forms_translatable_settings(): array
+{
+    return ['submit_text', 'redirect_url', 'success_message', 'mailup_list_id', 'mailup_group_id', 'mailchimp_list_id'];
+}
+
+function suite_barrio_forms_translatable_notif(): array
+{
+    return ['subject', 'email_title', 'message', 'from_name', 'to_name', 'replyto_name'];
+}
+
+/**
+ * Restituisce la traduzione di un form per una lingua, o null se non esiste.
+ */
+function suite_barrio_forms_get_translation(int $form_id, string $lang): ?object
+{
+    global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
+    return $wpdb->get_row($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nome tabella fisso (costante di plugin), non input utente
+        "SELECT * FROM {$wpdb->prefix}" . SUITE_BARRIO_FORMS_TRANS_TABLE . "
+         WHERE form_id = %d AND lang = %s",
+        $form_id,
+        $lang
+    )) ?: null;
+}
+
+/**
+ * Upsert traduzione form.
+ */
+function suite_barrio_forms_save_translation(int $form_id, string $lang, array $fields_i18n, array $settings_i18n): bool
+{
+    global $wpdb;
+    $table = $wpdb->prefix . SUITE_BARRIO_FORMS_TRANS_TABLE;
+    $existing = suite_barrio_forms_get_translation($form_id, $lang);
+
+    $row = [
+        'form_id' => $form_id,
+        'lang' => $lang,
+        'fields_i18n' => wp_json_encode($fields_i18n, JSON_UNESCAPED_UNICODE),
+        'settings_i18n' => wp_json_encode($settings_i18n, JSON_UNESCAPED_UNICODE),
+    ];
+    $fmt = ['%d', '%s', '%s', '%s'];
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato
+    if ($existing) {
+        $ok = $wpdb->update($table, $row, ['id' => (int) $existing->id], $fmt, ['%d']);
+    } else {
+        $ok = $wpdb->insert($table, $row, $fmt);
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    return $ok !== false;
+}
+
+/**
+ * Elimina tutte le traduzioni di un form.
+ */
+function suite_barrio_forms_delete_translations(int $form_id): void
+{
+    global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato
+    $wpdb->delete($wpdb->prefix . SUITE_BARRIO_FORMS_TRANS_TABLE, ['form_id' => $form_id], ['%d']);
+}
+
+/**
+ * Applica una traduzione a un form: sovrascrive solo i campi traducibili.
+ * Restituisce [fields, settings] mergiati (non tocca il DB).
+ */
+function suite_barrio_forms_apply_translation(array $fields, array $settings, object $trans): array
+{
+    $fi18n = json_decode($trans->fields_i18n, true) ?: [];
+    $si18n = json_decode($trans->settings_i18n, true) ?: [];
+
+    // Merge fields: per ogni campo sovrascrive label, placeholder, error_message, options
+    foreach ($fields as $i => &$field) {
+        if (!isset($fi18n[$i]))
+            continue;
+        $t = $fi18n[$i];
+        foreach (['label', 'placeholder', 'error_message'] as $k) {
+            if (isset($t[$k]) && $t[$k] !== '')
+                $field[$k] = $t[$k];
+        }
+        if (!empty($t['options']) && is_array($t['options'])) {
+            $field['options'] = $t['options'];
+        }
+    }
+    unset($field);
+
+    // Merge settings: solo i campi traducibili
+    foreach (suite_barrio_forms_translatable_settings() as $k) {
+        if (isset($si18n[$k]) && $si18n[$k] !== '')
+            $settings[$k] = $si18n[$k];
+    }
+    // Notifiche: merge per indice
+    if (!empty($si18n['notifications']) && is_array($si18n['notifications'])) {
+        $orig_notifs = $settings['notifications'] ?? [];
+        foreach ($si18n['notifications'] as $ni => $nt) {
+            if (!isset($orig_notifs[$ni]))
+                continue;
+            foreach (suite_barrio_forms_translatable_notif() as $nk) {
+                if (isset($nt[$nk]) && $nt[$nk] !== '')
+                    $orig_notifs[$ni][$nk] = $nt[$nk];
+            }
+        }
+        $settings['notifications'] = $orig_notifs;
+    }
+
+    return [$fields, $settings];
+}
+
+/**
+ * Estrae da fields e settings solo i campi traducibili,
+ * per pre-popolare l'editor di traduzione.
+ */
+function suite_barrio_forms_extract_translatable(array $fields, array $settings): array
+{
+    $fi18n = [];
+    foreach ($fields as $field) {
+        $entry = [];
+        foreach (['label', 'placeholder', 'error_message'] as $k) {
+            $entry[$k] = $field[$k] ?? '';
+        }
+        $entry['options'] = $field['options'] ?? [];
+        $fi18n[] = $entry;
+    }
+
+    $si18n = [];
+    foreach (suite_barrio_forms_translatable_settings() as $k) {
+        $si18n[$k] = $settings[$k] ?? '';
+    }
+    $si18n['notifications'] = [];
+    foreach ($settings['notifications'] ?? [] as $notif) {
+        $nt = [];
+        foreach (suite_barrio_forms_translatable_notif() as $nk) {
+            $nt[$nk] = $notif[$nk] ?? '';
+        }
+        $si18n['notifications'][] = $nt;
+    }
+
+    return [$fi18n, $si18n];
+}
+
+/**
+ * Lingua corrente del sito secondo WPML, se attivo. Stringa vuota se monolingua.
+ */
+function suite_barrio_forms_current_lang(): string
+{
+    if (defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
+        return ICL_LANGUAGE_CODE;
+    }
+    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
+    return (string) apply_filters('wpml_current_language', '');
+}
+
+/* ─────────────────────────────────────────
    ENQUEUE: asset front-end del form (solo registrazione).
    Il caricamento effettivo (wp_enqueue_*) e l'aggancio del
    codice dinamico (wp_add_inline_*) avvengono in
@@ -157,7 +358,30 @@ function suite_barrio_forms_shortcode($atts)
 
     $fields = json_decode($form->fields, true) ?: [];
     $settings = json_decode($form->settings, true) ?: [];
+
+    // Se esiste, usa il form tradotto nella lingua corrente; altrimenti resta in lingua originale.
+    $suite_barrio_form_lang = suite_barrio_forms_current_lang();
+    if ($suite_barrio_form_lang) {
+        $trans = suite_barrio_forms_get_translation((int) $form->id, $suite_barrio_form_lang);
+        if ($trans) {
+            [$fields, $settings] = suite_barrio_forms_apply_translation($fields, $settings, $trans);
+        }
+    }
+
     $form_id_css = 'suite-barrio-form-' . $form->id;
+
+    // reCAPTCHA Enterprise: attivo solo se le credenziali globali sono complete.
+    $rc_site_key = suite_barrio_recaptcha_site_key();
+    if ($rc_site_key) {
+        wp_enqueue_script(
+            'suite-barrio-recaptcha-enterprise',
+            'https://www.google.com/recaptcha/enterprise.js?render=' . rawurlencode($rc_site_key),
+            [],
+            null,
+            false
+        );
+    }
+
     $after_submit = $settings['after_submit'] ?? 'message';
     $redirect_url = esc_url($settings['redirect_url'] ?? '');
     $display_page_info = !empty($settings['display_page_info']);
@@ -169,6 +393,7 @@ function suite_barrio_forms_shortcode($atts)
             <?php wp_nonce_field('suite_barrio_form_submit_' . $form->id, 'suite_barrio_nonce'); ?>
             <input type="hidden" name="action" value="suite_barrio_forms_submit">
             <input type="hidden" name="form_id" value="<?php echo intval($form->id); ?>">
+            <input type="hidden" name="_lang" value="<?php echo esc_attr($suite_barrio_form_lang); ?>">
             <?php if ($display_page_info): ?>
                 <input type="hidden" name="_page_url" id="<?php echo esc_attr($form_id_css); ?>-page-url">
                 <input type="hidden" name="_page_title" id="<?php echo esc_attr($form_id_css); ?>-page-title">
@@ -188,8 +413,11 @@ function suite_barrio_forms_shortcode($atts)
                 $req_star = $required ? ' <span class="suite-barrio-req">*</span>' : '';
                 ?>
                 <div class="suite-barrio-field-wrap suite-barrio-field-type-<?php echo esc_attr($type); ?>"
-                    data-field-name="<?php echo $fid; ?>">
-                    <label for="suite-barrio-<?php echo $fid; ?>"><?php echo $label . $req_star; ?></label>
+                    data-field-name="<?php echo $fid; ?>" <?php echo $required ? ' data-required="1"' : ''; ?>         <?php if (!empty($field['error_message'])): ?> data-error-msg="<?php echo esc_attr($field['error_message']); ?>" <?php endif; ?>>
+                    <?php // radio/checkbox hanno una <label> per opzione: qui la label del gruppo sarebbe un for="" orfano.
+                    if ($type !== 'radio' && $type !== 'checkbox' && '' !== $label): ?>
+                        <label for="suite-barrio-<?php echo $fid; ?>"><?php echo $label . $req_star; ?></label>
+                    <?php endif; ?>
 
                     <?php if ($type === 'textarea'): ?>
                         <textarea id="suite-barrio-<?php echo $fid; ?>" name="<?php echo $fid; ?>"
@@ -210,13 +438,17 @@ function suite_barrio_forms_shortcode($atts)
                         $options = $field['options'] ?? [];
                         ?>
                         <div class="suite-barrio-choice-group">
-                            <?php foreach ($options as $opt): ?>
-                                <label class="suite-barrio-choice-label">
-                                    <input type="<?php echo esc_attr($type); ?>"
+                            <?php foreach ($options as $oi => $opt):
+                                $opt_id = 'suite-barrio-' . $fid . '-' . intval($oi);
+                                ?>
+                                <div class="suite-barrio-choice-label">
+                                    <input type="<?php echo esc_attr($type); ?>" id="<?php echo esc_attr($opt_id); ?>"
                                         name="<?php echo $fid . ($type === 'checkbox' ? '[]' : ''); ?>"
                                         value="<?php echo esc_attr($opt); ?>">
-                                    <?php echo esc_html($opt); ?>
-                                </label>
+                                    <?php // wp_kses_post: l'admin può mettere un link nell'etichetta (es. privacy policy),
+                                        // ma script e attributi pericolosi restano fuori. ?>
+                                    <label for="<?php echo esc_attr($opt_id); ?>"><?php echo wp_kses_post($opt); ?></label>
+                                </div>
                             <?php endforeach; ?>
                         </div>
 
@@ -352,6 +584,31 @@ function suite_barrio_forms_shortcode($atts)
     border: 1px solid #d63638;
     color: #d63638;
     }
+
+    /* ── Stato di errore per-campo (hook stilabili) ──
+       .suite-barrio-field-error      → sul wrapper del campo non valido
+       [aria-invalid="true"]          → sul controllo (input/select/textarea)
+       .suite-barrio-field-error-msg  → messaggio iniettato sotto al campo
+       Sono solo i default: sovrascrivibili dal tema. */
+    .suite-barrio-form-wrap .suite-barrio-field-error input,
+    .suite-barrio-form-wrap .suite-barrio-field-error select,
+    .suite-barrio-form-wrap .suite-barrio-field-error textarea {
+    border-color: #d63638;
+    }
+
+    .suite-barrio-form-wrap .suite-barrio-field-error input:focus,
+    .suite-barrio-form-wrap .suite-barrio-field-error select:focus,
+    .suite-barrio-form-wrap .suite-barrio-field-error textarea:focus {
+    border-color: #d63638;
+    box-shadow: 0 0 0 2px rgba(214, 54, 56, .15);
+    }
+
+    .suite-barrio-field-error-msg {
+    color: #d63638;
+    font-size: 13px;
+    line-height: 1.3;
+    margin-top: 6px;
+    }
     <?php
     $suite_barrio_form_css = ob_get_clean();
     wp_enqueue_style('suite-barrio-forms-frontend');
@@ -368,23 +625,147 @@ function suite_barrio_forms_shortcode($atts)
     var afterSubmit = '<?php echo esc_js($after_submit); ?>';
     var redirectUrl = '<?php echo esc_js($redirect_url); ?>';
     var successMsg = '<?php echo esc_js($settings['success_message'] ?? 'Grazie! Il tuo messaggio è stato inviato.'); ?>';
+    var requiredMsg = '<?php echo esc_js(__('Questo campo è obbligatorio.', 'suite-barrio')); ?>';
+    var emailMsg = '<?php echo esc_js(__('Inserisci un indirizzo email valido.', 'suite-barrio')); ?>';
     var submitLabel = btn.textContent;
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    /* ── Validazione per-campo (marca il markup, così è stilabile) ──────── */
+
+    // Tutti i wrapper di campo (escluso il blocco submit).
+    function fieldWraps() {
+    return Array.prototype.slice.call(
+    form.querySelectorAll('.suite-barrio-field-wrap[data-field-name]')
+    );
+    }
+
+    // Un campo è "attivo" se non nascosto dalla logica condizionale.
+    function isActive(fw) {
+    return fw.dataset.condHidden !== '1';
+    }
+
+    // Controlli compilabili del campo (esclude quelli disabilitati).
+    function controlsOf(fw) {
+    return Array.prototype.slice
+    .call(fw.querySelectorAll('input, select, textarea'))
+    .filter(function (c) { return !c.disabled; });
+    }
+
+    function setFieldError(fw, message) {
+    fw.classList.add('suite-barrio-field-error');
+    controlsOf(fw).forEach(function (c) { c.setAttribute('aria-invalid', 'true'); });
+    var el = fw.querySelector('.suite-barrio-field-error-msg');
+    if (!el) {
+    el = document.createElement('div');
+    el.className = 'suite-barrio-field-error-msg';
+    el.setAttribute('aria-live', 'polite');
+    fw.appendChild(el);
+    }
+    el.textContent = message || '';
+    }
+
+    function clearFieldError(fw) {
+    fw.classList.remove('suite-barrio-field-error');
+    fw.querySelectorAll('[aria-invalid]').forEach(function (c) {
+    c.removeAttribute('aria-invalid');
+    });
+    var el = fw.querySelector('.suite-barrio-field-error-msg');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    function clearAllErrors() { fieldWraps().forEach(clearFieldError); }
+
+    // Valida un campo → ritorna il messaggio d'errore, oppure '' se valido.
+    function validateField(fw) {
+    var controls = controlsOf(fw);
+    if (!controls.length) return '';
+
+    var first = controls[0];
+    var type = first.type; // text, email, tel, number, radio, checkbox, file, date, textarea, select-one…
+    var required = fw.dataset.required === '1';
+    var reqMsg = fw.dataset.errorMsg || requiredMsg;
+
+    var hasValue;
+    if (type === 'radio' || type === 'checkbox') {
+    hasValue = controls.some(function (c) { return c.checked; });
+    } else if (type === 'file') {
+    hasValue = controls.some(function (c) { return c.files && c.files.length; });
+    } else {
+    hasValue = controls.some(function (c) { return String(c.value || '').trim() !== ''; });
+    }
+
+    if (required && !hasValue) return reqMsg;
+
+    // Formato email: controllato anche se non obbligatorio, quando compilato.
+    if (type === 'email' && hasValue && !EMAIL_RE.test(String(first.value).trim())) {
+    return emailMsg;
+    }
+
+    return '';
+    }
+
+    // Aggiornamento live: quando un campo già segnalato torna valido, lo ripulisce.
+    function onFieldInput(e) {
+    var t = e.target;
+    var fw = t.closest ? t.closest('.suite-barrio-field-wrap[data-field-name]') : null;
+    if (!fw || !fw.classList.contains('suite-barrio-field-error')) return;
+    var err = validateField(fw);
+    if (err) setFieldError(fw, err);
+    else clearFieldError(fw);
+    }
+    form.addEventListener('input', onFieldInput, true);
+    form.addEventListener('change', onFieldInput, true);
 
     form.addEventListener('submit', function (e) {
     e.preventDefault();
-    btn.disabled = true;
-    btn.textContent = 'Invio in corso…';
+    clearAllErrors();
     msgEl.className = 'suite-barrio-form-msg';
     msgEl.style.display = 'none';
+
+    // Validazione client-side: marca ogni campo non valido.
+    var firstInvalid = null;
+    fieldWraps().forEach(function (fw) {
+    if (!isActive(fw)) return;
+    var err = validateField(fw);
+    if (err) {
+    setFieldError(fw, err);
+    if (!firstInvalid) firstInvalid = fw;
+    }
+    });
+
+    if (firstInvalid) {
+    var ctrl = firstInvalid.querySelector('input, select, textarea');
+    if (ctrl) ctrl.focus();
+    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return; // niente invio finché ci sono errori
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Invio in corso…';
 
     <?php if ($display_page_info): ?>
         document.getElementById('<?php echo esc_js($form_id_css); ?>-page-url').value = window.location.href;
         document.getElementById('<?php echo esc_js($form_id_css); ?>-page-title').value = document.title;
     <?php endif; ?>
 
-    fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
+    // reCAPTCHA Enterprise v3: token invisibile, allegato al POST.
+    var tokenPromise = <?php if ($rc_site_key): ?>new Promise(function (resolve) {
+        if (typeof grecaptcha === 'undefined' || !grecaptcha.enterprise) return resolve('');
+        grecaptcha.enterprise.ready(function () {
+        grecaptcha.enterprise
+        .execute('<?php echo esc_js($rc_site_key); ?>', { action: 'suite_barrio_form_<?php echo intval($form->id); ?>' })
+        .then(resolve, function () { resolve(''); });
+        });
+        })<?php else: ?>Promise.resolve('')<?php endif; ?>;
+
+    tokenPromise
+    .then(function (token) {
+    var fd = new FormData(form);
+    if (token) fd.append('recaptcha_token', token);
+    return fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
     method: 'POST',
-    body: new FormData(form)
+    body: fd
+    });
     })
     .then(function (r) { return r.json(); })
     .then(function (res) {
@@ -392,13 +773,28 @@ function suite_barrio_forms_shortcode($atts)
     if (afterSubmit === 'redirect' && redirectUrl) {
     window.location.href = redirectUrl;
     } else {
-    msgEl.textContent = res.data.message || successMsg;
+    msgEl.textContent = (res.data && res.data.message) || successMsg;
     msgEl.className = 'suite-barrio-form-msg success';
     msgEl.style.display = 'block';
     form.reset();
     }
     } else {
-    msgEl.textContent = res.data || 'Si è verificato un errore. Riprova.';
+    // res.data può essere una stringa oppure { message, field }.
+    var data = res.data;
+    var serverMsg = (data && typeof data === 'object') ? data.message : data;
+    var serverField = (data && typeof data === 'object') ? data.field : '';
+
+    if (serverField) {
+    var fw = form.querySelector('.suite-barrio-field-wrap[data-field-name="' + serverField + '"]');
+    if (fw) {
+    setFieldError(fw, serverMsg || (fw.dataset.errorMsg || requiredMsg));
+    var c = fw.querySelector('input, select, textarea');
+    if (c) c.focus();
+    fw.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    }
+
+    msgEl.textContent = serverMsg || 'Si è verificato un errore. Riprova.';
     msgEl.className = 'suite-barrio-form-msg error';
     msgEl.style.display = 'block';
     }
@@ -512,35 +908,48 @@ function suite_barrio_forms_shortcode($atts)
         case '=': return v.some(function (x) { return x === rv; });
         case '!=': return v.every(function (x) { return x !== rv; });
         case '>': return v.some(function (x) { return parseFloat(x) > parseFloat(rv); });
-        case '<': return v.some(function (x) { return parseFloat(x) < parseFloat(rv); }); case 'contains' : return
-            v.some(function (x) { return x.indexOf(rv) !==-1; }); case 'starts_with' : return v.some(function (x) { return
-            x.indexOf(rv)===0; }); case 'ends_with' : return v.some(function (x) { return x.slice(-rv.length)===rv; });
-            case 'empty' : return v.every(function (x) { return x==='' ; }); case 'not_empty' : return v.some(function (x) {
-            return x !=='' ; }); default: return false; } } /* ── Valuta e applica la logica di UN campo ── */ function
-            evaluateField(fieldName) { var cond=FIELD_COND[fieldName]; if (!cond) return; var
-            el=wrap.querySelector('[data-field-name="' + fieldName + '" ]'); if (!el) return; var rules=cond.rules || []; var
-            logicType=cond.logicType; // 'all' | 'any' var action=cond.action; // 'show' | 'hide' var
-            conditionsMet=rules.length> 0 && (
-            logicType === 'all'
-            ? rules.every(testRule)
-            : rules.some(testRule)
-            );
+        case '<': return v.some(function (x) { return parseFloat(x) < parseFloat(rv); });
+        case 'contains': return v.some(function (x) { return x.indexOf(rv) !== -1; });
+        case 'starts_with': return v.some(function (x) { return x.indexOf(rv) === 0; });
+        case 'ends_with': return v.some(function (x) { return x.slice(-rv.length) === rv; });
+        case 'empty': return v.every(function (x) { return x === ''; });
+        case 'not_empty': return v.some(function (x) { return x !== ''; });
+        default: return false;
+        }
+        }
 
-            /*
-            * Se action==='show': mostra il campo SOLO quando le condizioni sono soddisfatte.
-            * Se action==='hide': nascondi il campo SOLO quando le condizioni sono soddisfatte.
-            */
-            var visible = action === 'show' ? conditionsMet : !conditionsMet;
+        /* ── Valuta e applica la logica di UN campo ── */
+        function evaluateField(fieldName) {
+        var cond = FIELD_COND[fieldName];
+        if (!cond) return;
 
-            el.style.display = visible ? '' : 'none';
-            el.dataset.condHidden = visible ? '0' : '1';
-            el.querySelectorAll('input,select,textarea').forEach(function (inp) {
-            inp.disabled = !visible;
-            });
-            }
+        var el = wrap.querySelector('[data-field-name="' + fieldName + '"]');
+        if (!el) return;
 
-            /* ── Stato iniziale di TUTTI i campi con logica ── */
-            Object.keys(FIELD_COND).forEach(evaluateField);
+        var rules = cond.rules || [];
+        var logicType = cond.logicType; // 'all' | 'any'
+        var action = cond.action;       // 'show' | 'hide'
+        var conditionsMet = rules.length > 0 && (
+        logicType === 'all'
+        ? rules.every(testRule)
+        : rules.some(testRule)
+        );
+
+        /*
+        * Se action==='show': mostra il campo SOLO quando le condizioni sono soddisfatte.
+        * Se action==='hide': nascondi il campo SOLO quando le condizioni sono soddisfatte.
+        */
+        var visible = action === 'show' ? conditionsMet : !conditionsMet;
+
+        el.style.display = visible ? '' : 'none';
+        el.dataset.condHidden = visible ? '0' : '1';
+        el.querySelectorAll('input,select,textarea').forEach(function (inp) {
+        inp.disabled = !visible;
+        });
+        }
+
+        /* ── Stato iniziale di TUTTI i campi con logica ── */
+        Object.keys(FIELD_COND).forEach(evaluateField);
 
             /* ── Mappa inversa: quale campo osserva quali altri ── */
             // Quando un campo-sorgente cambia, rivalutiamo tutti i campi che lo osservano.
@@ -1031,6 +1440,97 @@ function suite_barrio_mailjet_send(
 }
 
 /* ─────────────────────────────────────────
+   HELPER: reCAPTCHA Enterprise (v3)
+   ───────────────────────────────────────── */
+
+/**
+ * Site key da usare nel front-end, solo se la configurazione è completa
+ * (project id + site key + api key). Stringa vuota = reCAPTCHA disattivato.
+ */
+function suite_barrio_recaptcha_site_key(): string
+{
+    $opts = get_option('suite_barrio_forms_recaptcha', []);
+    if (!is_array($opts))
+        return '';
+    $project = trim($opts['project_id'] ?? '');
+    $site = trim($opts['site_key'] ?? '');
+    $api = trim($opts['api_key'] ?? '');
+    return ($project && $site && $api) ? $site : '';
+}
+
+/**
+ * Verifica un token reCAPTCHA Enterprise creando un assessment.
+ *
+ * @param string $token           Token generato dal front-end.
+ * @param string $expected_action Action attesa (deve combaciare con quella del front-end).
+ * @return true|WP_Error true se il token è valido e sopra soglia.
+ *                       Se reCAPTCHA non è configurato ritorna true (nessuna verifica).
+ */
+function suite_barrio_recaptcha_verify(string $token, string $expected_action)
+{
+    $opts = get_option('suite_barrio_forms_recaptcha', []);
+    $site_key = suite_barrio_recaptcha_site_key();
+    if (!$site_key)
+        return true; // non configurato
+
+    $spam_msg = __('Verifica antispam non superata. Riprova.', 'suite-barrio');
+
+    if ('' === $token)
+        return new WP_Error('recaptcha_missing', $spam_msg);
+
+    $res = wp_remote_post(
+        'https://recaptchaenterprise.googleapis.com/v1/projects/'
+        . rawurlencode(trim($opts['project_id'])) . '/assessments?key='
+        . rawurlencode(trim($opts['api_key'])),
+        [
+            'timeout' => 10,
+            'headers' => ['Content-Type' => 'application/json'],
+            'body' => wp_json_encode([
+                'event' => [
+                    'token' => $token,
+                    'siteKey' => $site_key,
+                    'expectedAction' => $expected_action,
+                    'userIpAddress' => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? '')),
+                ],
+            ]),
+        ]
+    );
+
+    // Google irraggiungibile: non blocchiamo l'invio, logghiamo soltanto.
+    // ponytail: fail-open sul transport error, per non perdere lead durante un disservizio.
+    if (is_wp_error($res)) {
+        suite_barrio_forms_log('[recaptcha] richiesta fallita: ' . $res->get_error_message());
+        return true;
+    }
+
+    if (200 !== wp_remote_retrieve_response_code($res)) {
+        suite_barrio_forms_log('[recaptcha] API error: ' . wp_remote_retrieve_body($res));
+        return true; // credenziali/quota errate: l'errore è nostro, non blocchiamo l'utente
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($res), true) ?: [];
+    $props = $body['tokenProperties'] ?? [];
+
+    if (empty($props['valid'])) {
+        suite_barrio_forms_log('[recaptcha] token non valido: ' . ($props['invalidReason'] ?? 'sconosciuto'));
+        return new WP_Error('recaptcha_invalid', $spam_msg);
+    }
+    if (($props['action'] ?? '') !== $expected_action) {
+        suite_barrio_forms_log('[recaptcha] action mismatch: ' . ($props['action'] ?? ''));
+        return new WP_Error('recaptcha_action', $spam_msg);
+    }
+
+    $score = (float) ($body['riskAnalysis']['score'] ?? 0);
+    $threshold = (float) apply_filters('suite_barrio_forms_recaptcha_threshold', 0.5);
+    if ($score < $threshold) {
+        suite_barrio_forms_log('[recaptcha] score ' . $score . ' sotto soglia ' . $threshold);
+        return new WP_Error('recaptcha_score', $spam_msg);
+    }
+
+    return true;
+}
+
+/* ─────────────────────────────────────────
    AJAX: submit front-end (shortcode)
    ───────────────────────────────────────── */
 add_action('wp_ajax_suite_barrio_forms_submit', 'suite_barrio_forms_handle_submit');
@@ -1046,12 +1546,34 @@ function suite_barrio_forms_handle_submit()
 
     check_ajax_referer('suite_barrio_form_submit_' . $form_id, 'suite_barrio_nonce');
 
+    // ── reCAPTCHA Enterprise (no-op se le credenziali globali non ci sono) ─
+    $rc = suite_barrio_recaptcha_verify(
+        sanitize_text_field(wp_unslash($_POST['recaptcha_token'] ?? '')),
+        'suite_barrio_form_' . $form_id
+    );
+    if (is_wp_error($rc))
+        wp_send_json_error($rc->get_error_message());
+
     $form = suite_barrio_forms_get($form_id);
     if (!$form)
         wp_send_json_error('Form non trovato.');
 
     $fields = json_decode($form->fields, true) ?: [];
     $settings = json_decode($form->settings, true) ?: [];
+
+    // ── Lingua di compilazione + traduzione ───────────────────────────────
+    // Va applicata QUI, prima di validazione e notifiche: altrimenti messaggi
+    // d'errore, success_message ed email restano nella lingua principale.
+    $submission_lang = sanitize_key(wp_unslash($_POST['_lang'] ?? ''));
+    if (!$submission_lang) {
+        $submission_lang = sanitize_key(suite_barrio_forms_current_lang());
+    }
+    if ($submission_lang) {
+        $trans = suite_barrio_forms_get_translation($form_id, $submission_lang);
+        if ($trans) {
+            [$fields, $settings] = suite_barrio_forms_apply_translation($fields, $settings, $trans);
+        }
+    }
 
     // ── Validazione required ──────────────────────────────────────────────
     foreach ($fields as $field) {
@@ -1077,7 +1599,8 @@ function suite_barrio_forms_handle_submit()
             $err = !empty($field['error_message'])
                 ? $field['error_message']
                 : 'Il campo "' . esc_html($field['label']) . '" è obbligatorio.';
-            wp_send_json_error($err);
+            // Ritorna anche il name del campo, così il front-end può marcarlo come errato.
+            wp_send_json_error(['message' => $err, 'field' => $fid]);
         }
     }
 
@@ -1121,6 +1644,7 @@ function suite_barrio_forms_handle_submit()
             $moved = wp_handle_upload($uploaded, $overrides);
 
             if (isset($moved['error'])) {
+                suite_barrio_forms_log('[file] upload fallito per ' . $fid . ': ' . $moved['error']);
                 continue;
             }
 
@@ -1159,16 +1683,27 @@ function suite_barrio_forms_handle_submit()
         ];
     }
 
+    // Aggiunge la lingua di compilazione a submission_data: disponibile
+    // nell'email come {{_lang}} e inclusa nel riepilogo.
+    if ($submission_lang) {
+        $lang_labels = function_exists('suite_barrio_multilang_languages') ? suite_barrio_multilang_languages() : [];
+        $submission_data['_lang'] = [
+            'label' => 'Lingua',
+            'value' => $lang_labels[$submission_lang] ?? strtoupper($submission_lang),
+        ];
+    }
+
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->insert(
         $wpdb->prefix . SUITE_BARRIO_FORMS_SUB_TABLE,
         [
             'form_id' => $form_id,
             'data' => wp_json_encode($submission_data),
+            'lang' => $submission_lang,
             'ip' => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? '')),
             'user_agent' => sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? '')),
         ],
-        ['%d', '%s', '%s', '%s']
+        ['%d', '%s', '%s', '%s', '%s']
     );
 
     // Invia le notifiche email con gli allegati
@@ -1191,6 +1726,9 @@ function suite_barrio_forms_handle_submit()
             // Il campo checkbox invia il valore dell'opzione selezionata; consideriamo
             // l'utente iscritto se il valore non è vuoto (= checkbox spuntata)
             $optin_ok = trim($optin_value) !== '';
+            if (!$optin_ok) {
+                suite_barrio_forms_log('[MailUp] Opt-in non selezionato (campo: ' . $mu_optin_field . ') — iscrizione saltata.');
+            }
         }
 
         $mu_email = sanitize_email(
@@ -1218,7 +1756,70 @@ function suite_barrio_forms_handle_submit()
                 }
             }
 
-            suite_barrio_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
+            $result = suite_barrio_mailup_subscribe($mu_email, $mu_list_id, $mu_group_id, $mu_mapped_fields);
+            if (is_wp_error($result)) {
+                suite_barrio_forms_log('[MailUp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
+            }
+        } elseif ($optin_ok) {
+            suite_barrio_forms_log('[MailUp] Salto iscrizione: email non valida.');
+        }
+    }
+
+    // ── Integrazione Mailchimp ────────────────────────────────────────────
+    // Esegui solo se l'integrazione è abilitata per questo form
+    if (!empty($settings['mailchimp_enabled'])) {
+        $mc_list_id = trim((string) ($settings['mailchimp_list_id'] ?: ''));
+        $mc_email_field = sanitize_key($settings['mailchimp_email_field'] ?: 'email');
+        $mc_optin_field = sanitize_key($settings['mailchimp_optin_field'] ?: '');
+
+        // Il campo opt-in NON decide se iscrivere — il contatto viene registrato comunque —
+        // ma solo se applicare il tag della newsletter commerciale.
+        // Nessun campo configurato = consenso implicito (form di sola iscrizione newsletter).
+        $commercial_consent = true;
+        if ($mc_optin_field !== '') {
+            $optin_raw = $submission_data[$mc_optin_field]['value'] ?? '';
+            $optin_value = is_array($optin_raw) ? implode(',', $optin_raw) : $optin_raw;
+            $commercial_consent = trim((string) $optin_value) !== '';
+        }
+
+        $mc_email = sanitize_email(
+            is_array($submission_data[$mc_email_field]['value'] ?: null)
+            ? implode('', $submission_data[$mc_email_field]['value'])
+            : ($submission_data[$mc_email_field]['value'] ?: '')
+        );
+
+        if (is_email($mc_email)) {
+            // Mappatura campi form → merge tag Mailchimp
+            // Ogni riga del field_map è: {form_field: slug, mailchimp_field_name: 'FNAME'}
+            $mc_merge_fields = [];
+            $field_map = $settings['mailchimp_field_map'] ?: [];
+            if (is_array($field_map)) {
+                foreach ($field_map as $map) {
+                    $form_slug = sanitize_key($map['form_field'] ?: '');
+                    $mc_tag = sanitize_text_field($map['mailchimp_field_name'] ?: '');
+                    if (!$form_slug || !$mc_tag)
+                        continue;
+                    $raw = $submission_data[$form_slug]['value'] ?: '';
+                    $mc_merge_fields[$mc_tag] = sanitize_text_field(is_array($raw) ? implode(', ', $raw) : $raw);
+                }
+            }
+
+            // Tag applicati al contatto. Il tag "Newsletter" segnala il consenso
+            // commerciale; per liste di tag specifiche del progetto usa il filtro.
+            $mc_tags = [];
+            if ($commercial_consent) {
+                $mc_tags[] = 'Newsletter';
+            } else {
+                suite_barrio_forms_log('[Mailchimp] Consenso commerciale assente (campo: ' . $mc_optin_field . ') — iscritto senza il tag "Newsletter".');
+            }
+            $mc_tags = apply_filters('suite_barrio_mailchimp_tags', $mc_tags, $form_id, $submission_data, $commercial_consent);
+
+            $result = suite_barrio_mailchimp_subscribe($mc_email, $mc_list_id, $mc_merge_fields, (array) $mc_tags);
+            if (is_wp_error($result)) {
+                suite_barrio_forms_log('[Mailchimp] Errore iscrizione per form_id=' . $form_id . ': ' . $result->get_error_message());
+            }
+        } else {
+            suite_barrio_forms_log('[Mailchimp] Salto iscrizione: email non valida.');
         }
     }
 
@@ -1226,23 +1827,41 @@ function suite_barrio_forms_handle_submit()
 }
 
 /* ─────────────────────────────────────────
-   AJAX ADMIN: salva impostazioni globali (Mailjet)
+   AJAX ADMIN: salva impostazioni globali
+   (Mailjet / MailUp / Mailchimp / reCAPTCHA)
    ───────────────────────────────────────── */
 add_action('wp_ajax_suite_barrio_forms_save_global_settings', function () {
     check_ajax_referer('suite_barrio_forms_nonce', 'nonce');
     if (!current_user_can('manage_options'))
         wp_send_json_error('Permesso negato.');
 
-    $api_key = sanitize_text_field(wp_unslash($_POST['mailjet_api_key'] ?? ''));
-    $secret_key = sanitize_text_field(wp_unslash($_POST['mailjet_secret_key'] ?? ''));
-
-    update_option('suite_barrio_forms_mailjet', [
-        'api_key' => $api_key,
-        'secret_key' => $secret_key,
-    ], false);
+    // Aggiorna solo i provider effettivamente presenti nel POST, così i diversi
+    // pulsanti "Salva" non si azzerano a vicenda le credenziali degli altri.
+    if (isset($_POST['mailjet_api_key']) || isset($_POST['mailjet_secret_key'])) {
+        update_option('suite_barrio_forms_mailjet', [
+            'api_key' => sanitize_text_field(wp_unslash($_POST['mailjet_api_key'] ?? '')),
+            'secret_key' => sanitize_text_field(wp_unslash($_POST['mailjet_secret_key'] ?? '')),
+        ], false);
+    }
 
     // MailUp: nessuna credenziale necessaria — la chiamata è pubblica
     update_option('suite_barrio_forms_mailup', [], false);
+
+    // Mailchimp: API key globale (il data-center si ricava dal suffisso della key)
+    if (isset($_POST['mailchimp_api_key'])) {
+        update_option('suite_barrio_forms_mailchimp', [
+            'api_key' => sanitize_text_field(wp_unslash($_POST['mailchimp_api_key'])),
+        ], false);
+    }
+
+    // reCAPTCHA Enterprise: credenziali uniche per tutti i form
+    if (isset($_POST['recaptcha_site_key']) || isset($_POST['recaptcha_project_id'])) {
+        update_option('suite_barrio_forms_recaptcha', [
+            'project_id' => sanitize_text_field(wp_unslash($_POST['recaptcha_project_id'] ?? '')),
+            'site_key' => sanitize_text_field(wp_unslash($_POST['recaptcha_site_key'] ?? '')),
+            'api_key' => sanitize_text_field(wp_unslash($_POST['recaptcha_api_key'] ?? '')),
+        ], false);
+    }
 
     if (function_exists('suite_barrio_invalidate_vercel_cache')) {
         suite_barrio_invalidate_vercel_cache('wp:global');
@@ -1299,6 +1918,7 @@ function suite_barrio_mailup_subscribe(
     // Errore di trasporto
     if (is_wp_error($curl_response)) {
         $err = 'MailUp xmlSubscribe: errore HTTP — ' . $curl_response->get_error_message();
+        suite_barrio_forms_log('[MailUp] ' . $err);
         return new WP_Error('mailup_curl', $err);
     }
 
@@ -1308,6 +1928,7 @@ function suite_barrio_mailup_subscribe(
     // Errore HTTP
     if ($http_code < 200 || $http_code >= 300) {
         $err = "MailUp xmlSubscribe: risposta HTTP {$http_code} — " . wp_strip_all_tags($response);
+        suite_barrio_forms_log('[MailUp] ' . $err);
         return new WP_Error('mailup_http', $err);
     }
 
@@ -1322,10 +1943,108 @@ function suite_barrio_mailup_subscribe(
                 $detail = $m[1];
             }
             $err = "MailUp xmlSubscribe: esito errore (Code={$code})" . ($detail ? " — {$detail}" : '');
+            suite_barrio_forms_log('[MailUp] ' . $err);
             return new WP_Error('mailup_subscribe', $err);
         }
     }
 
+    suite_barrio_forms_log("[MailUp] Iscrizione OK — list={$list_id} group={$group_id} http={$http_code}");
+    return true;
+}
+
+/* ─────────────────────────────────────────
+   HELPER: iscrizione tramite Mailchimp Marketing API v3
+   ───────────────────────────────────────── */
+/**
+ * Iscrive (upsert) un contatto a un'Audience Mailchimp.
+ * La API key è globale (opzione suite_barrio_forms_mailchimp); il data-center (dc)
+ * viene ricavato dal suffisso della key (es. "…-us21" → "us21").
+ *
+ * @param string $email        Email del contatto.
+ * @param string $list_id      ID Audience Mailchimp.
+ * @param array  $merge_fields Merge tag come ['FNAME' => 'Mario'].
+ * @param array  $tags         Tag da applicare al contatto.
+ * @return true|WP_Error true se ok, WP_Error in caso di errore.
+ */
+function suite_barrio_mailchimp_subscribe(string $email, string $list_id, array $merge_fields = [], array $tags = [])
+{
+    $opts = get_option('suite_barrio_forms_mailchimp', []);
+    $api_key = is_array($opts) ? trim($opts['api_key'] ?? '') : '';
+
+    if ('' === $api_key)
+        return new WP_Error('mailchimp_no_key', 'Mailchimp: API key non configurata (Impostazioni globali).');
+    if ('' === $list_id)
+        return new WP_Error('mailchimp_no_list', 'Mailchimp: Audience ID mancante.');
+
+    // dc = parte dopo l'ultimo trattino della API key
+    $dash = strrchr($api_key, '-');
+    $dc = $dash ? substr($dash, 1) : '';
+    if ('' === $dc)
+        return new WP_Error('mailchimp_no_dc', 'Mailchimp: data-center non ricavabile dalla API key (formato atteso: xxxx-us21).');
+
+    $auth = 'Basic ' . base64_encode('anystring:' . $api_key);
+    // upsert per subscriber hash = md5(lowercase(email))
+    $subscriber_hash = md5(strtolower($email));
+    $base = "https://{$dc}.api.mailchimp.com/3.0/lists/" . rawurlencode($list_id) . "/members/{$subscriber_hash}";
+
+    $body = [
+        // iscrizione diretta solo per i NUOVI contatti; sugli esistenti non forziamo lo
+        // status (evita errori 400 di "compliance" su chi si è già disiscritto)
+        'email_address' => $email,
+        'status_if_new' => 'subscribed',
+    ];
+    if (!empty($merge_fields)) {
+        $body['merge_fields'] = $merge_fields;
+    }
+
+    $response = wp_remote_request($base, [
+        'method' => 'PUT',
+        'timeout' => 15,
+        'headers' => ['Authorization' => $auth, 'Content-Type' => 'application/json'],
+        'body' => wp_json_encode($body),
+    ]);
+
+    if (is_wp_error($response)) {
+        $err = 'Mailchimp: errore di rete — ' . $response->get_error_message();
+        suite_barrio_forms_log('[Mailchimp] ' . $err);
+        return new WP_Error('mailchimp_http', $err);
+    }
+
+    $code = wp_remote_retrieve_response_code($response);
+    if ($code < 200 || $code >= 300) {
+        $json = json_decode(wp_remote_retrieve_body($response), true);
+        $detail = is_array($json) ? ($json['detail'] ?? ($json['title'] ?? '')) : '';
+        $err = "Mailchimp: risposta HTTP {$code}" . ($detail ? " — {$detail}" : '');
+        suite_barrio_forms_log('[Mailchimp] ' . $err);
+        return new WP_Error('mailchimp_subscribe', $err);
+    }
+
+    // Applica i tag tramite l'endpoint dedicato: idempotente e valido sia per
+    // contatti nuovi che esistenti. Non blocca l'esito dell'iscrizione.
+    $tag_objs = [];
+    foreach ($tags as $t) {
+        $t = trim((string) $t);
+        if ('' !== $t) {
+            $tag_objs[] = ['name' => $t, 'status' => 'active'];
+        }
+    }
+    if (!empty($tag_objs)) {
+        $tag_resp = wp_remote_post($base . '/tags', [
+            'timeout' => 15,
+            'headers' => ['Authorization' => $auth, 'Content-Type' => 'application/json'],
+            'body' => wp_json_encode(['tags' => $tag_objs]),
+        ]);
+        if (is_wp_error($tag_resp)) {
+            suite_barrio_forms_log('[Mailchimp] Tag non applicati (rete): ' . $tag_resp->get_error_message());
+        } else {
+            $tcode = wp_remote_retrieve_response_code($tag_resp);
+            if ($tcode < 200 || $tcode >= 300) {
+                suite_barrio_forms_log('[Mailchimp] Tag non applicati — HTTP ' . $tcode . ' — ' . wp_strip_all_tags(wp_remote_retrieve_body($tag_resp)));
+            }
+        }
+    }
+
+    suite_barrio_forms_log("[Mailchimp] Iscrizione OK — list={$list_id} http={$code} tags=" . implode(',', $tags));
     return true;
 }
 
@@ -1471,7 +2190,6 @@ add_action('wp_ajax_suite_barrio_forms_save', function () {
         );
         if ($ok === false)
             wp_send_json_error('Errore DB: ' . $wpdb->last_error);
-        suite_barrio_forms_revalidate_cache($id);
         if (function_exists('suite_barrio_invalidate_vercel_cache')) {
             suite_barrio_invalidate_vercel_cache('form_' . $id);
         }
@@ -1486,9 +2204,8 @@ add_action('wp_ajax_suite_barrio_forms_save', function () {
         if ($ok === false)
             wp_send_json_error('Errore DB: ' . $wpdb->last_error);
         $new_id = $wpdb->insert_id;
-        suite_barrio_forms_revalidate_cache($new_id);
         if (function_exists('suite_barrio_invalidate_vercel_cache')) {
-            suite_barrio_invalidate_vercel_cache('form_' . $id);
+            suite_barrio_invalidate_vercel_cache('form_' . $new_id);
         }
         wp_send_json_success(['id' => $new_id, 'message' => 'Form creato.']);
     }
@@ -1505,6 +2222,7 @@ add_action('wp_ajax_suite_barrio_forms_delete', function () {
     $id = intval($_POST['form_id'] ?? 0);
     if (!$id)
         wp_send_json_error('ID non valido.');
+    suite_barrio_forms_delete_translations($id);
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_FORMS_TABLE, ['id' => $id], ['%d']);
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
@@ -1513,6 +2231,117 @@ add_action('wp_ajax_suite_barrio_forms_delete', function () {
         suite_barrio_invalidate_vercel_cache('form_' . $id);
     }
     wp_send_json_success('Form eliminato.');
+});
+
+/* ─────────────────────────────────────────
+   AJAX ADMIN: init traduzione form (copia i valori originali)
+   ───────────────────────────────────────── */
+add_action('wp_ajax_suite_barrio_forms_init_translation', function () {
+    check_ajax_referer('suite_barrio_forms_nonce', 'nonce');
+    if (!current_user_can('manage_options'))
+        wp_send_json_error('Permesso negato.');
+
+    $form_id = intval($_POST['form_id'] ?? 0);
+    $lang = sanitize_key(wp_unslash($_POST['lang'] ?? ''));
+    if (!$form_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    $allowed = function_exists('suite_barrio_multilang_translation_languages')
+        ? suite_barrio_multilang_translation_languages()
+        : [];
+    if (!empty($allowed) && !in_array($lang, $allowed, true))
+        wp_send_json_error('Lingua non consentita: ' . $lang);
+
+    if (suite_barrio_forms_get_translation($form_id, $lang))
+        wp_send_json_success(['already_exists' => true]);
+
+    $form = suite_barrio_forms_get($form_id);
+    if (!$form)
+        wp_send_json_error('Form non trovato.');
+
+    $fields = json_decode($form->fields, true) ?: [];
+    $settings = json_decode($form->settings, true) ?: [];
+    [$fi18n, $si18n] = suite_barrio_forms_extract_translatable($fields, $settings);
+
+    if (!suite_barrio_forms_save_translation($form_id, $lang, $fi18n, $si18n)) {
+        global $wpdb;
+        wp_send_json_error('Errore DB: ' . $wpdb->last_error);
+    }
+
+    wp_send_json_success(['already_exists' => false]);
+});
+
+/* ─────────────────────────────────────────
+   AJAX ADMIN: salva traduzione form
+   ───────────────────────────────────────── */
+add_action('wp_ajax_suite_barrio_forms_save_translation', function () {
+    check_ajax_referer('suite_barrio_forms_nonce', 'nonce');
+    if (!current_user_can('manage_options'))
+        wp_send_json_error('Permesso negato.');
+
+    $form_id = intval($_POST['form_id'] ?? 0);
+    $lang = sanitize_key(wp_unslash($_POST['lang'] ?? ''));
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON grezzo, decodificato con json_decode e sanificato campo per campo più sotto; sanitize_text_field corromperebbe il JSON
+    $fields_i18n_raw = wp_unslash($_POST['fields_i18n'] ?? '[]');
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON grezzo, decodificato con json_decode e sanificato campo per campo più sotto; sanitize_text_field corromperebbe il JSON
+    $settings_i18n_raw = wp_unslash($_POST['settings_i18n'] ?? '{}');
+
+    if (!$form_id || !$lang)
+        wp_send_json_error('Parametri mancanti.');
+
+    $allowed = function_exists('suite_barrio_multilang_translation_languages')
+        ? suite_barrio_multilang_translation_languages()
+        : [];
+    if (!empty($allowed) && !in_array($lang, $allowed, true))
+        wp_send_json_error('Lingua non consentita.');
+
+    $fi18n = json_decode($fields_i18n_raw, true);
+    $si18n = json_decode($settings_i18n_raw, true);
+    if (!is_array($fi18n))
+        $fi18n = [];
+    if (!is_array($si18n))
+        $si18n = [];
+
+    // Sanitize fields_i18n
+    $fi18n_clean = [];
+    foreach ($fi18n as $entry) {
+        $fi18n_clean[] = [
+            'label' => sanitize_text_field($entry['label'] ?? ''),
+            'placeholder' => sanitize_text_field($entry['placeholder'] ?? ''),
+            'error_message' => sanitize_text_field($entry['error_message'] ?? ''),
+            // Le option di radio/checkbox sono renderizzate come HTML (es. link privacy)
+            'options' => array_map('wp_kses_post', (array) ($entry['options'] ?? [])),
+        ];
+    }
+
+    // Sanitize settings_i18n
+    $si18n_clean = [
+        'submit_text' => sanitize_text_field($si18n['submit_text'] ?? ''),
+        'redirect_url' => sanitize_url($si18n['redirect_url'] ?? ''),
+        'success_message' => wp_kses_post($si18n['success_message'] ?? ''),
+        'mailup_list_id' => sanitize_text_field($si18n['mailup_list_id'] ?? ''),
+        'mailup_group_id' => sanitize_text_field($si18n['mailup_group_id'] ?? ''),
+        'mailchimp_list_id' => sanitize_text_field($si18n['mailchimp_list_id'] ?? ''),
+        'notifications' => [],
+    ];
+    foreach ((array) ($si18n['notifications'] ?? []) as $notif) {
+        $nt = [];
+        foreach (suite_barrio_forms_translatable_notif() as $nk) {
+            // "message" è multi-riga (come nell'editor), il resto singola riga
+            $nt[$nk] = 'message' === $nk
+                ? sanitize_textarea_field($notif[$nk] ?? '')
+                : sanitize_text_field($notif[$nk] ?? '');
+        }
+        $si18n_clean['notifications'][] = $nt;
+    }
+
+    if (!suite_barrio_forms_save_translation($form_id, $lang, $fi18n_clean, $si18n_clean))
+        wp_send_json_error('Errore DB.');
+
+    if (function_exists('suite_barrio_invalidate_vercel_cache')) {
+        suite_barrio_invalidate_vercel_cache('form_' . $form_id);
+    }
+    wp_send_json_success(['message' => 'Traduzione salvata.']);
 });
 
 /* ─────────────────────────────────────────
@@ -1546,6 +2375,7 @@ add_action('wp_ajax_suite_barrio_forms_get_submissions', function () {
         $entry = [
             'id' => (int) $s->id,
             'data' => json_decode($s->data, true) ?: [],
+            'lang' => $s->lang ?? '',
             'created_at' => date_i18n('d/m/Y H:i', strtotime($s->created_at)),
             'created_at_full' => date_i18n('d/m/Y \a\l\l\e H:i:s', strtotime($s->created_at)),
         ];
@@ -1582,7 +2412,7 @@ add_action('wp_ajax_suite_barrio_forms_delete_all_submissions', function () {
 });
 add_action('wp_ajax_suite_barrio_forms_delete_submission', function () {
     check_ajax_referer('suite_barrio_forms_nonce', 'nonce');
-    if (!current_user_can('manage_options'))
+    if (!current_user_can('manage_options') && !current_user_can('edit_others_posts'))
         wp_send_json_error('Permesso negato.');
     global $wpdb;
     $id = intval($_POST['submission_id'] ?? 0);
@@ -1591,6 +2421,36 @@ add_action('wp_ajax_suite_barrio_forms_delete_submission', function () {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato; introdurre caching qui rischierebbe dati stantii senza beneficio reale
     $wpdb->delete($wpdb->prefix . SUITE_BARRIO_FORMS_SUB_TABLE, ['id' => $id], ['%d']);
     wp_send_json_success('Risposta eliminata.');
+});
+
+/* ─────────────────────────────────────────
+   AJAX ADMIN: elimina più submissions (bulk delete)
+   ───────────────────────────────────────── */
+add_action('wp_ajax_suite_barrio_forms_delete_submissions', function () {
+    check_ajax_referer('suite_barrio_forms_nonce', 'nonce');
+    if (!current_user_can('manage_options') && !current_user_can('edit_others_posts'))
+        wp_send_json_error('Permesso negato.');
+
+    global $wpdb;
+    $form_id = intval($_POST['form_id'] ?? 0);
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- array JSON di ID, decodificato e forzato a interi nella riga successiva
+    $raw = wp_unslash($_POST['ids'] ?? '[]');
+    $ids = array_values(array_filter(array_map('intval', (array) (json_decode($raw, true) ?: [])), fn($id) => $id > 0));
+
+    if (empty($ids))
+        wp_send_json_error('Nessun ID valido.');
+
+    $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+    $table = $wpdb->prefix . SUITE_BARRIO_FORMS_SUB_TABLE;
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- query su tabella custom del plugin, nessun object-cache group dedicato
+    $wpdb->query($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table è una costante di plugin e $placeholders è generato solo da segnaposto %d, non da input utente
+        "DELETE FROM `{$table}` WHERE id IN ({$placeholders})" . ($form_id ? ' AND form_id = %d' : ''),
+        ...($form_id ? [...$ids, $form_id] : $ids)
+    ));
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+    wp_send_json_success(['deleted' => count($ids)]);
 });
 
 /* ─────────────────────────────────────────
@@ -1766,6 +2626,25 @@ function suite_barrio_forms_admin_page()
     // Dati builder (usati solo nel tab builder, ma dichiarati sempre per il JS)
     $saved_fields = ($edit_form) ? $edit_form->fields : '[]';
     $saved_settings = ($edit_form) ? $edit_form->settings : '{}';
+
+    // ── Contesto multilingua (WPML, via modulo Tools) ─────────────────────
+    $ml_active = function_exists('suite_barrio_multilang_is_enabled') && suite_barrio_multilang_is_enabled();
+    $ml_primary = $ml_active ? suite_barrio_multilang_primary_language() : '';
+    $ml_trans = $ml_active ? suite_barrio_multilang_translation_languages() : [];
+    $ml_languages = $ml_active ? suite_barrio_multilang_languages() : [];
+
+    // Lingua selezionata nell'editor: dalla querystring, solo se valida e la
+    // traduzione esiste già (l'inizializzazione avviene dalla lista form).
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
+    $qs_lang = isset($_GET['lang']) ? sanitize_key($_GET['lang']) : '';
+    $editor_lang = $ml_primary;
+    $is_translation_mode = false;
+    if ($ml_active && $edit_id && $qs_lang && $qs_lang !== $ml_primary) {
+        if (in_array($qs_lang, $ml_trans, true) && suite_barrio_forms_get_translation($edit_id, $qs_lang)) {
+            $editor_lang = $qs_lang;
+            $is_translation_mode = true;
+        }
+    }
 
     ?>
         <?php ob_start(); ?>
@@ -2349,6 +3228,119 @@ function suite_barrio_forms_admin_page()
         .suite-barrio-btn-add-cond:hover {
         border-color: #2271b1;
         color: #2271b1;
+        }
+
+        /* ── Pill lingue nella lista form ── */
+        .suite-barrio-form-langs-row td {
+        background: #fafafa !important;
+        padding: 6px 14px 8px !important;
+        border-top: none !important;
+        }
+
+        .suite-barrio-form-langs {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+        }
+
+        .suite-barrio-form-langs-label {
+        font-size: 11px;
+        color: #a7aaad;
+        margin-right: 3px;
+        }
+
+        .suite-barrio-lang-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 3px;
+        border: 1px solid;
+        }
+
+        .suite-barrio-lang-pill.primary,
+        .suite-barrio-lang-pill.translated {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #166534;
+        }
+
+        .suite-barrio-lang-pill.translated {
+        cursor: pointer;
+        text-decoration: none;
+        }
+
+        .suite-barrio-lang-pill.missing {
+        background: #fff;
+        border-color: #c3c4c7;
+        color: #646970;
+        cursor: pointer;
+        }
+
+        .suite-barrio-lang-pill.missing:hover {
+        background: #f0f6fc;
+        border-color: #72aee6;
+        color: #2271b1;
+        }
+
+        .suite-barrio-lang-pill.missing .suite-barrio-lang-add {
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1;
+        }
+
+        .suite-barrio-lang-pill.loading {
+        opacity: .6;
+        cursor: wait;
+        }
+
+        /* ── Modalità traduzione: si modificano solo i testi ──
+           Struttura, slug, obbligatorietà, validazione, logica condizionale e
+           configurazione delle integrazioni si ereditano dalla lingua principale.
+           Il blocco è anche applicato via JS (vedi IS_TRANSLATION nel builder):
+           qui è solo il feedback visivo. */
+        .suite-barrio-translation-mode .suite-barrio-drag-handle,
+        .suite-barrio-translation-mode .suite-barrio-btn-remove-field {
+        display: none !important;
+        }
+
+        .suite-barrio-translation-mode .suite-barrio-field-card {
+        cursor: pointer !important;
+        }
+
+        .suite-barrio-translation-mode #prop-name,
+        .suite-barrio-translation-mode #prop-required,
+        .suite-barrio-translation-mode #prop-min,
+        .suite-barrio-translation-mode #prop-max,
+        .suite-barrio-translation-mode #prop-format,
+        .suite-barrio-translation-mode .suite-barrio-cond-section,
+        .suite-barrio-translation-mode .suite-barrio-prop-check,
+        .suite-barrio-translation-mode .suite-barrio-msg-mode-btn,
+        .suite-barrio-translation-mode .suite-barrio-after-submit-toggle,
+        .suite-barrio-translation-mode .suite-barrio-ast-btn,
+        .suite-barrio-translation-mode #suite-barrio-setting-display-page-info,
+        .suite-barrio-translation-mode #suite-barrio-setting-mailup-enabled,
+        .suite-barrio-translation-mode #suite-barrio-setting-mailup-email-field,
+        .suite-barrio-translation-mode #suite-barrio-setting-mailup-optin-field,
+        .suite-barrio-translation-mode #suite-barrio-mailup-add-map-row,
+        .suite-barrio-translation-mode #suite-barrio-mailup-field-map-rows,
+        .suite-barrio-translation-mode #suite-barrio-setting-mailchimp-enabled,
+        .suite-barrio-translation-mode #suite-barrio-setting-mailchimp-email-field,
+        .suite-barrio-translation-mode #suite-barrio-setting-mailchimp-optin-field,
+        .suite-barrio-translation-mode #suite-barrio-mailchimp-add-map-row,
+        .suite-barrio-translation-mode #suite-barrio-mailchimp-field-map-rows {
+        pointer-events: none !important;
+        opacity: .35 !important;
+        user-select: none;
+        }
+
+        /* Blocca anche i label wrapper dei toggle integrazione */
+        .suite-barrio-translation-mode #suite-barrio-setting-mailup-enabled~span,
+        .suite-barrio-translation-mode #suite-barrio-setting-mailchimp-enabled~span {
+        pointer-events: none !important;
         }
 
         .suite-barrio-builder-tabs {
@@ -3117,7 +4109,8 @@ function suite_barrio_forms_admin_page()
         wp_add_inline_style('suite-barrio-forms-admin', $suite_barrio_admin_css);
         ?>
 
-        <div id="suite-barrio-forms-wrap" class="wrap suite-barrio-wrap">
+        <div id="suite-barrio-forms-wrap"
+            class="wrap suite-barrio-wrap<?php echo $is_translation_mode ? ' suite-barrio-translation-mode' : ''; ?>">
 
             <div class="suite-barrio-header-row">
                 <div class="suite-barrio-header">
@@ -3268,6 +4261,119 @@ function suite_barrio_forms_admin_page()
                             </p>
                         </div><!-- .suite-barrio-section-body -->
                     </div><!-- .suite-barrio-section-box MailUp -->
+
+                    <!-- Mailchimp card -->
+                    <?php $mc_opts = get_option('suite_barrio_forms_mailchimp', []);
+                    $mc_opts = is_array($mc_opts) ? $mc_opts : []; ?>
+                    <div class="suite-barrio-section-box" style="margin-bottom:20px;">
+                        <div class="suite-barrio-section-head">
+                            <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"
+                                style="flex-shrink:0;">
+                                <rect width="32" height="32" rx="6" fill="#FFE01B" />
+                                <circle cx="13" cy="14.5" r="2.2" fill="#241C15" />
+                                <circle cx="19" cy="14.5" r="2.2" fill="#241C15" />
+                                <path d="M11 20c1.2 1.8 8.8 1.8 10 0" stroke="#241C15" stroke-width="1.6"
+                                    stroke-linecap="round" fill="none" />
+                            </svg>
+                            Mailchimp
+                        </div>
+                        <div class="suite-barrio-section-body">
+                            <p style="margin:0 0 16px;font-size:12px;color:#a7aaad;">API key per iscrivere i contatti alle
+                                Audience Mailchimp. Il data-center viene ricavato automaticamente dal suffisso della key
+                                (es. <code>…-us21</code>).</p>
+                            <table class="form-table" style="max-width:100%;">
+                                <tbody>
+                                    <tr>
+                                        <th style="width:220px;"><label for="suite-barrio-global-mc-api-key">API key</label>
+                                        </th>
+                                        <td>
+                                            <div style="display:flex;gap:6px;align-items:center;">
+                                                <input type="password" id="suite-barrio-global-mc-api-key" class="large-text"
+                                                    value="<?php echo esc_attr($mc_opts['api_key'] ?? ''); ?>"
+                                                    placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-us21"
+                                                    autocomplete="new-password" spellcheck="false">
+                                                <button type="button" class="suite-barrio-btn suite-barrio-btn-ghost"
+                                                    onclick="(function(){var i=document.getElementById('suite-barrio-global-mc-api-key');i.type=i.type==='password'?'text':'password';})();">Mostra</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p style="margin:16px 0 0;">
+                                <button type="button" class="suite-barrio-btn suite-barrio-btn-primary"
+                                    id="suite-barrio-btn-save-global-mc">
+                                    Salva impostazioni Mailchimp
+                                </button>
+                                <span id="suite-barrio-global-saved-msg-mc"
+                                    style="display:none;margin-left:10px;color:#059669;font-size:13px;">✓
+                                    Salvato</span>
+                            </p>
+                        </div><!-- .suite-barrio-section-body -->
+                    </div><!-- .suite-barrio-section-box Mailchimp -->
+
+                    <!-- reCAPTCHA Enterprise card -->
+                    <?php $rc_opts = get_option('suite_barrio_forms_recaptcha', []);
+                    $rc_opts = is_array($rc_opts) ? $rc_opts : []; ?>
+                    <div class="suite-barrio-section-box" style="margin-bottom:20px;">
+                        <div class="suite-barrio-section-head">
+                            <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"
+                                style="flex-shrink:0;">
+                                <rect width="32" height="32" rx="6" fill="#1A73E8" />
+                                <path d="M16 7l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9v-6l7-3z" fill="#fff" />
+                                <path d="M13 16.2l2.2 2.2 4-4.4" stroke="#1A73E8" stroke-width="1.8" stroke-linecap="round"
+                                    stroke-linejoin="round" fill="none" />
+                            </svg>
+                            reCAPTCHA Enterprise (v3)
+                        </div>
+                        <div class="suite-barrio-section-body">
+                            <p style="margin:0 0 16px;font-size:12px;color:#a7aaad;">Credenziali uniche per
+                                <strong>tutti</strong> i form. Compila tutti e tre i campi per attivare la protezione;
+                                lasciane uno vuoto per disattivarla. Soglia di punteggio: <code>0.5</code> (modificabile
+                                con il filtro <code>suite_barrio_forms_recaptcha_threshold</code>).</p>
+                            <table class="form-table" style="max-width:100%;">
+                                <tbody>
+                                    <tr>
+                                        <th style="width:220px;"><label
+                                                for="suite-barrio-global-rc-project">Project ID</label></th>
+                                        <td>
+                                            <input type="text" id="suite-barrio-global-rc-project" class="large-text"
+                                                value="<?php echo esc_attr($rc_opts['project_id'] ?? ''); ?>"
+                                                placeholder="es. my-project-123456" autocomplete="off" spellcheck="false">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th><label for="suite-barrio-global-rc-site">Site Key (pubblica)</label></th>
+                                        <td>
+                                            <input type="text" id="suite-barrio-global-rc-site" class="large-text"
+                                                value="<?php echo esc_attr($rc_opts['site_key'] ?? ''); ?>"
+                                                placeholder="6Lc…" autocomplete="off" spellcheck="false">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th><label for="suite-barrio-global-rc-api">API Key (privata)</label></th>
+                                        <td>
+                                            <div style="display:flex;gap:6px;align-items:center;">
+                                                <input type="password" id="suite-barrio-global-rc-api" class="large-text"
+                                                    value="<?php echo esc_attr($rc_opts['api_key'] ?? ''); ?>"
+                                                    placeholder="AIza…" autocomplete="new-password" spellcheck="false">
+                                                <button type="button" class="suite-barrio-btn suite-barrio-btn-ghost"
+                                                    onclick="(function(){var i=document.getElementById('suite-barrio-global-rc-api');i.type=i.type==='password'?'text':'password';})();">Mostra</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p style="margin:16px 0 0;">
+                                <button type="button" class="suite-barrio-btn suite-barrio-btn-primary"
+                                    id="suite-barrio-btn-save-global-rc">
+                                    Salva impostazioni reCAPTCHA
+                                </button>
+                                <span id="suite-barrio-global-saved-msg-rc"
+                                    style="display:none;margin-left:10px;color:#059669;font-size:13px;">✓
+                                    Salvato</span>
+                            </p>
+                        </div><!-- .suite-barrio-section-body -->
+                    </div><!-- .suite-barrio-section-box reCAPTCHA -->
                 </div>
                 <?php ob_start(); ?>
                 (function () {
@@ -3323,6 +4429,62 @@ function suite_barrio_forms_admin_page()
                 }).catch(function () { alert('Errore di rete.'); }).finally(function () {
                 btnMu.disabled = false;
                 btnMu.textContent = 'Salva impostazioni MailUp';
+                });
+                });
+
+                // Mailchimp save button
+                var btnMc = document.getElementById('suite-barrio-btn-save-global-mc');
+                var msgMc = document.getElementById('suite-barrio-global-saved-msg-mc');
+                if (btnMc) btnMc.addEventListener('click', function () {
+                btnMc.disabled = true;
+                btnMc.textContent = 'Salvataggio…';
+                var fd = new URLSearchParams({
+                action: 'suite_barrio_forms_save_global_settings',
+                nonce: '<?php echo esc_js($nonce); ?>',
+                mailchimp_api_key: document.getElementById('suite-barrio-global-mc-api-key').value.trim()
+                });
+                fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
+                method: 'POST',
+                body: fd
+                }).then(function (r) { return r.json(); }).then(function (res) {
+                if (res.success) {
+                msgMc.style.display = 'inline';
+                setTimeout(function () { msgMc.style.display = 'none'; }, 3000);
+                } else {
+                alert(res.data || 'Errore.');
+                }
+                }).catch(function () { alert('Errore di rete.'); }).finally(function () {
+                btnMc.disabled = false;
+                btnMc.textContent = 'Salva impostazioni Mailchimp';
+                });
+                });
+
+                // reCAPTCHA save button
+                var btnRc = document.getElementById('suite-barrio-btn-save-global-rc');
+                var msgRc = document.getElementById('suite-barrio-global-saved-msg-rc');
+                if (btnRc) btnRc.addEventListener('click', function () {
+                btnRc.disabled = true;
+                btnRc.textContent = 'Salvataggio…';
+                var fd = new URLSearchParams({
+                action: 'suite_barrio_forms_save_global_settings',
+                nonce: '<?php echo esc_js($nonce); ?>',
+                recaptcha_project_id: document.getElementById('suite-barrio-global-rc-project').value.trim(),
+                recaptcha_site_key: document.getElementById('suite-barrio-global-rc-site').value.trim(),
+                recaptcha_api_key: document.getElementById('suite-barrio-global-rc-api').value.trim()
+                });
+                fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
+                method: 'POST',
+                body: fd
+                }).then(function (r) { return r.json(); }).then(function (res) {
+                if (res.success) {
+                msgRc.style.display = 'inline';
+                setTimeout(function () { msgRc.style.display = 'none'; }, 3000);
+                } else {
+                alert(res.data || 'Errore.');
+                }
+                }).catch(function () { alert('Errore di rete.'); }).finally(function () {
+                btnRc.disabled = false;
+                btnRc.textContent = 'Salva impostazioni reCAPTCHA';
                 });
                 });
                 })();
@@ -3388,11 +4550,106 @@ function suite_barrio_forms_admin_page()
                                                 data-title="<?php echo esc_attr($f->title); ?>">Elimina</button>
                                         </td>
                                     </tr>
+                                    <?php if ($ml_active): ?>
+                                        <tr class="suite-barrio-form-langs-row">
+                                            <td colspan="5">
+                                                <div class="suite-barrio-form-langs">
+                                                    <span class="suite-barrio-form-langs-label">Lingue:</span>
+                                                    <span class="suite-barrio-lang-pill primary">
+                                                        <span class="dashicons dashicons-yes"
+                                                            style="font-size:11px;width:11px;height:11px;"></span>
+                                                        <?php echo esc_html($ml_languages[$ml_primary] ?? strtoupper($ml_primary)); ?>
+                                                    </span>
+                                                    <?php foreach ($ml_trans as $lc):
+                                                        $ll = $ml_languages[$lc] ?? strtoupper($lc);
+                                                        $has_t = (bool) suite_barrio_forms_get_translation((int) $f->id, $lc);
+                                                        $edit_trl = admin_url('admin.php?page=suite-barrio-forms&tab=builder&edit_id=' . $f->id . '&lang=' . $lc);
+                                                        ?>
+                                                        <?php if ($has_t): ?>
+                                                            <a href="<?php echo esc_url($edit_trl); ?>"
+                                                                class="suite-barrio-lang-pill translated"
+                                                                title="Modifica traduzione in <?php echo esc_attr($ll); ?>">
+                                                                <span class="dashicons dashicons-yes"
+                                                                    style="font-size:11px;width:11px;height:11px;"></span>
+                                                                <?php echo esc_html($ll); ?>
+                                                            </a>
+                                                        <?php else: ?>
+                                                            <button type="button"
+                                                                class="suite-barrio-lang-pill missing suite-barrio-form-lang-init-btn"
+                                                                data-form-id="<?php echo intval($f->id); ?>"
+                                                                data-lang="<?php echo esc_attr($lc); ?>"
+                                                                data-lang-label="<?php echo esc_attr($ll); ?>"
+                                                                title="Inizializza traduzione in <?php echo esc_attr($ll); ?>">
+                                                                <span class="suite-barrio-lang-add">+</span>
+                                                                <?php echo esc_html($ll); ?>
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
                     <?php endif; ?>
                 </div>
+
+                <?php if ($ml_active):
+                    ob_start(); ?>
+                    (function () {
+                    const NONCE = '<?php echo esc_js($nonce); ?>';
+                    const AJAX = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
+                    const URL_EDIT_BASE = '<?php echo esc_js(admin_url('admin.php?page=suite-barrio-forms&tab=builder&edit_id=')); ?>';
+
+                    // Pill "+ Lingua": crea la traduzione copiando i testi originali,
+                    // poi la pill diventa un link all'editor di quella lingua.
+                    document.querySelectorAll('.suite-barrio-form-lang-init-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                    var formId = this.dataset.formId;
+                    var lang = this.dataset.lang;
+                    var langLabel = this.dataset.langLabel;
+                    var pill = this;
+
+                    pill.classList.add('loading');
+                    pill.disabled = true;
+
+                    fetch(AJAX, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                    action: 'suite_barrio_forms_init_translation',
+                    nonce: NONCE,
+                    form_id: formId,
+                    lang: lang
+                    })
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                    if (res.success) {
+                    var link = document.createElement('a');
+                    link.href = URL_EDIT_BASE + formId + '&lang=' + lang;
+                    link.className = 'suite-barrio-lang-pill translated';
+                    link.title = 'Modifica traduzione in ' + langLabel;
+                    link.innerHTML = '<span class="dashicons dashicons-yes" style="font-size:11px;width:11px;height:11px;"></span> ' + langLabel;
+                    pill.replaceWith(link);
+                    } else {
+                    alert(res.data || 'Errore durante l\'inizializzazione della traduzione.');
+                    pill.classList.remove('loading');
+                    pill.disabled = false;
+                    }
+                    })
+                    .catch(function () {
+                    alert('Errore di rete.');
+                    pill.classList.remove('loading');
+                    pill.disabled = false;
+                    });
+                    });
+                    });
+                    })();
+                    <?php
+                    $suite_barrio_lang_init_js = ob_get_clean();
+                    wp_add_inline_script('suite-barrio-forms-admin', $suite_barrio_lang_init_js, 'after');
+                endif; ?>
 
             <?php /* ══════ BUILDER ══════ */ elseif ($tab === 'builder'): ?>
 
@@ -3401,11 +4658,46 @@ function suite_barrio_forms_admin_page()
                     Tutti i form</a>
                 <div class="suite-barrio-builder-actions suite-barrio-cp-field-input" style="margin-top: 20px;">
                     <input type="text" id="suite-barrio-form-title" class="suite-barrio-input suite-barrio-builder-title-input"
-                        style="max-width: none;" value="<?php echo esc_attr($edit_form ? $edit_form->title : ''); ?>"
-                        placeholder="Nome del form…">
+                        style="max-width: none;<?php echo $is_translation_mode ? 'opacity:.5;' : ''; ?>"
+                        value="<?php echo esc_attr($edit_form ? $edit_form->title : ''); ?>" placeholder="Nome del form…"
+                        <?php disabled($is_translation_mode, true); ?>>
                     <button class="suite-barrio-btn suite-barrio-btn-small suite-barrio-btn-primary"
-                        id="suite-barrio-btn-save-form">Salva form</button>
+                        id="suite-barrio-btn-save-form"><?php echo $is_translation_mode ? 'Salva traduzione' : 'Salva form'; ?></button>
                 </div>
+
+                <?php if ($ml_active && $edit_id):
+                    // Lingue selezionabili: la principale + quelle già inizializzate.
+                    $editor_langs = [$ml_primary => ($ml_languages[$ml_primary] ?? $ml_primary) . ' (principale)'];
+                    foreach ($ml_trans as $lc) {
+                        if (suite_barrio_forms_get_translation($edit_id, $lc)) {
+                            $editor_langs[$lc] = $ml_languages[$lc] ?? strtoupper($lc);
+                        }
+                    }
+                    ?>
+                    <div class="suite-barrio-section-box"
+                        style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 14px;">
+                        <span class="dashicons dashicons-translation"
+                            style="font-size:16px;width:16px;height:16px;color:#2271b1;flex-shrink:0;"></span>
+                        <label for="suite-barrio-form-lang-select"
+                            style="font-size:13px;font-weight:600;color:#1d2327;margin:0;">Lingua:</label>
+                        <select id="suite-barrio-form-lang-select" style="min-width:180px;font-size:13px;">
+                            <?php foreach ($editor_langs as $lc => $label): ?>
+                                <option value="<?php echo esc_attr($lc); ?>"
+                                    data-is-primary="<?php echo $lc === $ml_primary ? '1' : '0'; ?>" <?php selected($editor_lang, $lc); ?>>
+                                    <?php echo esc_html($label); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ($is_translation_mode): ?>
+                            <span
+                                style="font-size:12px;color:#0a4b78;background:#f0f6fc;padding:4px 10px;border-radius:3px;border:1px solid #c6d9ef;">
+                                Stai modificando la traduzione in
+                                <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>.
+                                Struttura, logica e impostazioni sono ereditate dall'originale.
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
 
                 <div class="suite-barrio-builder-tabs">
                     <button class="suite-barrio-btab active" data-tab="fields">Campi</button>
@@ -3420,7 +4712,36 @@ function suite_barrio_forms_admin_page()
                 <div id="suite-barrio-tab-fields">
                     <div class="suite-barrio-builder-layout suite-barrio-section-box">
 
-                        <!-- Sx: tipi campo -->
+                        <!-- Sx: tipi campo / disclaimer traduzione -->
+                        <?php if ($is_translation_mode): ?>
+                            <div class="suite-barrio-panel-fields"
+                                style="background:#f0f6fc;border:1px solid #c6d9ef;border-radius:3px;padding:20px 16px;display:flex;flex-direction:column;gap:0;">
+                                <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">
+                                    <span class="dashicons dashicons-translation"
+                                        style="font-size:20px;width:20px;height:20px;color:#2271b1;flex-shrink:0;margin-top:2px;"></span>
+                                    <strong style="font-size:13px;color:#1d2327;">Modalità traduzione</strong>
+                                </div>
+                                <p style="font-size:12px;color:#0a4b78;margin:0 0 10px;line-height:1.6;">
+                                    Stai modificando la versione in
+                                    <strong><?php echo esc_html($ml_languages[$editor_lang] ?? $editor_lang); ?></strong>.
+                                </p>
+                                <p style="font-size:12px;color:#0a4b78;margin:0 0 6px;font-weight:600;">Puoi modificare:</p>
+                                <ul style="font-size:12px;color:#0a4b78;margin:0 0 12px;padding-left:16px;line-height:1.8;">
+                                    <li>Etichetta (label)</li>
+                                    <li>Testo segnaposto (placeholder)</li>
+                                    <li>Opzioni di select, radio, checkbox</li>
+                                    <li>Messaggio di errore</li>
+                                </ul>
+                                <p style="font-size:12px;color:#646970;margin:0 0 6px;font-weight:600;">Non puoi modificare:
+                                </p>
+                                <ul style="font-size:12px;color:#646970;margin:0;padding-left:16px;line-height:1.8;">
+                                    <li>Struttura e ordine dei campi</li>
+                                    <li>Tipo e nome (slug)</li>
+                                    <li>Obbligatorietà e logica condizionale</li>
+                                    <li>Validazione (min/max/formato)</li>
+                                </ul>
+                            </div>
+                        <?php else: ?>
                         <div class="suite-barrio-panel-fields">
                             <h3>Aggiungi campo</h3>
                             <?php
@@ -3444,6 +4765,7 @@ function suite_barrio_forms_admin_page()
                                 </button>
                             <?php endforeach; ?>
                         </div>
+                        <?php endif; ?>
 
                         <!-- Centro: canvas -->
                         <div class="suite-barrio-panel-canvas">
@@ -3647,6 +4969,118 @@ function suite_barrio_forms_admin_page()
                         </div><!-- .suite-barrio-section-body -->
                     </div><!-- .suite-barrio-section-box MailUp per-form -->
 
+                    <!-- Mailchimp per-form card -->
+                    <div class="suite-barrio-section-box" style="max-width:600px;margin-top:20px;">
+                        <div class="suite-barrio-section-head">
+                            <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"
+                                style="flex-shrink:0;">
+                                <rect width="32" height="32" rx="6" fill="#FFE01B" />
+                                <circle cx="13" cy="14.5" r="2.2" fill="#241C15" />
+                                <circle cx="19" cy="14.5" r="2.2" fill="#241C15" />
+                                <path d="M11 20c1.2 1.8 8.8 1.8 10 0" stroke="#241C15" stroke-width="1.6"
+                                    stroke-linecap="round" fill="none" />
+                            </svg>
+                            Integrazione Mailchimp
+                        </div>
+                        <div class="suite-barrio-section-body">
+                            <p style="margin:0 0 20px;font-size:12px;color:#a7aaad;">Iscrivi automaticamente i contatti a
+                                un'Audience Mailchimp al submit di questo form. La API key va configurata nelle <a
+                                    href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-forms&tab=settings')); ?>">Impostazioni
+                                    globali</a>.</p>
+
+                            <!-- Toggle abilitazione -->
+                            <div style="margin-bottom:20px;">
+                                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                    <input type="checkbox" id="suite-barrio-setting-mailchimp-enabled" value="1"
+                                        style="width:16px;height:16px;">
+                                    <span style="font-size:13px;font-weight:600;">Abilita iscrizione Mailchimp</span>
+                                </label>
+                            </div>
+
+                            <!-- Campi extra — visibili solo se abilitato -->
+                            <div id="suite-barrio-mailchimp-fields-wrap"
+                                style="display:none;border-top:1px solid #f0f0f0;padding-top:20px;">
+
+                                <!-- Audience ID -->
+                                <div style="margin-bottom:20px;">
+                                    <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
+                                        for="suite-barrio-setting-mailchimp-list-id">Audience ID Mailchimp</label>
+                                    <input type="text" id="suite-barrio-setting-mailchimp-list-id" class="regular-text"
+                                        placeholder="es. a1b2c3d4e5">
+                                    <p class="description" style="margin-top:4px;">ID dell'Audience (lista). Lo trovi in
+                                        <em>Mailchimp → Audience → Settings → Audience name and defaults</em>.</p>
+                                </div>
+
+                                <!-- Campo email -->
+                                <div style="margin-bottom:20px;">
+                                    <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
+                                        for="suite-barrio-setting-mailchimp-email-field">Campo email del form</label>
+                                    <input type="text" id="suite-barrio-setting-mailchimp-email-field" class="regular-text"
+                                        placeholder="email">
+                                    <p class="description" style="margin-top:4px;">Lo <strong>slug</strong> del campo email
+                                        di questo form. Default: <code>email</code>.</p>
+                                </div>
+
+                                <!-- Campo consenso commerciale -->
+                                <div
+                                    style="margin-bottom:24px;padding:16px;background:#f6f7f7;border-radius:3px;border:1px solid #e2e4e7;">
+                                    <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;"
+                                        for="suite-barrio-setting-mailchimp-optin-field">
+                                        Campo consenso commerciale
+                                        <span style="font-weight:400;color:#a7aaad;"> (opzionale)</span>
+                                    </label>
+                                    <p class="description" style="margin-bottom:10px;margin-top:0;">Il contatto viene
+                                        <strong>sempre</strong> iscritto. Questo campo decide solo se aggiungere il tag
+                                        <code>Newsletter</code>: se la checkbox non è spuntata, il contatto viene
+                                        iscritto senza quel tag. Per applicare tag diversi usa il filtro
+                                        <code>suite_barrio_mailchimp_tags</code>.</p>
+                                    <select id="suite-barrio-setting-mailchimp-optin-field"
+                                        style="width:100%;max-width:340px;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+                                        <option value="">— Nessuno (sempre tag Newsletter) —</option>
+                                    </select>
+                                    <p class="description" style="margin-top:6px;">Seleziona la <strong>checkbox</strong> di
+                                        consenso commerciale del form. Lascia "Nessuno" sui form di sola iscrizione
+                                        newsletter, dove il consenso è implicito.</p>
+                                </div>
+
+                                <!-- Mapping campi form → merge tag Mailchimp -->
+                                <div>
+                                    <label style="display:block;font-weight:600;font-size:13px;margin-bottom:4px;">
+                                        Mappa campi del form su merge tag Mailchimp
+                                        <span style="font-weight:400;color:#a7aaad;">(opzionale)</span>
+                                    </label>
+                                    <p class="description" style="margin-bottom:12px;">
+                                        Collega i campi di questo form ai <strong>merge tag</strong> dell'Audience
+                                        (es. <code>FNAME</code>, <code>LNAME</code>, <code>PHONE</code>).
+                                        A sinistra lo <strong>slug del campo del form</strong>, a destra il
+                                        <strong>merge tag Mailchimp</strong> esatto (maiuscolo).
+                                    </p>
+                                    <!-- Header colonne -->
+                                    <div style="display:flex;gap:8px;margin-bottom:6px;padding:0 32px 0 0;">
+                                        <span
+                                            style="flex:1;font-size:11px;font-weight:600;color:#50575e;text-transform:uppercase;letter-spacing:.4px;">Slug
+                                            campo form</span>
+                                        <span
+                                            style="flex:1;font-size:11px;font-weight:600;color:#50575e;text-transform:uppercase;letter-spacing:.4px;">Merge
+                                            tag Mailchimp</span>
+                                        <span style="width:28px;"></span>
+                                    </div>
+                                    <div id="suite-barrio-mailchimp-field-map-rows"></div>
+                                    <button type="button" id="suite-barrio-mailchimp-add-map-row"
+                                        style="margin-top:8px;background:none;border:1px dashed #c3c4c7;border-radius:3px;padding:6px 14px;cursor:pointer;font-size:12px;color:#646970;width:100%;text-align:center;">
+                                        + Aggiungi mappatura campo
+                                    </button>
+                                    <p class="description" style="margin-top:8px;">
+                                        Esempi di merge tag: <code>FNAME</code>, <code>LNAME</code>, <code>PHONE</code>,
+                                        <code>ADDRESS</code>.
+                                        Controlla i nomi esatti in <em>Mailchimp → Audience → Settings → Merge fields</em>.
+                                    </p>
+                                </div>
+
+                            </div><!-- #suite-barrio-mailchimp-fields-wrap -->
+                        </div><!-- .suite-barrio-section-body -->
+                    </div><!-- .suite-barrio-section-box Mailchimp per-form -->
+
                 </div><!-- #suite-barrio-tab-settings -->
 
                 <!-- TAB NOTIFICHE -->
@@ -3781,6 +5215,27 @@ function suite_barrio_forms_admin_page()
         const AJAX = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
         const EDIT_ID = <?php echo intval($builder_form_id); ?>;
 
+        // ── Dati multilingua ────────────────────────────────────────────
+        const ML_ACTIVE = <?php echo wp_json_encode($ml_active); ?>;
+        const ML_PRIMARY = <?php echo wp_json_encode($ml_primary); ?>;
+        const IS_TRANSLATION = <?php echo wp_json_encode($is_translation_mode); ?>;
+        const URL_EDIT_BASE = <?php echo wp_json_encode(admin_url('admin.php?page=suite-barrio-forms&tab=builder&edit_id=')); ?>;
+        const CURRENT_EDITOR_LANG = <?php echo wp_json_encode($editor_lang); ?>;
+        // Chiavi traducibili: arrivano da PHP così editor e salvataggio non possono divergere
+        const I18N_SETTING_KEYS = <?php echo wp_json_encode(suite_barrio_forms_translatable_settings()); ?>;
+        const I18N_NOTIF_KEYS = <?php echo wp_json_encode(suite_barrio_forms_translatable_notif()); ?>;
+
+        /* ── Select lingua nel builder: naviga alla versione tradotta ── */
+        const langSelect = document.getElementById('suite-barrio-form-lang-select');
+        if (langSelect && ML_ACTIVE && EDIT_ID) {
+        langSelect.addEventListener('change', function () {
+        const isPrimary = this.options[this.selectedIndex].dataset.isPrimary === '1';
+        window.location.href = isPrimary
+        ? URL_EDIT_BASE + EDIT_ID
+        : URL_EDIT_BASE + EDIT_ID + '&lang=' + this.value;
+        });
+        }
+
         function toast(msg, type = 'success') {
         const t = document.getElementById('suite-barrio-toast');
         if (!t) return;
@@ -3838,6 +5293,39 @@ function suite_barrio_forms_admin_page()
         let settings = <?php echo wp_json_encode(json_decode($saved_settings) ?: new stdClass()); ?>;
         if (!Array.isArray(fields)) fields = [];
         if (typeof settings !== 'object' || !settings) settings = {};
+
+        // In modalità traduzione: sovrascrive i soli testi con quelli tradotti.
+        <?php if ($is_translation_mode):
+            $trans_row = suite_barrio_forms_get_translation($edit_id, $editor_lang);
+            if ($trans_row): ?>
+                (function () {
+                const fi18n = <?php echo wp_json_encode(json_decode($trans_row->fields_i18n, true) ?: []); ?>;
+                const si18n = <?php echo wp_json_encode(json_decode($trans_row->settings_i18n, true) ?: []); ?>;
+                fields = fields.map((f, i) => {
+                const t = fi18n[i];
+                if (!t) return f;
+                const merged = { ...f };
+                if (t.label) merged.label = t.label;
+                if (t.placeholder) merged.placeholder = t.placeholder;
+                if (t.error_message) merged.error_message = t.error_message;
+                if (Array.isArray(t.options) && t.options.length) merged.options = t.options;
+                return merged;
+                });
+                I18N_SETTING_KEYS.forEach(k => {
+                if (si18n[k]) settings[k] = si18n[k];
+                });
+                if (Array.isArray(si18n.notifications)) {
+                settings.notifications = (settings.notifications || []).map((n, ni) => {
+                const nt = si18n.notifications[ni];
+                if (!nt) return n;
+                const merged = { ...n };
+                I18N_NOTIF_KEYS.forEach(k => { if (nt[k]) merged[k] = nt[k]; });
+                return merged;
+                });
+                }
+                })();
+            <?php endif;
+        endif; ?>
 
         // I campi salvati non hanno id interno — lo generiamo in memoria dal name
         fields = fields.map(f => ({ ...f, id: f.id || ('_' + (f.name || Math.random().toString(36).slice(2))) }));
@@ -3906,6 +5394,32 @@ function suite_barrio_forms_admin_page()
         mailupFieldMap = Array.isArray(s.mailup_field_map) ? s.mailup_field_map.map(r => ({ form_field: r.form_field || '',
         mailup_field_name: r.mailup_field_name || '' })) : [];
         renderMailupMapRows();
+
+        // Mailchimp
+        const mcEnabled = el('suite-barrio-setting-mailchimp-enabled');
+        if (mcEnabled) {
+        mcEnabled.checked = !!(s.mailchimp_enabled);
+        toggleMailchimpFields(mcEnabled.checked);
+        }
+        if (el('suite-barrio-setting-mailchimp-list-id')) el('suite-barrio-setting-mailchimp-list-id').value =
+        s.mailchimp_list_id || '';
+        if (el('suite-barrio-setting-mailchimp-email-field')) el('suite-barrio-setting-mailchimp-email-field').value =
+        s.mailchimp_email_field || '';
+        // Consenso commerciale: popola con i campi checkbox presenti nel form
+        const mcOptinSel = el('suite-barrio-setting-mailchimp-optin-field');
+        if (mcOptinSel) {
+        while (mcOptinSel.options.length > 1) mcOptinSel.remove(1);
+        fields.filter(f => f.type === 'checkbox').forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.name || '';
+        opt.textContent = (f.label || f.name || f.id) + ' [' + (f.name || '') + ']';
+        mcOptinSel.appendChild(opt);
+        });
+        mcOptinSel.value = s.mailchimp_optin_field || '';
+        }
+        mailchimpFieldMap = Array.isArray(s.mailchimp_field_map) ? s.mailchimp_field_map.map(r => ({ form_field:
+        r.form_field || '', mailchimp_field_name: r.mailchimp_field_name || '' })) : [];
+        renderMailchimpMapRows();
         }
 
         function setAfterPanel(val) {
@@ -3975,6 +5489,55 @@ function suite_barrio_forms_admin_page()
         renderMailupMapRows();
         });
 
+        // ── Mailchimp: toggle + field mapping ───────────────────────────
+        function toggleMailchimpFields(show) {
+        const wrap = document.getElementById('suite-barrio-mailchimp-fields-wrap');
+        if (wrap) wrap.style.display = show ? '' : 'none';
+        }
+        const mcCb = document.getElementById('suite-barrio-setting-mailchimp-enabled');
+        if (mcCb) mcCb.addEventListener('change', () => toggleMailchimpFields(mcCb.checked));
+
+        let mailchimpFieldMap = []; // [{form_field, mailchimp_field_name}]
+
+        function renderMailchimpMapRows() {
+        const container = document.getElementById('suite-barrio-mailchimp-field-map-rows');
+        if (!container) return;
+        container.innerHTML = '';
+        mailchimpFieldMap.forEach((row, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+        div.innerHTML = `
+        <input type="text" placeholder="slug campo form (es. nome)" value="${esc(row.form_field || '')}"
+            data-idx="${idx}" data-key="form_field"
+            style="flex:1;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+        <span style="color:#a7aaad;font-size:18px;line-height:1;flex-shrink:0;">→</span>
+        <input type="text" placeholder="es. FNAME" value="${esc(row.mailchimp_field_name || '')}" data-idx="${idx}"
+            data-key="mailchimp_field_name"
+            style="flex:1;padding:5px 8px;border:1px solid #c3c4c7;border-radius:3px;font-size:13px;">
+        <button type="button" data-idx="${idx}"
+            style="background:none;border:none;color:#d63638;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;flex-shrink:0;"
+            title="Rimuovi">×</button>`;
+        div.querySelectorAll('input[data-key]').forEach(inp => {
+        inp.addEventListener('input', e => {
+        const i = parseInt(e.target.dataset.idx, 10);
+        mailchimpFieldMap[i][e.target.dataset.key] = e.target.value;
+        });
+        });
+        div.querySelector('button[data-idx]').addEventListener('click', e => {
+        const i = parseInt(e.currentTarget.dataset.idx, 10);
+        mailchimpFieldMap.splice(i, 1);
+        renderMailchimpMapRows();
+        });
+        container.appendChild(div);
+        });
+        }
+
+        const addMapBtnMc = document.getElementById('suite-barrio-mailchimp-add-map-row');
+        if (addMapBtnMc) addMapBtnMc.addEventListener('click', () => {
+        mailchimpFieldMap.push({ form_field: '', mailchimp_field_name: '' });
+        renderMailchimpMapRows();
+        });
+
         initSettings();
 
         function readSettings() {
@@ -4013,6 +5576,16 @@ function suite_barrio_forms_admin_page()
         mailup_optin_field: el('suite-barrio-setting-mailup-optin-field') ?
         el('suite-barrio-setting-mailup-optin-field').value : (settings.mailup_optin_field || ''),
         mailup_field_map: mailupFieldMap.filter(r => r.form_field && r.mailup_field_name),
+        // Mailchimp
+        mailchimp_enabled: el('suite-barrio-setting-mailchimp-enabled') ?
+        el('suite-barrio-setting-mailchimp-enabled').checked : !!(settings.mailchimp_enabled),
+        mailchimp_list_id: el('suite-barrio-setting-mailchimp-list-id') ?
+        el('suite-barrio-setting-mailchimp-list-id').value.trim() : (settings.mailchimp_list_id || ''),
+        mailchimp_email_field: el('suite-barrio-setting-mailchimp-email-field') ?
+        el('suite-barrio-setting-mailchimp-email-field').value.trim() : (settings.mailchimp_email_field || 'email'),
+        mailchimp_optin_field: el('suite-barrio-setting-mailchimp-optin-field') ?
+        el('suite-barrio-setting-mailchimp-optin-field').value : (settings.mailchimp_optin_field || ''),
+        mailchimp_field_map: mailchimpFieldMap.filter(r => r.form_field && r.mailchimp_field_name),
         };
         }
 
@@ -4046,8 +5619,7 @@ function suite_barrio_forms_admin_page()
         ? '<div class="suite-barrio-field-vars" style="margin-top:5px;">' + emailFields.map(f =>
             '<button type="button" class="suite-barrio-field-var-pill suite-barrio-email-field-pill"' +
                                                 ' data-value="' + ob + esc(f.name) + cb + '"' +
-                                                '
-                title="Usa il campo &quot;' + esc(f.label || f.name) + '&quot; come destinatario">' +
+                                                ' title="Usa il campo &quot;' + esc(f.label || f.name) + '&quot; come destinatario">' +
                 '⟵ ' + esc(f.label || f.name) +
                 '</button>'
             ).join('') + '</div>'
@@ -4058,8 +5630,7 @@ function suite_barrio_forms_admin_page()
         ? '<div class="suite-barrio-field-vars">' + realFields.map(f =>
             '<button type="button" class="suite-barrio-field-var-pill"' +
                                                 ' data-var="' + ob + esc(f.name) + cb + '"' +
-                                                '
-                title="Inserisci il valore di &quot;' + esc(f.label || f.name) + '&quot;">' +
+                                                ' title="Inserisci il valore di &quot;' + esc(f.label || f.name) + '&quot;">' +
                 ob + esc(f.name) + cb +
                 '</button>'
             ).join('') + '</div>'
@@ -4530,8 +6101,11 @@ function suite_barrio_forms_admin_page()
         }
 
         // Aggiorna il <select> opt-in MailUp con i campi checkbox presenti nel canvas
-            function refreshMailupOptinSelect() {
-            const sel = document.getElementById('suite-barrio-setting-mailup-optin-field');
+            // Ricostruisce un select "campo opt-in" dalla lista di checkbox del form.
+            // Usato sia da MailUp che da Mailchimp: senza il refresh il select resta
+            // fermo ai campi esistenti al caricamento della pagina.
+            function refreshOptinSelect(selectId) {
+            const sel = document.getElementById(selectId);
             if (!sel) return;
             const current = sel.value;
             while (sel.options.length > 1) sel.remove(1);
@@ -4543,6 +6117,11 @@ function suite_barrio_forms_admin_page()
             });
             // Ripristina il valore precedente se esiste ancora
             if ([...sel.options].some(o => o.value === current)) sel.value = current;
+            }
+
+            function refreshMailupOptinSelect() {
+            refreshOptinSelect('suite-barrio-setting-mailup-optin-field');
+            refreshOptinSelect('suite-barrio-setting-mailchimp-optin-field');
             }
 
             function buildCard(f, idx) {
@@ -4595,8 +6174,7 @@ function suite_barrio_forms_admin_page()
             card.innerHTML = `
             <div class="suite-barrio-field-card-header">
                 <span class="suite-barrio-drag-handle">⠿</span>
-                <span class="suite-barrio-field-card-label">${esc(f.label)}${f.required ? ' <span
-                        style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
+                <span class="suite-barrio-field-card-label">${esc(f.label)}${f.required ? ' <span style="color:#d63638;font-size:10px;">*</span>' : ''}</span>
                 <span class="suite-barrio-field-card-type">${esc(f.type)}</span>
                 <button class="suite-barrio-btn-remove-field" data-id="${esc(f.id)}" title="Rimuovi">×</button>
             </div>
@@ -4653,8 +6231,7 @@ function suite_barrio_forms_admin_page()
                 const f = fields.find(f => f.id === id);
                 if (!f) return;
                 _pendingRemoveId = id;
-                if (modalName) modalName.textContent = 'Stai per eliminare il campo "' + f.label + '". L\'operazione non può
-                essere annullata.';
+                if (modalName) modalName.textContent = 'Stai per eliminare il campo "' + f.label + '". L\'operazione non può essere annullata.';
                 modal.classList.add('open');
                 setTimeout(() => modalConfirm && modalConfirm.focus(), 50);
                 }
@@ -4980,13 +6557,17 @@ function suite_barrio_forms_admin_page()
                 labelEl.addEventListener('input', () => {
                 const newLabel = labelEl.value;
                 updateField(f.id, 'label', newLabel);
+                // In traduzione lo slug NON va ricalcolato: è la chiave con cui
+                // la traduzione si aggancia al campo originale.
+                if (!IS_TRANSLATION) {
                 const newName = slugify(newLabel);
                 updateField(f.id, 'name', newName);
                 if (nameEl) nameEl.value = newName;
+                }
                 });
                 }
-                // Binding name: modificabile manualmente
-                bi('prop-name', 'name');
+                // Binding name: modificabile manualmente (non in traduzione)
+                if (!IS_TRANSLATION) bi('prop-name', 'name');
 
                 bi('prop-placeholder', 'placeholder');
                 bi('prop-min', 'min');
@@ -5080,8 +6661,7 @@ function suite_barrio_forms_admin_page()
                             <span>delle seguenti condizioni sono soddisfatte:</span>
                         </div>
                         <div class="suite-barrio-cond-list" id="suite-barrio-cond-list">
-                            ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola.
-                                Aggiungine una.</p>'}
+                            ${rulesHtml || '<p style="font-size:11px;color:#a7aaad;margin:4px 0 8px;">Nessuna regola. Aggiungine una.</p>'}
                         </div>
                         <button type="button" class="suite-barrio-btn-add-cond" id="suite-barrio-btn-add-cond">+ Aggiungi
                             regola</button>
@@ -5265,6 +6845,53 @@ function suite_barrio_forms_admin_page()
                     const saveBtn = document.getElementById('suite-barrio-btn-save-form');
                     if (saveBtn) {
                     saveBtn.addEventListener('click', async () => {
+
+                    // ── Modalità traduzione: salva solo i testi tradotti ──
+                    if (IS_TRANSLATION && ML_ACTIVE && EDIT_ID) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Salvataggio…';
+
+                    const fieldsI18n = fields.map(f => ({
+                    label: f.label || '',
+                    placeholder: f.placeholder || '',
+                    error_message: f.error_message || '',
+                    options: Array.isArray(f.options) ? f.options : [],
+                    }));
+
+                    const st = readSettings();
+                    const settingsI18n = { notifications: [] };
+                    I18N_SETTING_KEYS.forEach(k => { settingsI18n[k] = st[k] || ''; });
+                    settingsI18n.notifications = (st.notifications || []).map(n => {
+                    const nt = {};
+                    I18N_NOTIF_KEYS.forEach(k => { nt[k] = n[k] || ''; });
+                    return nt;
+                    });
+
+                    try {
+                    const res = await fetch(AJAX, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                    action: 'suite_barrio_forms_save_translation',
+                    nonce: NONCE,
+                    form_id: String(EDIT_ID),
+                    lang: CURRENT_EDITOR_LANG,
+                    fields_i18n: JSON.stringify(fieldsI18n),
+                    settings_i18n: JSON.stringify(settingsI18n),
+                    })
+                    });
+                    const data = await res.json();
+                    if (data.success) toast('✓ Traduzione salvata!');
+                    else toast(data.data || 'Errore durante il salvataggio.', 'error');
+                    } catch (e) {
+                    toast('Errore di rete.', 'error');
+                    } finally {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Salva traduzione';
+                    }
+                    return;
+                    }
+
+                    // ── Modalità normale (form in lingua principale) ──
                     const title = document.getElementById('suite-barrio-form-title').value.trim();
                     if (!title) { toast('Inserisci un nome per il form.', 'error'); return; }
 
@@ -5537,12 +7164,9 @@ function suite_barrio_forms_admin_page()
 
                     // Intestazioni: solo le prime 2 colonne + data
                     const listFields = formFields.slice(0, 2);
-                    let thead = '<tr>
-                        <th>#</th>';
+                    let thead = '<tr><th>#</th>';
                         listFields.forEach(f => { thead += `<th>${esc(f.label || f.name)}</th>`; });
-                        thead += '<th>Data</th>
-                        <th></th>
-                    </tr>';
+                        thead += '<th>Data</th><th></th></tr>';
 
                     // Righe: compatte, cliccabili per dettaglio
                     let tbody = '';
@@ -5565,8 +7189,7 @@ function suite_barrio_forms_admin_page()
                         tbody += `<td style="white-space:nowrap;"><button
                                 class="suite-barrio-btn suite-barrio-btn-small suite-barrio-btn-danger suite-barrio-btn-sm suite-barrio-btn-reg-del"
                                 data-id="${sub.id}" onclick="event.stopPropagation()">Elimina</button></td>`;
-                        tbody += '
-                    </tr>';
+                        tbody += '</tr>';
                     });
 
                     content.innerHTML = `
@@ -5641,6 +7264,57 @@ function suite_barrio_forms_admin_page()
 
                     renderCanvas();
                     renderProps();
+
+                    /* ── Modalità traduzione: blocca ciò che non è testo ──
+                       Il CSS dà il feedback visivo, qui si disabilita davvero:
+                       il solo pointer-events non impedisce tastiera e autofill. */
+                    if (IS_TRANSLATION) {
+
+                    // Le card non si riordinano né si eliminano.
+                    function lockCardDrag() {
+                    document.querySelectorAll('#suite-barrio-drop-zone .suite-barrio-field-card').forEach(function (c) {
+                    c.draggable = false;
+                    c.removeAttribute('draggable');
+                    });
+                    }
+                    const _origRenderCanvas = renderCanvas;
+                    renderCanvas = function () {
+                    _origRenderCanvas.apply(this, arguments);
+                    lockCardDrag();
+                    };
+                    lockCardDrag();
+
+                    // Il pannello proprietà viene riscritto a ogni click su una card:
+                    // riapplichiamo i blocchi a ogni rigenerazione.
+                    const _propsInner = document.getElementById('suite-barrio-props-inner');
+                    if (_propsInner) {
+                    const lockProps = function () {
+                    ['prop-name', 'prop-min', 'prop-max', 'prop-format', 'prop-required'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = true;
+                    });
+                    const cond = _propsInner.querySelector('.suite-barrio-cond-section');
+                    if (cond) cond.querySelectorAll('input,select,button,textarea').forEach(function (el) { el.disabled = true; });
+                    };
+                    lockProps();
+                    new MutationObserver(lockProps).observe(_propsInner, { childList: true });
+                    }
+
+                    // Impostazioni non traducibili: la configurazione si eredita.
+                    document.querySelectorAll('.suite-barrio-ast-btn, .suite-barrio-msg-mode-btn').forEach(function (b) { b.disabled = true; });
+                    ['suite-barrio-setting-display-page-info',
+                    'suite-barrio-setting-mailup-enabled',
+                    'suite-barrio-setting-mailup-email-field',
+                    'suite-barrio-setting-mailup-optin-field',
+                    'suite-barrio-mailup-add-map-row',
+                    'suite-barrio-setting-mailchimp-enabled',
+                    'suite-barrio-setting-mailchimp-email-field',
+                    'suite-barrio-setting-mailchimp-optin-field',
+                    'suite-barrio-mailchimp-add-map-row'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = true;
+                    });
+                    }
                     })();
                     <?php
                     $suite_barrio_builder_js = ob_get_clean();
@@ -5659,18 +7333,32 @@ function suite_barrio_forms_admin_page()
    (visibile solo a chi NON è admin, gli admin usano la pagina Forms completa)
    ───────────────────────────────────────── */
 add_action('admin_menu', function () {
-    if (current_user_can('manage_options'))
-        return; // gli admin vedono già tutto dalla pagina Forms
+    // Editor: voce di primo livello nel menu di WordPress.
+    if (!current_user_can('manage_options') && current_user_can('edit_others_posts')) {
+        add_menu_page(
+            'Registrazioni Form — Suite Barrio',
+            'Registrazioni',
+            'edit_others_posts',
+            'suite-barrio-submissions',
+            'suite_barrio_forms_submissions_page',
+            'dashicons-list-view',
+            81
+        );
+        return;
+    }
 
-    add_menu_page(
-        'Registrazioni Form — Suite Barrio',
-        'Registrazioni',
-        'edit_others_posts',
-        'suite-barrio-submissions',
-        'suite_barrio_forms_submissions_page',
-        'dashicons-list-view',
-        81
-    );
+    // Admin: pagina registrata ma nascosta dal menu (vedono già tutto dalla
+    // pagina Forms); resta raggiungibile via link diretto dalla lista form.
+    if (current_user_can('manage_options')) {
+        add_submenu_page(
+            'suite-barrio',
+            'Registrazioni Form — Suite Barrio',
+            'Registrazioni',
+            'manage_options',
+            'suite-barrio-submissions',
+            'suite_barrio_forms_submissions_page'
+        );
+    }
 }, 12);
 
 /* ─────────────────────────────────────────
@@ -5679,12 +7367,20 @@ add_action('admin_menu', function () {
    dentro suite_barrio_forms_submissions_page().
    ───────────────────────────────────────── */
 add_action('admin_enqueue_scripts', function ($hook) {
-    if ($hook !== 'toplevel_page_suite-barrio-submissions')
+    // L'hook cambia in base a come è registrata la voce: primo livello per gli
+    // editor, sottomenu di Suite Barrio per gli admin.
+    if (!in_array($hook, ['toplevel_page_suite-barrio-submissions', 'suite-barrio_page_suite-barrio-submissions'], true))
         return;
     wp_register_style('suite-barrio-forms-submissions', false, [], SUITE_BARRIO_FORMS_VERSION);
     wp_register_script('suite-barrio-forms-submissions', false, [], SUITE_BARRIO_FORMS_VERSION, true);
-    wp_enqueue_style('suite-barrio-forms-submissions');
-    wp_enqueue_script('suite-barrio-forms-submissions');
+});
+
+// Nasconde la voce "Registrazioni" dal menu degli admin: la pagina esiste (serve
+// il link diretto dalla lista form) ma non deve comparire due volte nel menu.
+add_action('admin_enqueue_scripts', function () {
+    if (current_user_can('manage_options')) {
+        wp_add_inline_style('suite-barrio-admin', '#adminmenu a[href="admin.php?page=suite-barrio-submissions"]{display:none!important}');
+    }
 });
 
 /* ─────────────────────────────────────────
@@ -5692,7 +7388,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
    ───────────────────────────────────────── */
 function suite_barrio_forms_submissions_page()
 {
-    if (!current_user_can('edit_others_posts')) {
+    if (!current_user_can('edit_others_posts') && !current_user_can('manage_options')) {
         wp_die('Non hai i permessi per accedere a questa pagina.');
     }
 
@@ -5701,436 +7397,739 @@ function suite_barrio_forms_submissions_page()
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $view_id = isset($_GET['view_id']) ? intval($_GET['view_id']) : 0;
     $view_form = $view_id ? suite_barrio_forms_get($view_id) : null;
+
+    $ml_active = function_exists('suite_barrio_multilang_is_enabled') && suite_barrio_multilang_is_enabled();
+    $ml_languages = $ml_active && function_exists('suite_barrio_multilang_languages_with_flags') ? suite_barrio_multilang_languages_with_flags() : [];
     ?>
-                    <?php ob_start(); ?>
-                    .suite-barrio-sub-count {
-                    display: inline-block;
-                    padding: 2px 10px;
-                    border-radius: 10px;
-                    font-size: 12px;
-                    font-weight: 600;
-                    background: #f0f0f1;
-                    color: #646970
+<?php ob_start(); ?>
+    #suite-barrio-subs-wrap {
+        max-width: 1200px
+    }
+
+    .suite-barrio-subs-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap
+    }
+
+    .suite-barrio-subs-reg-count {
+        font-size: 13px;
+        color: #646970
+    }
+
+    .suite-barrio-subs-spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #c3c4c7;
+        border-top-color: #2271b1;
+        border-radius: 50%;
+        animation: suite-barrio-spin .6s linear infinite
+    }
+
+    @keyframes suite-barrio-spin {
+        to {
+            transform: rotate(360deg)
+        }
+    }
+
+    .suite-barrio-subs-reg-table-wrap {
+        overflow-x: auto
+    }
+
+    .suite-barrio-subs-reg-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 3px
+    }
+
+    .suite-barrio-subs-reg-table th {
+        background: #f0f0f1;
+        padding: 8px 12px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        color: #50575e;
+        border-bottom: 1px solid #c3c4c7;
+        white-space: nowrap
+    }
+
+    .suite-barrio-subs-reg-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f0f0f1;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap
+    }
+
+    .suite-barrio-subs-reg-table tr:last-child td {
+        border-bottom: none
+    }
+
+    .suite-barrio-subs-reg-table tr:hover td {
+        background: #f6f7f7
+    }
+
+    .suite-barrio-subs-reg-table tbody tr {
+        cursor: pointer
+    }
+
+    .suite-barrio-subs-reg-cell-empty {
+        color: #a7aaad;
+        font-style: italic
+    }
+
+    .suite-barrio-subs-reg-date {
+        font-size: 12px;
+        color: #646970
+    }
+
+    .suite-barrio-check-on {
+        color: #00a32a;
+        font-weight: 600
+    }
+
+    .suite-barrio-check-off {
+        color: #a7aaad
+    }
+
+    .suite-barrio-check-summary {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #f0f0f1;
+        color: #646970
+    }
+
+    /* Colonne picker */
+    .suite-barrio-col-picker {
+        position: relative
+    }
+
+    .suite-barrio-col-picker-panel {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 99;
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 3px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, .1);
+        padding: 10px 14px;
+        min-width: 200px
+    }
+
+    .suite-barrio-col-picker-panel.open {
+        display: block
+    }
+
+    .suite-barrio-col-picker-panel label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 0;
+        font-size: 13px;
+        cursor: pointer;
+        white-space: nowrap
+    }
+
+    /* Bulk */
+    .suite-barrio-subs-reg-table th:first-child,
+    .suite-barrio-subs-reg-table td:first-child {
+        width: 32px;
+        padding-right: 4px
+    }
+
+    .suite-barrio-bulk-bar {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: #f0f6fc;
+        border: 1px solid #c6d9ef;
+        border-radius: 3px;
+        margin-bottom: 10px;
+        font-size: 13px
+    }
+
+    .suite-barrio-bulk-bar.visible {
+        display: flex
+    }
+
+    /* Dettaglio */
+    .suite-barrio-subs-detail-wrap {
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 4px;
+        overflow: hidden
+    }
+
+    .suite-barrio-subs-detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #f0f0f1;
+        background: #fafafa
+    }
+
+    .suite-barrio-subs-detail-header h3 {
+        margin: 0;
+        font-size: 15px
+    }
+
+    .suite-barrio-subs-detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 14px 20px;
+        font-size: 12px;
+        color: #646970;
+        border-bottom: 1px solid #f0f0f1;
+        background: #f9f9f9
+    }
+
+    .suite-barrio-subs-detail-fields {
+        padding: 0
+    }
+
+    .suite-barrio-subs-detail-row {
+        display: flex;
+        border-bottom: 1px solid #f0f0f1;
+        font-size: 13px
+    }
+
+    .suite-barrio-subs-detail-row:last-child {
+        border-bottom: none
+    }
+
+    .suite-barrio-subs-detail-label {
+        width: 200px;
+        min-width: 160px;
+        padding: 12px 20px;
+        background: #fafafa;
+        font-weight: 600;
+        color: #50575e;
+        border-right: 1px solid #f0f0f1
+    }
+
+    .suite-barrio-subs-detail-value {
+        flex: 1;
+        padding: 12px 20px;
+        word-break: break-word
+    }
+
+    .suite-barrio-subs-detail-empty {
+        color: #a7aaad;
+        font-style: italic
+    }
+
+    .suite-barrio-sub-count {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f0f0f1;
+        color: #646970
+    }
+
+    .suite-barrio-sub-count.has-subs {
+        background: #e7f5e8;
+        color: #00a32a
+    }
+
+    .suite-barrio-subs-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px
+    }
+
+    .suite-barrio-subs-table th {
+        background: #f0f0f1;
+        padding: 9px 14px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        color: #50575e;
+        border-bottom: 1px solid #c3c4c7
+    }
+
+    .suite-barrio-subs-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f0f0f1;
+        vertical-align: middle
+    }
+
+    .suite-barrio-subs-table tr:last-child td {
+        border-bottom: none
+    }
+
+    .suite-barrio-subs-table tr:hover td {
+        background: #fafafa
+    }
+
+    .suite-barrio-subs-table-wrap {
+        background: #fff;
+        border: 1px solid #c3c4c7;
+        border-radius: 3px;
+        overflow: hidden
+    }
+<?php
+    $suite_barrio_subs_css = ob_get_clean();
+    wp_enqueue_style('suite-barrio-forms-submissions');
+    wp_add_inline_style('suite-barrio-forms-submissions', $suite_barrio_subs_css);
+    wp_enqueue_script('suite-barrio-forms-submissions');
+    ?>
+
+<div class="wrap" id="suite-barrio-subs-wrap">
+    <h1 class="wp-heading-inline">
+        <span class="dashicons dashicons-list-view"
+            style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:#2271b1;"></span>
+        Registrazioni Form
+    </h1>
+    <hr class="wp-header-end" style="margin-bottom:20px;">
+
+    <?php if ($view_form): ?>
+    <!-- ═══ REGISTRAZIONI DI UN FORM ═══ -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-forms')); ?>" class="button">← Tutti i form</a>
+        <strong style="font-size:14px;"><?php echo esc_html($view_form->title); ?></strong>
+    </div>
+
+    <!-- Toolbar: count + filtro lingua + colonne + bulk bar -->
+    <div class="suite-barrio-subs-toolbar">
+        <span class="suite-barrio-subs-reg-count" id="suite-barrio-subs-count"></span>
+
+        <?php if ($ml_active && !empty($ml_languages)): ?>
+        <select id="suite-barrio-lang-filter" style="font-size:13px;">
+            <option value="">— Tutte le lingue —</option>
+            <?php foreach ($ml_languages as $lc => $ll): ?>
+            <option value="<?php echo esc_attr($lc); ?>"><?php echo esc_html($ll); ?></option>
+            <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
+
+        <div class="suite-barrio-col-picker">
+            <button type="button" class="button" id="suite-barrio-col-picker-btn">
+                <span class="dashicons dashicons-visibility"
+                    style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px;"></span>
+                Colonne
+            </button>
+            <div class="suite-barrio-col-picker-panel" id="suite-barrio-col-picker-panel">
+                <p style="font-size:11px;font-weight:700;text-transform:uppercase;color:#646970;margin:0 0 6px;">Colonne
+                    visibili</p>
+                <div id="suite-barrio-col-options"><!-- popolato via JS --></div>
+            </div>
+        </div>
+
+        <button type="button" class="button button-small" id="suite-barrio-select-all-btn" style="display:none;">
+            Seleziona tutto
+        </button>
+    </div>
+
+    <div class="suite-barrio-bulk-bar" id="suite-barrio-bulk-bar">
+        <span id="suite-barrio-bulk-count"></span>
+        <button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="suite-barrio-bulk-delete-btn">
+            <span class="dashicons dashicons-trash"
+                style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span>
+            Elimina selezionati
+        </button>
+        <button type="button" class="button" id="suite-barrio-bulk-cancel-btn">Annulla</button>
+    </div>
+
+    <div id="suite-barrio-subs-content"><span class="suite-barrio-subs-spinner"></span> Caricamento…</div>
+
+    <?php ob_start(); ?>
+        (function () {
+            const AJAX = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
+            const NONCE = '<?php echo esc_js($nonce); ?>';
+            const FORM_ID = <?php echo intval($view_id); ?>;
+            const ML_LANGUAGES = <?php echo wp_json_encode($ml_languages); ?>;
+            const ML_ACTIVE = <?php echo wp_json_encode($ml_active); ?>;
+
+            let subsData = [], formFields = [], filteredData = [];
+            let visibleCols = [];   // nomi campi visibili (oltre a #, lingua, data)
+            let selectedIds = new Set();
+
+            function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+            function formatCheckSummary(val) {
+                if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
+                const parts = val.split('|').map(p => p.trim()).filter(Boolean);
+                let total = 0, on = 0;
+                parts.forEach(p => { const m = p.match(/^(.+?):\s*(true|false)$/); if (m) { total++; if (m[2] === 'true') on++; } });
+                return '<span class="suite-barrio-check-summary">' + on + '/' + total + '</span>';
+            }
+            function formatCheckVal(val) {
+                if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
+                return val.split('|').map(p => p.trim()).filter(Boolean).map(part => {
+                    const m = part.match(/^(.+?):\s*(true|false)$/);
+                    if (!m) return '';
+                    const cls = m[2] === 'true' ? 'suite-barrio-check-on' : 'suite-barrio-check-off';
+                    const icon = m[2] === 'true' ? '✔' : '✘';
+                    return '<div class="' + cls + '">' + icon + ' ' + esc(m[1].trim()) + '</div>';
+                }).join('');
+            }
+
+            // ── Carica submissions ──────────────────────────────────────────
+            function loadSubmissions() {
+                fetch(AJAX, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ action: 'suite_barrio_forms_get_submissions', nonce: NONCE, form_id: FORM_ID })
+                })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (!res.success) { document.getElementById('suite-barrio-subs-content').innerHTML = '<p>' + esc(res.data || 'Errore') + '</p>'; return; }
+                        subsData = res.data.subs || [];
+                        formFields = (res.data.fields || []).filter(f => f.type !== 'submit' && f.type !== 'page_break');
+                        // Colonne default: primi 2 campi
+                        visibleCols = formFields.slice(0, 2).map(f => f.name);
+                        buildColPicker();
+                        applyFilter();
+                    })
+                    .catch(() => { document.getElementById('suite-barrio-subs-content').innerHTML = '<p>Errore di rete.</p>'; });
+            }
+
+            // ── Col picker ──────────────────────────────────────────────────
+            function buildColPicker() {
+                const wrap = document.getElementById('suite-barrio-col-options');
+                if (!wrap) return;
+                wrap.innerHTML = '';
+                formFields.forEach(f => {
+                    const lbl = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = f.name;
+                    cb.checked = visibleCols.includes(f.name);
+                    cb.addEventListener('change', function () {
+                        if (this.checked) {
+                            if (!visibleCols.includes(this.value)) visibleCols.push(this.value);
+                        } else {
+                            visibleCols = visibleCols.filter(v => v !== this.value);
+                        }
+                        renderList();
+                    });
+                    lbl.appendChild(cb);
+                    lbl.appendChild(document.createTextNode(' ' + (f.label || f.name)));
+                    wrap.appendChild(lbl);
+                });
+            }
+
+            document.getElementById('suite-barrio-col-picker-btn').addEventListener('click', function (e) {
+                e.stopPropagation();
+                document.getElementById('suite-barrio-col-picker-panel').classList.toggle('open');
+            });
+            document.addEventListener('click', function () {
+                document.getElementById('suite-barrio-col-picker-panel').classList.remove('open');
+            });
+            document.getElementById('suite-barrio-col-picker-panel').addEventListener('click', function (e) { e.stopPropagation(); });
+
+            // ── Filtro lingua ───────────────────────────────────────────────
+            const langFilter = document.getElementById('suite-barrio-lang-filter');
+            if (langFilter) {
+                langFilter.addEventListener('change', applyFilter);
+            }
+
+            function applyFilter() {
+                const lang = langFilter ? langFilter.value : '';
+                filteredData = lang ? subsData.filter(s => s.lang === lang) : subsData.slice();
+                selectedIds.clear();
+                updateBulkBar();
+                renderList();
+            }
+
+            // ── Render lista ────────────────────────────────────────────────
+            function renderList() {
+                const content = document.getElementById('suite-barrio-subs-content');
+                const countEl = document.getElementById('suite-barrio-subs-count');
+                if (countEl) countEl.textContent = filteredData.length + ' registrazion' + (filteredData.length === 1 ? 'e' : 'i');
+
+                const selectAllBtn = document.getElementById('suite-barrio-select-all-btn');
+                if (selectAllBtn) selectAllBtn.style.display = filteredData.length ? '' : 'none';
+
+                if (!filteredData.length) {
+                    content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>';
+                    return;
+                }
+
+                // Header
+                let thead = '<tr><th><input type="checkbox" id="suite-barrio-check-all"></th><th>#</th>';
+                visibleCols.forEach(name => {
+                    const f = formFields.find(f => f.name === name);
+                    thead += '<th>' + esc(f ? (f.label || f.name) : name) + '</th>';
+                });
+                if (ML_ACTIVE) thead += '<th>Lingua</th>';
+                thead += '<th>Data</th><th></th></tr>';
+
+                // Rows
+                let tbody = '';
+                filteredData.forEach((sub) => {
+                    const checked = selectedIds.has(sub.id);
+                    tbody += '<tr data-id="' + sub.id + '">';
+                    tbody += '<td onclick="event.stopPropagation()"><input type="checkbox" class="suite-barrio-sub-check" value="' + sub.id + '"' + (checked ? ' checked' : '') + '></td>';
+                    tbody += '<td>' + sub.id + '</td>';
+
+                    const d = sub.data || {};
+                    visibleCols.forEach(name => {
+                        const cell = d[name];
+                        let val = cell ? cell.value : null;
+                        if (Array.isArray(val)) val = val.join(', ');
+                        const empty = val === null || val === undefined || val === '';
+                        const summary = !empty ? formatCheckSummary(String(val)) : null;
+                        tbody += empty
+                            ? '<td class="suite-barrio-subs-reg-cell-empty">—</td>'
+                            : '<td title="' + esc(String(val)) + '">' + (summary || esc(String(val))) + '</td>';
+                    });
+
+                    if (ML_ACTIVE) {
+                        const lc = sub.lang || '';
+                        const ll = lc ? (ML_LANGUAGES[lc] || lc.toUpperCase()) : '—';
+                        tbody += '<td><span style="font-size:11px;background:#f0f0f1;padding:1px 6px;border-radius:2px;font-weight:600;">' + esc(ll) + '</span></td>';
                     }
 
-                    .suite-barrio-sub-count.has-subs {
-                    background: #e7f5e8;
-                    color: #00a32a
-                    }
+                    tbody += '<td><span class="suite-barrio-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
+                    tbody += '<td onclick="event.stopPropagation()" style="width:32px;padding:4px 8px;">'
+                        + '<button type="button" class="button button-small suite-barrio-del-single" data-id="' + sub.id + '" title="Elimina" style="color:#d63638;border-color:#d63638;padding:2px 6px;">'
+                        + '<span class="dashicons dashicons-trash" style="font-size:12px;width:12px;height:12px;"></span>'
+                        + '</button></td>';
+                    tbody += '</tr>';
+                });
 
-                    /* Registrazioni inline */
-                    .suite-barrio-subs-reg-table-wrap {
-                    overflow-x: auto;
-                    margin-top: 10px
-                    }
+                content.innerHTML = '<div class="suite-barrio-subs-reg-table-wrap"><table class="suite-barrio-subs-reg-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
 
-                    .suite-barrio-subs-reg-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 13px;
-                    background: #fff;
-                    border: 1px solid #c3c4c7;
-                    border-radius: 3px
-                    }
+                // Check-all
+                const checkAll = document.getElementById('suite-barrio-check-all');
+                if (checkAll) {
+                    checkAll.addEventListener('change', function () {
+                        document.querySelectorAll('.suite-barrio-sub-check').forEach(cb => {
+                            cb.checked = this.checked;
+                            const id = parseInt(cb.value);
+                            if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
+                        });
+                        updateBulkBar();
+                    });
+                    checkAll.checked = filteredData.length > 0 && filteredData.every(s => selectedIds.has(s.id));
+                }
 
-                    .suite-barrio-subs-reg-table th {
-                    background: #f0f0f1;
-                    padding: 8px 12px;
-                    text-align: left;
-                    font-size: 11px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: .3px;
-                    color: #50575e;
-                    border-bottom: 1px solid #c3c4c7;
-                    white-space: nowrap
-                    }
+                // Singole checkbox
+                document.querySelectorAll('.suite-barrio-sub-check').forEach(cb => {
+                    cb.addEventListener('change', function () {
+                        const id = parseInt(this.value);
+                        if (this.checked) selectedIds.add(id); else selectedIds.delete(id);
+                        updateBulkBar();
+                        const allCb = document.getElementById('suite-barrio-check-all');
+                        if (allCb) allCb.checked = filteredData.every(s => selectedIds.has(s.id));
+                    });
+                });
 
-                    .suite-barrio-subs-reg-table td {
-                    padding: 8px 12px;
-                    border-bottom: 1px solid #f0f0f1;
-                    max-width: 220px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap
-                    }
+                // Click riga → dettaglio
+                content.querySelectorAll('.suite-barrio-subs-reg-table tbody tr').forEach(row => {
+                    row.addEventListener('click', () => {
+                        const id = parseInt(row.dataset.id);
+                        const idx = filteredData.findIndex(s => s.id === id);
+                        if (idx !== -1) showDetail(idx);
+                    });
+                });
 
-                    .suite-barrio-subs-reg-table tr:hover td {
-                    background: #f6f7f7
-                    }
+                // Delete singolo
+                content.querySelectorAll('.suite-barrio-del-single').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const id = parseInt(this.dataset.id);
+                        if (!confirm('Eliminare questa registrazione?')) return;
+                        deleteSubmissions([id], () => {
+                            subsData = subsData.filter(s => s.id !== id);
+                            applyFilter();
+                        });
+                    });
+                });
+            }
 
-                    .suite-barrio-subs-reg-table tbody tr {
-                    cursor: pointer
-                    }
+            // ── Bulk delete ─────────────────────────────────────────────────
+            function updateBulkBar() {
+                const bar = document.getElementById('suite-barrio-bulk-bar');
+                const cnt = document.getElementById('suite-barrio-bulk-count');
+                if (!bar) return;
+                if (selectedIds.size > 0) {
+                    bar.classList.add('visible');
+                    cnt.textContent = selectedIds.size + ' selezionat' + (selectedIds.size === 1 ? 'a' : 'e');
+                } else {
+                    bar.classList.remove('visible');
+                }
+            }
 
-                    .suite-barrio-subs-reg-cell-empty {
-                    color: #a7aaad;
-                    font-style: italic
-                    }
+            document.getElementById('suite-barrio-bulk-delete-btn').addEventListener('click', function () {
+                if (!selectedIds.size) return;
+                if (!confirm('Eliminare ' + selectedIds.size + ' registrazioni?')) return;
+                deleteSubmissions(Array.from(selectedIds), () => {
+                    const ids = Array.from(selectedIds);
+                    subsData = subsData.filter(s => !ids.includes(s.id));
+                    selectedIds.clear();
+                    updateBulkBar();
+                    applyFilter();
+                });
+            });
 
-                    .suite-barrio-subs-reg-date {
-                    font-size: 12px;
-                    color: #646970
-                    }
+            document.getElementById('suite-barrio-bulk-cancel-btn').addEventListener('click', function () {
+                selectedIds.clear();
+                updateBulkBar();
+                document.querySelectorAll('.suite-barrio-sub-check').forEach(cb => cb.checked = false);
+                const allCb = document.getElementById('suite-barrio-check-all');
+                if (allCb) allCb.checked = false;
+            });
 
-                    /* Dettaglio */
-                    .suite-barrio-subs-detail-wrap {
-                    background: #fff;
-                    border: 1px solid #c3c4c7;
-                    border-radius: 4px;
-                    overflow: hidden
-                    }
+            // Seleziona tutto (anche filtrati)
+            const selAllBtn = document.getElementById('suite-barrio-select-all-btn');
+            if (selAllBtn) {
+                selAllBtn.addEventListener('click', function () {
+                    filteredData.forEach(s => selectedIds.add(s.id));
+                    document.querySelectorAll('.suite-barrio-sub-check').forEach(cb => cb.checked = true);
+                    const allCb = document.getElementById('suite-barrio-check-all');
+                    if (allCb) allCb.checked = true;
+                    updateBulkBar();
+                });
+            }
 
-                    .suite-barrio-subs-detail-header {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 16px 20px;
-                    border-bottom: 1px solid #f0f0f1;
-                    background: #fafafa
-                    }
+            function deleteSubmissions(ids, onSuccess) {
+                fetch(AJAX, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        action: 'suite_barrio_forms_delete_submissions',
+                        nonce: NONCE,
+                        form_id: FORM_ID,
+                        ids: JSON.stringify(ids),
+                    })
+                })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) onSuccess();
+                        else alert(res.data || 'Errore durante l\'eliminazione.');
+                    })
+                    .catch(() => alert('Errore di rete.'));
+            }
 
-                    .suite-barrio-subs-detail-header h3 {
-                    margin: 0;
-                    font-size: 15px
-                    }
+            // ── Dettaglio registrazione ─────────────────────────────────────
+            function showDetail(idx) {
+                const sub = filteredData[idx]; if (!sub) return;
+                const content = document.getElementById('suite-barrio-subs-content');
 
-                    .suite-barrio-subs-detail-meta {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 16px;
-                    padding: 14px 20px;
-                    font-size: 12px;
-                    color: #646970;
-                    border-bottom: 1px solid #f0f0f1;
-                    background: #f9f9f9
-                    }
+                let fieldsHtml = '';
+                formFields.filter(f => f.type !== 'file').forEach(f => {
+                    const key = f.name || '';
+                    const cell = (sub.data || {})[key];
+                    let val = cell ? cell.value : null;
+                    if (Array.isArray(val)) val = val.join(', ');
+                    const empty = val === null || val === undefined || val === '';
+                    const checkHtml = !empty ? formatCheckVal(String(val)) : null;
+                    const valHtml = checkHtml || (empty ? '—' : esc(String(val)));
+                    fieldsHtml += '<div class="suite-barrio-subs-detail-row"><div class="suite-barrio-subs-detail-label">' + esc(f.label || f.name || '—') + '</div><div class="suite-barrio-subs-detail-value' + (empty ? ' suite-barrio-subs-detail-empty' : '') + '">' + valHtml + '</div></div>';
+                });
 
-                    .suite-barrio-subs-detail-fields {
-                    padding: 0
-                    }
+                // Allegati
+                const fileEntries = Object.entries(sub.data || {}).filter(([k, v]) => k.startsWith('_file_') && v && v.is_file);
+                if (fileEntries.length) {
+                    fieldsHtml += '<div style="padding:10px 20px;background:#f0f0f1;font-size:11px;font-weight:700;letter-spacing:.5px;color:#50575e;text-transform:uppercase;border-bottom:1px solid #e0e0e0;">📎 Allegati</div>';
+                    fileEntries.forEach(([k, d]) => {
+                        const fname = esc(d.value || '');
+                        const furl = d.url ? '<a href="' + esc(d.url) + '" target="_blank" style="font-size:12px;margin-left:8px;">Scarica</a>' : '';
+                        fieldsHtml += '<div class="suite-barrio-subs-detail-row"><div class="suite-barrio-subs-detail-label">📎</div><div class="suite-barrio-subs-detail-value">' + fname + furl + '</div></div>';
+                    });
+                }
 
-                    .suite-barrio-subs-detail-row {
-                    display: flex;
-                    border-bottom: 1px solid #f0f0f1;
-                    font-size: 13px
-                    }
+                const langCode = sub.lang || '';
+                const langLabel = langCode ? (ML_LANGUAGES[langCode] || langCode.toUpperCase()) : null;
 
-                    .suite-barrio-subs-detail-row:last-child {
-                    border-bottom: none
-                    }
+                const metaItems = [
+                    '📅 Data: <strong>' + esc(sub.created_at_full || sub.created_at) + '</strong>',
+                ];
+                if (langLabel) metaItems.push('🌐 Lingua: <strong>' + esc(langLabel) + '</strong>');
+                if (sub.ip) metaItems.push('🌍 IP: <strong>' + esc(sub.ip) + '</strong>');
 
-                    .suite-barrio-subs-detail-label {
-                    width: 200px;
-                    min-width: 160px;
-                    padding: 12px 20px;
-                    background: #fafafa;
-                    font-weight: 600;
-                    color: #50575e;
-                    border-right: 1px solid #f0f0f1
-                    }
+                content.innerHTML =
+                    '<div class="suite-barrio-subs-detail-wrap">' +
+                    '<div class="suite-barrio-subs-detail-header">' +
+                    '<h3>Registrazione #' + sub.id + '</h3>' +
+                    '<div style="display:flex;gap:8px;">' +
+                    '<button type="button" class="button" id="suite-barrio-detail-back">← Lista</button>' +
+                    '<button type="button" class="button" style="color:#d63638;border-color:#d63638;" id="suite-barrio-detail-del">🗑 Elimina</button>' +
+                    '</div></div>' +
+                    '<div class="suite-barrio-subs-detail-meta">' + metaItems.map(m => '<span>' + m + '</span>').join('') + '</div>' +
+                    '<div class="suite-barrio-subs-detail-fields">' + fieldsHtml + '</div>' +
+                    '</div>';
 
-                    .suite-barrio-subs-detail-value {
-                    flex: 1;
-                    padding: 12px 20px;
-                    word-break: break-word
-                    }
+                document.getElementById('suite-barrio-detail-back').addEventListener('click', renderList);
+                document.getElementById('suite-barrio-detail-del').addEventListener('click', function () {
+                    if (!confirm('Eliminare la registrazione #' + sub.id + '?')) return;
+                    deleteSubmissions([sub.id], () => {
+                        subsData = subsData.filter(s => s.id !== sub.id);
+                        applyFilter();
+                    });
+                });
+            }
 
-                    .suite-barrio-subs-detail-empty {
-                    color: #a7aaad;
-                    font-style: italic
-                    }
+            loadSubmissions();
+        })();
+    <?php
+    $suite_barrio_subs_js = ob_get_clean();
+    wp_add_inline_script('suite-barrio-forms-submissions', $suite_barrio_subs_js, 'after');
+    ?>
 
-                    /* Toolbar */
-                    .suite-barrio-subs-toolbar {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    margin-bottom: 14px
-                    }
-
-                    .suite-barrio-subs-reg-count {
-                    font-size: 13px;
-                    color: #646970
-                    }
-
-                    .suite-barrio-subs-spinner {
-                    display: inline-block;
-                    width: 18px;
-                    height: 18px;
-                    border: 2px solid #c3c4c7;
-                    border-top-color: #2271b1;
-                    border-radius: 50%;
-                    animation: suite-barrio-subs-spin .6s linear infinite
-                    }
-
-                    @keyframes suite-barrio-subs-spin {
-                    to {
-                    transform: rotate(360deg)
-                    }
-                    }
-
-                    .suite-barrio-check-on {
-                    padding: 1px 0;
-                    color: #00a32a;
-                    font-weight: 600
-                    }
-
-                    .suite-barrio-check-off {
-                    padding: 1px 0;
-                    color: #a7aaad
-                    }
-
-                    .suite-barrio-check-summary {
-                    display: inline-block;
-                    padding: 2px 8px;
-                    border-radius: 10px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    background: #f0f0f1;
-                    color: #646970
-                    }
-                    <?php
-                    $suite_barrio_submissions_css = ob_get_clean();
-                    wp_add_inline_style('suite-barrio-forms-submissions', $suite_barrio_submissions_css);
+    <?php else: ?>
+    <!-- ═══ ELENCO FORM ═══ -->
+    <div class="suite-barrio-subs-table-wrap">
+        <?php if (empty($forms)): ?>
+        <p style="padding:24px;color:#646970;text-align:center;">Nessun form trovato.</p>
+        <?php else: ?>
+        <table class="suite-barrio-subs-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nome form</th>
+                    <th>Registrazioni</th>
+                    <th>Creato</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($forms as $f):
+                    $subs_url = admin_url('admin.php?page=suite-barrio-submissions&view_id=' . $f->id);
                     ?>
-
-                    <div class="wrap suite-barrio-wrap" id="suite-barrio-subs-wrap">
-                        <div class="suite-barrio-header">
-                            <div class="suite-barrio-header-icon"><span class="dashicons dashicons-list-view"></span></div>
-                            <div>
-                                <h1>Registrazioni Form</h1>
-                                <p class="suite-barrio-header-sub">Visualizza le registrazioni dei form</p>
-                            </div>
-                        </div>
-                        <hr class="suite-barrio-divider">
-
-                        <?php if ($view_form): ?>
-                            <!-- ═══ REGISTRAZIONI DI UN FORM ═══ -->
-                            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=suite-barrio-submissions')); ?>"
-                                    class="suite-barrio-btn suite-barrio-btn-ghost">← Tutti i form</a>
-                                <span style="font-weight:600;font-size:14px;"><?php echo esc_html($view_form->title); ?></span>
-                            </div>
-                            <div class="suite-barrio-subs-toolbar">
-                                <span class="suite-barrio-subs-reg-count" id="suite-barrio-subs-count"></span>
-                            </div>
-                            <div id="suite-barrio-subs-content"><span class="suite-barrio-subs-spinner"></span> Caricamento…
-                            </div>
-
-                            <?php ob_start(); ?>
-                            (function () {
-                            const AJAX = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
-                            const NONCE = '<?php echo esc_js($nonce); ?>';
-                            const FORM_ID = <?php echo intval($view_id); ?>;
-
-                            let subsData = [], formFields = [];
-
-                            function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
-                            function formatCheckValEd(val) {
-                            if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
-                            return val.split('|').map(p => p.trim()).filter(Boolean).map(part => {
-                            const m = part.match(/^(.+?):\s*(true|false)$/);
-                            if (!m) return '';
-                            const label = m[1].trim();
-                            const checked = m[2] === 'true';
-                            const icon = checked ? '\u2714' : '\u2718';
-                            const cls = checked ? 'suite-barrio-check-on' : 'suite-barrio-check-off';
-                            return '<div class="' + cls + '">' + icon + ' ' + esc(label) + '</div>';
-                            }).join('');
-                            }
-
-                            function formatCheckSummaryEd(val) {
-                            if (typeof val !== 'string' || !/:\s*(true|false)(\s*\||$)/.test(val)) return null;
-                            const parts = val.split('|').map(p => p.trim()).filter(Boolean);
-                            let total = 0, on = 0;
-                            parts.forEach(part => {
-                            const m = part.match(/^(.+?):\s*(true|false)$/);
-                            if (m) { total++; if (m[2] === 'true') on++; }
-                            });
-                            return '<span class="suite-barrio-check-summary">' + on + '/' + total + '</span>';
-                            }
-
-                            function loadSubmissions() {
-                            fetch(AJAX, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: new URLSearchParams({ action: 'suite_barrio_forms_get_submissions', nonce: NONCE, form_id:
-                            FORM_ID })
-                            }).then(r => r.json()).then(res => {
-                            if (!res.success) { document.getElementById('suite-barrio-subs-content').innerHTML = '<p>' +
-                                esc(res.data || 'Errore') + '</p>'; return; }
-                            subsData = res.data.subs || [];
-                            formFields = (res.data.fields || []).filter(f => f.type !== 'submit');
-                            document.getElementById('suite-barrio-subs-count').textContent = res.data.total + ' registrazion' +
-                            (res.data.total === 1 ? 'e' : 'i');
-                            renderList();
-                            }).catch(() => { document.getElementById('suite-barrio-subs-content').innerHTML = '<p>Errore di
-                                rete.</p>'; });
-                            }
-
-                            function renderList() {
-                            const content = document.getElementById('suite-barrio-subs-content');
-                            if (!subsData.length) { content.innerHTML = '<p style="color:#646970;">Nessuna registrazione.</p>';
-                            return; }
-
-                            const listFields = formFields.slice(0, 2);
-                            let thead = '<tr>
-                                <th>#</th>';
-                                listFields.forEach(f => { thead += '<th>' + esc(f.label || f.name || '—') + '</th>'; });
-                                thead += '<th>Data</th>
-                            </tr>';
-
-                            let tbody = '';
-                            subsData.forEach((sub, idx) => {
-                            const d = sub.data || {};
-                            tbody += '<tr data-idx="' + idx + '">
-                                <td>' + sub.id + '</td>';
-                                listFields.forEach(f => {
-                                const key = f.name || '';
-                                const cell = d[key];
-                                let val = cell ? cell.value : null;
-                                if (Array.isArray(val)) val = val.join(', ');
-                                const empty = val === null || val === undefined || val === '';
-                                const summary = !empty ? formatCheckSummaryEd(val) : null;
-                                tbody += empty ? '<td class="suite-barrio-subs-reg-cell-empty">—</td>' : '<td
-                                    title="' + esc(String(val)) + '">' + (summary || esc(String(val))) + '</td>';
-                                });
-                                tbody += '<td><span class="suite-barrio-subs-reg-date">' + esc(sub.created_at) + '</span></td>';
-                                tbody += '
-                            </tr>';
-                            });
-
-                            content.innerHTML = '<div class="suite-barrio-subs-reg-table-wrap">
-                                <table class="suite-barrio-subs-reg-table">
-                                    <thead>' + thead + '</thead>
-                                    <tbody>' + tbody + '</tbody>
-                                </table>
-                            </div>';
-
-                            content.querySelectorAll('.suite-barrio-subs-reg-table tbody tr').forEach(row => {
-                            row.addEventListener('click', () => { showDetail(parseInt(row.dataset.idx, 10)); });
-                            });
-                            }
-
-                            function showDetail(idx) {
-                            const sub = subsData[idx]; if (!sub) return;
-
-                            let fieldsHtml = '';
-                            formFields.filter(f => f.type !== 'file').forEach(f => {
-                            const key = f.name || '';
-                            const cell = (sub.data || {})[key];
-                            let val = cell ? cell.value : null;
-                            if (Array.isArray(val)) val = val.join(', ');
-                            const empty = val === null || val === undefined || val === '';
-                            const checkHtml = !empty ? formatCheckValEd(val) : null;
-                            const valHtml = checkHtml || (empty ? '—' : esc(String(val)));
-
-                            fieldsHtml += '<div class="suite-barrio-subs-detail-row">
-                                <div class="suite-barrio-subs-detail-label">' + esc(f.label || f.name || '—') + '</div>
-                                <div
-                                    class="suite-barrio-subs-detail-value' + (empty ? ' suite-barrio-subs-detail-empty' : '') + '">
-                                    ' + valHtml + '</div>
-                            </div>';
-                            });
-
-                            // Sezione allegati (file caricati con prefisso _file_)
-                            const fileEntriesEd = Object.entries(sub.data || {}).filter(([k, v]) => k.startsWith('_file_') && v
-                            && v.is_file);
-                            if (fileEntriesEd.length) {
-                            fieldsHtml += '<div class="suite-barrio-subs-detail-sep"
-                                style="padding:10px 20px;background:#f0f0f1;font-size:11px;font-weight:700;letter-spacing:.5px;color:#50575e;text-transform:uppercase;border-bottom:1px solid #e0e0e0;">
-                                📎 Allegati</div>';
-                            fileEntriesEd.forEach(([k, d]) => {
-                            const fname = esc(d.value || '');
-                            const furl = d.url ? esc(d.url) : '';
-                            const flabel = esc(d.label || fname);
-                            const fileLink = furl
-                            ? '<a href="' + furl + '" target="_blank" rel="noopener" style="font-weight:500;">' + fname + '</a>'
-                            : '<span style="color:#a7aaad;">' + fname + ' <em>(URL non disponibile)</em></span>';
-                            fieldsHtml += '<div class="suite-barrio-subs-detail-row">
-                                <div class="suite-barrio-subs-detail-label">' + flabel + '</div>
-                                <div class="suite-barrio-subs-detail-value">' + fileLink + '</div>
-                            </div>';
-                            });
-                            }
-
-                            const metaHtml = [
-                            '<span>\uD83D\uDCC5 Data: <strong>' + esc(sub.created_at_full || sub.created_at) +
-                                    '</strong></span>',
-                            ].filter(Boolean).join('');
-
-                            const content = document.getElementById('suite-barrio-subs-content');
-                            content.innerHTML = '<button class="suite-barrio-btn suite-barrio-btn-ghost"
-                                id="suite-barrio-subs-back">\u2190 Torna alla lista</button>'
-                            + '<div class="suite-barrio-subs-detail-wrap" style="margin-top:14px;">'
-                                + '<div class="suite-barrio-subs-detail-header">
-                                    <h3>Registrazione #' + sub.id + '</h3>
-                                </div>'
-                                + '<div class="suite-barrio-subs-detail-meta">' + metaHtml + '</div>'
-                                + '<div class="suite-barrio-subs-detail-fields">' + fieldsHtml + '</div>'
-                                + '</div>';
-
-                            document.getElementById('suite-barrio-subs-back').addEventListener('click', () => { renderList();
-                            });
-                            }
-
-                            loadSubmissions();
-                            })();
-                            <?php
-                            $suite_barrio_submissions_js = ob_get_clean();
-                            wp_add_inline_script('suite-barrio-forms-submissions', $suite_barrio_submissions_js, 'after');
-                            ?>
-
-                        <?php else: ?>
-                            <!-- ═══ LISTA FORM ═══ -->
-                            <div class="suite-barrio-table-wrap">
-                                <?php if (empty($forms)): ?>
-                                    <div style="padding:40px 20px;text-align:center;">
-                                        <span class="dashicons dashicons-list-view"
-                                            style="font-size:40px;width:40px;height:40px;color:#c3c4c7;"></span>
-                                        <p style="font-size:14px;margin:10px 0 0;color:#646970;">Nessun form disponibile.</p>
-                                    </div>
-                                <?php else: ?>
-                                    <table class="suite-barrio-table">
-                                        <thead>
-                                            <tr>
-                                                <th style="width:40px">#</th>
-                                                <th>Nome form</th>
-                                                <th>Registrazioni</th>
-                                                <th>Creato</th>
-                                                <th>Azioni</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($forms as $f):
-                                                $subs_url = admin_url('admin.php?page=suite-barrio-submissions&view_id=' . $f->id);
-                                                ?>
-                                                <tr>
-                                                    <td style="color:#a7aaad;font-size:11px;"><?php echo intval($f->id); ?></td>
-                                                    <td><strong><?php echo esc_html($f->title); ?></strong></td>
-                                                    <td>
-                                                        <span
-                                                            class="suite-barrio-sub-count <?php echo $f->submissions > 0 ? 'has-subs' : ''; ?>">
-                                                            <?php echo intval($f->submissions); ?> registrazioni
-                                                        </span>
-                                                    </td>
-                                                    <td style="font-size:12px;color:#646970;">
-                                                        <?php echo esc_html(date_i18n('d/m/Y', strtotime($f->created_at))); ?>
-                                                    </td>
-                                                    <td>
-                                                        <a href="<?php echo esc_url($subs_url); ?>"
-                                                            class="suite-barrio-btn suite-barrio-btn-ghost suite-barrio-btn-sm">Vedi
-                                                            registrazioni</a>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <?php
+                <tr>
+                    <td style="color:#a7aaad;font-size:11px;"><?php echo intval($f->id); ?></td>
+                    <td><strong><?php echo esc_html($f->title); ?></strong></td>
+                    <td>
+                        <span class="suite-barrio-sub-count <?php echo $f->submissions > 0 ? 'has-subs' : ''; ?>">
+                            <?php echo intval($f->submissions); ?> registrazioni
+                        </span>
+                    </td>
+                    <td style="font-size:12px;color:#646970;">
+                        <?php echo date_i18n('d/m/Y', strtotime($f->created_at)); ?>
+                    </td>
+                    <td>
+                        <a href="<?php echo esc_url($subs_url); ?>" class="button button-small">Vedi registrazioni</a>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+</div>
+<?php
 }
