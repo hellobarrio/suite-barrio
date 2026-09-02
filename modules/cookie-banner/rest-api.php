@@ -72,7 +72,10 @@ add_action('rest_api_init', function () {
       caricato la config dal nostro sito puo' scrivere un log — non uno
       script esterno che invia POST alla cieca. ── */
 function suite_barrio_cb_consent_log_permission(WP_REST_Request $req) {
-    $nonce = $req->get_header('X-WP-Nonce');
+    // Query param e non X-WP-Nonce: quell'header è riservato al core, che lo
+    // verifica contro l'azione 'wp_rest' e blocca la richiesta con 403
+    // rest_cookie_invalid_nonce prima ancora di arrivare qui.
+    $nonce = sanitize_text_field((string) $req->get_param('sb_nonce'));
     if (!$nonce || !wp_verify_nonce($nonce, 'suite_barrio_cb_consent_log')) {
         return new WP_Error(
             'suite_barrio_cb_forbidden',
