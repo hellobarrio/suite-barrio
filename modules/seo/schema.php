@@ -32,11 +32,15 @@ add_action('admin_menu', function () {
     );
 }, 15);
 
-add_action('admin_enqueue_scripts', function () {
+add_action('admin_enqueue_scripts', function ($hook) {
     wp_add_inline_style(
         'suite-barrio-admin',
         '#adminmenu a[href="admin.php?page=suite-barrio-schema"]{display:none!important}'
     );
+
+    // Media uploader per le immagini del catalogo offerte
+    if ($hook === 'suite-barrio_page_suite-barrio-schema')
+        wp_enqueue_media();
 });
 
 add_filter('submenu_file', function ($submenu_file) {
@@ -75,7 +79,14 @@ add_action('admin_post_suite_barrio_schema_save', function () {
         'instagram' => esc_url_raw(wp_unslash($_POST['instagram'] ?? '')),
         'twitter' => esc_url_raw(wp_unslash($_POST['twitter'] ?? '')),
         'linkedin' => esc_url_raw(wp_unslash($_POST['linkedin'] ?? '')),
+        'behance' => esc_url_raw(wp_unslash($_POST['behance'] ?? '')),
+        'knows_about' => sanitize_textarea_field(wp_unslash($_POST['knows_about'] ?? '')),
+        'area_served' => sanitize_textarea_field(wp_unslash($_POST['area_served'] ?? '')),
         'language' => sanitize_text_field(wp_unslash($_POST['language'] ?? 'it-IT')),
+        'offer_catalog_name' => sanitize_text_field(wp_unslash($_POST['offer_catalog_name'] ?? '')),
+        'offer_currency' => sanitize_text_field(wp_unslash($_POST['offer_currency'] ?? 'EUR')),
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ogni campo è sanificato in suite_barrio_schema_sanitize_offers()
+        'offers' => suite_barrio_schema_sanitize_offers((array) ($_POST['offers'] ?? [])),
     ];
 
     update_option(SUITE_BARRIO_SCHEMA_OPTION, $settings);
@@ -115,6 +126,171 @@ function suite_barrio_schema_to_bcp47(string $code): string
     'el' => 'el-GR',
     ];
     return $map[$code] ?? $code;
+}
+
+/* ─────────────────────────────────────────
+   HELPER: textarea → array (una voce per riga)
+   ───────────────────────────────────────── */
+function suite_barrio_schema_lines(string $raw): array
+{
+    return array_values(array_filter(array_map('trim', preg_split('/\R/', $raw))));
+}
+
+/* ─────────────────────────────────────────
+   HELPER: @type ammessi per areaServed
+   ───────────────────────────────────────── */
+function suite_barrio_schema_place_types(): array
+{
+    return ['Place', 'Text', 'GeoShape', 'AdministrativeArea'];
+}
+
+/* ─────────────────────────────────────────
+   HELPER: catalogo offerte — valori ammessi
+   ───────────────────────────────────────── */
+function suite_barrio_schema_offer_item_types(): array
+{
+    return ['Service', 'Product'];
+}
+
+function suite_barrio_schema_offer_availability(): array
+{
+    return [
+        '' => '— non specificata —',
+        'InStock' => 'InStock — disponibile',
+        'OutOfStock' => 'OutOfStock — esaurito',
+        'PreOrder' => 'PreOrder — preordine',
+        'LimitedAvailability' => 'LimitedAvailability — disponibilità limitata',
+        'Discontinued' => 'Discontinued — non più offerto',
+    ];
+}
+
+function suite_barrio_schema_offer_currencies(): array
+{
+    return ['EUR', 'USD', 'GBP', 'CHF'];
+}
+
+/* ─────────────────────────────────────────
+   HELPER: sanitizzazione righe catalogo offerte
+   ───────────────────────────────────────── */
+function suite_barrio_schema_sanitize_offers(array $rows): array
+{
+    $offers = [];
+    foreach ($rows as $row) {
+        if (!is_array($row))
+            continue;
+
+        $name = sanitize_text_field(wp_unslash($row['name'] ?? ''));
+        if ($name === '')
+            continue;
+
+        $type = sanitize_text_field(wp_unslash($row['type'] ?? ''));
+        $availability = sanitize_text_field(wp_unslash($row['availability'] ?? ''));
+
+        $offers[] = [
+            'type' => in_array($type, suite_barrio_schema_offer_item_types(), true) ? $type : 'Service',
+            'name' => $name,
+            'description' => sanitize_textarea_field(wp_unslash($row['description'] ?? '')),
+            'category' => sanitize_text_field(wp_unslash($row['category'] ?? '')),
+            'url' => esc_url_raw(wp_unslash($row['url'] ?? '')),
+            'image' => esc_url_raw(wp_unslash($row['image'] ?? '')),
+            'price' => sanitize_text_field(wp_unslash($row['price'] ?? '')),
+            'availability' => isset(suite_barrio_schema_offer_availability()[$availability]) ? $availability : '',
+        ];
+    }
+    return $offers;
+}
+
+/* ─────────────────────────────────────────
+   HELPER: nodo OfferCatalog (hasOfferCatalog)
+   https://schema.org/hasOfferCatalog
+   ───────────────────────────────────────── */
+function suite_barrio_schema_build_offer_catalog(array $s): ?array
+{
+    $rows = $s['offers'] ?? [];
+    if (!is_array($rows) || empty($rows))
+        return null;
+
+    $currency = ($s['offer_currency'] ?? '') ?: 'EUR';
+    $items = [];
+
+    foreach ($rows as $row) {
+        $name = trim($row['name'] ?? '');
+        if ($name === '')
+            continue;
+
+        $item = array_filter([
+            '@type' => in_array($row['type'] ?? '', suite_barrio_schema_offer_item_types(), true) ? $row['type'] : 'Service',
+            'name' => $name,
+            'description' => $row['description'] ?? '',
+            'category' => $row['category'] ?? '',
+            'url' => $row['url'] ?? '',
+            'image' => $row['image'] ?? '',
+        ]);
+
+        $offer = ['@type' => 'Offer', 'itemOffered' => $item];
+        if (!empty($row['url']))
+            $offer['url'] = $row['url'];
+
+        // ponytail: solo prezzo fisso; per fasce usare priceSpecification se serviranno min/max
+        $price = str_replace(',', '.', trim($row['price'] ?? ''));
+        if (is_numeric($price)) {
+            $offer['price'] = $price;
+            $offer['priceCurrency'] = $currency;
+        }
+
+        if (!empty($row['availability']))
+            $offer['availability'] = 'https://schema.org/' . $row['availability'];
+
+        $items[] = $offer;
+    }
+
+    if (empty($items))
+        return null;
+
+    return [
+        '@type' => 'OfferCatalog',
+        'name' => ($s['offer_catalog_name'] ?? '') ?: 'Servizi',
+        'itemListElement' => $items,
+    ];
+}
+
+/* ─────────────────────────────────────────
+   HELPER: ItemList dei contenuti di un post type
+   (per le pagine marcate come archivio/CollectionPage)
+   ───────────────────────────────────────── */
+function suite_barrio_schema_item_list(string $post_type, callable $to_frontend): ?array
+{
+    // ponytail: cap a 200 elementi, paginare l'ItemList se un archivio cresce oltre
+    $posts = get_posts([
+        'post_type' => $post_type,
+        'post_status' => 'publish',
+        'numberposts' => 200,
+        'orderby' => ['menu_order' => 'ASC', 'date' => 'DESC'],
+        'suppress_filters' => false,
+    ]);
+    if (empty($posts))
+        return null;
+
+    $items = [];
+    foreach ($posts as $p) {
+        if (get_post_meta($p->ID, '_suite_barrio_seo_index', true) === '0')
+            continue;
+        $items[] = [
+            '@type' => 'ListItem',
+            'position' => count($items) + 1,
+            'name' => get_post_meta($p->ID, '_suite_barrio_seo_title', true) ?: get_the_title($p),
+            'url' => $to_frontend(get_permalink($p)),
+        ];
+    }
+    if (empty($items))
+        return null;
+
+    return [
+        '@type' => 'ItemList',
+        'numberOfItems' => count($items),
+        'itemListOrder' => 'https://schema.org/ItemListOrderAscending',
+        'itemListElement' => $items,
+    ];
 }
 
 /* ─────────────────────────────────────────
@@ -174,14 +350,34 @@ function suite_barrio_schema_build_global(): array
         ];
     }
 
+    $knows_about = suite_barrio_schema_lines($s['knows_about'] ?? '');
+    if (!empty($knows_about))
+        $business['knowsAbout'] = $knows_about;
+
+    $area_served = suite_barrio_schema_lines($s['area_served'] ?? '');
+    if (!empty($area_served)) {
+        $business['areaServed'] = array_map(function ($line) {
+            // formato "Tipo: Nome", es. "City: Torino"; senza prefisso valido → Place
+            [$type, $name] = array_pad(array_map('trim', explode(':', $line, 2)), 2, '');
+            if ($name === '' || !in_array($type, suite_barrio_schema_place_types(), true))
+                return ['@type' => 'Place', 'name' => $line];
+            return ['@type' => $type, 'name' => $name];
+        }, $area_served);
+    }
+
     $same_as = array_values(array_filter([
         $s['facebook'] ?? '',
         $s['instagram'] ?? '',
         $s['twitter'] ?? '',
         $s['linkedin'] ?? '',
+        $s['behance'] ?? '',
     ]));
     if (!empty($same_as))
         $business['sameAs'] = $same_as;
+
+    $catalog = suite_barrio_schema_build_offer_catalog($s);
+    if ($catalog)
+        $business['hasOfferCatalog'] = $catalog;
 
     $graph[] = $business;
 
@@ -319,6 +515,16 @@ function suite_barrio_schema_find_webpage(string $requested_url): ?array
         if ($published)
             $page['datePublished'] = $published;
 
+        // ── Pagina archivio: CollectionPage + ItemList ────────────────────
+        $collection_pt = get_post_meta($post_id, '_suite_barrio_schema_collection', true);
+        if ($collection_pt && post_type_exists($collection_pt)) {
+            $item_list = suite_barrio_schema_item_list($collection_pt, $to_frontend);
+            if ($item_list) {
+                $page['@type'] = 'CollectionPage';
+                $page['mainEntity'] = $item_list;
+            }
+        }
+
         return $page;
     }
 
@@ -454,6 +660,82 @@ add_action('graphql_register_types', function () {
 });
 
 /* ─────────────────────────────────────────
+   ADMIN: riga del catalogo offerte
+   $i = indice numerico, oppure __i__ per il template
+   ───────────────────────────────────────── */
+function suite_barrio_schema_offer_row(string $i, array $row = []): void
+{
+    $n = 'offers[' . $i . ']';
+    ?>
+    <div class="suite-barrio-offer-row">
+        <div class="suite-barrio-offer-grid">
+            <label>Tipo
+                <select name="<?php echo esc_attr($n); ?>[type]">
+                    <?php foreach (suite_barrio_schema_offer_item_types() as $t): ?>
+                        <option value="<?php echo esc_attr($t); ?>" <?php selected($row['type'] ?? 'Service', $t); ?>>
+                            <?php echo esc_html($t); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label class="suite-barrio-offer-wide">Nome <small>obbligatorio</small>
+                <input type="text" name="<?php echo esc_attr($n); ?>[name]"
+                    value="<?php echo esc_attr($row['name'] ?? ''); ?>" placeholder="Progettazione siti web">
+            </label>
+            <label>Categoria
+                <input type="text" name="<?php echo esc_attr($n); ?>[category]"
+                    value="<?php echo esc_attr($row['category'] ?? ''); ?>" placeholder="Web">
+            </label>
+            <label>Prezzo <small>vuoto = omesso</small>
+                <input type="number" name="<?php echo esc_attr($n); ?>[price]" step="0.01" min="0"
+                    value="<?php echo esc_attr($row['price'] ?? ''); ?>" placeholder="1500">
+            </label>
+            <label>Disponibilità
+                <select name="<?php echo esc_attr($n); ?>[availability]">
+                    <?php foreach (suite_barrio_schema_offer_availability() as $val => $label): ?>
+                        <option value="<?php echo esc_attr($val); ?>" <?php selected($row['availability'] ?? '', $val); ?>>
+                            <?php echo esc_html($label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label class="suite-barrio-offer-wide">URL
+                <input type="url" name="<?php echo esc_attr($n); ?>[url]"
+                    value="<?php echo esc_attr($row['url'] ?? ''); ?>" placeholder="https://…/servizi/web/">
+            </label>
+            <?php $img = $row['image'] ?? ''; ?>
+            <div class="suite-barrio-offer-wide suite-barrio-offer-media">
+                <span class="suite-barrio-offer-media-label">Immagine</span>
+                <div class="suite-barrio-offer-media-box">
+                    <span class="suite-barrio-offer-thumb">
+                        <?php if ($img): ?>
+                            <img src="<?php echo esc_url($img); ?>" alt="">
+                        <?php else: ?>
+                            <span class="dashicons dashicons-format-image"></span>
+                        <?php endif; ?>
+                    </span>
+                    <input type="hidden" name="<?php echo esc_attr($n); ?>[image]"
+                        value="<?php echo esc_attr($img); ?>">
+                    <button type="button" class="button button-small suite-barrio-offer-img-pick">
+                        <?php echo $img ? 'Cambia' : 'Seleziona'; ?>
+                    </button>
+                    <button type="button" class="button button-small suite-barrio-offer-img-clear"
+                        <?php echo $img ? '' : 'hidden'; ?>>&times;</button>
+                </div>
+            </div>
+            <label class="suite-barrio-offer-full">Descrizione
+                <textarea name="<?php echo esc_attr($n); ?>[description]"
+                    rows="2"><?php echo esc_textarea($row['description'] ?? ''); ?></textarea>
+            </label>
+        </div>
+        <button type="button" class="suite-barrio-offer-del" title="Rimuovi offerta">
+            <span class="dashicons dashicons-trash"></span>
+        </button>
+    </div>
+    <?php
+}
+
+/* ─────────────────────────────────────────
    PAGINA ADMIN
    ───────────────────────────────────────── */
 function suite_barrio_schema_admin_page()
@@ -477,7 +759,8 @@ function suite_barrio_schema_admin_page()
         'Dentist' => 'Dentist',
         'Physician' => 'Physician',
         'RealEstateAgent' => 'RealEstateAgent',
-        'LodgingBusiness' => 'LodgingBusiness'
+        'LodgingBusiness' => 'LodgingBusiness',
+        'ProfessionalService' => 'ProfessionalService',
     ];
     ?>
     <div id="suite-barrio-schema-wrap" class="wrap suite-barrio-wrap">
@@ -553,6 +836,12 @@ function suite_barrio_schema_admin_page()
                         <div class="suite-barrio-sf-label">Immagine principale</div>
                         <div class="suite-barrio-sf-input"><input type="url" name="image"
                                 value="<?php echo esc_attr($s['image'] ?? ''); ?>" placeholder="https://…/cover.jpg"></div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Competenze<small>knowsAbout &mdash; una per riga</small></div>
+                        <div class="suite-barrio-sf-input"><textarea name="knows_about" rows="4"
+                                placeholder="Web design&#10;Branding&#10;E-commerce"><?php echo esc_textarea($s['knows_about'] ?? ''); ?></textarea>
+                        </div>
                     </div>
                     <div class="suite-barrio-sf-row">
                         <div class="suite-barrio-sf-label">Lingua<small>Lingua principale del sito</small></div>
@@ -676,6 +965,14 @@ function suite_barrio_schema_admin_page()
                             </div>
                         </div>
                     </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Aree servite<small>areaServed &mdash; una per riga, formato
+                                &laquo;Tipo: Nome&raquo;<br>Tipi: <?php echo esc_html(implode(', ', suite_barrio_schema_place_types())); ?><br>Senza
+                                prefisso valido &rarr; Place</small></div>
+                        <div class="suite-barrio-sf-input"><textarea name="area_served" rows="4"
+                                placeholder="City: Torino&#10;AdministrativeArea: Piemonte&#10;Country: Italia"><?php echo esc_textarea($s['area_served'] ?? ''); ?></textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -691,6 +988,7 @@ function suite_barrio_schema_admin_page()
                         'instagram' => ['Instagram', 'https://www.instagram.com/…'],
                         'twitter' => ['Twitter/X', 'https://x.com/…'],
                         'linkedin' => ['LinkedIn', 'https://www.linkedin.com/…'],
+                        'behance' => ['Behance', 'https://www.behance.net/…'],
                     ] as $field => [$label, $ph]): ?>
                         <div class="suite-barrio-sf-row">
                             <div class="suite-barrio-sf-label"><?php echo esc_html($label); ?></div>
@@ -702,11 +1000,105 @@ function suite_barrio_schema_admin_page()
                 </div>
             </div>
 
+            <!-- Catalogo offerte -->
+            <?php $offers = is_array($s['offers'] ?? null) ? $s['offers'] : []; ?>
+            <div class="suite-barrio-schema-panel">
+                <div class="suite-barrio-schema-panel-header">
+                    <span class="dashicons dashicons-cart"></span>
+                    <span class="suite-barrio-schema-panel-header-title">Catalogo offerte (hasOfferCatalog)</span>
+                </div>
+                <div class="suite-barrio-schema-section">
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Nome catalogo<small>Es. Servizi, Prodotti</small></div>
+                        <div class="suite-barrio-sf-input"><input type="text" name="offer_catalog_name"
+                                value="<?php echo esc_attr($s['offer_catalog_name'] ?? ''); ?>" placeholder="Servizi">
+                        </div>
+                    </div>
+                    <div class="suite-barrio-sf-row">
+                        <div class="suite-barrio-sf-label">Valuta<small>priceCurrency delle offerte</small></div>
+                        <div class="suite-barrio-sf-input">
+                            <select name="offer_currency" style="max-width:120px;">
+                                <?php foreach (suite_barrio_schema_offer_currencies() as $cur): ?>
+                                    <option value="<?php echo esc_attr($cur); ?>" <?php selected(($s['offer_currency'] ?? '') ?: 'EUR', $cur); ?>><?php echo esc_html($cur); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="suite-barrio-offers">
+                        <?php foreach (array_values($offers) as $i => $row): ?>
+                            <?php suite_barrio_schema_offer_row((string) $i, (array) $row); ?>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <template id="suite-barrio-offer-tpl"><?php suite_barrio_schema_offer_row('__i__'); ?></template>
+
+                    <button type="button" class="suite-barrio-offer-add" id="suite-barrio-offer-add">+ Aggiungi
+                        offerta</button>
+                </div>
+            </div>
+
             <button type="submit" class="suite-barrio-sch-save-btn">
                 <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;"></span>
                 Salva impostazioni
             </button>
         </form>
+
+        <script>
+            (function () {
+                var wrap = document.getElementById('suite-barrio-offers');
+                var tpl = document.getElementById('suite-barrio-offer-tpl');
+                var next = <?php echo (int) count($offers); ?>;
+
+                document.getElementById('suite-barrio-offer-add').addEventListener('click', function () {
+                    wrap.insertAdjacentHTML('beforeend', tpl.innerHTML.replace(/__i__/g, next++));
+                });
+
+                var frame = null;
+
+                function paint(box, url) {
+                    box.querySelector('input[type=hidden]').value = url;
+                    box.querySelector('.suite-barrio-offer-thumb').innerHTML = url
+                        ? '<img src="' + url + '" alt="">'
+                        : '<span class="dashicons dashicons-format-image"></span>';
+                    box.querySelector('.suite-barrio-offer-img-pick').textContent = url ? 'Cambia' : 'Seleziona';
+                    box.querySelector('.suite-barrio-offer-img-clear').hidden = !url;
+                }
+
+                wrap.addEventListener('click', function (e) {
+                    var del = e.target.closest('.suite-barrio-offer-del');
+                    if (del) {
+                        del.closest('.suite-barrio-offer-row').remove();
+                        return;
+                    }
+
+                    var clear = e.target.closest('.suite-barrio-offer-img-clear');
+                    if (clear) {
+                        paint(clear.closest('.suite-barrio-offer-media-box'), '');
+                        return;
+                    }
+
+                    var pick = e.target.closest('.suite-barrio-offer-img-pick');
+                    if (!pick) return;
+
+                    var box = pick.closest('.suite-barrio-offer-media-box');
+                    if (!frame) {
+                        frame = wp.media({
+                            title: 'Seleziona immagine servizio',
+                            button: { text: 'Usa questa immagine' },
+                            multiple: false,
+                            library: { type: 'image' }
+                        });
+                    }
+                    frame.off('select');
+                    frame.on('select', function () {
+                        var att = frame.state().get('selection').first().toJSON();
+                        paint(box, att.url);
+                    });
+                    frame.open();
+                });
+            })();
+        </script>
 
         <!-- Anteprima globale -->
         <div style="margin-top:32px;">
