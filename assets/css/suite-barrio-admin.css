@@ -11352,6 +11352,141 @@ tr[data-status="error"]:hover td {
   flex: 1;
 }
 
+.suite-barrio-offer-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.suite-barrio-offer-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.suite-barrio-offer-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.suite-barrio-offer-grid label small {
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.suite-barrio-offer-grid input,
+.suite-barrio-offer-grid select,
+.suite-barrio-offer-grid textarea {
+  width: 100%;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  font-family: inherit;
+  background: #fff;
+}
+
+.suite-barrio-offer-grid textarea {
+  resize: vertical;
+}
+
+.suite-barrio-offer-wide {
+  grid-column: span 2;
+}
+
+.suite-barrio-offer-media {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.suite-barrio-offer-media-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.suite-barrio-offer-media-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.suite-barrio-offer-thumb {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.suite-barrio-offer-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.suite-barrio-offer-thumb .dashicons {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #d1d5db;
+}
+
+.suite-barrio-offer-full {
+  grid-column: 1 / -1;
+}
+
+.suite-barrio-offer-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 4px;
+}
+
+.suite-barrio-offer-del:hover {
+  color: #dc2626;
+}
+
+.suite-barrio-offer-add {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.suite-barrio-offer-add:hover {
+  background: #e5e7eb;
+}
+
+@media (max-width: 900px) {
+  .suite-barrio-offer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .suite-barrio-schema-preview {
   background: #111827;
   color: #e5e7eb;

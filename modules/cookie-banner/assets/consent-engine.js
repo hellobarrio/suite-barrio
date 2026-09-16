@@ -113,14 +113,16 @@
     );
   }
 
-  /* ── Rest base (stessa logica di loadConfig) ── */
+  /* ── Rest base — d.currentScript va letto ORA: vale solo durante
+        l'esecuzione dello script, dopo è null e su headless cadremmo
+        sull'origin del frontend invece che su WordPress ── */
+  var SCRIPT_ORIGIN =
+    d.currentScript && d.currentScript.src
+      ? new URL(d.currentScript.src).origin
+      : location.origin;
+
   function restBase() {
-    return (
-      w.SuiteBarrioRestBase ||
-      (d.currentScript && d.currentScript.src
-        ? new URL(d.currentScript.src).origin + "/wp-json"
-        : location.origin + "/wp-json")
-    );
+    return w.SuiteBarrioRestBase || SCRIPT_ORIGIN + "/wp-json";
   }
 
   /* ── Log consenso lato server (fire-and-forget) ── */
@@ -131,15 +133,19 @@
       },
     );
     var status = categories.length > 0 ? "accept" : "reject";
-    var headers = { "Content-Type": "application/json" };
+    /* Il nonce viaggia in query string, non nell'header X-WP-Nonce: quello è
+       riservato al core, che lo valida contro l'azione 'wp_rest' e scarterebbe
+       il nostro con 403 rest_cookie_invalid_nonce prima del permission_callback.
+       Un header custom richiederebbe invece un preflight che WP non consente. */
+    var url = restBase() + "/suite-barrio/v1/cookie-banner/consent-log";
     if (cfg && cfg.consentNonce) {
-      headers["X-WP-Nonce"] = cfg.consentNonce;
+      url += "?sb_nonce=" + encodeURIComponent(cfg.consentNonce);
     }
     try {
-      fetch(restBase() + "/suite-barrio/v1/cookie-banner/consent-log", {
+      fetch(url, {
         method: "POST",
         keepalive: true,
-        headers: headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: uuidv4(),
           status: status,
@@ -197,12 +203,7 @@
       cfg = w.SuiteBarrioConfig;
       return Promise.resolve(cfg);
     }
-    var base =
-      w.SuiteBarrioRestBase ||
-      (d.currentScript && d.currentScript.src
-        ? new URL(d.currentScript.src).origin + "/wp-json"
-        : location.origin + "/wp-json");
-    return fetch(base + "/suite-barrio/v1/cookie-banner/config", { cache: "no-store" })
+    return fetch(restBase() + "/suite-barrio/v1/cookie-banner/config", { cache: "no-store" })
       .then(function (r) {
         return r.json();
       })
@@ -212,12 +213,40 @@
       });
   }
 
+  /* ── Preferences CSS (inline su WP classico, iniettato qui per gli headless) ── */
+  var PREF_CSS =
+    ".suite-barrio-preferences{font-family:system-ui,sans-serif;max-width:100%;}" +
+    ".suite-barrio-pref-category{border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;overflow:hidden;}" +
+    ".suite-barrio-pref-header{padding:14px 16px;background:#f8fafc;}" +
+    ".suite-barrio-pref-label{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;cursor:pointer;margin:0;}" +
+    ".suite-barrio-pref-label input[type=checkbox]{width:16px;height:16px;cursor:pointer;}" +
+    ".suite-barrio-pref-badge{font-size:10px;background:#dcfce7;color:#166534;padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:.04em;}" +
+    ".suite-barrio-pref-desc{margin:6px 0 0 26px;font-size:12px;color:#6b7280;line-height:1.5;}" +
+    ".suite-barrio-pref-table-wrap{overflow-x:auto;border-top:1px solid #e2e8f0;}" +
+    ".suite-barrio-pref-table{width:100%;border-collapse:collapse;font-size:13px;}" +
+    ".suite-barrio-pref-table th{text-align:left;padding:8px 12px;background:#f1f5f9;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#64748b;font-weight:600;}" +
+    ".suite-barrio-pref-table td{padding:9px 12px;border-top:1px solid #f1f5f9;color:#374151;vertical-align:middle;}" +
+    ".suite-barrio-pref-table code{background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;}" +
+    ".suite-barrio-pref-actions{display:flex;flex-wrap:wrap;gap:8px;padding:16px 0 0;}" +
+    ".suite-barrio-pref-btn{padding:9px 18px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600;}" +
+    ".suite-barrio-pref-btn-primary{background:#1A56DB;color:#fff;}" +
+    ".suite-barrio-pref-btn-secondary{background:#f1f5f9;color:#374151;}";
+
+  function injectPrefCss() {
+    var id = "suite-barrio-cb-preferences-inline-css";
+    if (d.getElementById(id)) return;
+    var s = d.createElement("style");
+    s.id = id;
+    s.textContent = PREF_CSS;
+    (d.head || d.documentElement).appendChild(s);
+  }
+
   /* ── Preferences HTML ── */
   function loadPrefHtml(config) {
     if (prefHtml) return Promise.resolve(prefHtml);
     var url =
       (config && config.preferencesUrl) ||
-      "/wp-json/suite-barrio/v1/cookie-banner/preferences-html";
+      restBase() + "/suite-barrio/v1/cookie-banner/preferences-html";
     return fetch(url)
       .then(function (r) {
         return r.json();
@@ -514,6 +543,7 @@
   /* ── Bootstrap ── */
   function boot(config) {
     cfg = config;
+    injectPrefCss();
     if (consent) {
       gtmUpdate(consent);
       if (d.readyState === "loading") {

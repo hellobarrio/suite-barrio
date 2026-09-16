@@ -465,6 +465,24 @@ function suite_barrio_meta_render_post_metabox($post)
                     primaria.</span>
             </div>
 
+            <!-- Pagina archivio (CollectionPage) -->
+            <?php $collection_pt = get_post_meta($post->ID, '_suite_barrio_schema_collection', true); ?>
+            <div class="suite-barrio-seo-field-row">
+                <span class="suite-barrio-seo-field-label">Pagina archivio</span>
+                <select name="_suite_barrio_schema_collection">
+                    <option value="">— No (WebPage normale) —</option>
+                    <?php foreach (get_post_types(['public' => true], 'objects') as $pt_obj): ?>
+                        <?php if ($pt_obj->name === 'attachment')
+                            continue; ?>
+                        <option value="<?php echo esc_attr($pt_obj->name); ?>" <?php selected($collection_pt, $pt_obj->name); ?>>
+                            <?php echo esc_html($pt_obj->labels->name ?: $pt_obj->name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <span class="suite-barrio-kw-hint">Marca questa pagina come <code>CollectionPage</code> nello schema, con
+                    l'elenco (<code>ItemList</code>) dei contenuti pubblicati del tipo scelto.</span>
+            </div>
+
             <!-- Indicizzazione -->
             <div class="suite-barrio-seo-field-row" style="margin-top: 20px;">
                 <span class="suite-barrio-seo-field-label">Indicizzazione</span>
@@ -1024,6 +1042,15 @@ add_action('save_post', function ($post_id) {
         }
     }
 
+    // Pagina archivio → CollectionPage
+    if (isset($_POST['_suite_barrio_schema_collection'])) {
+        $collection_pt = sanitize_key(wp_unslash($_POST['_suite_barrio_schema_collection']));
+        if ($collection_pt && post_type_exists($collection_pt))
+            update_post_meta($post_id, '_suite_barrio_schema_collection', $collection_pt);
+        else
+            delete_post_meta($post_id, '_suite_barrio_schema_collection');
+    }
+
     // Robots per-post: salva solo se il form ha il campo _set (sempre presente)
     // Il valore è '1' se il checkbox è spuntato, altrimenti non è nei POST
     // Salviamo '1' o '0' — stringa vuota significa "usa default post type"
@@ -1074,6 +1101,11 @@ function suite_barrio_seo_copy_indexing_meta(int $original_id, int $new_id): voi
         }
         update_post_meta($new_id, $key, $val);
     }
+
+    // La pagina tradotta resta un archivio dello stesso post type
+    $collection_pt = get_post_meta($original_id, '_suite_barrio_schema_collection', true);
+    if ($collection_pt)
+        update_post_meta($new_id, '_suite_barrio_schema_collection', $collection_pt);
 }
 
 // Hook principale: wpml_set_element_language_details è chiamato ogni volta
