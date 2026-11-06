@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  Suite Barrio
  * Description:  Suite Barrio — suite di strumenti AI per WordPress. Auto Alt genera alt text e title delle immagini. Forms crea form di contatto con builder drag & drop. Auto LLMs genera llms.txt e llms-full.txt con AI.
- * Version:      9.1.4
+ * Version:      9.1.5
  * Author:       Hellobarrio
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -31,7 +31,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
 /* ─────────────────────────────────────────
    COSTANTI GLOBALI
    ───────────────────────────────────────── */
-define('SUITE_BARRIO_VERSION', '9.1.4');
+define('SUITE_BARRIO_VERSION', '9.1.5');
 define('SUITE_BARRIO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SUITE_BARRIO_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SUITE_BARRIO_LOG_OPTION', 'suite_barrio_alt_ai_log');
@@ -55,7 +55,7 @@ require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/dashboard/dashboard.php';
 require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/tools/tools.php';
 require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/seo/seo.php';
 require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/info-azienda/info-azienda.php';
-// Sempre attivo: gestisce anche i siti legacy con post type "registrazioni"
+// Sempre attivo: gestisce anche i siti legacy con post type "registrazione"
 require_once SUITE_BARRIO_PLUGIN_DIR . 'modules/retention.php';
 require_once SUITE_BARRIO_PLUGIN_DIR . 'wizard/wizard.php';
 

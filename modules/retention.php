@@ -3,11 +3,14 @@
  * Suite Barrio — Conservazione registrazioni dei form.
  *
  * Ogni giorno (WP-Cron) elimina definitivamente le registrazioni più vecchie
- * della durata impostata in Forms → Impostazioni. Rileva da solo dove sono salvate:
+ * della durata impostata in Strumenti (in anni). Rileva da solo dove sono salvate:
  *  - tabella {prefix}wpb_form_submissions (modulo Forms di Suite Barrio),
  *    compresi i file caricati tramite i campi "file";
  *  - post del post type "registrazione" (siti legacy con ACF, es. Centro Ceramiche Canale).
- * Caricato sempre: il cron continua a girare anche se il modulo Forms viene disattivato.
+ * Da Strumenti si possono anche eliminare subito tutte le registrazioni.
+ * Multilingua: si basa solo sulla data, quindi vale per tutte le lingue
+ * (la tabella non filtra per "lang", la query sui post ignora i filtri WPML).
+ * Caricato sempre, anche con il modulo Forms disattivato.
  *
  * @package Suite_Barrio
  */
@@ -17,7 +20,7 @@ if (!defined('ABSPATH'))
 
 define('SUITE_BARRIO_RETENTION_OPTION', 'suite_barrio_forms_retention');
 define('SUITE_BARRIO_RETENTION_CRON', 'suite_barrio_forms_retention_purge');
-define('SUITE_BARRIO_RETENTION_DEFAULT_DAYS', 730); // 2 anni
+define('SUITE_BARRIO_RETENTION_DEFAULT_YEARS', 2);
 define('SUITE_BARRIO_RETENTION_POST_TYPE', 'registrazione');
 
 /* ─────────────────────────────────────────
@@ -35,14 +38,29 @@ register_deactivation_hook(SUITE_BARRIO_PLUGIN_DIR . 'suite-barrio.php', functio
 });
 
 /* ─────────────────────────────────────────
+   AZIONE: elimina tutte le registrazioni (pulsante in Strumenti)
+   ───────────────────────────────────────── */
+add_action('admin_post_suite_barrio_retention_delete_all', function () {
+    if (!current_user_can('manage_options'))
+        wp_die('Accesso negato.');
+    check_admin_referer('suite_barrio_retention_delete_all');
+    $deleted = suite_barrio_retention_delete(0);
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-tools&deleted=' . $deleted));
+    exit;
+});
+
+/* ─────────────────────────────────────────
    HELPER
    ───────────────────────────────────────── */
 function suite_barrio_retention_settings(): array
 {
     $opts = (array) get_option(SUITE_BARRIO_RETENTION_OPTION, []);
+    // La 9.1.4 salvava la durata in giorni: la converte in anni arrotondando per eccesso,
+    // così non si cancella mai prima di quanto impostato.
+    $years = absint($opts['years'] ?? 0) ?: (int) ceil(absint($opts['days'] ?? 0) / 365);
     return [
         'enabled' => !empty($opts['enabled']),
-        'days' => absint($opts['days'] ?? 0) ?: SUITE_BARRIO_RETENTION_DEFAULT_DAYS,
+        'years' => $years ?: SUITE_BARRIO_RETENTION_DEFAULT_YEARS,
     ];
 }
 
@@ -72,26 +90,37 @@ function suite_barrio_retention_delete_files(string $json): void
 }
 
 /* ─────────────────────────────────────────
-   PURGE
+   ELIMINAZIONE
    ───────────────────────────────────────── */
 /**
+ * Cron e salvataggio impostazioni: elimina le registrazioni scadute,
+ * solo se l'autoeliminazione è attiva.
+ *
  * @return int Numero di registrazioni eliminate.
  */
 function suite_barrio_retention_purge(): int
 {
     $settings = suite_barrio_retention_settings();
-    if (!$settings['enabled'])
-        return 0;
-    $days = $settings['days'];
-    $deleted = 0;
+    return $settings['enabled'] ? suite_barrio_retention_delete($settings['years']) : 0;
+}
 
+/**
+ * Elimina le registrazioni più vecchie di $years anni (0 = tutte).
+ *
+ * @return int Numero di registrazioni eliminate.
+ */
+function suite_barrio_retention_delete(int $years): int
+{
     global $wpdb;
+    $deleted = 0;
 
     // 1. Modulo Forms. created_at usa l'orologio MySQL: anche il cutoff.
     $table = suite_barrio_retention_table();
     if ($table) {
-        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- tabella custom del plugin, nome fisso
-        $cutoff = $wpdb->get_var($wpdb->prepare('SELECT DATE_SUB(NOW(), INTERVAL %d DAY)', $days));
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- tabella custom del plugin: prefisso + nome fisso, verificata con SHOW TABLES
+        $cutoff = $years
+            ? $wpdb->get_var($wpdb->prepare('SELECT DATE_SUB(NOW(), INTERVAL %d YEAR)', $years))
+            : '9999-12-31 23:59:59';
         $with_files = $wpdb->get_col($wpdb->prepare(
             "SELECT data FROM `{$table}` WHERE created_at < %s AND data LIKE %s",
             $cutoff,
@@ -102,27 +131,31 @@ function suite_barrio_retention_purge(): int
         // phpcs:enable
     }
 
-    // 2. Siti legacy: post type "registrazione" (anche se non registrato dal tema).
-    // ponytail: 500 post per esecuzione, un arretrato maggiore si smaltisce nei giorni successivi.
-    $ids = get_posts([
+    // 2. Siti legacy: post type "registrazione" (anche se non registrato dal tema), cestino compreso.
+    // ponytail: il cron elimina 500 post per esecuzione (l'arretrato si smaltisce nei giorni
+    // successivi); "elimina tutte" li fa in una richiesta: con molte migliaia di post può
+    // andare in timeout, basta ripremere il pulsante per continuare.
+    $query = [
         'post_type' => SUITE_BARRIO_RETENTION_POST_TYPE,
-        'post_status' => 'any',
-        'date_query' => [['before' => $days . ' days ago']],
+        'post_status' => ['any', 'trash'],
         'fields' => 'ids',
-        'posts_per_page' => 500,
+        'posts_per_page' => $years ? 500 : -1,
         'orderby' => 'date',
         'order' => 'ASC',
         'no_found_rows' => true,
-    ]);
-    foreach ($ids as $id)
+        // get_posts() ha già suppress_filters = true: i filtri lingua di WPML non si applicano.
+    ];
+    if ($years)
+        $query['date_query'] = [['before' => $years . ' years ago']];
+    foreach (get_posts($query) as $id)
         $deleted += wp_delete_post($id, true) ? 1 : 0;
 
     return $deleted;
 }
 
 /* ─────────────────────────────────────────
-   UI: card nella tab Forms → Impostazioni (salvata via AJAX
-   suite_barrio_forms_save_global_settings)
+   UI: sezione della pagina Strumenti, dentro il form "Salva impostazioni"
+   (salvataggio in suite_barrio_tools_save)
    ───────────────────────────────────────── */
 function suite_barrio_retention_render(): void
 {
@@ -132,49 +165,65 @@ function suite_barrio_retention_render(): void
     if (suite_barrio_retention_table())
         $sources[] = 'Forms Suite Barrio';
     // Query diretta: wp_count_posts() ignora i post type non registrati.
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- controllo leggero solo nella tab Impostazioni di Forms
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- controllo leggero solo nella pagina Strumenti
     if ($wpdb->get_var($wpdb->prepare("SELECT 1 FROM {$wpdb->posts} WHERE post_type = %s LIMIT 1", SUITE_BARRIO_RETENTION_POST_TYPE)))
         $sources[] = 'post type «' . SUITE_BARRIO_RETENTION_POST_TYPE . '»';
+    $delete_all_url = wp_nonce_url(
+        admin_url('admin-post.php?action=suite_barrio_retention_delete_all'),
+        'suite_barrio_retention_delete_all'
+    );
+    $confirm = 'Eliminare definitivamente TUTTE le registrazioni di tutti i form, file caricati compresi? L\'operazione non può essere annullata.';
     ?>
-    <div class="suite-barrio-section-box" style="margin-bottom:20px;">
-        <div class="suite-barrio-section-head">
-            <span class="dashicons dashicons-trash" style="font-size:18px;width:18px;height:18px;"></span>
-            Conservazione registrazioni
+    <p class="suite-barrio-tools-section-title" style="margin-top:28px;">Conservazione dati</p>
+    <p class="suite-barrio-tools-section-desc">
+        Gestisci per quanto tempo conservare le registrazioni dei form. Origini rilevate:
+        <strong><?php echo esc_html($sources ? implode(', ', $sources) : 'nessuna'); ?></strong>.
+    </p>
+
+    <div class="suite-barrio-modules-list">
+        <div class="suite-barrio-module-row">
+            <div class="suite-barrio-module-info">
+                <div class="suite-barrio-module-label">Autoeliminazione registrazioni</div>
+                <div class="suite-barrio-module-desc">
+                    Ogni giorno elimina definitivamente le registrazioni (e i file caricati) più vecchie della durata
+                    impostata. Vale per tutti i form e viene applicata subito al salvataggio.
+                </div>
+            </div>
+            <label class="suite-barrio-toggle" title="Attiva o disattiva l'autoeliminazione">
+                <input type="checkbox" name="retention_enabled" value="1" <?php checked($settings['enabled']); ?>>
+                <span class="suite-barrio-toggle-track"></span>
+            </label>
         </div>
-        <div class="suite-barrio-section-body">
-            <p style="margin:0 0 16px;font-size:12px;color:#a7aaad;">Elimina definitivamente, una volta al giorno,
-                le registrazioni (e i file caricati) più vecchie della durata impostata. Vale per
-                <strong>tutti</strong> i form. La pulizia viene eseguita anche subito al salvataggio. Origini rilevate:
-                <strong><?php echo esc_html($sources ? implode(', ', $sources) : 'nessuna'); ?></strong>.</p>
-            <table class="form-table" style="max-width:100%;">
-                <tbody>
-                    <tr>
-                        <th style="width:220px;">Autoeliminazione</th>
-                        <td>
-                            <label><input type="checkbox" id="suite-barrio-retention-enabled" value="1"
-                                    <?php checked($settings['enabled']); ?>> Attiva</label>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="suite-barrio-retention-days">Durata (giorni)</label></th>
-                        <td>
-                            <input type="number" id="suite-barrio-retention-days" class="small-text" min="1" step="1"
-                                value="<?php echo esc_attr($settings['days']); ?>">
-                            <p class="description">Predefinito
-                                <?php echo esc_html(SUITE_BARRIO_RETENTION_DEFAULT_DAYS); ?> giorni (2 anni). Lascia
-                                vuoto per usare il predefinito.</p>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <p style="margin:16px 0 0;">
-                <button type="button" class="suite-barrio-btn suite-barrio-btn-primary"
-                    id="suite-barrio-btn-save-global-ret">
-                    Salva impostazioni conservazione
-                </button>
-                <span id="suite-barrio-global-saved-msg-ret"
-                    style="display:none;margin-left:10px;color:#059669;font-size:13px;">✓ Salvato</span>
-            </p>
+        <div class="suite-barrio-module-row">
+            <div class="suite-barrio-module-info">
+                <div class="suite-barrio-module-label">Durata conservazione</div>
+                <div class="suite-barrio-module-desc">
+                    In anni. Predefinito <?php echo esc_html(SUITE_BARRIO_RETENTION_DEFAULT_YEARS); ?> anni.
+                </div>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#374151;">
+                <input type="number" name="retention_years" class="small-text" min="1" step="1"
+                    aria-label="Durata conservazione in anni" value="<?php echo esc_attr($settings['years']); ?>">
+                anni
+            </span>
+        </div>
+        <div class="suite-barrio-module-row">
+            <div class="suite-barrio-module-info">
+                <div class="suite-barrio-module-label">Elimina tutte le registrazioni</div>
+                <div class="suite-barrio-module-desc">
+                    Cancella subito tutte le registrazioni di tutti i form e di tutte le lingue, file caricati
+                    compresi. L'operazione non può essere annullata.<br>
+                    Con molte migliaia di registrazioni la pagina può fermarsi con un errore di tempo scaduto:
+                    quelle già eliminate restano eliminate, ricarica Strumenti e premi di nuovo il pulsante
+                    finché il conteggio non arriva a 0.
+                </div>
+            </div>
+            <a href="<?php echo esc_url($delete_all_url); ?>"
+                class="suite-barrio-btn suite-barrio-btn-small suite-barrio-btn-danger" style="white-space:nowrap;"
+                onclick="return confirm(<?php echo esc_attr(wp_json_encode($confirm)); ?>);">
+                <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span>
+                Elimina tutte
+            </a>
         </div>
     </div>
     <?php
