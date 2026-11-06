@@ -1884,10 +1884,20 @@ add_action('wp_ajax_suite_barrio_forms_save_global_settings', function () {
         ], false);
     }
 
+    // Conservazione registrazioni (vedi modules/retention.php)
+    if (isset($_POST['retention_days'])) {
+        update_option(SUITE_BARRIO_RETENTION_OPTION, [
+            'enabled' => !empty($_POST['retention_enabled']) ? 1 : 0,
+            'days' => absint(wp_unslash($_POST['retention_days'])),
+        ], false);
+        // Applica subito la pulizia, senza aspettare il cron giornaliero.
+        $retention_msg = sprintf('✓ Salvato. Registrazioni eliminate ora: %d', suite_barrio_retention_purge());
+    }
+
     if (function_exists('suite_barrio_invalidate_vercel_cache')) {
         suite_barrio_invalidate_vercel_cache('wp:global');
     }
-    wp_send_json_success('Impostazioni salvate.');
+    wp_send_json_success($retention_msg ?? 'Impostazioni salvate.');
 });
 
 /* ─────────────────────────────────────────
@@ -4434,6 +4444,8 @@ function suite_barrio_forms_admin_page()
                             </p>
                         </div><!-- .suite-barrio-section-body -->
                     </div><!-- .suite-barrio-section-box reCAPTCHA -->
+
+                    <?php suite_barrio_retention_render(); ?>
                 </div>
                 <?php ob_start(); ?>
                 (function () {
@@ -4545,6 +4557,33 @@ function suite_barrio_forms_admin_page()
                 }).catch(function () { alert('Errore di rete.'); }).finally(function () {
                 btnRc.disabled = false;
                 btnRc.textContent = 'Salva impostazioni reCAPTCHA';
+                });
+                });
+
+                // Conservazione registrazioni save button
+                var btnRet = document.getElementById('suite-barrio-btn-save-global-ret');
+                var msgRet = document.getElementById('suite-barrio-global-saved-msg-ret');
+                if (btnRet) btnRet.addEventListener('click', function () {
+                btnRet.disabled = true;
+                var fd = new URLSearchParams({
+                action: 'suite_barrio_forms_save_global_settings',
+                nonce: '<?php echo esc_js($nonce); ?>',
+                retention_enabled: document.getElementById('suite-barrio-retention-enabled').checked ? '1' : '0',
+                retention_days: document.getElementById('suite-barrio-retention-days').value.trim()
+                });
+                fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>', {
+                method: 'POST',
+                body: fd
+                }).then(function (r) { return r.json(); }).then(function (res) {
+                if (res.success) {
+                msgRet.textContent = res.data;
+                msgRet.style.display = 'inline';
+                setTimeout(function () { msgRet.style.display = 'none'; }, 6000);
+                } else {
+                alert(res.data || 'Errore.');
+                }
+                }).catch(function () { alert('Errore di rete.'); }).finally(function () {
+                btnRet.disabled = false;
                 });
                 });
                 })();
