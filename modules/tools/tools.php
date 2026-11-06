@@ -271,7 +271,15 @@ add_action('admin_post_suite_barrio_tools_save', function () {
         $options[$key] = isset($_POST['modules'][$key]) ? 1 : 0;
     }
     update_option(SUITE_BARRIO_TOOLS_OPTION, $options);
-    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-tools&saved=1'));
+
+    // Conservazione dati (modules/retention.php): applicata subito al salvataggio.
+    update_option(SUITE_BARRIO_RETENTION_OPTION, [
+        'enabled' => isset($_POST['retention_enabled']) ? 1 : 0,
+        'years' => absint(wp_unslash($_POST['retention_years'] ?? 0)),
+    ], false);
+    $deleted = suite_barrio_retention_purge();
+
+    wp_safe_redirect(admin_url('admin.php?page=suite-barrio-tools&saved=1' . ($deleted ? '&deleted=' . $deleted : '')));
     exit;
 });
 
@@ -287,6 +295,8 @@ function suite_barrio_tools_admin_page()
     $modules = suite_barrio_tools_modules_list();
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- lettura di sola visualizzazione/navigazione, nessun nonce esistente per questa azione
     $saved = isset($_GET['saved']);
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- solo conteggio da mostrare dopo il redirect
+    $deleted = isset($_GET['deleted']) ? absint($_GET['deleted']) : null;
 
     $wpml_active = defined('ICL_SITEPRESS_VERSION');
     $ml_enabled = suite_barrio_multilang_is_enabled();
@@ -312,6 +322,13 @@ function suite_barrio_tools_admin_page()
             <div class="suite-barrio-tools-notice suite-barrio-notice-success">
                 <span class="dashicons dashicons-yes-alt"></span>
                 <span>Impostazioni salvate.</span>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($deleted !== null): ?>
+            <div class="suite-barrio-tools-notice suite-barrio-notice-success">
+                <span class="dashicons dashicons-trash"></span>
+                <span>Registrazioni eliminate: <?php echo esc_html($deleted); ?>.</span>
             </div>
         <?php endif; ?>
 
@@ -359,6 +376,8 @@ function suite_barrio_tools_admin_page()
                     </div>
                 <?php endforeach; ?>
             </div>
+
+            <?php suite_barrio_retention_render(); ?>
 
             <button type="submit" class="suite-barrio-save-btn">
                 <span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;margin-top:1px;"></span>
