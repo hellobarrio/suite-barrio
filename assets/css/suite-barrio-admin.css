@@ -6449,14 +6449,10 @@ tr[data-status="error"]:hover td {
   border-color: #b32d2e;
 }
 
+/* Una sezione sotto l'altra: Stile email, Testi email, Notifiche */
 #suite-barrio-tab-notifiche {
   display: flex;
-  column-gap: 30px;
-  flex-direction: row-reverse;
-}
-
-.email-style-settings {
-  height: 100%;
+  flex-direction: column;
 }
 
 .email-notifications-list {
