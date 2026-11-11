@@ -192,6 +192,23 @@ function suite_barrio_forms_translatable_settings(): array
         // inviare campagne nella lingua giusta.
         'mailchimp_tags',
         'mailchimp_consent_tags',
+        // Testi fissi delle email di notifica (vuoti = predefiniti della lingua)
+        ...array_keys(suite_barrio_forms_email_text_settings()),
+    ];
+}
+
+/**
+ * Testi fissi delle email modificabili dalla scheda Notifiche, per lingua.
+ * impostazione => [chiave in suite_barrio_forms_email_strings(), etichetta, aiuto]
+ */
+function suite_barrio_forms_email_text_settings(): array
+{
+    return [
+        'email_sent_label' => ['sent_at', 'Data di invio', 'Usa {data} e {ora} per data e ora di invio.'],
+        'email_source_label' => ['source', 'Titolo sezione origine', 'Sezione con pagina e URL da cui è stato inviato il form.'],
+        'email_page_label' => ['page', 'Etichetta pagina', ''],
+        'email_attachments_label' => ['attachments', 'Titolo sezione allegati', ''],
+        'email_footer' => ['footer', 'Testo footer', "Testo legale in fondo alle email, seguito dall'email dominio."],
     ];
 }
 
@@ -1027,14 +1044,59 @@ function suite_barrio_interpolate_field_vars(string $text, array $submission_dat
 /* ─────────────────────────────────────────
    HELPER: compila il template HTML email
    ───────────────────────────────────────── */
+/**
+ * Testi fissi delle email di notifica nella lingua dell'invio.
+ * Predefiniti: italiano per la lingua principale (o sito monolingua), inglese per le altre
+ * (altre lingue: filtro suite_barrio_forms_email_strings). I testi scritti nel form
+ * ($settings, già tradotti per lingua) hanno la precedenza.
+ */
+function suite_barrio_forms_email_strings(string $lang = '', array $settings = []): array
+{
+    $strings = ($lang === '' || $lang === 'it')
+        ? [
+            'lang' => 'it',
+            'sent_at' => 'Inviato il {data} alle {ora}',
+            'attachments' => 'Allegati',
+            'source' => 'Origine',
+            'page' => 'Pagina',
+            'default_subject' => '[%1$s] Nuova registrazione: %2$s',
+            'footer' => 'La presente email è stata generata automaticamente da un indirizzo di posta elettronica di solo invio; si chiede pertanto di non rispondere al messaggio. Le informazioni e gli eventuali allegati contenuti nella presente comunicazione sono diretti esclusivamente al destinatario e devono ritenersi riservati. Se avete ricevuto questo messaggio per errore, vi preghiamo di cancellarlo e di informarci inviando un messaggio a:',
+        ]
+        : [
+            'lang' => $lang,
+            'sent_at' => 'Sent on {data} at {ora}',
+            'attachments' => 'Attachments',
+            'source' => 'Source',
+            'page' => 'Page',
+            'default_subject' => '[%1$s] New submission: %2$s',
+            'footer' => 'This email was generated automatically from a send-only address; please do not reply to this message. The information and any attachments contained in this message are intended solely for the recipient and must be treated as confidential. If you have received this message in error, please delete it and let us know by writing to:',
+        ];
+
+    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- hook con il prefisso del plugin
+    $strings = apply_filters('suite_barrio_forms_email_strings', $strings, $lang);
+
+    foreach (suite_barrio_forms_email_text_settings() as $setting => [$key]) {
+        $custom = trim((string) ($settings[$setting] ?? ''));
+        if ($custom !== '')
+            $strings[$key] = $custom;
+    }
+    return $strings;
+}
+
 function suite_barrio_build_email_html(
     string $content,
     string $title,
     string $bg_color = '#f4f4f4',
     string $header_color = '#2271b1',
     string $logo_url = '',
-    string $domain_email = ''
+    string $domain_email = '',
+    string $lang = '',
+    string $footer = ''
 ): string {
+    $strings = suite_barrio_forms_email_strings($lang);
+    // Testo del form (impostazione email_footer, tradotta per lingua) o predefinito della lingua
+    $footer_html = nl2br(esc_html(trim($footer) !== '' ? trim($footer) : $strings['footer']));
+
     // Logo — se assente, nasconde il blocco con display:none
     $logo_block = $logo_url
         ? '<img class="t21" style="display:block;border:0;height:auto;width:100%;Margin:0;max-width:100%;" width="200" height="60" src="' . esc_url($logo_url) . '" alt="Logo" />'
@@ -1044,7 +1106,7 @@ function suite_barrio_build_email_html(
     $domain_href = esc_url('mailto:' . $domain_email);
 
     $tpl = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="it">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="[lang]">
 <head>
 <meta name="x-apple-disable-message-reformatting" />
 <meta http-equiv="X-UA-Compatible" />
@@ -1109,9 +1171,7 @@ img{margin:0;padding:0;-ms-interpolation-mode:bicubic}
             <tr>
               <td style="width:540px;padding:20px 30px;">
                 <p style="font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif;line-height:1.6;font-size:12px;color:#878787;margin:0;">
-                  La presente email è stata generata automaticamente da un indirizzo di posta elettronica di solo invio; si chiede pertanto di non rispondere al messaggio.
-                  Le informazioni e gli eventuali allegati contenuti nella presente comunicazione sono diretti esclusivamente al destinatario e devono ritenersi riservati.
-                  Se avete ricevuto questo messaggio per errore, vi preghiamo di cancellarlo e di informarci inviando un messaggio a:
+                  [footerText]
                   <a href="[domainHref]" style="color:#878787;font-weight:700;">[domainEmail]</a>
                 </p>
               </td>
@@ -1130,8 +1190,8 @@ img{margin:0;padding:0;-ms-interpolation-mode:bicubic}
 </html>';
 
     return str_replace(
-        ['[bgColor]', '[headerColor]', '[logoBlock]', '[titoloEmail]', '[content]', '[domainEmail]', '[domainHref]'],
-        [$bg_color, $header_color, $logo_block, esc_html($title), $content, $domain_safe, $domain_href],
+        ['[lang]', '[footerText]', '[bgColor]', '[headerColor]', '[logoBlock]', '[titoloEmail]', '[content]', '[domainEmail]', '[domainHref]'],
+        [esc_attr($strings['lang']), $footer_html, $bg_color, $header_color, $logo_block, esc_html($title), $content, $domain_safe, $domain_href],
         $tpl
     );
 }
@@ -1149,10 +1209,12 @@ img{margin:0;padding:0;-ms-interpolation-mode:bicubic}
  * @param array  $settings       Impostazioni decodificate del form.
  * @param array  $submission_data Dati già sanitizzati nel formato
  *                               [ name => ['label' => ..., 'value' => ...] ].
+ * @param string $lang           Lingua dell'invio: testi fissi dell'email (vedi suite_barrio_forms_email_strings).
  */
-function suite_barrio_forms_send_notifications(object $form, array $settings, array $submission_data, array $attachments = []): array
+function suite_barrio_forms_send_notifications(object $form, array $settings, array $submission_data, array $attachments = [], string $lang = ''): array
 {
     $log = [];
+    $strings = suite_barrio_forms_email_strings($lang, $settings);
 
     $notifications = isset($settings['notifications']) && is_array($settings['notifications'])
         ? $settings['notifications'] : [];
@@ -1165,7 +1227,7 @@ function suite_barrio_forms_send_notifications(object $form, array $settings, ar
         return $log;
     }
 
-    $default_subject = sprintf('[%s] Nuova registrazione: %s', get_bloginfo('name'), $form->title);
+    $default_subject = sprintf($strings['default_subject'], get_bloginfo('name'), $form->title);
 
     foreach ($notifications as $notif) {
 
@@ -1225,7 +1287,7 @@ function suite_barrio_forms_send_notifications(object $form, array $settings, ar
                 </tr>";
             }
             $content_html = "<table style=\"width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;\">{$rows}</table>";
-            $content_html .= "<p style=\"margin:16px 0 0;font-size:12px;color:#a7aaad;\">Inviato il " . current_time('d/m/Y \a\l\l\e H:i') . "</p>";
+            $content_html .= "<p style=\"margin:16px 0 0;font-size:12px;color:#a7aaad;\">" . esc_html(str_replace(['{data}', '{ora}'], [current_time('d/m/Y'), current_time('H:i')], $strings['sent_at'])) . "</p>";
 
             // ── Allegati: elenca i file caricati (non mostrati nella tabella) ─
             $file_entries = array_filter($submission_data, fn($d) => !empty($d['is_file']));
@@ -1241,7 +1303,7 @@ function suite_barrio_forms_send_notifications(object $form, array $settings, ar
                         </td>
                     </tr>";
                 }
-                $content_html .= "<p style=\"margin:20px 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#a7aaad;\">Allegati</p>"
+                $content_html .= "<p style=\"margin:20px 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#a7aaad;\">" . esc_html($strings['attachments']) . "</p>"
                     . "<table style=\"width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;\">{$att_rows}</table>";
             }
 
@@ -1255,7 +1317,7 @@ function suite_barrio_forms_send_notifications(object $form, array $settings, ar
                     $page_rows = '';
                     if ($page_title) {
                         $page_rows .= "<tr>
-                            <td style=\"padding:8px 12px;font-size:12px;font-weight:600;color:#50575e;background:#f6f7f7;border-bottom:1px solid #e8e8e8;width:35%;\">Pagina</td>
+                            <td style=\"padding:8px 12px;font-size:12px;font-weight:600;color:#50575e;background:#f6f7f7;border-bottom:1px solid #e8e8e8;width:35%;\">" . esc_html($strings['page']) . "</td>
                             <td style=\"padding:8px 12px;font-size:12px;color:#111111;border-bottom:1px solid #e8e8e8;\">" . esc_html($page_title) . "</td>
                         </tr>";
                     }
@@ -1273,7 +1335,7 @@ function suite_barrio_forms_send_notifications(object $form, array $settings, ar
                             <td style=\"padding:8px 12px;font-size:12px;color:#2271b1;\"><a href=\"{$ref_safe}\" style=\"color:#2271b1;text-decoration:none;\">{$ref_safe}</a></td>
                         </tr>";
                     }
-                    $content_html .= "<p style=\"margin:20px 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#a7aaad;\">Origine</p>"
+                    $content_html .= "<p style=\"margin:20px 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#a7aaad;\">" . esc_html($strings['source']) . "</p>"
                         . "<table style=\"width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;\">{$page_rows}</table>";
                 }
             }
@@ -1285,7 +1347,9 @@ function suite_barrio_forms_send_notifications(object $form, array $settings, ar
             $settings['email_bg_color'] ?? '#f4f4f4',
             $settings['email_header_color'] ?? '#2271b1',
             $settings['email_logo_url'] ?? '',
-            $settings['domain_email'] ?? get_option('admin_email')
+            $settings['domain_email'] ?? get_option('admin_email'),
+            $lang,
+            $strings['footer']
         );
 
         // ── Headers ──────────────────────────────────────────────────────────
@@ -1726,7 +1790,7 @@ function suite_barrio_forms_handle_submit()
     );
 
     // Invia le notifiche email con gli allegati
-    suite_barrio_forms_send_notifications($form, $settings, $submission_data, $attachments);
+    suite_barrio_forms_send_notifications($form, $settings, $submission_data, $attachments, $submission_lang);
 
     // ── Integrazione MailUp ───────────────────────────────────────────────
     // Esegui solo se l'integrazione è abilitata per questo form
@@ -2384,6 +2448,11 @@ add_action('wp_ajax_suite_barrio_forms_save_translation', function () {
         'mailchimp_consent_tags' => sanitize_text_field($si18n['mailchimp_consent_tags'] ?? ''),
         'notifications' => [],
     ];
+    foreach (array_keys(suite_barrio_forms_email_text_settings()) as $k) {
+        $si18n_clean[$k] = 'email_footer' === $k
+            ? sanitize_textarea_field($si18n[$k] ?? '')
+            : sanitize_text_field($si18n[$k] ?? '');
+    }
     foreach ((array) ($si18n['notifications'] ?? []) as $notif) {
         $nt = [];
         foreach (suite_barrio_forms_translatable_notif() as $nk) {
@@ -2537,6 +2606,16 @@ add_action('wp_ajax_suite_barrio_forms_resend_notification', function () {
         wp_send_json_error('Form non trovato.');
 
     $settings = json_decode($form->settings, true) ?: [];
+
+    // Stessa lingua dell'invio originale: notifica tradotta e testi fissi nella lingua della registrazione
+    $sub_lang = sanitize_key($sub->lang ?? '');
+    if ($sub_lang) {
+        $trans = suite_barrio_forms_get_translation((int) $form->id, $sub_lang);
+        if ($trans) {
+            [, $settings] = suite_barrio_forms_apply_translation(json_decode($form->fields, true) ?: [], $settings, $trans);
+        }
+    }
+
     $notifications = $settings['notifications'] ?? [];
 
     if ($notif_index < 0 || $notif_index >= count($notifications))
@@ -2553,7 +2632,7 @@ add_action('wp_ajax_suite_barrio_forms_resend_notification', function () {
     $temp_settings = $settings;
     $temp_settings['notifications'] = [$notif];
 
-    $log = suite_barrio_forms_send_notifications($form, $temp_settings, $submission_data);
+    $log = suite_barrio_forms_send_notifications($form, $temp_settings, $submission_data, [], $sub_lang);
 
     wp_send_json_success([
         'message' => 'Notifica reinviata con successo.',
@@ -2622,7 +2701,9 @@ add_action('wp_ajax_suite_barrio_forms_preview_notification', function () {
         $settings['email_bg_color'] ?? '#f4f4f4',
         $settings['email_header_color'] ?? '#2271b1',
         $settings['email_logo_url'] ?? '',
-        $settings['domain_email'] ?? get_option('admin_email')
+        $settings['domain_email'] ?? get_option('admin_email'),
+        sanitize_key(wp_unslash($_POST['lang'] ?? '')),
+        sanitize_textarea_field(wp_unslash($_POST['email_footer'] ?? ''))
     );
 
     wp_send_json_success(['html' => $html]);
@@ -3391,10 +3472,20 @@ function suite_barrio_forms_admin_page()
         .suite-barrio-translation-mode #suite-barrio-setting-mailchimp-email-field,
         .suite-barrio-translation-mode #suite-barrio-setting-mailchimp-optin-field,
         .suite-barrio-translation-mode #suite-barrio-mailchimp-add-map-row,
-        .suite-barrio-translation-mode #suite-barrio-mailchimp-field-map-rows {
+        .suite-barrio-translation-mode #suite-barrio-mailchimp-field-map-rows,
+        .suite-barrio-translation-mode .suite-barrio-notif-card [data-field]:disabled,
+        .suite-barrio-translation-mode .email-style-settings :disabled {
         pointer-events: none !important;
         opacity: .35 !important;
         user-select: none;
+        }
+
+        /* Notifiche: si traducono solo i testi, non si aggiungono né si eliminano
+           (le traduzioni sono salvate per posizione) */
+        .suite-barrio-translation-mode #suite-barrio-btn-add-notification,
+        .suite-barrio-translation-mode .suite-barrio-notif-del-btn,
+        .suite-barrio-translation-mode .suite-barrio-email-field-pill {
+        display: none !important;
         }
 
         /* Blocca anche i label wrapper dei toggle integrazione */
@@ -4141,14 +4232,10 @@ function suite_barrio_forms_admin_page()
         }
 
 
+        /* Una sezione sotto l'altra: Stile email, Testi email, Notifiche */
         #suite-barrio-tab-notifiche {
         display: flex;
-        column-gap: 30px;
-        flex-direction: row-reverse;
-        }
-
-        .email-style-settings {
-        height: 100%;
+        flex-direction: column;
         }
 
         .email-notifications-list {
@@ -5196,7 +5283,7 @@ function suite_barrio_forms_admin_page()
                 <div id="suite-barrio-tab-notifiche" style="display:none;">
 
                     <!-- Impostazioni globali email -->
-                    <div class="email-style-settings suite-barrio-section-box" style="max-width:600px;margin-bottom:20px;">
+                    <div class="email-style-settings suite-barrio-section-box" style="margin-bottom:20px;">
                         <div class="suite-barrio-section-head">Stile email</div>
                         <div class="suite-barrio-section-body" style="padding:16px 22px;">
                             <table class="form-table" style="max-width:100%;">
@@ -5256,8 +5343,43 @@ function suite_barrio_forms_admin_page()
                         </div><!-- .suite-barrio-section-body -->
                     </div><!-- .suite-barrio-section-box stile email -->
 
+                    <!-- Testi fissi delle email: modificabili e traducibili per lingua -->
+                    <div class="suite-barrio-section-box" style="margin-bottom:20px;">
+                        <div class="suite-barrio-section-head">Testi email</div>
+                        <div class="suite-barrio-section-body" style="padding:16px 22px;">
+                            <p class="description" style="margin-top:0;">
+                                Vuoto = testo predefinito (mostrato in grigio).<?php if ($ml_active): ?> Ogni lingua ha i suoi
+                                testi: per tradurli scegli la lingua dal selettore del form.<?php endif; ?>
+                            </p>
+                            <table class="form-table" style="max-width:100%;">
+                                <tbody>
+                                    <?php
+                                    $suite_barrio_email_defaults = suite_barrio_forms_email_strings($is_translation_mode ? $editor_lang : '');
+                                    foreach (suite_barrio_forms_email_text_settings() as $suite_barrio_setting => [$suite_barrio_key, $suite_barrio_label, $suite_barrio_help]):
+                                        $suite_barrio_input_id = 'suite-barrio-setting-' . $suite_barrio_setting; ?>
+                                        <tr>
+                                            <th style="width:220px;"><label for="<?php echo esc_attr($suite_barrio_input_id); ?>"><?php echo esc_html($suite_barrio_label); ?></label></th>
+                                            <td>
+                                                <?php if ('email_footer' === $suite_barrio_setting): ?>
+                                                    <textarea id="<?php echo esc_attr($suite_barrio_input_id); ?>" class="large-text" rows="4"
+                                                        placeholder="<?php echo esc_attr($suite_barrio_email_defaults[$suite_barrio_key]); ?>"></textarea>
+                                                <?php else: ?>
+                                                    <input type="text" id="<?php echo esc_attr($suite_barrio_input_id); ?>" class="large-text"
+                                                        placeholder="<?php echo esc_attr($suite_barrio_email_defaults[$suite_barrio_key]); ?>">
+                                                <?php endif; ?>
+                                                <?php if ($suite_barrio_help): ?>
+                                                    <p class="description"><?php echo esc_html($suite_barrio_help); ?></p>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div><!-- .suite-barrio-section-body -->
+                    </div><!-- .suite-barrio-section-box testi email -->
+
                     <!-- Lista notifiche email -->
-                    <div class="email-notifications-list" style="max-width:600px;">
+                    <div class="email-notifications-list">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
                             <div>
                                 <h3
@@ -5326,6 +5448,8 @@ function suite_barrio_forms_admin_page()
 
         // ── Dati multilingua ────────────────────────────────────────────
         const ML_ACTIVE = <?php echo wp_json_encode($ml_active); ?>;
+        // Etichette lingua per le registrazioni (come nella pagina Registrazioni degli editor)
+        const ML_LANGUAGES = <?php echo wp_json_encode($ml_active && function_exists('suite_barrio_multilang_languages_with_flags') ? suite_barrio_multilang_languages_with_flags() : []); ?>;
         const ML_PRIMARY = <?php echo wp_json_encode($ml_primary); ?>;
         const IS_TRANSLATION = <?php echo wp_json_encode($is_translation_mode); ?>;
         const URL_EDIT_BASE = <?php echo wp_json_encode(admin_url('admin.php?page=suite-barrio-forms&tab=builder&edit_id=')); ?>;
@@ -5333,6 +5457,8 @@ function suite_barrio_forms_admin_page()
         // Chiavi traducibili: arrivano da PHP così editor e salvataggio non possono divergere
         const I18N_SETTING_KEYS = <?php echo wp_json_encode(suite_barrio_forms_translatable_settings()); ?>;
         const I18N_NOTIF_KEYS = <?php echo wp_json_encode(suite_barrio_forms_translatable_notif()); ?>;
+        // Testi fissi delle email (input id "suite-barrio-setting-<chiave>")
+        const EMAIL_TEXT_KEYS = <?php echo wp_json_encode(array_keys(suite_barrio_forms_email_text_settings())); ?>;
 
         /* ── Select lingua nel builder: naviga alla versione tradotta ── */
         const langSelect = document.getElementById('suite-barrio-form-lang-select');
@@ -5469,6 +5595,7 @@ function suite_barrio_forms_admin_page()
         el('suite-barrio-setting-email-logo-url').dispatchEvent(new Event('input'));
         }
         if (el('suite-barrio-setting-domain-email')) el('suite-barrio-setting-domain-email').value = s.domain_email || '';
+        EMAIL_TEXT_KEYS.forEach(k => { if (el('suite-barrio-setting-' + k)) el('suite-barrio-setting-' + k).value = s[k] || ''; });
         // Notifiche
         notificationsData = Array.isArray(s.notifications) ? s.notifications.map(n => ({ ...n })) : [];
         renderNotifications();
@@ -5673,6 +5800,8 @@ function suite_barrio_forms_admin_page()
         (settings.email_logo_url || ''),
         domain_email: el('suite-barrio-setting-domain-email') ? el('suite-barrio-setting-domain-email').value.trim() :
         (settings.domain_email || ''),
+        ...Object.fromEntries(EMAIL_TEXT_KEYS.map(k => [k,
+        el('suite-barrio-setting-' + k) ? el('suite-barrio-setting-' + k).value.trim() : (settings[k] || '')])),
         notifications: notificationsData
         .filter(n => n.to_email && n.to_email.trim())
         .map(({ _open, ...rest }) => rest),
@@ -5908,6 +6037,16 @@ function suite_barrio_forms_admin_page()
         </div>`;
         }).join('');
 
+        // Modalità traduzione: si modificano solo i testi traducibili (I18N_NOTIF_KEYS).
+        // Nome notifica, email e struttura si ereditano dalla lingua principale:
+        // modificarli qui non avrebbe effetto, il salvataggio della traduzione li scarta.
+        if (IS_TRANSLATION) {
+        list.querySelectorAll('input[data-field], textarea[data-field]').forEach(inp => {
+        if (inp.type !== 'hidden' && !I18N_NOTIF_KEYS.includes(inp.dataset.field)) inp.disabled = true;
+        });
+        list.querySelectorAll('.suite-barrio-notif-del-btn, .suite-barrio-email-field-pill').forEach(b => { b.disabled = true; });
+        }
+
         // Bind pill variabili → inserisci {{name}} nel campo al cursore
         list.querySelectorAll('.suite-barrio-field-var-pill').forEach(pill => {
         pill.addEventListener('click', () => {
@@ -6026,6 +6165,9 @@ function suite_barrio_forms_admin_page()
         form_id: String(EDIT_ID),
         notif_data: JSON.stringify(notif),
         fields_data: JSON.stringify(fields),
+        // Testi fissi dell'anteprima nella lingua che si sta modificando
+        lang: IS_TRANSLATION ? CURRENT_EDITOR_LANG : '',
+        email_footer: document.getElementById('suite-barrio-setting-email-footer')?.value || '',
         }),
         });
         const json = await res.json();
@@ -7127,6 +7269,7 @@ function suite_barrio_forms_admin_page()
 
                     const metaHtml = [
                     `<span>\uD83D\uDCC5 Data: <strong>${esc(sub.created_at_full || sub.created_at)}</strong></span>`,
+                    ML_ACTIVE && sub.lang ? `<span>Lingua: <strong>${esc(ML_LANGUAGES[sub.lang] || sub.lang.toUpperCase())}</strong></span>` : '',
                     sub.ip ? `<span>\uD83C\uDF10 IP: <strong>${esc(sub.ip)}</strong></span>` : '',
                     sub.user_agent ? `<span>\uD83D\uDDA5 Browser: <span
                             style="font-weight:400;font-size:11px;">${esc(sub.user_agent)}</span></span>` : '',
@@ -7292,6 +7435,7 @@ function suite_barrio_forms_admin_page()
                     const listFields = formFields.slice(0, 2);
                     let thead = '<tr><th>#</th>';
                         listFields.forEach(f => { thead += `<th>${esc(f.label || f.name)}</th>`; });
+                        if (ML_ACTIVE) thead += '<th>Lingua</th>';
                         thead += '<th>Data</th><th></th></tr>';
 
                     // Righe: compatte, cliccabili per dettaglio
@@ -7311,6 +7455,11 @@ function suite_barrio_forms_admin_page()
                         ? `<td class="suite-barrio-reg-cell-empty">—</td>`
                         : `<td title="${esc(String(val))}">${summary || esc(String(val))}</td>`;
                         });
+                        if (ML_ACTIVE) {
+                        // Registrazioni precedenti al multilingua: lingua non salvata
+                        const ll = sub.lang ? (ML_LANGUAGES[sub.lang] || sub.lang.toUpperCase()) : '—';
+                        tbody += `<td><span style="font-size:11px;background:#f0f0f1;padding:1px 6px;border-radius:2px;font-weight:600;">${esc(ll)}</span></td>`;
+                        }
                         tbody += `<td><span class="suite-barrio-reg-date">${esc(sub.created_at)}</span></td>`;
                         tbody += `<td style="white-space:nowrap;"><button
                                 class="suite-barrio-btn suite-barrio-btn-small suite-barrio-btn-danger suite-barrio-btn-sm suite-barrio-btn-reg-del"
@@ -7436,7 +7585,17 @@ function suite_barrio_forms_admin_page()
                     'suite-barrio-setting-mailchimp-enabled',
                     'suite-barrio-setting-mailchimp-email-field',
                     'suite-barrio-setting-mailchimp-optin-field',
-                    'suite-barrio-mailchimp-add-map-row'].forEach(function (id) {
+                    'suite-barrio-mailchimp-add-map-row',
+                    'suite-barrio-btn-add-notification',
+                    // Stile email: si eredita, la traduzione salva solo il testo footer
+                    'suite-barrio-setting-email-bg-color',
+                    'suite-barrio-setting-email-bg-color-hex',
+                    'suite-barrio-setting-email-header-color',
+                    'suite-barrio-setting-email-header-color-hex',
+                    'suite-barrio-setting-email-logo-url',
+                    'suite-barrio-btn-media-logo',
+                    'suite-barrio-btn-remove-logo',
+                    'suite-barrio-setting-domain-email'].forEach(function (id) {
                     const el = document.getElementById(id);
                     if (el) el.disabled = true;
                     });

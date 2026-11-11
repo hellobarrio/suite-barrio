@@ -688,6 +688,25 @@ function suite_barrio_graphql_register_schema(): void
                 $form_fields = json_decode($form->fields, true) ?: [];
                 $settings = json_decode($form->settings, true) ?: [];
 
+                // ── Lingua compilazione + traduzione ──────────────────────────────
+                // Come nell'invio AJAX (forms.php): va applicata prima di validazione e
+                // notifiche, altrimenti errori, success_message ed email restano nella
+                // lingua principale anche per chi compila il form in un'altra lingua.
+                $submission_lang = sanitize_key($input['lang'] ?? '');
+                if (!$submission_lang && defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
+                    $submission_lang = ICL_LANGUAGE_CODE;
+                }
+                if (!$submission_lang) {
+                    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
+                    $submission_lang = sanitize_key(apply_filters('wpml_current_language', ''));
+                }
+                if ($submission_lang && function_exists('suite_barrio_forms_get_translation')) {
+                    $trans = suite_barrio_forms_get_translation($form_id, $submission_lang);
+                    if ($trans) {
+                        [$form_fields, $settings] = suite_barrio_forms_apply_translation($form_fields, $settings, $trans);
+                    }
+                }
+
                 // Costruisci mappa name → value dall'input GraphQL
                 // Nota: sanitize_text_field (non sanitize_key) per preservare il case
                 $input_map = [];
@@ -792,15 +811,7 @@ function suite_barrio_graphql_register_schema(): void
                     ];
                 }
 
-                // ── Lingua compilazione ───────────────────────────────────────────
-                $submission_lang = sanitize_key($input['lang'] ?? '');
-                if (!$submission_lang && defined('ICL_LANGUAGE_CODE') && ICL_LANGUAGE_CODE) {
-                    $submission_lang = ICL_LANGUAGE_CODE;
-                }
-                if (!$submission_lang) {
-                    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- legge l'hook di WPML, non ne definisce uno nuovo
-                    $submission_lang = sanitize_key(apply_filters('wpml_current_language', ''));
-                }
+                // ── Lingua compilazione (calcolata all'inizio) ────────────────────
                 if ($submission_lang) {
                     $lang_labels = function_exists('suite_barrio_multilang_languages') ? suite_barrio_multilang_languages() : [];
                     $submission_data['_lang'] = [
@@ -835,7 +846,7 @@ function suite_barrio_graphql_register_schema(): void
                 $submission_id = (int) $wpdb->insert_id;
 
                 // ── Invia notifiche email (con allegati) ──────────────────────────
-                $mail_log = suite_barrio_forms_send_notifications($form, $settings, $submission_data, $attachments);
+                $mail_log = suite_barrio_forms_send_notifications($form, $settings, $submission_data, $attachments, $submission_lang);
 
                 // ── Integrazione MailUp ───────────────────────────────────────────
                 if (!empty($settings['mailup_enabled'])) {
