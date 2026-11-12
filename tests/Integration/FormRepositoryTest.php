@@ -285,7 +285,7 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 
 	public function test_a_form_with_entries_cannot_be_deleted(): void {
 		$form  = FormRepository::create( 'A', [ 'it' => [ 'submit_label' => 'Invia' ] ], [ self::notification( 'Admin' ) ], self::fields( 'name' ) );
-		$entry = EntryRepository::create( new Entry( $form->id, (int) $form->current->id, 'it', [] ) );
+		$entry = (int) EntryRepository::create( new Entry( $form->id, (int) $form->current->id, 'it', [] ) )->id;
 
 		$error = FormRepository::delete( $form->id );
 		$this->assertInstanceOf( WP_Error::class, $error );

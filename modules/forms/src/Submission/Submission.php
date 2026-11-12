@@ -118,14 +118,13 @@ final class Submission {
 			$entry    = new Entry( $form->id, (int) $version->id, $lang, $entry_values, $stored, $user_id, '' === $url ? null : $url );
 			$filtered = apply_filters( 'barrio_forms_entry_data', $entry, $form );
 			$entry    = $filtered instanceof Entry ? $filtered : $entry;
-			$id       = EntryRepository::create( $entry );
+			$entry    = EntryRepository::create( $entry );
 		} catch ( Throwable $e ) {
 			foreach ( $stored as $file ) {
 				FileStore::delete( $file['stored_path'] );
 			}
 			throw $e;
 		}
-		$entry = new Entry( $entry->form_id, $entry->version_id, $entry->lang, $entry->values, $entry->files, $entry->user_id, $entry->source_url, $entry->created_at, $id );
 
 		if ( $ip ) {
 			set_transient( self::rate_key( $ip ), self::submissions( $ip ) + 1, self::RATE_WINDOW );
@@ -135,7 +134,7 @@ final class Submission {
 		try {
 			do_action( 'barrio_forms_after_submission', $entry, $form );
 		} catch ( Throwable $e ) {
-			EntryRepository::add_note( $id, 'system', NoteLevel::Error, $e->getMessage() );
+			EntryRepository::add_note( (int) $entry->id, 'system', NoteLevel::Error, $e->getMessage() );
 		}
 		return $entry;
 	}

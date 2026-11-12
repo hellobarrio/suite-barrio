@@ -13,7 +13,7 @@ arriveranno uno alla volta con la stessa struttura.
 | Requisiti | PHP 8.2+, WordPress 6.6+, MySQL 8.0.16+ o MariaDB 10.5+, InnoDB. Controllati all'attivazione con un messaggio chiaro |
 | Database | Il centro del progetto: foreign key reali, CHECK, migrazioni versionate (vedi §2) |
 | Email | `wp_mail()`, che usa il PHPMailer incluso in WordPress, con l'SMTP configurato tramite `phpmailer_init` e applicato a **tutte** le email del sito |
-| Builder | React con `@wordpress/scripts` e `@wordpress/components` |
+| Admin | React con `@wordpress/scripts` e `@wordpress/components`: la pagina Impostazioni dalla fase 3, builder e registrazioni dalle fasi 4 e 5 |
 | GraphQL | Nomi invariati: `hbForm`, `hbForms`, `hbSubmitForm` e tutti i tipi `HB*`/`Hb*` |
 | Plugin esterni | Nessuno è obbligatorio: senza WPGraphQL o WPML il plugin funziona e disattiva solo le funzioni che dipendono da loro (§4.1) |
 | Traduzioni | Editor interno; le traduzioni si salvano nel database dentro ogni versione del form. Le lingue disponibili vengono da WPML; senza WPML il plugin lavora in una sola lingua |
@@ -135,8 +135,11 @@ vincoli funzionano allo stesso modo. Le colonne di identificatori e insiemi chiu
 (`status`, `field_key`, `type`, `lang`, `stored_path`, `source`, `level`) sono `utf8mb4_bin`: con la
 collation di WordPress, che ignora le maiuscole, i CHECK accetterebbero `'Active'` o `'Email'`.
 Le impostazioni globali (SMTP, retention, template email) **non** sono tabelle: sono opzioni
-WordPress registrate con `register_setting()` e uno schema. Le impostazioni per form delle
-integrazioni arrivano in fase 8 con una tabella propria (migrazione `0002`).
+WordPress (`barrio_smtp`, `barrio_smtp_password` cifrata, `barrio_forms_email`) con un JSON Schema,
+validate dalla rotta REST `/barrio/v1/settings`, l'unico punto che le scrive. Niente `register_setting()`:
+servirebbe solo a `options.php` e a `/wp/v2/settings`, che non usiamo (la password non deve mai tornare
+indietro). Le impostazioni per form delle integrazioni arrivano in fase 8 con una tabella propria
+(migrazione `0003`; la `0002` assegna le capability, §3.5).
 
 ### 2.4 Catena delle cancellazioni (garantita dal database)
 
@@ -203,7 +206,7 @@ barrio-suite/
 │   ├── Database/Migrator.php
 │   └── Mail/Smtp.php          # phpmailer_init, email di test, password cifrata
 ├── modules/forms/
-│   ├── migrations/0001_initial.php
+│   ├── migrations/0001_initial.php, 0002_capabilities.php
 │   ├── src/
 │   │   ├── Module.php                     # boot(): aggancia gli hook
 │   │   ├── Model/                         # readonly class: Form, FormVersion, Field, Entry + enum
@@ -212,17 +215,17 @@ barrio-suite/
 │   │   ├── FieldTypes.php                 # tipi core (il registro per le estensioni arriva in fase 8)
 │   │   ├── Conditions.php                 # motore delle regole (campi, notifiche, integrazioni)
 │   │   ├── Submission/                    # pipeline con antispam, FileStore
-│   │   ├── Notifications.php, MergeTags.php
+│   │   ├── Notifications.php, MergeTags.php  # email dopo l'invio, esito nelle note, rinvio
 │   │   ├── Integrations.php               # registro delle estensioni
 │   │   ├── I18n.php                       # lingue (da WPML se attivo, altrimenti solo quella del sito)
 │   │   ├── Api/Rest*.php
 │   │   ├── Api/GraphQL.php                # caricato solo se WPGraphQL è attivo
 │   │   ├── Frontend/Render.php            # shortcode + render del blocco
 │   │   ├── Privacy.php                    # retention, exporter/eraser
-│   │   └── Admin.php
+│   │   └── Admin.php                      # menu Barrio e pagine React
 │   ├── assets/{frontend,block}/           # senza build: script module nativi e JS dell'editor scritto a mano
-│   ├── assets/src/{builder,entries,settings}/   # React, con la build di @wordpress/scripts (dalla fase 4)
-│   └── templates/email.php
+│   ├── assets/src/{settings,builder,entries}/   # React, con la build di @wordpress/scripts in build/ (dalla fase 3)
+│   └── templates/email.php                # tabelle e stili in linea; restituisce una closure tipizzata
 ├── tests/{Unit,Integration,fixtures}/
 ├── docs/{database.md,hooks.md}
 ├── composer.json              # solo strumenti di sviluppo
@@ -254,8 +257,13 @@ cache di pagina.
 Admin, ognuno con `permission_callback` sulle capability e argomenti validati con lo schema:
 CRUD dei form (`PUT` con `base_version`), duplica, traduzioni per lingua, elenco registrazioni
 (paginato, con ricerca e filtri), dettaglio, segna come letta, azioni di massa, export CSV in
-streaming, download dei file, rinvio di una notifica, note, impostazioni SMTP (password in sola
-scrittura) ed email di test.
+streaming, download dei file, note. Già presenti dalla fase 3:
+
+- `GET`/`PUT /settings` (`manage_options`): SMTP, template delle email e stato della password
+  (`none`, `saved`, `unreadable` se i salt sono cambiati, `constant`); la password è in sola scrittura;
+- `POST /settings/test-email` (`manage_options`): con le impostazioni salvate e il template delle notifiche;
+- `POST /entries/{id}/notifications/{notification}/resend` (`barrio_manage_entries`): con la
+  configurazione attuale della notifica, anche se disattivata o con le condizioni non soddisfatte.
 
 ### 3.3 Tipi di campo core
 
@@ -282,7 +290,8 @@ Menu "Barrio" (che ospiterà i moduli futuri) con le voci Form, Registrazioni e 
 
 - **Builder** (React): campi con drag & drop accessibile (`@dnd-kit/sortable`), pannello delle proprietà generato dallo schema del tipo, logica condizionale, preset delle opzioni (nazioni, province: file JSON, estendibili con un filtro), impostazioni, notifiche, traduzioni, pannelli delle integrazioni, anteprima.
 - **Registrazioni**: `@wordpress/dataviews` (la tabella del Site Editor: colonne a scelta, filtri, paginazione, azioni di massa), dettaglio con file e storico, export CSV.
-- **Capability**: `barrio_manage_forms` (agli admin) e `barrio_manage_entries` (ad admin ed editor), assegnate all'attivazione. Sostituiscono il trucco del menu diverso per gli editor.
+- **Impostazioni** (React, dalla fase 3): SMTP, template delle email (logo dalla libreria dei media, colori, footer), email di test. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
+- **Capability**: `barrio_manage_forms` (agli admin) e `barrio_manage_entries` (ad admin ed editor), assegnate dalla migrazione `0002` e non all'attivazione, così arrivano anche agli altri siti di un multisite e alle installazioni già attive. Sostituiscono il trucco del menu diverso per gli editor.
 
 ---
 
@@ -316,8 +325,8 @@ Regole:
 
 - **File**: estensioni ammesse per singolo campo, intersecate con quelle consentite da WordPress; tipo MIME rilevato dal contenuto; dimensione massima; nome casuale (`random_bytes`) senza estensione eseguibile; cartella `uploads/barrio-forms-private/` con `.htaccess`, `web.config` e `index.php` (su Nginx la protezione viene dal nome casuale, e il plugin lo segnala); download solo tramite endpoint con capability. **Mai** file base64 scritti con il nome scelto dal client.
 - Ogni rotta admin verifica le capability; ogni input passa dallo schema; ogni output è escapato; query sempre preparate.
-- **SMTP**: password definita con una costante in `wp-config.php` oppure cifrata con `sodium` (con chiave derivata dai salt di WP); mai restituita dalla REST API.
-- **Email**: header (From, Reply-To) ripuliti da a capo e validati; i merge tag nell'oggetto non possono iniettare header.
+- **SMTP**: password definita con la costante `BARRIO_SMTP_PASSWORD` in `wp-config.php` oppure cifrata con `sodium` (con chiave derivata dai salt di WP); mai restituita dalla REST API.
+- **Email**: header (From, Reply-To) ripuliti da a capo e validati; i merge tag nell'oggetto non possono iniettare header. Nei destinatari i merge tag si sostituiscono dopo aver diviso sulle virgole e ogni parte deve essere un solo indirizzo valido, quindi un valore inviato non aggiunge destinatari; i tag fissi (`{{admin_email}}`) vincono su un campo con la stessa chiave.
 - **Export CSV**: le celle che iniziano con `= + - @` si neutralizzano (CSV injection).
 - **Affidabilità**: la registrazione si salva prima di qualsiasi effetto collaterale; gli errori di notifiche e integrazioni restano nelle note; ogni notifica si può rinviare.
 - **Privacy by default**: nessun IP, user agent o referrer salvato; URL della pagina di invio senza query string né frammento (vincolo `be_url_chk`); retention configurabile; registrazione degli strumenti Privacy di WordPress con la ricerca per email tramite l'indice `field_value`. Ogni raccolta in più arriva come opzione disattivata di default.
@@ -359,12 +368,12 @@ Ogni fase si chiude con test verdi e un plugin installabile.
 | 0 | **Scheletro**: repository git, header, controllo dei requisiti, autoloader, Migrator, `wp-env` (MariaDB) in locale, MySQL 8.0 e MariaDB 10.5 in CI, PHPCS (WPCS), PHPStan livello 8 con `phpstan-wordpress`, PHPUnit, `@wordpress/scripts` (ESLint, Prettier, stylelint), CI | Il plugin si attiva su un WordPress senza altri plugin e accanto al prototipo; senza i requisiti si rifiuta di attivarsi con un messaggio chiaro; CI verde, con e senza WPGraphQL |
 | 1 | **Database** (§2) | Criteri del §2.7 |
 | 2 | **Pipeline e frontend**: tipi core, `Conditions` PHP+JS, validazione, FileStore, antispam, REST pubblico, render, blocco e shortcode, multistep | Un form creato via WP-CLI/JSON si invia, rispetta la logica condizionale e respinge file non ammessi; fixture condivise verdi in PHP e JS; ESLint e stylelint entrano in CI (prima non c'erano file da controllare) |
-| 3 | **Email**: impostazioni SMTP, email di test, notifiche multiple, merge tag (`{{campo}}`, `{{all_fields}}`…), notifiche condizionali, allegati per notifica, template globale (logo, colori, footer) | Email ricevute via SMTP; i fallimenti finiscono nelle note e si possono rinviare |
+| 3 | **Email**: impostazioni SMTP, email di test, notifiche multiple, merge tag (`{{campo}}`, `{{all_fields}}`…), notifiche condizionali, allegati per notifica, template globale (logo, colori, footer); pagina Impostazioni in React (la build di `@wordpress/scripts` entra qui e in CI) | Email ricevute via SMTP (test su Mailpit in CI); i fallimenti finiscono nelle note e si possono rinviare |
 | 4 | **Builder React** | Si crea un form completo senza toccare il JSON; il salvataggio concorrente dà `409` |
 | 5 | **Registrazioni**: DataViews, dettaglio, letto/non letto, azioni di massa, CSV, file, note, capability per gli editor | Un editor gestisce le registrazioni senza accedere al builder |
 | 6 | **Privacy**: retention, exporter/eraser | Le richieste di accesso e cancellazione dei dati dagli strumenti di WordPress trovano e cancellano le registrazioni |
 | 7 | **Traduzioni**: scheda Traduzioni del builder, lingue da WPML, email nella lingua di chi compila | Form ed email in inglese su un sito WPML; le statistiche aggregano le lingue. Senza WPML la scheda non compare, tutto funziona in una lingua e le traduzioni salvate restano nel database |
-| 8 | **API estensioni** e documentazione, tabella delle impostazioni per form delle integrazioni (migrazione `0002`), **estensione Mailchimp** e **estensione captcha** come prove | Mailchimp e captcha funzionano senza modificare il core |
+| 8 | **API estensioni** e documentazione, tabella delle impostazioni per form delle integrazioni (migrazione `0003`), **estensione Mailchimp** e **estensione captcha** come prove | Mailchimp e captcha funzionano senza modificare il core |
 | 9 | **GraphQL** con i nomi del prototipo, sulla pipeline unica (file base64 accettati ma passati dal FileStore) | Uno snapshot dei test confronta lo schema con quello del prototipo; un frontend Next.js esistente funziona senza modifiche; senza WPGraphQL il plugin non registra nulla e non dà errori |
 | 10 | **Migrazione dal prototipo**, come estensione separata da disattivare a migrazione finita (comando WP-CLI con prova a vuoto): form con lo **stesso ID**; v1 "archivio" con anche i campi presenti solo nelle vecchie registrazioni, v2 = definizione attuale; checkbox `"Label: true\|…"` → righe; file spostati nella cartella protetta; IP, user agent e referrer del prototipo non si importano (privacy by default); `_page_*` → `source_url` senza query string; Mailjet → SMTP (`in-v3.mailjet.com:587`); impostazioni MailUp e Mailchimp conservate per le estensioni; alias `[suite_barrio_form]`/`[wpb_form]` se liberi | Un sito reale passa al nuovo plugin con conteggi verificati prima e dopo |
 

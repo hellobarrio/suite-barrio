@@ -12,7 +12,8 @@ final class EntryRepository {
 
 	// Unico punto in cui si scrivono registrazioni. Qui, e non nel database, si garantisce che
 	// valori e file appartengano a campi della versione compilata (docs/database.md).
-	public static function create( Entry $entry ): int {
+	// Restituisce la registrazione salvata, con id e data: è quella che ricevono i listener.
+	public static function create( Entry $entry ): Entry {
 		global $wpdb;
 		$fields  = Db::col( $wpdb->prepare( 'SELECT id FROM %i WHERE version_id = %d', Db::table( 'form_fields' ), $entry->version_id ) );
 		$foreign = array_diff( [ ...array_keys( $entry->values ), ...array_column( $entry->files, 'field_id' ) ], array_map( 'intval', $fields ) );
@@ -20,18 +21,20 @@ final class EntryRepository {
 			throw new InvalidArgumentException( esc_html( 'Fields ' . implode( ', ', $foreign ) . " do not belong to version {$entry->version_id}." ) );
 		}
 
-		return Db::transaction(
-			static function () use ( $wpdb, $entry ): int {
-				$now = gmdate( 'Y-m-d H:i:s' );
-				$id  = Db::insert(
+		$now        = gmdate( 'Y-m-d H:i:s' );
+		$source_url = self::source_url( $entry->source_url );
+		$created_at = $entry->created_at ?? $now;
+		$id         = Db::transaction(
+			static function () use ( $wpdb, $entry, $now, $source_url, $created_at ): int {
+				$id = Db::insert(
 					Db::table( 'entries' ),
 					[
 						'form_id'    => $entry->form_id,
 						'version_id' => $entry->version_id,
 						'lang'       => $entry->lang,
 						'user_id'    => $entry->user_id,
-						'source_url' => self::source_url( $entry->source_url ),
-						'created_at' => $entry->created_at ?? $now,
+						'source_url' => $source_url,
+						'created_at' => $created_at,
 					]
 				);
 
@@ -57,6 +60,42 @@ final class EntryRepository {
 				}
 				return $id;
 			}
+		);
+		return new Entry( $entry->form_id, $entry->version_id, $entry->lang, $entry->values, $entry->files, $entry->user_id, $source_url, $created_at, $id );
+	}
+
+	public static function get( int $id ): ?Entry {
+		global $wpdb;
+		$row = Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Db::table( 'entries' ), $id ) )[0] ?? null;
+		if ( null === $row ) {
+			return null;
+		}
+
+		$values = [];
+		foreach ( Db::rows( $wpdb->prepare( 'SELECT field_id, value FROM %i WHERE entry_id = %d ORDER BY field_id, position', Db::table( 'entry_values' ), $id ) ) as $value ) {
+			$values[ (int) $value['field_id'] ][] = (string) $value['value'];
+		}
+		$files = [];
+		foreach ( Db::rows( $wpdb->prepare( 'SELECT field_id, stored_path, original_name, mime_type, size_bytes FROM %i WHERE entry_id = %d ORDER BY id', Db::table( 'entry_files' ), $id ) ) as $file ) {
+			$files[] = [
+				'field_id'      => (int) $file['field_id'],
+				'stored_path'   => (string) $file['stored_path'],
+				'original_name' => (string) $file['original_name'],
+				'mime_type'     => (string) $file['mime_type'],
+				'size_bytes'    => (int) $file['size_bytes'],
+			];
+		}
+
+		return new Entry(
+			(int) $row['form_id'],
+			(int) $row['version_id'],
+			(string) $row['lang'],
+			$values,
+			$files,
+			null === $row['user_id'] ? null : (int) $row['user_id'],
+			$row['source_url'],
+			$row['created_at'],
+			$id
 		);
 	}
 

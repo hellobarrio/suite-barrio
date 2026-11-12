@@ -29,6 +29,14 @@
 			</property>
 		</properties>
 	</rule>
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="barrio_manage_forms"/>
+				<element value="barrio_manage_entries"/>
+			</property>
+		</properties>
+	</rule>
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">

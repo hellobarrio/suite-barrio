@@ -42,7 +42,7 @@ final class EntryRepositoryTest extends WP_UnitTestCase {
 
 	public function test_stores_one_row_per_value_and_the_context(): void {
 		global $wpdb;
-		$id = EntryRepository::create(
+		$saved = EntryRepository::create(
 			$this->entry(
 				[
 					$this->field['email']  => [ 'ada@example.com' ],
@@ -52,6 +52,7 @@ final class EntryRepositoryTest extends WP_UnitTestCase {
 				source_url: 'https://example.com/contatti/?gclid=abc&email=ada@example.com#form',
 			)
 		);
+		$id    = (int) $saved->id;
 
 		$this->assertSame(
 			[ [ 'email', '0', 'ada@example.com' ], [ 'topics', '0', 'news' ], [ 'topics', '1', 'eventi' ] ],
@@ -68,13 +69,16 @@ final class EntryRepositoryTest extends WP_UnitTestCase {
 		$entry = $wpdb->get_row( $wpdb->prepare( 'SELECT lang, is_read, source_url, created_at FROM %i WHERE id = %d', Db::table( 'entries' ), $id ), ARRAY_A );
 		$this->assertSame( [ 'en', '0', 'https://example.com/contatti/' ], array_slice( array_values( (array) $entry ), 0, 3 ) );
 		$this->assertEqualsWithDelta( time(), strtotime( $entry['created_at'] . ' UTC' ), 5 );
+		// Quella restituita è quella salvata (la ricevono i listener) e get() la rilegge uguale.
+		$this->assertSame( [ 'https://example.com/contatti/', $entry['created_at'] ], [ $saved->source_url, $saved->created_at ] );
+		$this->assertEquals( $saved, EntryRepository::get( $id ) );
 	}
 
 	// Privacy by default: la query string può contenere dati personali e di tracciamento.
 	public function test_source_url_loses_query_string_and_fragment_and_fits_the_column(): void {
 		global $wpdb;
 		$url = fn( ?string $source_url ): ?string => $wpdb->get_var(
-			$wpdb->prepare( 'SELECT source_url FROM %i WHERE id = %d', Db::table( 'entries' ), EntryRepository::create( $this->entry( [], source_url: $source_url ) ) )
+			$wpdb->prepare( 'SELECT source_url FROM %i WHERE id = %d', Db::table( 'entries' ), EntryRepository::create( $this->entry( [], source_url: $source_url ) )->id )
 		);
 
 		$this->assertSame( 'https://example.com/a', $url( 'https://example.com/a#b?c' ) );
@@ -120,7 +124,7 @@ final class EntryRepositoryTest extends WP_UnitTestCase {
 		$name = 'test-' . wp_generate_password( 12, false );
 		wp_mkdir_p( FileStore::dir() );
 		file_put_contents( FileStore::dir() . "/{$name}", 'pdf' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		$id = EntryRepository::create( $this->entry( [ $this->field['email'] => [ 'ada@example.com' ] ], files: [ $this->file( $name ) ] ) );
+		$id = (int) EntryRepository::create( $this->entry( [ $this->field['email'] => [ 'ada@example.com' ] ], files: [ $this->file( $name ) ] ) )->id;
 
 		EntryRepository::delete( $id );
 
@@ -142,7 +146,7 @@ final class EntryRepositoryTest extends WP_UnitTestCase {
 		$form = FormRepository::save( $this->form->id, 1, 'Contact', [], [], new FormVersion( [ new Field( 'email', 'email', [ 'it' => [ 'label' => 'Email' ] ] ) ] ) );
 		$this->assertInstanceOf( Form::class, $form );
 		$this->assertSame( $user, $form->current->created_by );
-		$entry = EntryRepository::create( new Entry( $form->id, (int) $form->current->id, 'it', [], user_id: $user ) );
+		$entry = EntryRepository::create( new Entry( $form->id, (int) $form->current->id, 'it', [], user_id: $user ) )->id;
 
 		wp_delete_user( $user );
 

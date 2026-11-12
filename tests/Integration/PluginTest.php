@@ -14,8 +14,16 @@ final class PluginTest extends WP_UnitTestCase {
 	}
 
 	public function test_forms_module_boots_once_its_schema_is_current(): void {
-		$this->assertSame( '1', get_option( 'barrio_forms_db_version' ) );
+		$this->assertSame( '2', get_option( 'barrio_forms_db_version' ) );
 		$this->assertSame( 10, has_action( 'deleted_user', [ Module::class, 'forget_user' ] ) );
+	}
+
+	public function test_capabilities_are_assigned_by_a_migration(): void {
+		$this->assertTrue( get_role( 'administrator' )->has_cap( 'barrio_manage_forms' ) );
+		$this->assertTrue( get_role( 'administrator' )->has_cap( 'barrio_manage_entries' ) );
+		$this->assertTrue( get_role( 'editor' )->has_cap( 'barrio_manage_entries' ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_manage_forms' ) );
+		$this->assertFalse( get_role( 'author' )->has_cap( 'barrio_manage_entries' ) );
 	}
 
 	// In CI gira su MySQL 8.0 e MariaDB 10.5, le versioni minime.

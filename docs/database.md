@@ -152,4 +152,8 @@ valori dentro il JSON esiste solo su MySQL (indici multi-valore), non su MariaDB
 - **Plugin di migrazione** (WP Migrate, Duplicator): da provare a mano su un sito reale prima del passaggio in produzione.
 - **Multisite**: tabelle per sito con `$wpdb->prefix`; il Migrator parte su ogni sito alla prima richiesta.
   L'azzeramento degli utenti cancellati riguarda solo il sito corrente.
+- **Migrazioni che non toccano lo schema**: la `0002` assegna le capability ai ruoli (anche i ruoli sono dati del
+  sito, nell'opzione `{prefisso}user_roles`). Passa dal Migrator per lo stesso motivo delle tabelle: arriva una
+  volta sola su ogni sito, anche sui siti di un multisite con il plugin attivato in rete, dove l'hook di
+  attivazione parte una volta sola.
 - **Utenti cancellati**: `deleted_user` azzera `form_versions.created_by`, `entries.user_id` ed `entry_notes.user_id`.

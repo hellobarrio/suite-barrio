@@ -3,6 +3,7 @@
 namespace BarrioSuite;
 
 use BarrioSuite\Database\Migrator;
+use BarrioSuite\Mail\Smtp;
 
 final class Plugin {
 
@@ -21,6 +22,8 @@ final class Plugin {
 	}
 
 	public static function boot(): void {
+		// Per tutte le email del sito, anche con un modulo spento.
+		Smtp::boot();
 		foreach ( self::MODULES as $module => $module_class ) {
 			$migrator = new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" );
 			$error    = $migrator->run();

@@ -4,7 +4,23 @@
 		"it": { "submit_label": "Invia la richiesta", "success_message": "Grazie! Ti risponderemo entro due giorni lavorativi." },
 		"en": { "submit_label": "Send request", "success_message": "Thank you! We will reply within two working days." }
 	},
-	"notifications": [],
+	"notifications": [
+		{
+			"name": "Admin", "recipients": "{{admin_email}}", "reply_to": "{{email}}", "attach_files": true,
+			"i18n": {
+				"it": { "subject": "Nuova richiesta da {{name}}", "body": "{{all_fields}}\n\nPagina: {{source_url}}" },
+				"en": { "subject": "New request from {{name}}", "body": "{{all_fields}}\n\nPage: {{source_url}}" }
+			}
+		},
+		{
+			"name": "Conferma del preventivo", "recipients": "{{email}}",
+			"conditions": { "action": "show", "logic": "all", "rules": [ { "field": "request", "operator": "=", "value": "quote" } ] },
+			"i18n": {
+				"it": { "subject": "Abbiamo ricevuto la tua richiesta", "heading": "Grazie, {{name}}!", "body": "Ti invieremo il preventivo entro due giorni lavorativi.\n\n{{all_fields}}" },
+				"en": { "subject": "We received your request", "heading": "Thank you, {{name}}!", "body": "We will send you a quote within two working days.\n\n{{all_fields}}" }
+			}
+		}
+	],
 	"fields": [
 		{
 			"key": "name", "type": "text", "required": true,
