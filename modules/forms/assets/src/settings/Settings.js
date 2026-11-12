@@ -1,24 +1,22 @@
-// Pagina Impostazioni: SMTP, template delle email ed email di test. Legge e salva con
+// Scheda Impostazioni: SMTP, template delle email ed email di test. Legge e salva con
 // GET/PUT /barrio/v1/settings; la password SMTP non torna mai dal server, se ne conosce solo lo stato.
 import apiFetch from '@wordpress/api-fetch';
-import {
-	BaseControl,
-	Button,
-	Card,
-	CardBody,
-	CardHeader,
-	ColorPalette,
-	Notice,
-	SelectControl,
-	Spinner,
-	TextControl,
-	TextareaControl,
-} from '@wordpress/components';
-import { createRoot, useEffect, useState } from '@wordpress/element';
+import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { MediaUpload } from '@wordpress/media-utils';
 
-const STACK = { display: 'grid', gap: '16px' };
+import {
+	Bar,
+	Card,
+	Group,
+	Loading,
+	Lucide,
+	Notice,
+	Select,
+	Text,
+	useUnsavedWarning,
+} from '../admin/ui.js';
+import { errorMessage } from '../builder/model.js';
 
 const PASSWORD_HELP = {
 	none: '',
@@ -33,137 +31,103 @@ const PASSWORD_HELP = {
 	),
 };
 
-// Le props che tolgono gli stili deprecati dei controlli di @wordpress/components.
-const control = { __nextHasNoMarginBottom: true, __next40pxDefaultSize: true };
-
-function Section( { title, children } ) {
-	return (
-		<Card>
-			<CardHeader>
-				<h2 style={ { margin: 0 } }>{ title }</h2>
-			</CardHeader>
-			<CardBody>
-				<div style={ STACK }>{ children }</div>
-			</CardBody>
-		</Card>
-	);
-}
-
-function Color( { label, value, onChange } ) {
-	return (
-		<BaseControl __nextHasNoMarginBottom>
-			<BaseControl.VisualLabel>{ label }</BaseControl.VisualLabel>
-			<ColorPalette
-				colors={ [] }
-				value={ value }
-				onChange={ ( color ) => color && onChange( color ) }
-				clearable={ false }
-			/>
-		</BaseControl>
-	);
-}
-
-function SettingsPage() {
+export function Settings() {
 	const [ saved, setSaved ] = useState( null );
 	const [ smtp, setSmtp ] = useState( null );
 	const [ email, setEmail ] = useState( null );
 	const [ password, setPassword ] = useState( '' );
+	const [ showPassword, setShowPassword ] = useState( false );
 	const [ testTo, setTestTo ] = useState( '' );
 	const [ notice, setNotice ] = useState( null );
-	const [ busy, setBusy ] = useState( false );
-
-	const load = ( data ) => {
-		setSaved( data );
-		setSmtp( data.smtp );
-		setEmail( data.email );
-		setPassword( '' );
-	};
-	const fail = ( error ) =>
-		setNotice( { status: 'error', message: error.message } );
+	const [ busy, setBusy ] = useState( null );
 
 	useEffect( () => {
-		apiFetch( { path: '/barrio/v1/settings' } ).then( load ).catch( fail );
+		apiFetch( { path: '/barrio/v1/settings' } )
+			.then( ( data ) => {
+				setSaved( data );
+				setSmtp( data.smtp );
+				setEmail( data.email );
+			} )
+			.catch( ( error ) =>
+				setNotice( { status: 'error', message: errorMessage( error ) } )
+			);
 	}, [] );
 
-	if ( ! saved ) {
-		return notice ? (
-			<Notice status="error" isDismissible={ false }>
-				{ notice.message }
-			</Notice>
-		) : (
-			<Spinner />
-		);
-	}
-
-	// L'email di test usa le impostazioni salvate: con modifiche in sospeso sarebbe fuorviante.
 	const dirty =
 		'' !== password ||
 		JSON.stringify( { smtp, email } ) !==
-			JSON.stringify( { smtp: saved.smtp, email: saved.email } );
+			JSON.stringify( { smtp: saved?.smtp, email: saved?.email } );
+	useUnsavedWarning( dirty );
+
+	if ( ! saved ) {
+		return notice ? <Notice notice={ notice } /> : <Loading />;
+	}
+
 	const setSmtpField = ( key ) => ( value ) =>
 		setSmtp( { ...smtp, [ key ]: value } );
 	const setEmailField = ( key ) => ( value ) =>
 		setEmail( { ...email, [ key ]: value } );
-
-	const request = ( options, onSuccess ) => {
-		setBusy( true );
+	const request = ( kind, options, then ) => {
+		setBusy( kind );
 		setNotice( null );
 		apiFetch( options )
 			.then( ( data ) =>
-				setNotice( { status: 'success', message: onSuccess( data ) } )
+				setNotice( { status: 'success', message: then( data ) } )
 			)
-			.catch( fail )
-			.finally( () => setBusy( false ) );
+			.catch( ( error ) =>
+				setNotice( { status: 'error', message: errorMessage( error ) } )
+			)
+			.finally( () => setBusy( null ) );
 	};
 	const save = () =>
 		request(
+			'save',
 			{
 				path: '/barrio/v1/settings',
 				method: 'PUT',
 				data: { smtp, email, ...( password && { password } ) },
 			},
-			( data ) => {
-				load( data );
+			( response ) => {
+				setSaved( response );
+				setSmtp( response.smtp );
+				setEmail( response.email );
+				setPassword( '' );
 				return __( 'Settings saved.', 'barrio-suite' );
 			}
 		);
-	const sendTest = () =>
-		request(
-			{
-				path: '/barrio/v1/settings/test-email',
-				method: 'POST',
-				data: testTo ? { to: testTo } : {},
-			},
-			( data ) => data.message
-		);
 
 	return (
-		<div style={ { ...STACK, gap: '24px', maxWidth: '720px' } }>
-			{ notice && (
-				<Notice
-					status={ notice.status }
-					onRemove={ () => setNotice( null ) }
+		<div className="barrio-stack">
+			<Bar title={ __( 'Email settings', 'barrio-suite' ) }>
+				<button
+					type="button"
+					className="barrio-button is-primary"
+					disabled={ !! busy || ! dirty }
+					onClick={ save }
 				>
-					{ notice.message }
-				</Notice>
-			) }
-
-			<Section title={ __( 'SMTP', 'barrio-suite' ) }>
-				<p style={ { margin: 0 } }>
-					{ __(
-						'Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail.',
-						'barrio-suite'
-					) }
-				</p>
-				<TextControl
-					{ ...control }
+					<Lucide name="save" />
+					{ 'save' === busy
+						? __( 'Saving…', 'barrio-suite' )
+						: __( 'Save', 'barrio-suite' ) }
+				</button>
+			</Bar>
+			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
+			<Card
+				className="barrio-wide"
+				icon="email-alt"
+				title="SMTP"
+				description={ __(
+					'Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail.',
+					'barrio-suite'
+				) }
+			>
+				<Text
 					label={ __( 'Host', 'barrio-suite' ) }
 					placeholder="smtp.example.com"
 					value={ smtp.host }
 					onChange={ setSmtpField( 'host' ) }
 				/>
-				<TextControl
-					{ ...control }
+				<Text
 					label={ __( 'Port', 'barrio-suite' ) }
 					type="number"
 					min={ 1 }
@@ -173,8 +137,7 @@ function SettingsPage() {
 						setSmtpField( 'port' )( Number( value ) )
 					}
 				/>
-				<SelectControl
-					{ ...control }
+				<Select
 					label={ __( 'Encryption', 'barrio-suite' ) }
 					value={ smtp.encryption }
 					options={ [
@@ -184,8 +147,7 @@ function SettingsPage() {
 					] }
 					onChange={ setSmtpField( 'encryption' ) }
 				/>
-				<TextControl
-					{ ...control }
+				<Text
 					label={ __( 'Username', 'barrio-suite' ) }
 					help={ __(
 						'Leave empty if the server does not require authentication.',
@@ -195,10 +157,9 @@ function SettingsPage() {
 					value={ smtp.username }
 					onChange={ setSmtpField( 'username' ) }
 				/>
-				<TextControl
-					{ ...control }
+				<Text
 					label={ __( 'Password', 'barrio-suite' ) }
-					type="password"
+					type={ showPassword ? 'text' : 'password' }
 					autoComplete="new-password"
 					help={ PASSWORD_HELP[ saved.password_status ] }
 					placeholder={
@@ -207,9 +168,19 @@ function SettingsPage() {
 					disabled={ 'constant' === saved.password_status }
 					value={ password }
 					onChange={ setPassword }
+					addon={
+						<button
+							type="button"
+							className="barrio-button"
+							onClick={ () => setShowPassword( ! showPassword ) }
+						>
+							{ showPassword
+								? __( 'Hide', 'barrio-suite' )
+								: __( 'Show', 'barrio-suite' ) }
+						</button>
+					}
 				/>
-				<TextControl
-					{ ...control }
+				<Text
 					label={ __( 'From email', 'barrio-suite' ) }
 					help={ __(
 						'The sender of every email the site sends. SMTP servers usually accept only the addresses of their own domain.',
@@ -219,78 +190,79 @@ function SettingsPage() {
 					value={ smtp.from_email }
 					onChange={ setSmtpField( 'from_email' ) }
 				/>
-				<TextControl
-					{ ...control }
+				<Text
 					label={ __( 'From name', 'barrio-suite' ) }
 					value={ smtp.from_name }
 					onChange={ setSmtpField( 'from_name' ) }
 				/>
-			</Section>
+			</Card>
 
-			<Section title={ __( 'Email template', 'barrio-suite' ) }>
-				<BaseControl
+			<Card
+				className="barrio-wide"
+				icon="art"
+				title={ __( 'Email template', 'barrio-suite' ) }
+				description={ __(
+					'Logo, colors and footer of the form notifications and of the test email.',
+					'barrio-suite'
+				) }
+			>
+				<Group
+					label={ __( 'Logo', 'barrio-suite' ) }
 					help={ __(
 						'Shown at the top of form emails, 48 pixels high. Without a logo the site name is shown.',
 						'barrio-suite'
 					) }
-					__nextHasNoMarginBottom
 				>
-					<BaseControl.VisualLabel>
-						{ __( 'Logo', 'barrio-suite' ) }
-					</BaseControl.VisualLabel>
 					{ email.logo && (
 						<img
+							className="barrio-logo"
 							src={ email.logo }
 							alt=""
-							style={ {
-								display: 'block',
-								height: '48px',
-								marginBottom: '8px',
-							} }
 						/>
 					) }
-					<div style={ { display: 'flex', gap: '8px' } }>
+					<div className="barrio-row">
 						<MediaUpload
 							allowedTypes={ [ 'image' ] }
 							onSelect={ ( media ) =>
 								setEmailField( 'logo' )( media.url )
 							}
 							render={ ( { open } ) => (
-								<Button
-									variant="secondary"
+								<button
+									type="button"
+									className="barrio-button"
 									onClick={ open }
-									__next40pxDefaultSize
 								>
 									{ email.logo
 										? __( 'Replace logo', 'barrio-suite' )
 										: __( 'Choose logo', 'barrio-suite' ) }
-								</Button>
+								</button>
 							) }
 						/>
 						{ email.logo && (
-							<Button
-								variant="tertiary"
-								isDestructive
+							<button
+								type="button"
+								className="barrio-button is-danger"
 								onClick={ () => setEmailField( 'logo' )( '' ) }
-								__next40pxDefaultSize
 							>
 								{ __( 'Remove', 'barrio-suite' ) }
-							</Button>
+							</button>
 						) }
 					</div>
-				</BaseControl>
-				<Color
+				</Group>
+				<Text
 					label={ __( 'Accent color', 'barrio-suite' ) }
+					type="color"
 					value={ email.accent_color }
 					onChange={ setEmailField( 'accent_color' ) }
 				/>
-				<Color
+				<Text
 					label={ __( 'Background color', 'barrio-suite' ) }
+					type="color"
 					value={ email.background_color }
 					onChange={ setEmailField( 'background_color' ) }
 				/>
-				<TextareaControl
-					__nextHasNoMarginBottom
+				<Text
+					multiline
 					label={ __( 'Footer', 'barrio-suite' ) }
 					help={ __(
 						'Shown at the bottom of form emails; links are allowed. Leave empty to show the site name.',
@@ -299,23 +271,18 @@ function SettingsPage() {
 					value={ email.footer }
 					onChange={ setEmailField( 'footer' ) }
 				/>
-			</Section>
+			</Card>
 
-			<div>
-				<Button
-					variant="primary"
-					onClick={ save }
-					isBusy={ busy }
-					disabled={ busy || ! dirty }
-					__next40pxDefaultSize
-				>
-					{ __( 'Save', 'barrio-suite' ) }
-				</Button>
-			</div>
-
-			<Section title={ __( 'Test email', 'barrio-suite' ) }>
-				<TextControl
-					{ ...control }
+			<Card
+				className="barrio-wide"
+				icon="email"
+				title={ __( 'Test email', 'barrio-suite' ) }
+				description={ __(
+					'Sends an email with the saved settings and the template of the notifications.',
+					'barrio-suite'
+				) }
+			>
+				<Text
 					label={ __( 'Send to', 'barrio-suite' ) }
 					help={
 						dirty
@@ -333,20 +300,26 @@ function SettingsPage() {
 					onChange={ setTestTo }
 				/>
 				<div>
-					<Button
-						variant="secondary"
-						onClick={ sendTest }
-						disabled={ busy || dirty }
-						__next40pxDefaultSize
+					<button
+						type="button"
+						className="barrio-button"
+						disabled={ !! busy || dirty }
+						onClick={ () =>
+							request(
+								'test',
+								{
+									path: '/barrio/v1/settings/test-email',
+									method: 'POST',
+									data: testTo ? { to: testTo } : {},
+								},
+								( data ) => data.message
+							)
+						}
 					>
 						{ __( 'Send test email', 'barrio-suite' ) }
-					</Button>
+					</button>
 				</div>
-			</Section>
+			</Card>
 		</div>
 	);
 }
-
-createRoot( document.getElementById( 'barrio-settings' ) ).render(
-	<SettingsPage />
-);

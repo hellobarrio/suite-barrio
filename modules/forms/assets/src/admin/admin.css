@@ -1,0 +1,983 @@
+/*
+ * Pagine admin di Barrio Suite: card bianche, bottoni scuri, tabelle con
+ * ricerca. .barrio-typegrid è fuori da .barrio-admin: i popover finiscono in
+ * fondo al body.
+ */
+
+.barrio-admin {
+	--barrio-ink: #1d2327;
+	--barrio-text: #3c434a;
+	--barrio-muted: #646970;
+	--barrio-line: #e2e4e7;
+	--barrio-soft: #f6f7f7;
+	--barrio-accent: #2271b1;
+	--barrio-danger: #d63638;
+	--barrio-radius: 12px;
+	--barrio-radius-small: 6px;
+	--barrio-control: 36px;
+
+	/* I componenti di WordPress (schede, modale) hanno il colore dei bottoni. */
+	--wp-admin-theme-color: #1d2327;
+	--wp-admin-theme-color-darker-10: #000;
+	--wp-admin-theme-color-darker-20: #000;
+
+	max-width: 1280px;
+	color: var(--barrio-text);
+	font-size: 14px;
+}
+
+/* Intestazione e schede principali */
+
+.barrio-header {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	padding: 12px 0 8px;
+}
+
+.barrio-header__logo {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 48px;
+	height: 48px;
+	border-radius: 12px;
+	background: var(--barrio-ink);
+	color: #fff;
+}
+
+.barrio-admin .barrio-header h1 {
+	margin: 0;
+	padding: 0;
+	color: var(--barrio-ink);
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.barrio-header h1 span {
+	margin-left: 6px;
+	color: var(--barrio-muted);
+	font-size: 16px;
+	font-weight: 400;
+}
+
+.barrio-header p {
+	margin: 2px 0 0;
+	color: var(--barrio-muted);
+	font-size: 14px;
+}
+
+.barrio-nav {
+	display: flex;
+	gap: 8px;
+	margin: 12px 0 20px;
+	border-bottom: 1px solid var(--barrio-line);
+}
+
+.barrio-nav a {
+	margin-bottom: -1px;
+	padding: 10px 14px;
+	border-bottom: 2px solid transparent;
+	color: var(--barrio-muted);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.barrio-nav a:hover,
+.barrio-nav a[aria-current="page"] {
+	color: var(--barrio-ink);
+}
+
+.barrio-nav a[aria-current="page"] {
+	border-bottom-color: var(--barrio-ink);
+}
+
+/* Disposizione */
+
+.barrio-stack {
+	display: grid;
+	gap: 16px;
+}
+
+.barrio-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.barrio-row.is-nowrap {
+	flex-wrap: nowrap;
+}
+
+.barrio-loading {
+	display: grid;
+	place-items: center;
+	padding: 48px;
+}
+
+/* Bottoni */
+
+.barrio-button {
+	display: inline-flex;
+	box-sizing: border-box;
+	gap: 6px;
+	align-items: center;
+	justify-content: center;
+	height: var(--barrio-control);
+	padding: 0 14px;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius-small);
+	background: #fff;
+	color: var(--barrio-ink);
+	font: inherit;
+	font-weight: 500;
+	line-height: 1;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+/* Icone da 16px, come in shadcn. */
+.barrio-button .dashicons,
+.barrio-icon-button .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+}
+
+.barrio-button:hover {
+	background: var(--barrio-soft);
+	color: var(--barrio-ink);
+}
+
+.barrio-button.is-primary {
+	border-color: var(--barrio-ink);
+	background: var(--barrio-ink);
+	color: #fff;
+}
+
+.barrio-button.is-primary:hover {
+	background: #000;
+	color: #fff;
+}
+
+.barrio-button.is-danger {
+	border-color: #f0b8b8;
+	color: var(--barrio-danger);
+}
+
+.barrio-button.is-danger:hover {
+	background: #fcf0f1;
+}
+
+.barrio-button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.barrio-icon-button {
+	display: inline-grid;
+	box-sizing: border-box;
+	flex: none;
+	place-items: center;
+	width: var(--barrio-control);
+	height: var(--barrio-control);
+	padding: 0;
+	border: 0;
+	border-radius: var(--barrio-radius-small);
+	background: transparent;
+	color: var(--barrio-muted);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.barrio-icon-button:hover {
+	background: var(--barrio-soft);
+	color: var(--barrio-ink);
+}
+
+.barrio-icon-button.is-danger:hover {
+	background: #fcf0f1;
+	color: var(--barrio-danger);
+}
+
+.barrio-icon-button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.barrio-admin .barrio-button:focus-visible,
+.barrio-admin .barrio-icon-button:focus-visible,
+.barrio-admin .barrio-handle:focus-visible,
+.barrio-admin .barrio-chip:focus-visible,
+.barrio-admin .barrio-fieldcard__title:focus-visible,
+.barrio-nav a:focus-visible,
+.barrio-table th button:focus-visible {
+	outline: 2px solid var(--barrio-accent);
+	outline-offset: 2px;
+	box-shadow: none;
+}
+
+/* Campi */
+
+.barrio-field {
+	display: grid;
+	gap: 6px;
+}
+
+.barrio-field__label {
+	color: var(--barrio-ink);
+	font-weight: 500;
+}
+
+.barrio-field__control {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+}
+
+.barrio-field__help {
+	margin: 0;
+	color: var(--barrio-muted);
+	font-size: 12px;
+	font-weight: 400;
+}
+
+/*
+ * Più specifico degli stili di WordPress per input e select. Solo
+ * background-color: la freccia delle select di WordPress è nello sfondo.
+ */
+.barrio-admin .barrio-input {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: none;
+	height: var(--barrio-control);
+	min-height: 0;
+	padding: 0 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: var(--barrio-radius-small);
+	background-color: #fff;
+	box-shadow: none;
+	color: var(--barrio-ink);
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+.barrio-admin select.barrio-input {
+	padding-right: 32px;
+}
+
+.barrio-admin textarea.barrio-input {
+	height: auto;
+	min-height: 80px;
+	padding: 8px 12px;
+}
+
+.barrio-admin input[type="color"].barrio-input {
+	width: 56px;
+	padding: 4px;
+}
+
+.barrio-admin .barrio-input:focus {
+	border-color: var(--barrio-ink);
+	outline: none;
+	box-shadow: 0 0 0 1px var(--barrio-ink);
+}
+
+.barrio-admin .barrio-input:disabled {
+	border-color: var(--barrio-line);
+	background-color: var(--barrio-soft);
+	color: var(--barrio-muted);
+}
+
+.barrio-check {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+}
+
+.barrio-admin .barrio-check input {
+	margin: 2px 0 0;
+}
+
+.barrio-check label {
+	color: var(--barrio-ink);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.barrio-check .barrio-field__help {
+	margin-top: 2px;
+}
+
+/* Etichetta a sinistra e controllo a destra, nelle card delle impostazioni. */
+.barrio-wide .barrio-field {
+	grid-template-columns: minmax(140px, 1fr) 2fr;
+	align-items: start;
+}
+
+.barrio-wide .barrio-field__label {
+	padding-top: 8px;
+}
+
+@media (max-width: 782px) {
+
+	.barrio-wide .barrio-field {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Card, avvisi, etichette */
+
+.barrio-card {
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius);
+	background: #fff;
+	box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.barrio-card__header {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	padding: 12px 20px;
+	border-bottom: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius) var(--barrio-radius) 0 0;
+	background: var(--barrio-soft);
+}
+
+.barrio-card__icon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: var(--barrio-radius-small);
+	background: var(--barrio-ink);
+	color: #fff;
+}
+
+.barrio-card__icon .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+}
+
+.barrio-admin .barrio-card__title {
+	margin: 0;
+	color: var(--barrio-ink);
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.barrio-card__actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin-left: auto;
+}
+
+.barrio-card__body {
+	display: grid;
+	gap: 16px;
+	padding: 20px;
+}
+
+.barrio-card__description {
+	margin: 0;
+	color: var(--barrio-muted);
+}
+
+.barrio-notice {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	padding: 10px 12px 10px 16px;
+	border: 1px solid;
+	border-radius: var(--barrio-radius-small);
+}
+
+.barrio-notice p {
+	flex: 1;
+	margin: 0;
+}
+
+.barrio-notice.is-success {
+	border-color: #b8e6bf;
+	background: #edfaef;
+	color: #1e4620;
+}
+
+.barrio-notice.is-error {
+	border-color: #f0b8b8;
+	background: #fcf0f1;
+	color: #5f1414;
+}
+
+.barrio-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: #f0f0f1;
+	color: var(--barrio-muted);
+	font-size: 12px;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.barrio-badge.is-success {
+	background: #edfaef;
+	color: #1a7f37;
+}
+
+.barrio-badge.is-warning {
+	background: #fcf9e8;
+	color: #7a5c00;
+}
+
+.barrio-chip {
+	display: inline-flex;
+	box-sizing: border-box;
+	gap: 6px;
+	align-items: center;
+	height: var(--barrio-control);
+	padding: 0 12px;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius-small);
+	background: var(--barrio-soft);
+	color: var(--barrio-ink);
+	font-family: Menlo, Consolas, monospace;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+/* Titolo di sezione a sinistra e le sue azioni ("Aggiungi…") a destra. */
+.barrio-section-head {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	justify-content: space-between;
+	min-height: var(--barrio-control);
+}
+
+.barrio-admin .barrio-section-head :is(h2, h3) {
+	margin: 0;
+	color: var(--barrio-muted);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* Dentro una card le sezioni sono separate da una linea. */
+.barrio-card__body .barrio-section-head {
+	padding-top: 12px;
+	border-top: 1px solid var(--barrio-line);
+}
+
+/*
+ * La barra in alto di ogni pagina (salvataggio, ricerca) resta visibile
+ * mentre si scorre, staccata di 16px dalla barra di WordPress (32px).
+ */
+.barrio-bar {
+	display: flex;
+	position: sticky;
+	z-index: 20;
+	top: 48px;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center;
+	padding: 10px 12px 10px 16px;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 6%);
+}
+
+.barrio-bar__end {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin-left: auto;
+}
+
+.barrio-admin .barrio-bar__title {
+	margin: 0;
+	color: var(--barrio-ink);
+	font-size: 16px;
+	font-weight: 600;
+}
+
+@media (max-width: 782px) {
+
+	.barrio-bar {
+		top: 62px;
+	}
+}
+
+/* Qui la barra di WordPress scorre via con la pagina. */
+@media (max-width: 600px) {
+
+	.barrio-bar {
+		top: 16px;
+	}
+}
+
+/*
+ * Pagina a tutta altezza, come un'app: senza il footer di WordPress il pannello
+ * del builder arriva a 16px dal fondo anche a fine pagina.
+ */
+.wp-admin #wpbody-content {
+	padding-bottom: 16px;
+}
+
+#wpfooter {
+	display: none;
+}
+
+/* Tabelle */
+
+.barrio-search {
+	position: relative;
+	width: 260px;
+}
+
+.barrio-search .dashicons {
+	position: absolute;
+	top: 50%;
+	left: 10px;
+	width: 16px;
+	height: 16px;
+	color: var(--barrio-muted);
+	font-size: 16px;
+	transform: translateY(-50%);
+	pointer-events: none;
+}
+
+.barrio-admin .barrio-search .barrio-input {
+	padding-left: 34px;
+}
+
+.barrio-table__card {
+	overflow-x: auto;
+}
+
+.barrio-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.barrio-table th {
+	padding: 10px 16px;
+	border-bottom: 1px solid var(--barrio-line);
+	background: var(--barrio-soft);
+	color: var(--barrio-muted);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-align: left;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.barrio-table th:first-child {
+	border-top-left-radius: var(--barrio-radius);
+}
+
+.barrio-table th:last-child {
+	border-top-right-radius: var(--barrio-radius);
+}
+
+.barrio-table th button {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	letter-spacing: inherit;
+	text-transform: inherit;
+	cursor: pointer;
+}
+
+.barrio-table th button:hover,
+.barrio-table th[aria-sort] {
+	color: var(--barrio-ink);
+}
+
+.barrio-table th svg {
+	flex: none;
+}
+
+.barrio-table td {
+	padding: 10px 16px;
+	border-bottom: 1px solid var(--barrio-line);
+	vertical-align: middle;
+}
+
+.barrio-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.barrio-table tbody tr:hover td {
+	background: #fafafa;
+}
+
+.barrio-table .is-narrow {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.barrio-table td.is-end {
+	text-align: right;
+}
+
+.barrio-table__empty {
+	padding: 32px 16px;
+	color: var(--barrio-muted);
+	text-align: center;
+}
+
+.barrio-table__title {
+	color: var(--barrio-accent);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.barrio-table__footer {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 8px 16px;
+	border-top: 1px solid var(--barrio-line);
+	color: var(--barrio-muted);
+	font-size: 13px;
+}
+
+.barrio-table__footer > span:first-child {
+	margin-right: auto;
+}
+
+/* Builder */
+
+.barrio-builder {
+	display: grid;
+	gap: 16px;
+}
+
+.barrio-admin .barrio-builder__name {
+	flex: 1 1 240px;
+	width: auto;
+	border-color: transparent;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.barrio-admin .barrio-builder__name:hover {
+	border-color: var(--barrio-line);
+}
+
+.barrio-admin .components-tab-panel__tabs {
+	margin-bottom: 16px;
+	border-bottom: 1px solid var(--barrio-line);
+}
+
+.barrio-admin .components-tab-panel__tabs-item {
+	height: 40px;
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.barrio-fields {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 380px;
+	gap: 20px;
+	align-items: start;
+}
+
+@media (max-width: 1100px) {
+
+	.barrio-fields {
+		grid-template-columns: 1fr;
+	}
+}
+
+.barrio-fields > div {
+	display: grid;
+	gap: 12px;
+	align-content: start;
+}
+
+.barrio-fields__list {
+	display: grid;
+	gap: 10px;
+	padding: 12px;
+	border: 2px dashed var(--barrio-line);
+	border-radius: 14px;
+}
+
+.barrio-fields__empty {
+	padding: 32px;
+	color: var(--barrio-muted);
+	text-align: center;
+}
+
+.barrio-fieldcard {
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius);
+	background: #fff;
+	cursor: pointer;
+}
+
+.barrio-fieldcard:hover {
+	border-color: #c3c4c7;
+}
+
+.barrio-fieldcard.is-selected {
+	border-color: var(--barrio-ink);
+	box-shadow: 0 0 0 1px var(--barrio-ink);
+}
+
+.barrio-fieldcard__head {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 6px 6px 6px 4px;
+	border-bottom: 1px solid var(--barrio-line);
+}
+
+.barrio-fieldcard__title {
+	overflow: hidden;
+	flex: 1;
+	min-width: 0;
+	padding: 4px;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var(--barrio-ink);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	text-align: left;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.barrio-required {
+	margin-left: 3px;
+	color: var(--barrio-danger);
+}
+
+.barrio-fieldcard__preview {
+	padding: 10px 14px 14px;
+	pointer-events: none;
+}
+
+.barrio-handle {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 24px;
+	height: var(--barrio-control);
+	padding: 0;
+	border: 0;
+	border-radius: var(--barrio-radius-small);
+	background: none;
+	color: var(--barrio-muted);
+	cursor: grab;
+	touch-action: none;
+}
+
+.barrio-handle:hover {
+	background: var(--barrio-soft);
+	color: var(--barrio-ink);
+}
+
+.barrio-preview-choices {
+	display: grid;
+	gap: 6px;
+}
+
+.barrio-preview-choices > span {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.barrio-preview-note {
+	padding: 12px;
+	border: 1px dashed #c3c4c7;
+	border-radius: var(--barrio-radius-small);
+	color: var(--barrio-muted);
+	text-align: center;
+}
+
+.barrio-preview-break {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	color: var(--barrio-muted);
+	font-size: 13px;
+}
+
+.barrio-preview-break::before,
+.barrio-preview-break::after {
+	flex: 1;
+	border-top: 2px dashed var(--barrio-line);
+	content: "";
+}
+
+/*
+ * Il pannello resta visibile mentre si scorre: 16px sotto la barra del builder
+ * (48px + 58px) e 16px sopra il fondo. Se è più lungo scorre dentro, senza
+ * barra di scorrimento e senza trascinare la pagina quando arriva in fondo.
+ */
+.barrio-panel {
+	box-sizing: border-box;
+	position: sticky;
+	top: 122px;
+	overflow-y: auto;
+	max-height: calc(100vh - 138px);
+	overscroll-behavior: none;
+	scrollbar-width: none;
+}
+
+.barrio-choices {
+	display: grid;
+	gap: 6px;
+}
+
+.barrio-choice {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+/* Campo e rimozione sulla prima riga, operatore e valore sulla seconda. */
+.barrio-rule {
+	display: grid;
+	grid-template-columns: 1fr 1fr var(--barrio-control);
+	gap: 6px;
+	align-items: center;
+	padding: 10px;
+	border-radius: var(--barrio-radius-small);
+	background: var(--barrio-soft);
+}
+
+.barrio-rule > :first-child {
+	grid-column: 1 / 3;
+}
+
+.barrio-merge-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.barrio-merge-tags code {
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: var(--barrio-soft);
+	font-size: 12px;
+}
+
+.barrio-logo {
+	height: 48px;
+}
+
+/*
+ * Nel modale, fuori da .barrio-admin: niente variabili. WordPress mostra la
+ * linea sotto l'intestazione solo dopo aver scorso; qui c'è sempre.
+ */
+.barrio-preview-modal .components-modal__header {
+	border-bottom-color: #dbdbdb;
+}
+
+.barrio-preview-modal .components-modal__content {
+	padding-top: 24px;
+}
+
+.barrio-preview-modal .barrio-stack > * {
+	margin: 0;
+}
+
+.barrio-preview-frame {
+	display: block;
+	box-sizing: content-box;
+	width: 100%;
+	border: 1px solid #e2e4e7;
+	border-radius: 8px;
+}
+
+/* Ciò che si porta in vista non finisce sotto le barre sticky. */
+.barrio-scroll-target {
+	scroll-margin: 122px 0 16px;
+}
+
+/* Popover "Aggiungi campo" */
+
+.barrio-typegrid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(170px, 1fr));
+	gap: 2px;
+	padding: 8px;
+}
+
+.barrio-typegrid button {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	padding: 4px 8px 4px 4px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	color: #1d2327;
+	font: inherit;
+	font-size: 13px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.barrio-typegrid button:hover,
+.barrio-typegrid button:focus-visible {
+	outline: none;
+	background: #f6f7f7;
+}
+
+.barrio-typegrid .dashicons {
+	width: 28px;
+	height: 28px;
+	border-radius: 6px;
+	background: #f0f0f1;
+	font-size: 16px;
+	line-height: 28px;
+	text-align: center;
+}
+
+/* Menu a tendina (popover, fuori da .barrio-admin). */
+.barrio-menu {
+	min-width: 200px;
+	padding: 4px;
+}
+
+.barrio-email-meta {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 6px 16px;
+}
+
+.barrio-email-meta dt {
+	color: #646970;
+	font-weight: 600;
+}
+
+.barrio-email-meta dd {
+	margin: 0;
+}

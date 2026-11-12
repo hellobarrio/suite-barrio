@@ -5,8 +5,9 @@
  *     npm run form -- dev/example-form.json
  *     npm run seed -- --entries=100000 [--forms=5]
  *
- * Il primo crea un form da un file JSON (finché non c'è il builder); il secondo genera form e
- * registrazioni realistiche per misurare le query (docs/database.md).
+ * Il primo crea un form da un file JSON nel formato del builder, passando dalla sua REST (serve
+ * --user, che npm run form imposta); il secondo genera form e registrazioni realistiche per
+ * misurare le query (docs/database.md).
  */
 
 use BarrioSuite\Database\Db;
@@ -18,34 +19,20 @@ use BarrioSuite\Forms\Model\Notification;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 
-// Il JSON ha la forma dei modelli: title, i18n, notifications e fields (key, type, required, config,
-// conditions, i18n). La validazione è quella di FormRepository, come per ogni altra scrittura.
 WP_CLI::add_command(
 	'barrio forms create',
 	static function ( array $args ): void {
-		$data = json_decode( (string) file_get_contents( $args[0] ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		if ( ! is_array( $data ) ) {
-			WP_CLI::error( "{$args[0]} is not valid JSON." );
+		$request = new WP_REST_Request( 'POST', '/barrio/v1/forms' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body( (string) file_get_contents( $args[0] ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$response = rest_do_request( $request );
+		if ( $response->is_error() ) {
+			$error = $response->as_error();
+			// Gli errori di validazione hanno i dettagli per campo nei dati.
+			WP_CLI::error( $error->get_error_message() . ' ' . wp_json_encode( $error->get_error_data()['params'] ?? '' ) );
 		}
-		try {
-			$form = FormRepository::create(
-				$data['title'],
-				$data['i18n'] ?? [],
-				array_map(
-					static fn( array $n ): Notification => new Notification( $n['name'], $n['recipients'], $n['i18n'], $n['reply_to'] ?? null, $n['enabled'] ?? true, $n['attach_files'] ?? false, $n['conditions'] ?? null ),
-					$data['notifications'] ?? []
-				),
-				new FormVersion(
-					array_map(
-						static fn( array $f ): Field => new Field( $f['key'], $f['type'], $f['i18n'], $f['required'] ?? false, $f['config'] ?? [], $f['conditions'] ?? null ),
-						$data['fields']
-					)
-				)
-			);
-		} catch ( InvalidArgumentException $e ) {
-			WP_CLI::error( $e->getMessage() );
-		}
-		WP_CLI::success( "Form {$form->id} created: [barrio_form id=\"{$form->id}\"]" );
+		$id = $response->get_data()['id'];
+		WP_CLI::success( "Form {$id} created: [barrio_form id=\"{$id}\"]" );
 	}
 );
 

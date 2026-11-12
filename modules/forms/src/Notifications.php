@@ -3,7 +3,9 @@
 namespace BarrioSuite\Forms;
 
 use BarrioSuite\Forms\Model\Entry;
+use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
+use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Model\NoteLevel;
 use BarrioSuite\Forms\Model\Notification;
 use BarrioSuite\Forms\Repository\EntryRepository;
@@ -18,6 +20,7 @@ use WP_Error;
  * ogni notifica, riuscita o no, resta nelle note della registrazione, e la notifica si può rinviare.
  *
  * @phpstan-type Template array{logo: string, accent_color: string, background_color: string, footer: string}
+ * @phpstan-type Email array{to: list<string>, subject: string, heading: string, body: string, reply_to: string|null, attachments: array<string, string>}
  */
 final class Notifications {
 
@@ -106,22 +109,84 @@ final class Notifications {
 		return new MergeTags( $entry, $form, $version ?? $form->current );
 	}
 
+	/**
+	 * L'email di una notifica del form non salvato, con una registrazione d'esempio: per il builder.
+	 * Senza il filtro barrio_forms_notification, perché la registrazione non esiste.
+	 *
+	 * @return array{to: list<string>, reply_to: string|null, subject: string, html: string}
+	 */
+	public static function preview( Form $form, Notification $notification ): array {
+		$lang   = I18n::languages()[0];
+		$fields = [];
+		$values = [];
+		$files  = [];
+		foreach ( $form->current->fields as $i => $field ) {
+			// MergeTags trova i valori per id del campo: quelli del form non salvato sono finti.
+			$id       = $i + 1;
+			$fields[] = new Field( $field->key, $field->type, $field->i18n, $field->required, $field->config, $field->conditions, $id );
+			$sample   = self::sample( $field, $lang );
+			if ( 'file' === $field->type ) {
+				$files[] = [
+					'field_id'      => $id,
+					'stored_path'   => '',
+					'original_name' => 'document.pdf',
+					'mime_type'     => 'application/pdf',
+					'size_bytes'    => 1,
+				];
+			} elseif ( $sample ) {
+				$values[ $id ] = $sample;
+			}
+		}
+		$entry = new Entry( $form->id, 0, $lang, $values, $files, source_url: home_url( '/' ), id: 123 );
+		$email = self::compose( $notification, $entry, new MergeTags( $entry, $form, new FormVersion( $fields ) ) );
+		return [
+			'to'       => $email['to'],
+			'reply_to' => $email['reply_to'],
+			'subject'  => $email['subject'],
+			'html'     => self::render( $email['heading'], $email['body'], $lang ),
+		];
+	}
+
+	/** @return Email Prima del filtro barrio_forms_notification. */
+	private static function compose( Notification $notification, Entry $entry, MergeTags $tags ): array {
+		$text = I18n::pick( $notification->i18n, $entry->lang );
+		return [
+			'to'          => self::addresses( $notification->recipients, $tags ),
+			// Gli a capo di un valore inviato non devono arrivare negli header.
+			'subject'     => self::line( $tags->text( $text['subject'] ?? '' ) ),
+			'heading'     => self::line( $tags->text( $text['heading'] ?? $text['subject'] ?? '' ) ),
+			// Il testo della notifica si filtra prima di inserire i valori, che hanno già l'escape.
+			'body'        => $tags->html( wpautop( wp_kses_post( $text['body'] ?? '' ) ) ),
+			'reply_to'    => self::addresses( (string) $notification->reply_to, $tags )[0] ?? null,
+			'attachments' => $notification->attach_files ? self::attachments( $entry ) : [],
+		];
+	}
+
+	/**
+	 * Un valore verosimile per l'anteprima; per i testi liberi l'etichetta tra parentesi quadre.
+	 *
+	 * @return list<string>
+	 */
+	private static function sample( Field $field, string $lang ): array {
+		$choices = array_map( 'strval', array_values( (array) ( $field->config['choices'] ?? [] ) ) );
+		return match ( $field->type ) {
+			'email'            => [ 'name@example.com' ],
+			'tel'              => [ '+39 333 123 4567' ],
+			'number'           => [ (string) ( $field->config['min'] ?? 10 ) ],
+			'datepicker'       => [ gmdate( 'Y-m-d' ) ],
+			'select', 'radio'  => array_slice( $choices, 0, 1 ),
+			'checkbox'         => array_slice( $choices, 0, 2 ),
+			'consent'          => [ '1' ],
+			'file', 'page_break' => [],
+			default            => [ '[' . wp_strip_all_tags( I18n::pick( $field->i18n, $lang )['label'] ?? $field->key ) . ']' ],
+		};
+	}
+
 	private static function send( Notification $notification, Entry $entry, MergeTags $tags, ?int $user_id = null ): ?WP_Error {
 		$to = [];
 		try {
-			$text  = I18n::pick( $notification->i18n, $entry->lang );
-			$email = [
-				'to'          => self::addresses( $notification->recipients, $tags ),
-				// Gli a capo di un valore inviato non devono arrivare negli header.
-				'subject'     => self::line( $tags->text( $text['subject'] ?? '' ) ),
-				'heading'     => self::line( $tags->text( $text['heading'] ?? $text['subject'] ?? '' ) ),
-				// Il testo della notifica si filtra prima di inserire i valori, che hanno già l'escape.
-				'body'        => $tags->html( wpautop( wp_kses_post( $text['body'] ?? '' ) ) ),
-				'reply_to'    => self::addresses( (string) $notification->reply_to, $tags )[0] ?? null,
-				'attachments' => $notification->attach_files ? self::attachments( $entry ) : [],
-			];
-			/** @var array{to: list<string>, subject: string, heading: string, body: string, reply_to: string|null, attachments: array<string, string>} $email */
-			$email = apply_filters( 'barrio_forms_notification', $email, $notification, $entry );
+			/** @var Email $email */
+			$email = apply_filters( 'barrio_forms_notification', self::compose( $notification, $entry, $tags ), $notification, $entry );
 			$to    = $email['to'];
 			$error = $to
 				? Smtp::send(

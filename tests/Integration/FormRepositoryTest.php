@@ -214,12 +214,12 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 		$wpdb->suppress_errors();
 
 		try {
-			// Il secondo campo viola la UNIQUE (version_id, field_key) quando testi, notifiche, versione
-			// e primo campo sono già scritti.
-			FormRepository::save( $form->id, 1, 'B', [], [], self::fields( 'email', 'email' ) );
-			$this->fail( 'A duplicate field key should fail.' );
+			// Il secondo campo viola il CHECK sulla chiave quando testi, notifiche, versione e primo
+			// campo sono già scritti.
+			FormRepository::save( $form->id, 1, 'B', [], [], self::fields( 'email', 'Email' ) );
+			$this->fail( 'An uppercase field key should fail.' );
 		} catch ( RuntimeException $e ) {
-			$this->assertStringContainsString( 'version_key', $e->getMessage() );
+			$this->assertStringContainsString( 'bff_key_chk', $e->getMessage() );
 		}
 
 		$this->assertSame( $rows, array_map( $count, $tables ) );

@@ -94,6 +94,36 @@ final class FormRepository {
 		return $error ?? self::get( $id ) ?? throw new LogicException( esc_html( "Form {$id} not found after saving." ) );
 	}
 
+	// Lo stato non è versionato: non tocca né la versione né il blocco ottimistico.
+	public static function set_status( int $id, FormStatus $status ): bool {
+		global $wpdb;
+		$updated = Db::query( $wpdb->prepare( 'UPDATE %i SET status = %s, updated_at = %s WHERE id = %d', Db::table( 'forms' ), $status->value, gmdate( 'Y-m-d H:i:s' ), $id ) );
+		wp_cache_delete( $id, self::CACHE_GROUP );
+		return $updated > 0;
+	}
+
+	/** @return list<array{id: int, title: string, status: string, updated_at: string, entries: int}> I più recenti per primi. */
+	public static function all(): array {
+		global $wpdb;
+		return array_map(
+			static fn( array $row ): array => [
+				'id'         => (int) $row['id'],
+				'title'      => (string) $row['title'],
+				'status'     => (string) $row['status'],
+				'updated_at' => (string) $row['updated_at'],
+				'entries'    => (int) $row['entries'],
+			],
+			Db::rows(
+				$wpdb->prepare(
+					// Un conteggio per form sull'indice form_read, senza leggere le righe.
+					'SELECT f.id, f.title, f.status, f.updated_at, (SELECT COUNT(*) FROM %i e WHERE e.form_id = f.id) AS entries FROM %i f ORDER BY f.id DESC',
+					Db::table( 'entries' ),
+					Db::table( 'forms' )
+				)
+			)
+		);
+	}
+
 	// Un form con registrazioni non si elimina: lo impedisce comunque il database (RESTRICT).
 	public static function delete( int $id ): ?WP_Error {
 		global $wpdb;
@@ -296,11 +326,17 @@ final class FormRepository {
 				'created_by' => get_current_user_id() ?: null,
 			]
 		);
+		$keys       = [];
 		foreach ( $version->fields as $position => $field ) {
 			// Come per le notifiche: un campo senza testi non avrebbe un'etichetta in nessuna lingua.
 			if ( ! $field->i18n ) {
 				throw new InvalidArgumentException( esc_html( "Field '{$field->key}' has no texts." ) );
 			}
+			// Lo vieterebbe anche la UNIQUE, ma con un errore del database invece di un messaggio chiaro.
+			if ( isset( $keys[ $field->key ] ) ) {
+				throw new InvalidArgumentException( esc_html( "Field key '{$field->key}' is used twice." ) );
+			}
+			$keys[ $field->key ] = true;
 			// Il JSON si valida con lo schema del tipo prima di ogni scrittura (docs/database.md).
 			$error = FieldTypes::check( $field );
 			if ( null !== $error ) {

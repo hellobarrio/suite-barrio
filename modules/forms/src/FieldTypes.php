@@ -7,7 +7,7 @@ use BarrioSuite\Forms\Submission\FileStore;
 
 /**
  * Tipi di campo core, con i nomi del prototipo più consent e hidden. Per ogni tipo: lo schema
- * della config (validato prima di ogni scrittura; dalla fase 4 il builder ne ricava il pannello),
+ * della config (validato prima di ogni scrittura; il builder ne ricava il pannello),
  * come normalizzare e validare il valore inviato e come mostrarlo.
  * ponytail: i tipi sono dei match; il registro per le estensioni arriva con la loro API (fase 8).
  *
@@ -35,7 +35,30 @@ final class FieldTypes {
 		'datepicker' => 'date',
 	];
 
-	/** @return array<string, mixed>|null JSON Schema della config; null se il tipo non esiste. */
+	/** @return array<string, string> Il nome di ogni tipo, nell'ordine del builder. */
+	public static function labels(): array {
+		return [
+			'text'       => __( 'Text', 'barrio-suite' ),
+			'email'      => __( 'Email', 'barrio-suite' ),
+			'tel'        => __( 'Phone', 'barrio-suite' ),
+			'number'     => __( 'Number', 'barrio-suite' ),
+			'textarea'   => __( 'Paragraph', 'barrio-suite' ),
+			'datepicker' => __( 'Date', 'barrio-suite' ),
+			'select'     => __( 'Dropdown', 'barrio-suite' ),
+			'radio'      => __( 'Radio buttons', 'barrio-suite' ),
+			'checkbox'   => __( 'Checkboxes', 'barrio-suite' ),
+			'file'       => __( 'File upload', 'barrio-suite' ),
+			'consent'    => __( 'Consent', 'barrio-suite' ),
+			'hidden'     => __( 'Hidden', 'barrio-suite' ),
+			'page_break' => __( 'Page break', 'barrio-suite' ),
+		];
+	}
+
+	/**
+	 * title e description non contano per la validazione: il builder ne ricava il pannello.
+	 *
+	 * @return array<string, mixed>|null JSON Schema della config; null se il tipo non esiste.
+	 */
 	public static function schema( string $type ): ?array {
 		$object  = static fn( array $properties = [], array $required = [] ): array => [
 			'type'                 => 'object',
@@ -43,24 +66,33 @@ final class FieldTypes {
 			'required'             => $required,
 			'additionalProperties' => false,
 		];
-		$list    = static fn( array $items ): array => [
+		$list    = static fn( array $items, string $title ): array => [
 			'type'        => 'array',
+			'title'       => $title,
 			'items'       => [ 'type' => 'string' ] + $items,
 			'minItems'    => 1,
 			'uniqueItems' => true,
 		];
 		$pattern = [
 			'pattern' => [
-				'type'      => 'string',
-				'minLength' => 1,
+				'type'        => 'string',
+				'minLength'   => 1,
+				'title'       => __( 'Pattern', 'barrio-suite' ),
+				'description' => __( 'A regular expression the whole value must match, for example [0-9]{5}.', 'barrio-suite' ),
 			],
 		];
 		return match ( $type ) {
 			'text', 'tel'                 => $object( $pattern ),
 			'number'                      => $object(
 				[
-					'min' => [ 'type' => 'number' ],
-					'max' => [ 'type' => 'number' ],
+					'min' => [
+						'type'  => 'number',
+						'title' => __( 'Minimum', 'barrio-suite' ),
+					],
+					'max' => [
+						'type'  => 'number',
+						'title' => __( 'Maximum', 'barrio-suite' ),
+					],
 				]
 			),
 			// I valori delle scelte, in ordine; le etichette tradotte stanno nei testi (options).
@@ -70,18 +102,21 @@ final class FieldTypes {
 						[
 							'minLength' => 1,
 							'maxLength' => 255,
-						]
+						],
+						__( 'Choices', 'barrio-suite' )
 					),
 				],
 				[ 'choices' ]
 			),
 			'file'                        => $object(
 				[
-					'extensions'  => $list( [ 'pattern' => '^[a-z0-9]+$' ] ),
+					'extensions'  => $list( [ 'pattern' => '^[a-z0-9]+$' ], __( 'Allowed extensions', 'barrio-suite' ) ),
 					'max_size_mb' => [
 						'type'             => 'number',
 						'minimum'          => 0,
 						'exclusiveMinimum' => true,
+						'title'            => __( 'Maximum size (MB)', 'barrio-suite' ),
+						'description'      => __( 'Leave empty to use the server limit.', 'barrio-suite' ),
 					],
 				],
 				[ 'extensions' ]
@@ -89,10 +124,15 @@ final class FieldTypes {
 			// Valore fisso, oppure preso dal parametro param dell'URL della pagina.
 			'hidden'                      => $object(
 				[
-					'value' => [ 'type' => 'string' ],
+					'value' => [
+						'type'  => 'string',
+						'title' => __( 'Value', 'barrio-suite' ),
+					],
 					'param' => [
-						'type'    => 'string',
-						'pattern' => '^[A-Za-z0-9_.-]+$',
+						'type'        => 'string',
+						'pattern'     => '^[A-Za-z0-9_.-]+$',
+						'title'       => __( 'URL parameter', 'barrio-suite' ),
+						'description' => __( 'Takes the value from this parameter of the page URL, for example utm_campaign, instead of the fixed value.', 'barrio-suite' ),
 					],
 				]
 			),

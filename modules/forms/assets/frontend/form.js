@@ -167,6 +167,11 @@ function init( form ) {
 		) {
 			return;
 		}
+		// Anteprima del builder: si ferma qui.
+		if ( 'barrioPreview' in form.dataset ) {
+			status.textContent = messages.preview;
+			return;
+		}
 		form.setAttribute( 'aria-busy', 'true' );
 		status.textContent = '';
 		try {

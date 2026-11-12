@@ -13,7 +13,9 @@ arriveranno uno alla volta con la stessa struttura.
 | Requisiti | PHP 8.2+, WordPress 6.6+, MySQL 8.0.16+ o MariaDB 10.5+, InnoDB. Controllati all'attivazione con un messaggio chiaro |
 | Database | Il centro del progetto: foreign key reali, CHECK, migrazioni versionate (vedi §2) |
 | Email | `wp_mail()`, che usa il PHPMailer incluso in WordPress, con l'SMTP configurato tramite `phpmailer_init` e applicato a **tutte** le email del sito |
-| Admin | React con `@wordpress/scripts` e `@wordpress/components`: la pagina Impostazioni dalla fase 3, builder e registrazioni dalle fasi 4 e 5 |
+| Admin | Una pagina React (`@wordpress/scripts`) con intestazione (logo, nome, descrizione) e schede Form e Impostazioni; componenti di base in HTML nativo con un CSS del plugin (card, bottoni scuri), da `@wordpress/components` solo modale, popover e schede del builder |
+| Tabelle | **Regola fissa per tutte le tabelle del plugin**: ricerca, paginazione (20 righe) e ordinamento a tre stati (crescente → decrescente → ordine di default), con una colonna sempre ordinata (all'inizio quella di default, con la sua freccia); le azioni di riga stanno tutte in un menu "⋯". Stesso componente `Table` |
+| Pagine con salvataggio | Ogni pagina ha una barra sticky in alto (`Bar`), staccata di 16px da quella di WordPress e sempre con lo stesso schema: titolo a sinistra (con il ritorno, se c'è), azioni a destra con la principale per ultima, scura e con icona. Salva (attivo solo con modifiche) sostituisce i pulsanti per sezione; negli elenchi la barra ha la ricerca e "Nuovo". Avviso prima di lasciare la pagina con modifiche. Le anteprime (form, email) sono alte quanto il contenuto: scorre solo il modale. Negli elenchi "Aggiungi…" sta sempre nell'intestazione della sezione, a destra |
 | GraphQL | Nomi invariati: `hbForm`, `hbForms`, `hbSubmitForm` e tutti i tipi `HB*`/`Hb*` |
 | Plugin esterni | Nessuno è obbligatorio: senza WPGraphQL o WPML il plugin funziona e disattiva solo le funzioni che dipendono da loro (§4.1) |
 | Traduzioni | Editor interno; le traduzioni si salvano nel database dentro ogni versione del form. Le lingue disponibili vengono da WPML; senza WPML il plugin lavora in una sola lingua |
@@ -224,7 +226,8 @@ barrio-suite/
 │   │   ├── Privacy.php                    # retention, exporter/eraser
 │   │   └── Admin.php                      # menu Barrio e pagine React
 │   ├── assets/{frontend,block}/           # senza build: script module nativi e JS dell'editor scritto a mano
-│   ├── assets/src/{settings,builder,entries}/   # React, con la build di @wordpress/scripts in build/ (dalla fase 3)
+│   ├── assets/src/{admin,settings,builder,entries}/   # React, una build (forms-admin) di @wordpress/scripts in build/
+│   ├── presets.json                       # scelte pronte del builder (nazioni, province…)
 │   └── templates/email.php                # tabelle e stili in linea; restituisce una closure tipizzata
 ├── tests/{Unit,Integration,fixtures}/
 ├── docs/{database.md,hooks.md}
@@ -257,7 +260,14 @@ cache di pagina.
 Admin, ognuno con `permission_callback` sulle capability e argomenti validati con lo schema:
 CRUD dei form (`PUT` con `base_version`), duplica, traduzioni per lingua, elenco registrazioni
 (paginato, con ricerca e filtri), dettaglio, segna come letta, azioni di massa, export CSV in
-streaming, download dei file, note. Già presenti dalla fase 3:
+streaming, download dei file, note. Già presenti dalle fasi 3 e 4:
+
+- form (`barrio_manage_forms`), nello stesso formato in lettura e in scrittura (quello di
+  `dev/example-form.json`): `GET /forms/{id}?context=edit` (la stessa rotta del GET pubblico),
+  `POST /forms`, `PUT /forms/{id}` con `base_version` (409 se nel frattempo qualcuno ha salvato),
+  `PATCH /forms/{id}` per lo stato (non versionato), `DELETE /forms/{id}` (409 con registrazioni),
+  `POST /forms/{id}/duplicate`, `POST /forms/preview` (il form non salvato, con il render del sito);
+- `GET /forms` (`edit_posts`: lo usa anche il blocco per scegliere il form): id, titolo, stato, registrazioni, ultima modifica;
 
 - `GET`/`PUT /settings` (`manage_options`): SMTP, template delle email e stato della password
   (`none`, `saved`, `unreadable` se i salt sono cambiati, `constant`); la password è in sola scrittura;
@@ -288,9 +298,10 @@ pannello e il server valida), `render()`, `normalize()` e `validate()`.
 
 Menu "Barrio" (che ospiterà i moduli futuri) con le voci Form, Registrazioni e Impostazioni.
 
-- **Builder** (React): campi con drag & drop accessibile (`@dnd-kit/sortable`), pannello delle proprietà generato dallo schema del tipo, logica condizionale, preset delle opzioni (nazioni, province: file JSON, estendibili con un filtro), impostazioni, notifiche, traduzioni, pannelli delle integrazioni, anteprima.
-- **Registrazioni**: `@wordpress/dataviews` (la tabella del Site Editor: colonne a scelta, filtri, paginazione, azioni di massa), dettaglio con file e storico, export CSV.
-- **Impostazioni** (React, dalla fase 3): SMTP, template delle email (logo dalla libreria dei media, colori, footer), email di test. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
+- **Pagina** (React, `assets/src/admin`): intestazione con logo e descrizione, schede Form e Impostazioni (la seconda solo con `manage_options`). Elenco dei form con la tabella del plugin (ricerca, pagine, ordinamento a tre stati), conteggio delle registrazioni e nel menu "⋯" modifica, duplica, copia lo shortcode, chiudi/riapri, elimina (con registrazioni va nel cestino; dal cestino ripristina o elimina).
+- **Builder** (React): struttura del form a sinistra (card con anteprima del campo, "Aggiungi campo" come menu), proprietà del campo a destra; la chiave segue l'etichetta finché non la si cambia; campi e scelte con drag & drop accessibile (`@dnd-kit/sortable`, anche da tastiera), pannello delle proprietà generato dallo schema del tipo (`title` e `description` delle proprietà), logica condizionale, preset delle scelte (`presets.json`, dal prototipo, con codici ISO per le nazioni e sigle per le province; il filtro `barrio_forms_presets` ne aggiunge), impostazioni, notifiche con l'anteprima dell'email (template vero, valori d'esempio, `POST /forms/preview` con `notification`), anteprima del form in un iframe con CSS e JS del frontend (non invia). Modifica i testi della lingua principale e conserva le altre; la scheda Traduzioni arriva con la fase 7, i pannelli delle integrazioni con la fase 8.
+- **Registrazioni**: la tabella del plugin con ricerca, pagine e ordinamento sul server (stessa query di `localQuery()`), più filtri e azioni di massa; dettaglio con file e storico, export CSV.
+- **Impostazioni** (scheda della stessa pagina): card SMTP, template delle email (logo dalla libreria dei media, colori, footer) ed email di test; un solo Salva nella barra sticky. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
 - **Capability**: `barrio_manage_forms` (agli admin) e `barrio_manage_entries` (ad admin ed editor), assegnate dalla migrazione `0002` e non all'attivazione, così arrivano anche agli altri siti di un multisite e alle installazioni già attive. Sostituiscono il trucco del menu diverso per gli editor.
 
 ---
@@ -338,6 +349,7 @@ Regole:
 Le estensioni sono plugin separati che si agganciano a `barrio_forms_loaded`.
 
 - **Hook della pipeline**: `barrio_forms_spam_check`, `barrio_forms_validate`, `barrio_forms_entry_data`, `barrio_forms_after_submission`, `barrio_forms_notification`, `barrio_forms_rest_response`.
+- **Builder**: `barrio_forms_presets` per altre scelte pronte (`'id' => ['label' => …, 'choices' => [['valore', 'Etichetta'], …]]`).
 - **Tipi di campo**: `barrio_forms_register_field_type($slug, $definition)`.
 - **Integrazioni** (il concetto di *feed* di Gravity Forms): impostazioni globali e per form dichiarate come schema (il builder le mostra da solo; quelle marcate `translatable` compaiono nella scheda Traduzioni), un callback `process()` chiamato solo se la condizione del feed è vera, esito scritto nelle note.
 - **Database**: le estensioni registrano le proprie migrazioni con il Migrator.
@@ -370,7 +382,7 @@ Ogni fase si chiude con test verdi e un plugin installabile.
 | 2 | **Pipeline e frontend**: tipi core, `Conditions` PHP+JS, validazione, FileStore, antispam, REST pubblico, render, blocco e shortcode, multistep | Un form creato via WP-CLI/JSON si invia, rispetta la logica condizionale e respinge file non ammessi; fixture condivise verdi in PHP e JS; ESLint e stylelint entrano in CI (prima non c'erano file da controllare) |
 | 3 | **Email**: impostazioni SMTP, email di test, notifiche multiple, merge tag (`{{campo}}`, `{{all_fields}}`…), notifiche condizionali, allegati per notifica, template globale (logo, colori, footer); pagina Impostazioni in React (la build di `@wordpress/scripts` entra qui e in CI) | Email ricevute via SMTP (test su Mailpit in CI); i fallimenti finiscono nelle note e si possono rinviare |
 | 4 | **Builder React** | Si crea un form completo senza toccare il JSON; il salvataggio concorrente dà `409` |
-| 5 | **Registrazioni**: DataViews, dettaglio, letto/non letto, azioni di massa, CSV, file, note, capability per gli editor | Un editor gestisce le registrazioni senza accedere al builder |
+| 5 | **Registrazioni**: tabella del plugin con ricerca, pagine e ordinamento sul server, dettaglio, letto/non letto, azioni di massa, CSV, file, note, capability per gli editor | Un editor gestisce le registrazioni senza accedere al builder |
 | 6 | **Privacy**: retention, exporter/eraser | Le richieste di accesso e cancellazione dei dati dagli strumenti di WordPress trovano e cancellano le registrazioni |
 | 7 | **Traduzioni**: scheda Traduzioni del builder, lingue da WPML, email nella lingua di chi compila | Form ed email in inglese su un sito WPML; le statistiche aggregano le lingue. Senza WPML la scheda non compare, tutto funziona in una lingua e le traduzioni salvate restano nel database |
 | 8 | **API estensioni** e documentazione, tabella delle impostazioni per form delle integrazioni (migrazione `0003`), **estensione Mailchimp** e **estensione captcha** come prove | Mailchimp e captcha funzionano senza modificare il core |

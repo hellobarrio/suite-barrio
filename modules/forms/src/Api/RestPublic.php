@@ -26,8 +26,16 @@ final class RestPublic {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ self::class, 'form' ],
-				'permission_callback' => '__return_true',
-				'args'                => [ 'lang' => [ 'type' => 'string' ] ],
+				// context=edit è la lettura del builder: il form completo, in tutte le lingue.
+				'permission_callback' => static fn( WP_REST_Request $request ): bool => 'edit' !== $request['context'] || current_user_can( 'barrio_manage_forms' ),
+				'args'                => [
+					'lang'    => [ 'type' => 'string' ],
+					'context' => [
+						'type'    => 'string',
+						'enum'    => [ 'view', 'edit' ],
+						'default' => 'view',
+					],
+				],
 			]
 		);
 		// multipart/form-data (con i file) o JSON.
@@ -47,6 +55,9 @@ final class RestPublic {
 		$form = self::find( $request );
 		if ( $form instanceof WP_Error ) {
 			return $form;
+		}
+		if ( 'edit' === $request['context'] ) {
+			return new WP_REST_Response( RestForms::view( $form ) );
 		}
 		$lang   = I18n::resolve( is_string( $request['lang'] ) ? $request['lang'] : null );
 		$fields = [];

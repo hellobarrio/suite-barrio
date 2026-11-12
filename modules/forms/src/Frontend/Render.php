@@ -5,6 +5,7 @@ namespace BarrioSuite\Forms\Frontend;
 use BarrioSuite\Forms\FieldTypes;
 use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\Model\Field;
+use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Repository\FormRepository;
 
@@ -12,8 +13,7 @@ use BarrioSuite\Forms\Repository\FormRepository;
 final class Render {
 
 	public static function register(): void {
-		// plugins_url() parte dalla cartella che contiene il secondo argomento: modules/forms/.
-		$assets = plugins_url( 'assets/', dirname( __DIR__ ) );
+		$assets = self::assets();
 		wp_register_style( 'barrio-forms', "{$assets}frontend/form.css", [], BARRIO_SUITE_VERSION );
 		wp_register_script_module( '@barrio/forms-conditions', "{$assets}frontend/conditions.js", [], BARRIO_SUITE_VERSION );
 		wp_register_script_module( '@barrio/forms', "{$assets}frontend/form.js", [ '@barrio/forms-conditions' ], BARRIO_SUITE_VERSION );
@@ -36,8 +36,27 @@ final class Render {
 		// Gli asset si caricano solo nelle pagine che hanno un form.
 		wp_enqueue_style( 'barrio-forms' );
 		wp_enqueue_script_module( '@barrio/forms' );
+		return self::html( $form, I18n::current() );
+	}
 
-		$lang   = I18n::current();
+	/**
+	 * Una pagina con il solo form, nella lingua principale, per l'anteprima del builder (in un
+	 * iframe). Il form funziona come sul sito ma non invia: il JS si ferma dopo la validazione.
+	 */
+	public static function preview( Form $form ): string {
+		$assets = self::assets();
+		$ver    = '?ver=' . BARRIO_SUITE_VERSION;
+		return sprintf(
+			'<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="%1$s"><script type="importmap">%2$s</script><script type="module" src="%3$s"></script>' // phpcs:ignore WordPress.WP.EnqueuedResources -- non è una pagina di WordPress.
+			. '<style>body{margin:24px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}</style></head><body>%4$s</body></html>',
+			esc_url( "{$assets}frontend/form.css{$ver}" ),
+			wp_json_encode( [ 'imports' => [ '@barrio/forms-conditions' => "{$assets}frontend/conditions.js{$ver}" ] ] ),
+			esc_url( "{$assets}frontend/form.js{$ver}" ),
+			self::html( $form, I18n::languages()[0], true )
+		);
+	}
+
+	private static function html( Form $form, string $lang, bool $preview = false ): string {
 		$prefix = wp_unique_id( 'barrio-form-' );
 		// Ogni page_break chiude uno step; la sua etichetta è il testo del pulsante "avanti".
 		$steps = [ '' ];
@@ -76,16 +95,23 @@ final class Render {
 			'error'    => __( 'The form could not be sent. Please try again.', 'barrio-suite' ),
 			'required' => __( 'This field is required.', 'barrio-suite' ),
 			'fileSize' => __( 'The file is too large.', 'barrio-suite' ),
+			'preview'  => __( 'Preview: the form is valid, but nothing has been sent.', 'barrio-suite' ),
 		];
 
 		return sprintf(
-			'<form id="%s" class="barrio-form" action="%s" method="post" enctype="multipart/form-data" data-barrio-form data-messages="%s">%s%s<div class="barrio-form__message" role="status"></div></form>',
+			'<form id="%s" class="barrio-form" action="%s" method="post" enctype="multipart/form-data" data-barrio-form%s data-messages="%s">%s%s<div class="barrio-form__message" role="status"></div></form>',
 			esc_attr( $prefix ),
 			esc_url( rest_url( "barrio/v1/forms/{$form->id}/entries" ) ),
+			$preview ? ' data-barrio-preview' : '',
 			esc_attr( (string) wp_json_encode( $messages ) ),
 			$service,
 			$html
 		);
+	}
+
+	// plugins_url() parte dalla cartella che contiene il secondo argomento: modules/forms/.
+	private static function assets(): string {
+		return plugins_url( 'assets/', dirname( __DIR__ ) );
 	}
 
 	/** @param array{label?: string, placeholder?: string|null, error_message?: string|null, options?: array<string, string>|null} $text */
