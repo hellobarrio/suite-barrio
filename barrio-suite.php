@@ -16,10 +16,18 @@ define( 'BARRIO_SUITE_VERSION', '0.1.0' );
 
 spl_autoload_register(
 	static function ( string $class_name ): void {
-		if ( str_starts_with( $class_name, 'BarrioSuite\\' ) ) {
-			$file = __DIR__ . '/src/' . str_replace( [ 'BarrioSuite\\', '\\' ], [ '', '/' ], $class_name ) . '.php';
-			if ( is_file( $file ) ) {
-				require $file;
+		// Ogni modulo ha il suo namespace; il core condiviso è BarrioSuite\ in src/.
+		$roots = [
+			'BarrioSuite\\Forms\\' => '/modules/forms/src/',
+			'BarrioSuite\\'        => '/src/',
+		];
+		foreach ( $roots as $prefix => $dir ) {
+			if ( str_starts_with( $class_name, $prefix ) ) {
+				$file = __DIR__ . $dir . str_replace( '\\', '/', substr( $class_name, strlen( $prefix ) ) ) . '.php';
+				if ( is_file( $file ) ) {
+					require $file;
+				}
+				return;
 			}
 		}
 	}

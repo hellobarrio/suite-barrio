@@ -43,4 +43,9 @@
 		<exclude-pattern>/src/Requirements.php</exclude-pattern>
 		<exclude-pattern>/tests/*</exclude-pattern>
 	</rule>
+	<!-- Db riceve query già preparate dai Repository; i test scrivono SQL a mano apposta. -->
+	<rule ref="WordPress.DB.PreparedSQL">
+		<exclude-pattern>/src/Database/Db.php</exclude-pattern>
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
 </ruleset>

@@ -6,7 +6,7 @@ use BarrioSuite\Database\Migrator;
 
 final class Plugin {
 
-	private const MODULES = [ 'forms' ];
+	private const MODULES = [ 'forms' => Forms\Module::class ];
 
 	public static function activate(): void {
 		$errors = Requirements::errors();
@@ -21,8 +21,13 @@ final class Plugin {
 	}
 
 	public static function boot(): void {
-		foreach ( self::MODULES as $module ) {
-			$error = ( new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" ) )->run();
+		foreach ( self::MODULES as $module => $module_class ) {
+			$migrator = new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" );
+			$error    = $migrator->run();
+			// Finché lo schema non è aggiornato il modulo resta spento: per esempio non accetta invii.
+			if ( $migrator->is_current() ) {
+				$module_class::boot();
+			}
 			if ( $error ) {
 				add_action(
 					'admin_notices',

@@ -18,6 +18,7 @@ arriveranno uno alla volta con la stessa struttura.
 | Plugin esterni | Nessuno è obbligatorio: senza WPGraphQL o WPML il plugin funziona e disattiva solo le funzioni che dipendono da loro (§4.1) |
 | Traduzioni | Editor interno; le traduzioni si salvano nel database dentro ogni versione del form. Le lingue disponibili vengono da WPML; senza WPML il plugin lavora in una sola lingua |
 | ACF | Il plugin non usa ACF |
+| Privacy | Privacy by design e by default (art. 25 GDPR) in tutto il plugin: si raccoglie e si salva solo ciò che serve al form; ogni raccolta in più è un'opzione disattivata di default |
 | Estensioni | Plugin separati (Mailchimp, MailUp, reCAPTCHA/Turnstile…) che usano hook e registri del core. Anche la migrazione dal prototipo è un'estensione: il core non contiene codice di compatibilità con il prototipo |
 
 Principi: leggibilità prima dell'astuzia; ogni astrazione deve servire a qualcosa oggi; riusare
@@ -66,8 +67,8 @@ Ogni insieme chiuso esiste due volte, con gli stessi valori: come CHECK nel data
 
 ### 2.2 Modello
 
-Concetto chiave: **versioni immutabili del form**. Ogni salvataggio dal builder crea una nuova
-versione (campi, impostazioni, traduzioni). Ogni registrazione punta alla versione che l'utente
+Concetto chiave: **versioni immutabili di ciò che il visitatore legge prima di inviare**, cioè i
+campi e i loro testi. Ogni salvataggio dal builder crea una nuova versione dei campi. Ogni registrazione punta alla versione che l'utente
 ha compilato. Nello stesso salvataggio la versione precedente viene eliminata se nessuna
 registrazione la usa, quindi in pratica si accumulano versioni solo per i form modificati
 dopo aver ricevuto risposte. Si ottiene:
@@ -76,16 +77,23 @@ dopo aver ricevuto risposte. Si ottiene:
 - **Nessun soft delete né diff dei campi**: un salvataggio inserisce righe nuove, non ne modifica di vecchie.
 - **Blocco ottimistico gratuito**: il builder invia `base_version`. Se nel frattempo qualcuno ha salvato, la risposta è `409 Conflict` invece di sovrascrivere.
 
+Testi di invio e di conferma e notifiche non si versionano: il visitatore vede i primi dopo l'invio,
+e il rinvio di una notifica deve usare la configurazione corretta, non quella di allora. Si
+sostituiscono a ogni salvataggio. Tutti i testi stanno in tabelle `_i18n` con una riga per lingua,
+compresa la principale: nessun testo ha una lingua implicita.
+
 `field_key` (per esempio `email`) è l'identità stabile di un campo **tra una versione e l'altra**:
 la usano HTML, GraphQL, i merge tag e l'export CSV. Lo stesso campo, in due versioni diverse,
 ha due `id` e la stessa `field_key`.
 
 ```mermaid
 erDiagram
+  FORMS ||--o{ FORM_I18N : "testi di invio"
+  FORMS ||--o{ FORM_NOTIFICATIONS : "notifiche"
+  FORM_NOTIFICATIONS ||--|{ FORM_NOTIFICATIONS_I18N : "testi"
   FORMS ||--|{ FORM_VERSIONS : "versioni"
   FORM_VERSIONS ||--|{ FORM_FIELDS : "campi"
-  FORM_VERSIONS ||--o{ FORM_VERSIONS_I18N : "traduzioni impostazioni"
-  FORM_FIELDS ||--o{ FORM_FIELDS_I18N : "traduzioni campo"
+  FORM_FIELDS ||--|{ FORM_FIELDS_I18N : "testi"
   FORM_VERSIONS ||--o{ ENTRIES : "compilata come"
   ENTRIES ||--o{ ENTRY_VALUES : "valori"
   FORM_FIELDS ||--o{ ENTRY_VALUES : "di quale campo"
@@ -96,162 +104,39 @@ erDiagram
 
 ### 2.3 Schema (migrazione `0001`)
 
-`{p}` è `$wpdb->prefix`; `{charset}` è `$wpdb->get_charset_collate()`.
+Il SQL è in [`modules/forms/migrations/0001_initial.php`](modules/forms/migrations/0001_initial.php), le regole d'uso
+in [`docs/database.md`](docs/database.md). In sintesi:
 
-```sql
--- Identità del form: ciò che non cambia tra le versioni.
-CREATE TABLE {p}barrio_forms (
-  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  title       VARCHAR(191)    NOT NULL,
-  status      VARCHAR(16)     NOT NULL DEFAULT 'active',
-  created_at  DATETIME        NOT NULL,
-  updated_at  DATETIME        NOT NULL,
-  PRIMARY KEY (id),
-  CONSTRAINT {p}bf_status_chk CHECK (status IN ('active', 'closed', 'trash'))
-) ENGINE=InnoDB {charset};
-
--- Versione immutabile: impostazioni del form (messaggi, dopo-invio, notifiche, integrazioni).
-CREATE TABLE {p}barrio_form_versions (
-  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  form_id     BIGINT UNSIGNED NOT NULL,
-  version     INT UNSIGNED    NOT NULL,
-  settings    JSON            NOT NULL,
-  created_at  DATETIME        NOT NULL,
-  created_by  BIGINT UNSIGNED NULL,
-  PRIMARY KEY (id),
-  UNIQUE KEY form_version (form_id, version),          -- versione corrente + numerazione
-  UNIQUE KEY form_id_id   (form_id, id),               -- destinazione della FK composta da entries
-  CONSTRAINT {p}bfv_form_fk FOREIGN KEY (form_id)
-    REFERENCES {p}barrio_forms (id) ON DELETE CASCADE,
-  CONSTRAINT {p}bfv_settings_chk CHECK (JSON_TYPE(settings) = 'OBJECT')
-) ENGINE=InnoDB {charset};
-
--- Campi di una versione. type è un insieme aperto (le estensioni lo ampliano): validato in PHP.
-CREATE TABLE {p}barrio_form_fields (
-  id           BIGINT UNSIGNED   NOT NULL AUTO_INCREMENT,
-  version_id   BIGINT UNSIGNED   NOT NULL,
-  field_key    VARCHAR(64)       NOT NULL,
-  type         VARCHAR(32)       NOT NULL,
-  label        TEXT              NOT NULL,             -- può contenere HTML limitato (consenso con link)
-  position     SMALLINT UNSIGNED NOT NULL,
-  is_required  TINYINT(1)        NOT NULL DEFAULT 0,
-  config       JSON              NOT NULL,             -- placeholder, opzioni, min/max, pattern, logica condizionale…
-  PRIMARY KEY (id),
-  UNIQUE KEY version_key      (version_id, field_key),
-  UNIQUE KEY version_position (version_id, position),
-  CONSTRAINT {p}bff_version_fk FOREIGN KEY (version_id)
-    REFERENCES {p}barrio_form_versions (id) ON DELETE CASCADE,
-  CONSTRAINT {p}bff_key_chk      CHECK (field_key REGEXP '^[a-z][a-z0-9_]*$'),
-  CONSTRAINT {p}bff_required_chk CHECK (is_required IN (0, 1)),
-  CONSTRAINT {p}bff_config_chk   CHECK (JSON_TYPE(config) = 'OBJECT')
-) ENGINE=InnoDB {charset};
-
--- Traduzioni: tabelle gemelle con le sole parti traducibili. Riga assente = lingua principale.
-CREATE TABLE {p}barrio_form_fields_i18n (
-  field_id  BIGINT UNSIGNED NOT NULL,
-  lang      VARCHAR(16)     NOT NULL,
-  label     TEXT            NULL,                       -- NULL = usa la lingua principale
-  config    JSON            NOT NULL,                   -- placeholder, error_message, options {value: label}
-  PRIMARY KEY (field_id, lang),
-  CONSTRAINT {p}bffi_field_fk FOREIGN KEY (field_id)
-    REFERENCES {p}barrio_form_fields (id) ON DELETE CASCADE,
-  CONSTRAINT {p}bffi_lang_chk   CHECK (lang REGEXP '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'),
-  CONSTRAINT {p}bffi_config_chk CHECK (JSON_TYPE(config) = 'OBJECT')
-) ENGINE=InnoDB {charset};
-
-CREATE TABLE {p}barrio_form_versions_i18n (
-  version_id  BIGINT UNSIGNED NOT NULL,
-  lang        VARCHAR(16)     NOT NULL,
-  settings    JSON            NOT NULL,                 -- solo le chiavi traducibili delle impostazioni
-  PRIMARY KEY (version_id, lang),
-  CONSTRAINT {p}bfvi_version_fk FOREIGN KEY (version_id)
-    REFERENCES {p}barrio_form_versions (id) ON DELETE CASCADE,
-  CONSTRAINT {p}bfvi_lang_chk     CHECK (lang REGEXP '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'),
-  CONSTRAINT {p}bfvi_settings_chk CHECK (JSON_TYPE(settings) = 'OBJECT')
-) ENGINE=InnoDB {charset};
-
--- Registrazione. form_id è una denormalizzazione controllata (serve all'indice dell'elenco):
--- la FK composta garantisce che coincida con il form della versione.
-CREATE TABLE {p}barrio_entries (
-  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  form_id       BIGINT UNSIGNED NOT NULL,
-  version_id    BIGINT UNSIGNED NOT NULL,
-  lang          VARCHAR(16)     NULL,                   -- NULL = sito monolingua
-  is_read       TINYINT(1)      NOT NULL DEFAULT 0,
-  user_id       BIGINT UNSIGNED NULL,
-  ip            VARBINARY(16)   NULL,                   -- inet_pton(); NULL se la raccolta IP è disattivata
-  user_agent    VARCHAR(512)    NULL,
-  source_url    VARCHAR(2048)   NULL,
-  source_title  VARCHAR(255)    NULL,
-  referrer      VARCHAR(2048)   NULL,
-  created_at    DATETIME        NOT NULL,
-  PRIMARY KEY (id),
-  KEY form_created (form_id, created_at),
-  KEY form_read    (form_id, is_read),
-  KEY form_version (form_id, version_id),
-  KEY created      (created_at),
-  CONSTRAINT {p}be_version_fk FOREIGN KEY (form_id, version_id)
-    REFERENCES {p}barrio_form_versions (form_id, id) ON DELETE RESTRICT,
-  CONSTRAINT {p}be_read_chk CHECK (is_read IN (0, 1)),
-  CONSTRAINT {p}be_lang_chk CHECK (lang REGEXP '^[a-z]{2,3}(-[a-z0-9]{2,8})*$')
-) ENGINE=InnoDB {charset};
-
--- Un valore per riga (prima forma normale): una checkbox con tre scelte occupa tre righe.
--- Si salva il value dell'opzione, indipendente dalla lingua.
-CREATE TABLE {p}barrio_entry_values (
-  entry_id  BIGINT UNSIGNED   NOT NULL,
-  field_id  BIGINT UNSIGNED   NOT NULL,
-  position  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-  value     TEXT              NOT NULL,
-  PRIMARY KEY (entry_id, field_id, position),
-  KEY field_value (field_id, value(191)),               -- filtri, statistiche, ricerca GDPR per email
-  CONSTRAINT {p}bev_entry_fk FOREIGN KEY (entry_id)
-    REFERENCES {p}barrio_entries (id) ON DELETE CASCADE,
-  CONSTRAINT {p}bev_field_fk FOREIGN KEY (field_id)
-    REFERENCES {p}barrio_form_fields (id) ON DELETE RESTRICT
-) ENGINE=InnoDB {charset};
-
--- File: RESTRICT perché sul disco esiste un file da eliminare prima della riga.
-CREATE TABLE {p}barrio_entry_files (
-  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  entry_id       BIGINT UNSIGNED NOT NULL,
-  field_id       BIGINT UNSIGNED NOT NULL,
-  stored_path    VARCHAR(191)    NOT NULL,              -- relativo alla cartella protetta, nome casuale
-  original_name  VARCHAR(255)    NOT NULL,
-  mime_type      VARCHAR(127)    NOT NULL,              -- rilevato dal contenuto, non dichiarato dal client
-  size_bytes     INT UNSIGNED    NOT NULL,
-  created_at     DATETIME        NOT NULL,
-  PRIMARY KEY (id),
-  UNIQUE KEY stored_path (stored_path),
-  KEY entry (entry_id),
-  KEY field (field_id),
-  CONSTRAINT {p}befi_entry_fk FOREIGN KEY (entry_id)
-    REFERENCES {p}barrio_entries (id) ON DELETE RESTRICT,
-  CONSTRAINT {p}befi_field_fk FOREIGN KEY (field_id)
-    REFERENCES {p}barrio_form_fields (id) ON DELETE RESTRICT,
-  CONSTRAINT {p}befi_size_chk CHECK (size_bytes > 0)
-) ENGINE=InnoDB {charset};
-
--- Storico della registrazione: esito di notifiche e integrazioni, note degli admin.
-CREATE TABLE {p}barrio_entry_notes (
-  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  entry_id    BIGINT UNSIGNED NOT NULL,
-  source      VARCHAR(64)     NOT NULL,                 -- 'notification', 'admin', slug dell'integrazione
-  level       VARCHAR(8)      NOT NULL,
-  message     TEXT            NOT NULL,
-  user_id     BIGINT UNSIGNED NULL,
-  created_at  DATETIME        NOT NULL,
-  PRIMARY KEY (id),
-  KEY entry_created (entry_id, created_at),
-  CONSTRAINT {p}ben_entry_fk FOREIGN KEY (entry_id)
-    REFERENCES {p}barrio_entries (id) ON DELETE CASCADE,
-  CONSTRAINT {p}ben_level_chk CHECK (level IN ('info', 'success', 'error'))
-) ENGINE=InnoDB {charset};
+```
+forms                      id, title (interno), status active|closed|trash, created_at, updated_at
+form_i18n                  (form_id, lang) → forms CASCADE
+                           submit_label NOT NULL; success_message NULL = standard;
+                           success_url NULL = resta sulla pagina, CHECK '^(/|https?://)'
+form_notifications         id, form_id → forms CASCADE, name, is_enabled, recipients (template con merge tag),
+                           reply_to NULL, attach_files, conditions JSON NULL = parte sempre,
+                           position UNIQUE (form_id, position)
+form_notifications_i18n    (notification_id, lang) → CASCADE; subject NOT NULL, heading NULL, body NOT NULL
+form_versions              id, form_id → forms CASCADE, version UNIQUE (form_id, version), created_at, created_by
+form_fields                id, version_id → CASCADE, field_key ^[a-z][a-z0-9_]*$, type (aperto, validato in PHP),
+                           position, is_required, config JSON (dipende dal tipo e non si traduce),
+                           conditions JSON NULL = sempre visibile; UNIQUE (version_id, field_key), (version_id, position)
+form_fields_i18n           (field_id, lang) → CASCADE; label NOT NULL, placeholder NULL, error_message NULL,
+                           options JSON {valore: etichetta} NULL
+entries                    id, form_id + version_id → form_versions RESTRICT (FK composta), lang NOT NULL,
+                           is_read, user_id NULL, source_url NULL senza query string né frammento, created_at
+entry_values               (entry_id, field_id, position) → entries CASCADE, form_fields RESTRICT; value
+entry_files                id, entry_id → RESTRICT, field_id → RESTRICT, stored_path UNIQUE, original_name,
+                           mime_type, size_bytes > 0, created_at
+entry_notes                id, entry_id → CASCADE, source, level info|success|error, message, user_id NULL, created_at
 ```
 
 Su MariaDB `JSON` è un alias di `LONGTEXT` con `CHECK (JSON_VALID(...))` automatico; gli altri
-vincoli funzionano allo stesso modo. Le impostazioni globali (SMTP, retention, template email)
-**non** sono tabelle: sono opzioni WordPress registrate con `register_setting()` e uno schema.
+vincoli funzionano allo stesso modo. Le colonne di identificatori e insiemi chiusi
+(`status`, `field_key`, `type`, `lang`, `stored_path`, `source`, `level`) sono `utf8mb4_bin`: con la
+collation di WordPress, che ignora le maiuscole, i CHECK accetterebbero `'Active'` o `'Email'`.
+Le impostazioni globali (SMTP, retention, template email) **non** sono tabelle: sono opzioni
+WordPress registrate con `register_setting()` e uno schema. Le impostazioni per form delle
+integrazioni arrivano in fase 8 con una tabella propria (migrazione `0002`).
 
 ### 2.4 Catena delle cancellazioni (garantita dal database)
 
@@ -259,11 +144,13 @@ vincoli funzionano allo stesso modo. Le impostazioni globali (SMTP, retention, t
 - **Registrazione con file**: non si può eliminare con un DELETE diretto (RESTRICT). Il Repository rimuove il file dal disco, poi la riga del file, poi la registrazione; valori e note seguono in CASCADE.
 - **Versione usata da registrazioni**: non si può eliminare (RESTRICT); la pulizia delle versioni non usate non può sbagliare.
 - **Campo con valori**: non si può eliminare (RESTRICT). Coerente con le versioni immutabili.
+- **Form senza registrazioni**: testi, notifiche, versioni e campi seguono in CASCADE.
 
-L'unico vincolo affidato al codice è che `entry_values.field_id` appartenga alla versione della
-registrazione. Lo garantisce l'unico punto di scrittura (`EntryRepository::create()`) ed è
-coperto da un test. Imporlo nel database richiederebbe una FK a tre colonne su ogni valore:
-complessità che non ripaga.
+Due vincoli sono affidati al codice, perché il database non sa esprimerli, e sono coperti da test:
+`entry_values.field_id` appartiene alla versione della registrazione (l'unico punto di scrittura
+è `EntryRepository::create()`; nel database servirebbe una FK a tre colonne su ogni valore), e ogni
+campo e ogni notifica hanno almeno una riga di testi (`FormRepository`; nessun vincolo SQL impone
+l'esistenza di un figlio).
 
 ### 2.5 Query tipiche e indici
 
@@ -275,11 +162,11 @@ complessità che non ripaga.
 | Dettaglio | valori e file `WHERE entry_id=?` con join su `form_fields` | PK `entry_values`, `entry` |
 | Filtro per valore, statistiche opzioni | `WHERE field_id IN (…) AND value=?` / `GROUP BY value` | `field_value` |
 | Ricerca GDPR per email | join `form_fields.type='email'` e `value=?` | `field_value` |
-| Retention | `WHERE created_at < ? ORDER BY id LIMIT 200` (a blocchi) | `created` |
+| Retention | `WHERE created_at < ? ORDER BY created_at LIMIT 200` (a blocchi; non `ORDER BY id`, che con molte righe vecchie richiede un filesort) | `created` |
 | Export CSV | stream a blocchi di 500 su `form_created` | `form_created` |
-| `hbForms.submissions` | `COUNT(*) … GROUP BY form_id` | `form_created` (copre la query) |
+| `hbForms.submissions` | `COUNT(*) … GROUP BY form_id` | `form_read` (copre la query) |
 
-La definizione corrente del form (versione, campi e i18n: 3 query) si mette in `wp_cache` e si
+La definizione corrente del form (form, testi, notifiche, versione e campi: 7 query) si mette in `wp_cache` e si
 invalida al salvataggio; con un object cache persistente il render non tocca il database.
 Obiettivo dichiarato: ~100k registrazioni per sito senza degrado.
 `// ponytail: la ricerca libera usa LIKE sui valori del form; oltre ~100k registrazioni si passa a un indice FULLTEXT su entry_values.value`.
@@ -291,7 +178,7 @@ Obiettivo dichiarato: ~100k registrazioni per sito senza degrado.
 - In MySQL il DDL non si annulla con un rollback: le migrazioni sono piccole e idempotenti (`IF NOT EXISTS`, controlli su `information_schema`).
 - Le estensioni registrano le proprie migrazioni con lo stesso Migrator.
 - **Multisite**: tabelle per sito tramite `$wpdb->prefix`; il Migrator parte su ogni sito alla prima richiesta, senza codice dedicato.
-- **Disinstallazione**: elimina tabelle e file **solo** se è attiva l'opzione "Elimina i dati alla disinstallazione" (disattivata di default). Le tabelle si eliminano in ordine figli → padri.
+- **Disinstallazione**: elimina tabelle e file **solo** se è attiva l'opzione "Elimina i dati alla disinstallazione" (disattivata di default). Le tabelle si eliminano in ordine figli → padri. Arriva con la pagina Impostazioni che espone l'opzione: fino ad allora il comportamento di default (non eliminare nulla) è già quello giusto.
 
 ### 2.7 Pronta quando
 
@@ -346,8 +233,8 @@ barrio-suite/
 `Submission::process(Form $form, array $input, Context $ctx): Result` viene chiamata da REST e da GraphQL.
 
 1. Il form esiste ed è `active` (un form `closed` risponde con un messaggio dedicato).
-2. Lingua: dall'input se è tra le lingue attive (§4.1), altrimenti la lingua principale; si applicano le traduzioni della versione corrente. Senza WPML esiste solo la lingua principale e `lang` resta NULL.
-3. Antispam: honeypot, token impostato via JS, limite di invii per IP (transient), poi il filtro `barrio_forms_spam_check` per i captcha delle estensioni.
+2. Lingua: dall'input se è tra le lingue attive (§4.1), altrimenti la lingua principale; si applicano le traduzioni della versione corrente. Senza WPML esiste solo la lingua del sito, che si salva comunque in `lang`.
+3. Antispam: honeypot, token impostato via JS, limite di invii per IP (transient con l'hash dell'IP, che scade dopo pochi minuti e non finisce nella registrazione), poi il filtro `barrio_forms_spam_check` per i captcha delle estensioni.
 4. Normalizzazione dei valori secondo il tipo di campo.
 5. **Logica condizionale valutata sul server**: i campi nascosti si ignorano (non sono obbligatori e non si salvano).
 6. Validazione per tipo (obbligatorio, email, numero, pattern, opzioni ammesse, file), poi il filtro `barrio_forms_validate`. Gli errori sono per campo e si restituiscono tutti insieme.
@@ -412,7 +299,7 @@ Stringhe dell'interfaccia in inglese con `__()` e traduzione `it_IT` (anche per 
 | Plugin | Cosa abilita | Senza il plugin |
 |---|---|---|
 | WPGraphQL | `hbForm`, `hbForms`, `hbSubmitForm`, con `UserError` per gli errori e il debug di WPGraphQL al posto del campo `debug` (che resta nello schema, sempre `null`, per compatibilità) | Nessuno schema registrato e nessun errore; i frontend headless usano la REST API (`GET /forms/{id}`, `POST /forms/{id}/entries`) |
-| WPML | Lingue attive e principale, lingua corrente, scheda Traduzioni del builder, lingua salvata nelle registrazioni | Una sola lingua: scheda Traduzioni nascosta, `lang` NULL, form ed email nella lingua del sito. Le traduzioni già salvate restano nel database e tornano attive se WPML viene riattivato |
+| WPML | Lingue attive e principale, lingua corrente, scheda Traduzioni del builder, lingua salvata nelle registrazioni | Una sola lingua: scheda Traduzioni nascosta, `lang` = lingua del sito, form ed email nella lingua del sito. Le traduzioni già salvate restano nel database e tornano attive se WPML viene riattivato |
 | ACF | — | Nessun effetto: il plugin non lo usa |
 
 Regole:
@@ -432,7 +319,7 @@ Regole:
 - **Email**: header (From, Reply-To) ripuliti da a capo e validati; i merge tag nell'oggetto non possono iniettare header.
 - **Export CSV**: le celle che iniziano con `= + - @` si neutralizzano (CSV injection).
 - **Affidabilità**: la registrazione si salva prima di qualsiasi effetto collaterale; gli errori di notifiche e integrazioni restano nelle note; ogni notifica si può rinviare.
-- **Privacy**: raccolta di IP e user agent disattivabile; retention configurabile; registrazione degli strumenti Privacy di WordPress con la ricerca per email tramite l'indice `field_value`.
+- **Privacy by default**: nessun IP, user agent o referrer salvato; URL della pagina di invio senza query string né frammento (vincolo `be_url_chk`); retention configurabile; registrazione degli strumenti Privacy di WordPress con la ricerca per email tramite l'indice `field_value`. Ogni raccolta in più arriva come opzione disattivata di default.
 
 ---
 
@@ -474,11 +361,11 @@ Ogni fase si chiude con test verdi e un plugin installabile.
 | 3 | **Email**: impostazioni SMTP, email di test, notifiche multiple, merge tag (`{{campo}}`, `{{all_fields}}`…), notifiche condizionali, allegati per notifica, template globale (logo, colori, footer) | Email ricevute via SMTP; i fallimenti finiscono nelle note e si possono rinviare |
 | 4 | **Builder React** | Si crea un form completo senza toccare il JSON; il salvataggio concorrente dà `409` |
 | 5 | **Registrazioni**: DataViews, dettaglio, letto/non letto, azioni di massa, CSV, file, note, capability per gli editor | Un editor gestisce le registrazioni senza accedere al builder |
-| 6 | **Privacy**: retention, exporter/eraser, raccolta IP disattivabile | Le richieste di accesso e cancellazione dei dati dagli strumenti di WordPress trovano e cancellano le registrazioni |
+| 6 | **Privacy**: retention, exporter/eraser | Le richieste di accesso e cancellazione dei dati dagli strumenti di WordPress trovano e cancellano le registrazioni |
 | 7 | **Traduzioni**: scheda Traduzioni del builder, lingue da WPML, email nella lingua di chi compila | Form ed email in inglese su un sito WPML; le statistiche aggregano le lingue. Senza WPML la scheda non compare, tutto funziona in una lingua e le traduzioni salvate restano nel database |
-| 8 | **API estensioni** e documentazione, **estensione Mailchimp** e **estensione captcha** come prove | Mailchimp e captcha funzionano senza modificare il core |
+| 8 | **API estensioni** e documentazione, tabella delle impostazioni per form delle integrazioni (migrazione `0002`), **estensione Mailchimp** e **estensione captcha** come prove | Mailchimp e captcha funzionano senza modificare il core |
 | 9 | **GraphQL** con i nomi del prototipo, sulla pipeline unica (file base64 accettati ma passati dal FileStore) | Uno snapshot dei test confronta lo schema con quello del prototipo; un frontend Next.js esistente funziona senza modifiche; senza WPGraphQL il plugin non registra nulla e non dà errori |
-| 10 | **Migrazione dal prototipo**, come estensione separata da disattivare a migrazione finita (comando WP-CLI con prova a vuoto): form con lo **stesso ID**; v1 "archivio" con anche i campi presenti solo nelle vecchie registrazioni, v2 = definizione attuale; checkbox `"Label: true\|…"` → righe; file spostati nella cartella protetta; IP → binario; `_page_*` → colonne; Mailjet → SMTP (`in-v3.mailjet.com:587`); impostazioni MailUp e Mailchimp conservate per le estensioni; alias `[suite_barrio_form]`/`[wpb_form]` se liberi | Un sito reale passa al nuovo plugin con conteggi verificati prima e dopo |
+| 10 | **Migrazione dal prototipo**, come estensione separata da disattivare a migrazione finita (comando WP-CLI con prova a vuoto): form con lo **stesso ID**; v1 "archivio" con anche i campi presenti solo nelle vecchie registrazioni, v2 = definizione attuale; checkbox `"Label: true\|…"` → righe; file spostati nella cartella protetta; IP, user agent e referrer del prototipo non si importano (privacy by default); `_page_*` → `source_url` senza query string; Mailjet → SMTP (`in-v3.mailjet.com:587`); impostazioni MailUp e Mailchimp conservate per le estensioni; alias `[suite_barrio_form]`/`[wpb_form]` se liberi | Un sito reale passa al nuovo plugin con conteggi verificati prima e dopo |
 
 Fuori dal core e da sviluppare come estensioni: MailUp, Mailchimp, reCAPTCHA/Turnstile, migrazione dal prototipo.
 Eliminato: Mailjet API (sostituito dall'SMTP).

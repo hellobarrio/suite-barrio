@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Tests\Integration;
 
+use BarrioSuite\Forms\Module;
 use BarrioSuite\Plugin;
 use BarrioSuite\Requirements;
 use WP_UnitTestCase;
@@ -10,6 +11,11 @@ final class PluginTest extends WP_UnitTestCase {
 
 	public function test_boots_on_plugins_loaded(): void {
 		$this->assertSame( 10, has_action( 'plugins_loaded', [ Plugin::class, 'boot' ] ) );
+	}
+
+	public function test_forms_module_boots_once_its_schema_is_current(): void {
+		$this->assertSame( '1', get_option( 'barrio_forms_db_version' ) );
+		$this->assertSame( 10, has_action( 'deleted_user', [ Module::class, 'forget_user' ] ) );
 	}
 
 	// In CI gira su MySQL 8.0 e MariaDB 10.5, le versioni minime.

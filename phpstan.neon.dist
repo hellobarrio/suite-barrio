@@ -3,3 +3,4 @@ parameters:
 	paths:
 		- barrio-suite.php
 		- src
+		- modules

@@ -6,6 +6,7 @@
 		"composer": "wp-env run tests-cli --env-cwd=wp-content/plugins/barrio-suite composer",
 		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/barrio-suite vendor/bin/phpunit",
 		"lint:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/barrio-suite composer lint",
+		"seed": "wp-env run cli --env-cwd=wp-content/plugins/barrio-suite wp --require=dev/seed.php barrio forms seed",
 		"lint:js": "wp-scripts lint-js",
 		"lint:css": "wp-scripts lint-style",
 		"format": "wp-scripts format"
