@@ -54,12 +54,13 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 				],
 				enabled: false,
 				conditions: [
-					'logic' => 'all',
-					'rules' => [
+					'action' => 'show',
+					'logic'  => 'all',
+					'rules'  => [
 						[
-							'field' => 'province',
-							'op'    => 'is',
-							'value' => 'to',
+							'field'    => 'province',
+							'operator' => '=',
+							'value'    => 'to',
 						],
 					],
 				],
@@ -96,8 +97,14 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 				],
 				config: [ 'choices' => [ 'to', 'cn' ] ],
 				conditions: [
-					'logic' => 'any',
-					'rules' => [],
+					'action' => 'hide',
+					'logic'  => 'any',
+					'rules'  => [
+						[
+							'field'    => 'email',
+							'operator' => 'empty',
+						],
+					],
 				],
 			),
 			new Field( 'privacy', 'consent', [ 'it' => [ 'label' => 'Accetto la <a href="/privacy">privacy</a>' ] ], true ),
@@ -232,6 +239,45 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 				$this->fail( "A {$what} without texts should be rejected." );
 			} catch ( InvalidArgumentException $e ) {
 				$this->assertStringContainsString( 'has no texts', $e->getMessage() );
+			}
+		}
+		$this->assertSame( '0', $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Db::table( 'forms' ) ) ) );
+	}
+
+	// Il JSON di config e condizioni si valida con lo schema prima di ogni scrittura.
+	public function test_invalid_field_config_and_conditions_are_rejected(): void {
+		global $wpdb;
+		$conditions = [
+			'action' => 'show',
+			'logic'  => 'all',
+			'rules'  => [],
+		];
+
+		foreach ( [
+			'field config'            => [ [], new FormVersion( [ new Field( 'topics', 'checkbox', [ 'it' => [ 'label' => 'Argomenti' ] ] ) ] ) ],
+			'field type'              => [ [], new FormVersion( [ new Field( 'sign', 'signature', [ 'it' => [ 'label' => 'Firma' ] ] ) ] ) ],
+			'notification conditions' => [
+				[
+					new Notification(
+						'Admin',
+						'a@example.com',
+						[
+							'it' => [
+								'subject' => 'A',
+								'body'    => 'B',
+							],
+						],
+						conditions: $conditions
+					),
+				],
+				self::fields( 'name' ),
+			],
+		] as $what => [ $notifications, $version ] ) {
+			try {
+				FormRepository::create( 'A', [], $notifications, $version );
+				$this->fail( "Invalid {$what} should be rejected." );
+			} catch ( InvalidArgumentException $e ) {
+				$this->assertMatchesRegularExpression( '/^(Field|Notification) &#039;\w+&#039;: /', $e->getMessage(), $what );
 			}
 		}
 		$this->assertSame( '0', $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Db::table( 'forms' ) ) ) );

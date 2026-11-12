@@ -2,9 +2,11 @@
 /**
  * Solo sviluppo: il plugin non carica questo file, lo carica WP-CLI con --require.
  *
+ *     npm run form -- dev/example-form.json
  *     npm run seed -- --entries=100000 [--forms=5]
  *
- * Genera form e registrazioni realistiche per misurare le query (docs/database.md).
+ * Il primo crea un form da un file JSON (finché non c'è il builder); il secondo genera form e
+ * registrazioni realistiche per misurare le query (docs/database.md).
  */
 
 use BarrioSuite\Database\Db;
@@ -15,6 +17,37 @@ use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Model\Notification;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
+
+// Il JSON ha la forma dei modelli: title, i18n, notifications e fields (key, type, required, config,
+// conditions, i18n). La validazione è quella di FormRepository, come per ogni altra scrittura.
+WP_CLI::add_command(
+	'barrio forms create',
+	static function ( array $args ): void {
+		$data = json_decode( (string) file_get_contents( $args[0] ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		if ( ! is_array( $data ) ) {
+			WP_CLI::error( "{$args[0]} is not valid JSON." );
+		}
+		try {
+			$form = FormRepository::create(
+				$data['title'],
+				$data['i18n'] ?? [],
+				array_map(
+					static fn( array $n ): Notification => new Notification( $n['name'], $n['recipients'], $n['i18n'], $n['reply_to'] ?? null, $n['enabled'] ?? true, $n['attach_files'] ?? false, $n['conditions'] ?? null ),
+					$data['notifications'] ?? []
+				),
+				new FormVersion(
+					array_map(
+						static fn( array $f ): Field => new Field( $f['key'], $f['type'], $f['i18n'], $f['required'] ?? false, $f['config'] ?? [], $f['conditions'] ?? null ),
+						$data['fields']
+					)
+				)
+			);
+		} catch ( InvalidArgumentException $e ) {
+			WP_CLI::error( $e->getMessage() );
+		}
+		WP_CLI::success( "Form {$form->id} created: [barrio_form id=\"{$form->id}\"]" );
+	}
+);
 
 WP_CLI::add_command(
 	'barrio forms seed',

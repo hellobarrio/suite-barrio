@@ -17,6 +17,20 @@ jobs:
       - run: composer install --no-progress
       - run: composer lint
 
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:js
+      - run: npm run lint:css
+      # Le stesse fixture della logica condizionale che PHPUnit usa per Conditions.php.
+      - run: npm run test:js
+
   test:
     name: test (${{ matrix.db }}${{ matrix.graphql && ', WPGraphQL' || '' }})
     runs-on: ubuntu-latest

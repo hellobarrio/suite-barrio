@@ -4,6 +4,7 @@ namespace BarrioSuite\Forms\Repository;
 
 use BarrioSuite\Database\Db;
 use BarrioSuite\Forms\Model\Entry;
+use BarrioSuite\Forms\Model\NoteLevel;
 use BarrioSuite\Forms\Submission\FileStore;
 use InvalidArgumentException;
 
@@ -71,6 +72,21 @@ final class EntryRepository {
 				Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE entry_id = %d', Db::table( 'entry_files' ), $id ) );
 				Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE id = %d', Db::table( 'entries' ), $id ) );
 			}
+		);
+	}
+
+	// $source: 'notification', 'admin', 'system' o lo slug di un'integrazione.
+	public static function add_note( int $entry_id, string $source, NoteLevel $level, string $message, ?int $user_id = null ): void {
+		Db::insert(
+			Db::table( 'entry_notes' ),
+			[
+				'entry_id'   => $entry_id,
+				'source'     => $source,
+				'level'      => $level->value,
+				'message'    => $message,
+				'user_id'    => $user_id,
+				'created_at' => gmdate( 'Y-m-d H:i:s' ),
+			]
 		);
 	}
 

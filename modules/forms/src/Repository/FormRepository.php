@@ -3,6 +3,8 @@
 namespace BarrioSuite\Forms\Repository;
 
 use BarrioSuite\Database\Db;
+use BarrioSuite\Forms\Conditions;
+use BarrioSuite\Forms\FieldTypes;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormStatus;
@@ -177,10 +179,11 @@ final class FormRepository {
 		return $form;
 	}
 
-	public static function version( int $id ): ?FormVersion {
+	// Con $form_id, null anche se la versione è di un altro form.
+	public static function version( int $id, ?int $form_id = null ): ?FormVersion {
 		global $wpdb;
 		$version = Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Db::table( 'form_versions' ), $id ) )[0] ?? null;
-		if ( null === $version ) {
+		if ( null === $version || ( null !== $form_id && (int) $version['form_id'] !== $form_id ) ) {
 			return null;
 		}
 
@@ -251,6 +254,10 @@ final class FormRepository {
 			if ( ! $notification->i18n ) {
 				throw new InvalidArgumentException( esc_html( "Notification '{$notification->name}' has no texts." ) );
 			}
+			$error = Conditions::check( $notification->conditions );
+			if ( null !== $error ) {
+				throw new InvalidArgumentException( esc_html( "Notification '{$notification->name}': {$error}" ) );
+			}
 			$notification_id = Db::insert(
 				Db::table( 'form_notifications' ),
 				[
@@ -293,6 +300,11 @@ final class FormRepository {
 			// Come per le notifiche: un campo senza testi non avrebbe un'etichetta in nessuna lingua.
 			if ( ! $field->i18n ) {
 				throw new InvalidArgumentException( esc_html( "Field '{$field->key}' has no texts." ) );
+			}
+			// Il JSON si valida con lo schema del tipo prima di ogni scrittura (docs/database.md).
+			$error = FieldTypes::check( $field );
+			if ( null !== $error ) {
+				throw new InvalidArgumentException( esc_html( "Field '{$field->key}': {$error}" ) );
 			}
 			$field_id = Db::insert(
 				Db::table( 'form_fields' ),

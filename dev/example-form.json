@@ -1,0 +1,79 @@
+{
+	"title": "Richiesta di contatto (esempio)",
+	"i18n": {
+		"it": { "submit_label": "Invia la richiesta", "success_message": "Grazie! Ti risponderemo entro due giorni lavorativi." },
+		"en": { "submit_label": "Send request", "success_message": "Thank you! We will reply within two working days." }
+	},
+	"notifications": [],
+	"fields": [
+		{
+			"key": "name", "type": "text", "required": true,
+			"i18n": { "it": { "label": "Nome e cognome" }, "en": { "label": "Full name" } }
+		},
+		{
+			"key": "email", "type": "email", "required": true,
+			"i18n": {
+				"it": { "label": "Email", "placeholder": "nome@esempio.it", "error_message": "Serve un indirizzo email valido." },
+				"en": { "label": "Email", "placeholder": "name@example.com", "error_message": "Please enter a valid email address." }
+			}
+		},
+		{
+			"key": "phone", "type": "tel", "config": { "pattern": "\\+?[0-9 ]{6,20}" },
+			"i18n": { "it": { "label": "Telefono" }, "en": { "label": "Phone" } }
+		},
+		{
+			"key": "request", "type": "radio", "required": true, "config": { "choices": [ "info", "quote" ] },
+			"i18n": {
+				"it": { "label": "Di cosa hai bisogno?", "options": { "info": "Informazioni", "quote": "Un preventivo" } },
+				"en": { "label": "What do you need?", "options": { "info": "Information", "quote": "A quote" } }
+			}
+		},
+		{
+			"key": "budget", "type": "number", "required": true, "config": { "min": 500, "max": 100000 },
+			"conditions": { "action": "show", "logic": "all", "rules": [ { "field": "request", "operator": "=", "value": "quote" } ] },
+			"i18n": { "it": { "label": "Budget (€)" }, "en": { "label": "Budget (€)" } }
+		},
+		{
+			"key": "deadline", "type": "datepicker",
+			"conditions": { "action": "show", "logic": "all", "rules": [ { "field": "budget", "operator": ">", "value": "10000" } ] },
+			"i18n": { "it": { "label": "Entro quando?" }, "en": { "label": "By when?" } }
+		},
+		{
+			"key": "next_1", "type": "page_break",
+			"i18n": { "it": { "label": "Avanti" }, "en": { "label": "Next" } }
+		},
+		{
+			"key": "province", "type": "select", "config": { "choices": [ "to", "cn", "at", "al" ] },
+			"i18n": {
+				"it": { "label": "Provincia", "placeholder": "Scegli…", "options": { "to": "Torino", "cn": "Cuneo", "at": "Asti", "al": "Alessandria" } },
+				"en": { "label": "Province", "placeholder": "Choose…", "options": { "to": "Turin", "cn": "Cuneo", "at": "Asti", "al": "Alessandria" } }
+			}
+		},
+		{
+			"key": "topics", "type": "checkbox", "config": { "choices": [ "news", "events", "offers" ] },
+			"i18n": {
+				"it": { "label": "Ti interessa anche", "options": { "news": "Notizie", "events": "Eventi", "offers": "Offerte" } },
+				"en": { "label": "You are also interested in", "options": { "news": "News", "events": "Events", "offers": "Offers" } }
+			}
+		},
+		{
+			"key": "message", "type": "textarea", "required": true,
+			"i18n": { "it": { "label": "Messaggio" }, "en": { "label": "Message" } }
+		},
+		{
+			"key": "attachment", "type": "file", "config": { "extensions": [ "pdf", "jpg", "png" ], "max_size_mb": 5 },
+			"i18n": { "it": { "label": "Allegato" }, "en": { "label": "Attachment" } }
+		},
+		{
+			"key": "privacy", "type": "consent", "required": true,
+			"i18n": {
+				"it": { "label": "Ho letto l'<a href=\"/privacy-policy/\">informativa privacy</a>" },
+				"en": { "label": "I have read the <a href=\"/en/privacy-policy/\">privacy policy</a>" }
+			}
+		},
+		{
+			"key": "campaign", "type": "hidden", "config": { "param": "campaign" },
+			"i18n": { "it": { "label": "Campagna" }, "en": { "label": "Campaign" } }
+		}
+	]
+}

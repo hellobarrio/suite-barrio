@@ -1,0 +1,159 @@
+[
+	{
+		"name": "a field without conditions is always visible",
+		"fields": [ { "key": "name", "conditions": null } ],
+		"values": {},
+		"visible": { "name": true }
+	},
+	{
+		"name": "= shows the field when the value matches",
+		"fields": [
+			{ "key": "type", "conditions": null },
+			{ "key": "budget", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "type", "operator": "=", "value": "quote" } ] } },
+			{ "key": "notes", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "type", "operator": "=", "value": "info" } ] } }
+		],
+		"values": { "type": [ "quote" ] },
+		"visible": { "type": true, "budget": true, "notes": false }
+	},
+	{
+		"name": "= is case sensitive",
+		"fields": [
+			{ "key": "city", "conditions": null },
+			{ "key": "zone", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "city", "operator": "=", "value": "torino" } ] } }
+		],
+		"values": { "city": [ "Torino" ] },
+		"visible": { "city": true, "zone": false }
+	},
+	{
+		"name": "= on a checkbox matches any of its values",
+		"fields": [
+			{ "key": "topics", "conditions": null },
+			{ "key": "events", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "topics", "operator": "=", "value": "events" } ] } }
+		],
+		"values": { "topics": [ "news", "events" ] },
+		"visible": { "topics": true, "events": true }
+	},
+	{
+		"name": "!= needs every value to differ, and an empty field differs",
+		"fields": [
+			{ "key": "topics", "conditions": null },
+			{ "key": "empty_topics", "conditions": null },
+			{ "key": "a", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "topics", "operator": "!=", "value": "events" } ] } },
+			{ "key": "b", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "empty_topics", "operator": "!=", "value": "events" } ] } }
+		],
+		"values": { "topics": [ "news", "events" ] },
+		"visible": { "topics": true, "empty_topics": true, "a": false, "b": true }
+	},
+	{
+		"name": "> and < compare numbers",
+		"fields": [
+			{ "key": "budget", "conditions": null },
+			{ "key": "big", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "budget", "operator": ">", "value": "1000" } ] } },
+			{ "key": "small", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "budget", "operator": "<", "value": "1000" } ] } },
+			{ "key": "decimal", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "budget", "operator": ">", "value": "1500.25" } ] } },
+			{ "key": "negative", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "budget", "operator": ">", "value": "-3.5" } ] } }
+		],
+		"values": { "budget": [ "1500.5" ] },
+		"visible": { "budget": true, "big": true, "small": false, "decimal": true, "negative": true }
+	},
+	{
+		"name": "> and < are false when either side is not a plain number",
+		"fields": [
+			{ "key": "a", "conditions": null },
+			{ "key": "b", "conditions": null },
+			{ "key": "c", "conditions": null },
+			{ "key": "text", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "a", "operator": ">", "value": "1" } ] } },
+			{ "key": "suffix", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "b", "operator": ">", "value": "1" } ] } },
+			{ "key": "newline", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "c", "operator": ">", "value": "1" } ] } },
+			{ "key": "rule_text", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "a", "operator": "<", "value": "abc" } ] } },
+			{ "key": "exponent", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "b", "operator": "<", "value": "1e3" } ] } }
+		],
+		"values": { "a": [ "abc" ], "b": [ "12abc" ], "c": [ "12\n" ] },
+		"visible": { "a": true, "b": true, "c": true, "text": false, "suffix": false, "newline": false, "rule_text": false, "exponent": false }
+	},
+	{
+		"name": "contains, starts_with and ends_with",
+		"fields": [
+			{ "key": "email", "conditions": null },
+			{ "key": "contains", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "email", "operator": "contains", "value": "@example" } ] } },
+			{ "key": "starts", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "email", "operator": "starts_with", "value": "ada" } ] } },
+			{ "key": "ends", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "email", "operator": "ends_with", "value": ".it" } ] } },
+			{ "key": "not_ends", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "email", "operator": "ends_with", "value": ".com" } ] } },
+			{ "key": "accents", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "email", "operator": "contains", "value": "è" } ] } }
+		],
+		"values": { "email": [ "ada@example.it" ] },
+		"visible": { "email": true, "contains": true, "starts": true, "ends": true, "not_ends": false, "accents": false }
+	},
+	{
+		"name": "empty and not_empty",
+		"fields": [
+			{ "key": "phone", "conditions": null },
+			{ "key": "email", "conditions": null },
+			{ "key": "ask_phone", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "phone", "operator": "empty" } ] } },
+			{ "key": "thanks", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "email", "operator": "not_empty", "value": "ignored" } ] } }
+		],
+		"values": { "email": [ "ada@example.it" ] },
+		"visible": { "phone": true, "email": true, "ask_phone": true, "thanks": true }
+	},
+	{
+		"name": "hide inverts the result",
+		"fields": [
+			{ "key": "type", "conditions": null },
+			{ "key": "company", "conditions": { "action": "hide", "logic": "all", "rules": [ { "field": "type", "operator": "=", "value": "private" } ] } },
+			{ "key": "vat", "conditions": { "action": "hide", "logic": "all", "rules": [ { "field": "type", "operator": "=", "value": "business" } ] } }
+		],
+		"values": { "type": [ "private" ] },
+		"visible": { "type": true, "company": false, "vat": true }
+	},
+	{
+		"name": "all needs every rule, any needs one",
+		"fields": [
+			{ "key": "a", "conditions": null },
+			{ "key": "b", "conditions": null },
+			{ "key": "all", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "a", "operator": "=", "value": "1" }, { "field": "b", "operator": "=", "value": "1" } ] } },
+			{ "key": "any", "conditions": { "action": "show", "logic": "any", "rules": [ { "field": "a", "operator": "=", "value": "1" }, { "field": "b", "operator": "=", "value": "1" } ] } }
+		],
+		"values": { "a": [ "1" ], "b": [ "2" ] },
+		"visible": { "a": true, "b": true, "all": false, "any": true }
+	},
+	{
+		"name": "a hidden field counts as empty for the fields that depend on it",
+		"fields": [
+			{ "key": "type", "conditions": null },
+			{ "key": "budget", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "type", "operator": "=", "value": "quote" } ] } },
+			{ "key": "big", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "budget", "operator": ">", "value": "1000" } ] } },
+			{ "key": "no_budget", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "budget", "operator": "empty" } ] } }
+		],
+		"values": { "type": [ "info" ], "budget": [ "5000" ] },
+		"visible": { "type": true, "budget": false, "big": false, "no_budget": true }
+	},
+	{
+		"name": "a rule on a later or unknown field sees it empty",
+		"fields": [
+			{ "key": "first", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "later", "operator": "not_empty" } ] } },
+			{ "key": "later", "conditions": null },
+			{ "key": "ghost", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "missing", "operator": "empty" } ] } }
+		],
+		"values": { "later": [ "x" ], "missing": [ "x" ] },
+		"visible": { "first": false, "later": true, "ghost": true }
+	},
+	{
+		"name": "a key named like an object property is just a key",
+		"fields": [
+			{ "key": "constructor", "conditions": null },
+			{ "key": "a", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "constructor", "operator": "empty" } ] } },
+			{ "key": "b", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "tostring", "operator": "empty" } ] } }
+		],
+		"values": {},
+		"visible": { "constructor": true, "a": true, "b": true }
+	},
+	{
+		"name": "an unknown operator never matches",
+		"fields": [
+			{ "key": "a", "conditions": null },
+			{ "key": "b", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "a", "operator": "like", "value": "x" } ] } }
+		],
+		"values": { "a": [ "x" ] },
+		"visible": { "a": true, "b": false }
+	}
+]

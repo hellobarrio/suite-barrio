@@ -2,6 +2,8 @@
 
 namespace BarrioSuite\Forms;
 
+use BarrioSuite\Forms\Api\RestPublic;
+use BarrioSuite\Forms\Frontend\Render;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 
@@ -9,6 +11,8 @@ final class Module {
 
 	public static function boot(): void {
 		add_action( 'deleted_user', [ self::class, 'forget_user' ] );
+		add_action( 'init', [ Render::class, 'register' ] );
+		add_action( 'rest_api_init', [ RestPublic::class, 'register' ] );
 	}
 
 	// Niente FK verso le tabelle di WordPress (docs/database.md): i riferimenti agli utenti si azzerano qui.

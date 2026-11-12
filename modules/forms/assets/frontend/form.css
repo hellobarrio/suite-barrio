@@ -1,0 +1,128 @@
+/*
+ * Stile minimo, che eredita font e colori dal tema.
+ * Il tema può sovrascrivere le custom properties di .barrio-form.
+ */
+
+.barrio-form {
+	--barrio-form-gap: 1.25rem;
+	--barrio-form-border: #8c8f94;
+	--barrio-form-radius: 4px;
+	--barrio-form-error: #b32d2e;
+	--barrio-form-button-background: #1e1e1e;
+	--barrio-form-button-color: #fff;
+
+	display: grid;
+	gap: var(--barrio-form-gap);
+}
+
+.barrio-form__step,
+.barrio-form__field {
+	display: grid;
+	gap: 0.375rem;
+}
+
+.barrio-form__step {
+	gap: var(--barrio-form-gap);
+}
+
+/* display: grid prevale sull'attributo hidden (condizioni e multistep). */
+.barrio-form__step[hidden],
+.barrio-form__field[hidden],
+.barrio-form__field--hidden {
+	display: none;
+}
+
+.barrio-form__label {
+	font-weight: 600;
+}
+
+.barrio-form__required,
+.barrio-form__error {
+	color: var(--barrio-form-error);
+}
+
+.barrio-form input:not([type="checkbox"], [type="radio"]),
+.barrio-form select,
+.barrio-form textarea {
+	box-sizing: border-box;
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--barrio-form-border);
+	border-radius: var(--barrio-form-radius);
+	font: inherit;
+}
+
+.barrio-form [aria-invalid="true"] {
+	border-color: var(--barrio-form-error);
+	outline-color: var(--barrio-form-error);
+}
+
+.barrio-form__error,
+.barrio-form__hint {
+	margin: 0;
+	font-size: 0.875em;
+}
+
+.barrio-form__error:empty {
+	display: none;
+}
+
+.barrio-form__choices {
+	display: grid;
+	gap: 0.375rem;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.barrio-form__choices legend {
+	margin-bottom: 0.375rem;
+	padding: 0;
+}
+
+.barrio-form__choice {
+	display: flex;
+	gap: 0.5rem;
+	align-items: baseline;
+}
+
+.barrio-form__nav {
+	display: flex;
+	gap: 0.75rem;
+	justify-content: space-between;
+}
+
+.barrio-form__nav :last-child {
+	margin-left: auto;
+}
+
+.barrio-form button {
+	padding: 0.625rem 1.25rem;
+	border: 1px solid var(--barrio-form-button-background);
+	border-radius: var(--barrio-form-radius);
+	background: var(--barrio-form-button-background);
+	color: var(--barrio-form-button-color);
+	font: inherit;
+	cursor: pointer;
+}
+
+.barrio-form__back {
+	background: transparent;
+	color: inherit;
+}
+
+.barrio-form[aria-busy="true"] button {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+/* Fuori dallo schermo e non display: none, che alcuni bot riconoscono. */
+.barrio-form__hp,
+.barrio-form__sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

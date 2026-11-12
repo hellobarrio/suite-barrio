@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "barrio/form",
+	"title": "Form",
+	"category": "widgets",
+	"icon": "feedback",
+	"description": "Shows a Barrio Suite form.",
+	"keywords": [ "contact", "barrio" ],
+	"textdomain": "barrio-suite",
+	"attributes": {
+		"id": {
+			"type": "integer"
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"editorScript": "file:./index.js",
+	"style": "barrio-forms"
+}

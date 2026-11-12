@@ -30,8 +30,8 @@ final class EntryRepositoryTest extends WP_UnitTestCase {
 			new FormVersion(
 				[
 					new Field( 'email', 'email', [ 'it' => [ 'label' => 'Email' ] ] ),
-					new Field( 'topics', 'checkbox', [ 'it' => [ 'label' => 'Argomenti' ] ] ),
-					new Field( 'cv', 'file', [ 'it' => [ 'label' => 'CV' ] ] ),
+					new Field( 'topics', 'checkbox', [ 'it' => [ 'label' => 'Argomenti' ] ], config: [ 'choices' => [ 'news', 'eventi' ] ] ),
+					new Field( 'cv', 'file', [ 'it' => [ 'label' => 'CV' ] ], config: [ 'extensions' => [ 'pdf' ] ] ),
 				]
 			)
 		);

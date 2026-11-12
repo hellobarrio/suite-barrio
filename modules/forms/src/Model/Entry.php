@@ -10,6 +10,7 @@ final readonly class Entry {
 	 * @param list<array{field_id: int, stored_path: string, original_name: string, mime_type: string, size_bytes: int}> $files
 	 * @param string|null              $source_url Pagina di invio; query string e frammento si tolgono al salvataggio.
 	 * @param string|null              $created_at UTC; null = adesso.
+	 * @param int|null                 $id         Null finché la registrazione non è salvata.
 	 */
 	public function __construct(
 		public int $form_id,
@@ -20,5 +21,6 @@ final readonly class Entry {
 		public ?int $user_id = null,
 		public ?string $source_url = null,
 		public ?string $created_at = null,
+		public ?int $id = null,
 	) {}
 }

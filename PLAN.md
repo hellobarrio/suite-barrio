@@ -209,9 +209,9 @@ barrio-suite/
 │   │   ├── Model/                         # readonly class: Form, FormVersion, Field, Entry + enum
 │   │   ├── Repository/FormRepository.php  # unici a usare $wpdb
 │   │   ├── Repository/EntryRepository.php
-│   │   ├── Fields/                        # registro dei tipi + tipi core
+│   │   ├── FieldTypes.php                 # tipi core (il registro per le estensioni arriva in fase 8)
 │   │   ├── Conditions.php                 # motore delle regole (campi, notifiche, integrazioni)
-│   │   ├── Submission/                    # pipeline, antispam, FileStore
+│   │   ├── Submission/                    # pipeline con antispam, FileStore
 │   │   ├── Notifications.php, MergeTags.php
 │   │   ├── Integrations.php               # registro delle estensioni
 │   │   ├── I18n.php                       # lingue (da WPML se attivo, altrimenti solo quella del sito)
@@ -220,7 +220,8 @@ barrio-suite/
 │   │   ├── Frontend/Render.php            # shortcode + render del blocco
 │   │   ├── Privacy.php                    # retention, exporter/eraser
 │   │   └── Admin.php
-│   ├── assets/src/{builder,entries,settings,block,frontend}/
+│   ├── assets/{frontend,block}/           # senza build: script module nativi e JS dell'editor scritto a mano
+│   ├── assets/src/{builder,entries,settings}/   # React, con la build di @wordpress/scripts (dalla fase 4)
 │   └── templates/email.php
 ├── tests/{Unit,Integration,fixtures}/
 ├── docs/{database.md,hooks.md}
@@ -230,10 +231,10 @@ barrio-suite/
 
 ### 3.1 Pipeline di invio (unica)
 
-`Submission::process(Form $form, array $input, Context $ctx): Result` viene chiamata da REST e da GraphQL.
+`Submission::process(Form $form, array $input, array $files, ?string $ip, ?int $user_id): Entry|WP_Error` viene chiamata da REST e da GraphQL.
 
 1. Il form esiste ed è `active` (un form `closed` risponde con un messaggio dedicato).
-2. Lingua: dall'input se è tra le lingue attive (§4.1), altrimenti la lingua principale; si applicano le traduzioni della versione corrente. Senza WPML esiste solo la lingua del sito, che si salva comunque in `lang`.
+2. Lingua: dall'input se è tra le lingue attive (§4.1), altrimenti la lingua principale. Senza WPML esiste solo la lingua del sito, che si salva comunque in `lang`. Versione: quella che il form ha mostrato (`_barrio_version`), se esiste ancora, altrimenti la corrente: con la cache di pagina il visitatore può aver letto una versione precedente, ed è quella che la registrazione deve provare.
 3. Antispam: honeypot, token impostato via JS, limite di invii per IP (transient con l'hash dell'IP, che scade dopo pochi minuti e non finisce nella registrazione), poi il filtro `barrio_forms_spam_check` per i captcha delle estensioni.
 4. Normalizzazione dei valori secondo il tipo di campo.
 5. **Logica condizionale valutata sul server**: i campi nascosti si ignorano (non sono obbligatori e non si salvano).
@@ -269,7 +270,7 @@ pannello e il server valida), `render()`, `normalize()` e `validate()`.
 
 ### 3.4 Frontend
 
-- Un file JS statico (vanilla, nessuna dipendenza) e un CSS con *custom properties* che il tema può sovrascrivere. Si caricano solo quando nella pagina c'è un form (`viewScript` del blocco o enqueue dallo shortcode).
+- JS statico (vanilla, nessuna dipendenza, nessuna build) come *script module* di WordPress, e un CSS con *custom properties* che il tema può sovrascrivere. Si caricano solo quando nella pagina c'è un form (enqueue dal render, unico per blocco e shortcode).
 - Validazione con la Constraint Validation API nativa, messaggi accessibili (`aria-invalid`, `aria-describedby`), **multistep vero** con validazione per step.
 - La logica condizionale in JS e in PHP usa la **stessa suite di fixture** (`tests/fixtures/conditions.json`), eseguita da PHPUnit e da `node --test`: le due implementazioni non possono divergere.
 - Blocco `barrio/form` (dinamico, `block.json`) e shortcode `[barrio_form id=""]` usano lo stesso render.
@@ -375,4 +376,6 @@ Eliminato: Mailjet API (sostituito dall'SMTP).
 - **Convivenza dello schema GraphQL**: il `graphql.php` del prototipo registra i tipi `hb*` anche con il modulo Forms disattivato. Va verificato come si comporta WPGraphQL con due registrazioni dello stesso nome; se serve, una riga nel prototipo che salti la registrazione quando `BARRIO_SUITE_VERSION` è definita.
 - **Test con WPML**: WPML è a pagamento e non si installa in CI. I test simulano i suoi filtri (sono l'unico punto di contatto); in più serve una prova manuale su un sito reale prima di chiudere la fase 7.
 - **Hosting dei clienti**: verificare all'attivazione su un sito reale di ognuno (versione di MySQL/MariaDB e InnoDB).
+- **Limite di invii per IP** (fase 2): usa `REMOTE_ADDR`. Dietro un proxy che non lo riscrive (Cloudflare senza `mod_remoteip`), o con un frontend headless che invia dal proprio server, tutti gli invii hanno lo stesso IP e il limite (10 ogni 10 minuti) vale per l'intero sito. Verificare sugli hosting dei clienti; se serve, un filtro sull'IP o sul limite.
+- **Download dei file** (fase 5): il controllo di WordPress sul contenuto è severo per i tipi `application/*` ma lascia passare come "non verificati" gli altri (un `.pdf` che contiene testo). I file non si eseguono (nome casuale senza estensione, cartella protetta), ma l'endpoint di download deve rispondere con `Content-Disposition: attachment` e `X-Content-Type-Options: nosniff`.
 - **Namespace REST condiviso**: il prototipo usa già `barrio/v1` (cookie banner, accessibilità: `/config`, `/scan`, `/consent-log`, `/accessibility`…). Le rotte dei form (`/forms/…`) non collidono; quando si porteranno quei moduli bisognerà scegliere rotte diverse o disattivarli nel prototipo.
