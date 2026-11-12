@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+      - run: composer install --no-progress
+      - run: composer lint
+
+  test:
+    name: test (${{ matrix.db }}${{ matrix.graphql && ', WPGraphQL' || '' }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Le versioni minime supportate (vedi Requirements.php).
+        db: ['mysql:8.0', 'mariadb:10.5']
+        graphql: [false, true]
+    services:
+      db:
+        image: ${{ matrix.db }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: wordpress_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      # Lette da tests/wp-tests-config.php.
+      WP_CORE_DIR: /tmp/wordpress
+      WORDPRESS_DB_HOST: 127.0.0.1:3306
+      WORDPRESS_DB_NAME: wordpress_test
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: password
+      WP_GRAPHQL: ${{ matrix.graphql && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli
+          coverage: none
+      - run: composer install --no-progress
+      - name: Download WordPress
+        run: |
+          mkdir -p "$WP_CORE_DIR"
+          curl -sSfL https://wordpress.org/latest.tar.gz | tar xz --strip-components=1 -C "$WP_CORE_DIR"
+      - name: Download WPGraphQL
+        if: matrix.graphql
+        run: |
+          curl -sSfL -o /tmp/wp-graphql.zip https://downloads.wordpress.org/plugin/wp-graphql.latest-stable.zip
+          unzip -q /tmp/wp-graphql.zip -d "$WP_CORE_DIR/wp-content/plugins"
+      - run: vendor/bin/phpunit
