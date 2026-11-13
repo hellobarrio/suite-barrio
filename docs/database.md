@@ -109,14 +109,16 @@ generate da `npm run seed -- --entries=100000`. `EXPLAIN` su MariaDB 12.3:
 | Testi del form | `form_i18n WHERE form_id = ?` | `PRIMARY` |
 | Notifiche e testi | `WHERE form_id = ? ORDER BY position`, JOIN `form_notifications_i18n` | `form_position`, `PRIMARY` |
 | Campi e testi | `WHERE version_id = ? ORDER BY position`, JOIN `form_fields_i18n` | `version_position`, `PRIMARY` |
-| Elenco registrazioni | `WHERE form_id = ? ORDER BY created_at DESC LIMIT 50 OFFSET ?` | `form_created`, senza filesort |
+| Elenco registrazioni | `WHERE form_id = ? ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?` | `form_created`, senza filesort |
+| Ricerca libera | `EXISTS (SELECT 1 FROM entry_values WHERE entry_id = e.id AND value LIKE '%…%')` | `PRIMARY` di `entry_values` per registrazione: ~100 ms a query su 20k registrazioni (il totale e la pagina sono due query) |
+| Ordinamento per campo | `LEFT JOIN entry_values` sui `field_id` della chiave in tutte le versioni, `position = 0`, `ORDER BY value` | `PRIMARY` + filesort, ~130 ms su 20k registrazioni |
 | Badge "non lette" | `COUNT(*) WHERE form_id = ? AND is_read = 0` | `form_read` (coprente) |
 | Dettaglio | `entry_values WHERE entry_id = ?` JOIN `form_fields` | `PRIMARY`, `PRIMARY` |
 | Filtro per valore | `WHERE field_id IN (…) AND value = ?` | `field_value` |
 | Statistiche opzioni | `WHERE field_id IN (…) GROUP BY value` | `field_value` + tabella temporanea (~20k righe per campo) |
 | Ricerca GDPR per email | `form_fields WHERE type = 'email'` JOIN `entry_values … value = ?` | scansione di `form_fields` (poche righe) + `field_value` |
 | Retention | `WHERE created_at < ? ORDER BY created_at LIMIT 200` | `created` (coprente). Non `ORDER BY id`: con molte righe vecchie richiede un filesort su tutte |
-| Export CSV | `WHERE form_id = ? AND (created_at > ? OR (created_at = ? AND id > ?)) ORDER BY created_at, id LIMIT 500` | `form_created` |
+| Export CSV | `WHERE form_id = ? AND (created_at > ? OR (created_at = ? AND id > ?)) ORDER BY created_at, id LIMIT 500` | `form_created`; 20k righe (6 MB) in ~1 s via HTTP |
 | Conteggi per form | `GROUP BY form_id` | `form_read` (coprente, il più piccolo) |
 
 Spazio occupato con quei dati: `entries` 9,5 MB + 16 MB di indici, `entry_values` 52 MB + 43 MB di indici. Le

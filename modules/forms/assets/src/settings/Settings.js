@@ -106,9 +106,11 @@ export function Settings() {
 					onClick={ save }
 				>
 					<Lucide name="save" />
-					{ 'save' === busy
-						? __( 'Saving…', 'barrio-suite' )
-						: __( 'Save', 'barrio-suite' ) }
+					<span className="barrio-button__text">
+						{ 'save' === busy
+							? __( 'Saving…', 'barrio-suite' )
+							: __( 'Save', 'barrio-suite' ) }
+					</span>
 				</button>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
@@ -220,7 +222,7 @@ export function Settings() {
 							alt=""
 						/>
 					) }
-					<div className="barrio-row">
+					<div className="barrio-row is-fill">
 						<MediaUpload
 							allowedTypes={ [ 'image' ] }
 							onSelect={ ( media ) =>
@@ -299,25 +301,27 @@ export function Settings() {
 					value={ testTo }
 					onChange={ setTestTo }
 				/>
-				<div>
-					<button
-						type="button"
-						className="barrio-button"
-						disabled={ !! busy || dirty }
-						onClick={ () =>
-							request(
-								'test',
-								{
-									path: '/barrio/v1/settings/test-email',
-									method: 'POST',
-									data: testTo ? { to: testTo } : {},
-								},
-								( data ) => data.message
-							)
-						}
-					>
-						{ __( 'Send test email', 'barrio-suite' ) }
-					</button>
+				<div className="barrio-field">
+					<div className="barrio-field__control">
+						<button
+							type="button"
+							className="barrio-button"
+							disabled={ !! busy || dirty }
+							onClick={ () =>
+								request(
+									'test',
+									{
+										path: '/barrio/v1/settings/test-email',
+										method: 'POST',
+										data: testTo ? { to: testTo } : {},
+									},
+									( data ) => data.message
+								)
+							}
+						>
+							{ __( 'Send test email', 'barrio-suite' ) }
+						</button>
+					</div>
 				</div>
 			</Card>
 		</div>

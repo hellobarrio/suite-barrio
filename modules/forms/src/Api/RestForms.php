@@ -33,8 +33,8 @@ final class RestForms {
 				[
 					'methods'             => 'GET',
 					'callback'            => [ self::class, 'list' ],
-					// Anche per il blocco barrio/form, che sceglie il form dall'elenco.
-					'permission_callback' => static fn(): bool => current_user_can( 'edit_posts' ),
+					// Anche per il blocco barrio/form, che sceglie il form dall'elenco, e per le registrazioni.
+					'permission_callback' => static fn(): bool => current_user_can( 'edit_posts' ) || current_user_can( 'barrio_manage_entries' ),
 				],
 				[
 					'methods'             => 'POST',

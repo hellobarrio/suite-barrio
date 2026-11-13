@@ -59,15 +59,6 @@ final class RestAdmin {
 				],
 			]
 		);
-		register_rest_route(
-			'barrio/v1',
-			'/entries/(?P<id>\d+)/notifications/(?P<notification>\d+)/resend',
-			[
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => [ self::class, 'resend' ],
-				'permission_callback' => static fn(): bool => current_user_can( 'barrio_manage_entries' ),
-			]
-		);
 	}
 
 	public static function settings(): WP_REST_Response {
@@ -111,10 +102,5 @@ final class RestAdmin {
 		}
 		/* translators: %s: indirizzo email. */
 		return new WP_REST_Response( [ 'message' => sprintf( __( 'Test email sent to %s.', 'barrio-suite' ), $to ) ] );
-	}
-
-	// L'esito, riuscito o no, finisce comunque nelle note della registrazione.
-	public static function resend( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		return Notifications::resend( (int) $request['id'], (int) $request['notification'] ) ?? new WP_REST_Response( [ 'sent' => true ] );
 	}
 }

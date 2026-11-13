@@ -22,5 +22,6 @@ final readonly class Entry {
 		public ?string $source_url = null,
 		public ?string $created_at = null,
 		public ?int $id = null,
+		public bool $is_read = false,
 	) {}
 }

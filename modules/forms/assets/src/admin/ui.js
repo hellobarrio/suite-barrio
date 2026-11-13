@@ -6,13 +6,34 @@ import {
 	NavigableMenu,
 	Spinner,
 } from '@wordpress/components';
-import { cloneElement, useEffect, useId, useRef } from '@wordpress/element';
+import {
+	cloneElement,
+	useEffect,
+	useId,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import { PER_PAGE, nextSort, pages } from './query.js';
 
 export const pageUrl = ( params = {} ) =>
 	'?' + new URLSearchParams( { page: 'barrio-forms', ...params } );
+
+export const entriesUrl = ( params ) =>
+	pageUrl( { page: 'barrio-entries', ...params } );
+
+// Un download (file, CSV) è un link e non passa da apiFetch: il nonce va nell'URL. Con i
+// permalink semplici l'URL della REST ha già un "?" (?rest_route=).
+export function restLink( path, args = {} ) {
+	const url = window.barrioAdmin.rest.url + path;
+	const query = new URLSearchParams( {
+		...args,
+		_wpnonce: window.barrioAdmin.rest.nonce,
+	} );
+	return `${ url }${ url.includes( '?' ) ? '&' : '?' }${ query }`;
+}
 
 export const Icon = ( { name } ) => (
 	<span className={ `dashicons dashicons-${ name }` } aria-hidden="true" />
@@ -257,7 +278,7 @@ export function Shortcode( { id, onCopy } ) {
 				window.navigator.clipboard.writeText( code ).then( onCopy )
 			}
 		>
-			{ code }
+			<span className="barrio-button__text">{ code }</span>
 			<Icon name="admin-page" />
 		</button>
 	);
@@ -299,7 +320,9 @@ export function Menu( { label, text, icon = 'ellipsis', items } ) {
 					onClick={ onToggle }
 				>
 					<Icon name={ icon } />
-					{ text }
+					{ text && (
+						<span className="barrio-button__text">{ text }</span>
+					) }
 				</button>
 			) }
 			renderContent={ ( { onClose } ) => (
@@ -357,17 +380,61 @@ export function Notice( { notice, onClose } ) {
 
 const SORT_ICON = { asc: 'arrow-up', desc: 'arrow-down' };
 
+// Il primo assetto in cui tutto sta su una riga: con i testi; con i bottoni senza testo (il nome
+// del form può accorciarsi); anche con la ricerca ridotta a un bottone. Solo se non basta, il
+// titolo va sopra e il resto sotto.
+const LAYOUTS = [
+	[],
+	[ 'is-compact' ],
+	[ 'is-compact', 'is-searchless' ],
+	[ 'is-compact', 'is-stacked' ],
+];
+
+function fit( bar ) {
+	for ( const classes of LAYOUTS ) {
+		bar.classList.remove( 'is-compact', 'is-searchless', 'is-stacked' );
+		bar.classList.add( ...classes );
+		// Su una riga niente va a capo (admin.css): ci sta se niente esce dalla barra.
+		if ( bar.scrollWidth <= bar.clientWidth ) {
+			return;
+		}
+	}
+}
+
 /**
  * La barra sticky in alto di ogni pagina, sempre uguale: titolo a sinistra (con il
- * ritorno, se c'è), azioni a destra con la principale per ultima.
+ * ritorno, se c'è), azioni a destra con la principale per ultima. Non va mai a capo a caso:
+ * vedi fit().
  *
  * @param {Object} props
  * @param {Object} props.title    Testo, o un nodo (il nome modificabile del form).
  * @param {Object} props.children Le azioni.
  */
 export function Bar( { title, children } ) {
+	const ref = useRef();
+	// A ogni render: compare "N selezionate", cambia il testo di un filtro...
+	useLayoutEffect( () => fit( ref.current ) );
+	// ...e quando cambia la larghezza. Al frame dopo: cambiare l'altezza dentro il
+	// callback farebbe ripartire l'observer.
+	useEffect( () => {
+		const bar = ref.current;
+		let width;
+		let frame;
+		const observer = new window.ResizeObserver( ( [ entry ] ) => {
+			if ( entry.contentRect.width !== width ) {
+				width = entry.contentRect.width;
+				window.cancelAnimationFrame( frame );
+				frame = window.requestAnimationFrame( () => fit( bar ) );
+			}
+		} );
+		observer.observe( bar );
+		return () => {
+			observer.disconnect();
+			window.cancelAnimationFrame( frame );
+		};
+	}, [] );
 	return (
-		<div className="barrio-card barrio-bar">
+		<div className="barrio-card barrio-bar" ref={ ref }>
 			{ 'string' === typeof title ? (
 				<h2 className="barrio-bar__title">{ title }</h2>
 			) : (
@@ -379,21 +446,153 @@ export function Bar( { title, children } ) {
 }
 
 /**
- * La tabella di tutte le pagine del plugin: ricerca, pagine e ordinamento a tre stati, con
- * una colonna sempre ordinata. È controllata: rows è già la pagina da mostrare (localQuery()
- * o il server).
+ * Un pulsante della barra con un elenco di scelte, e la ricerca quando sono tante: il form delle
+ * registrazioni e i filtri delle tabelle (una sola scelta), le colonne da mostrare (più scelte).
+ * Ogni scelta si applica subito e l'elenco resta aperto, così con le frecce si scorrono i filtri;
+ * si chiude con Esc o fuori.
  *
- * @param {Object}                  props
- * @param {Array}                   props.columns { key, label, sort?: campo su cui ordinare, render?( row ), className? }.
- * @param {Array}                   props.rows
- * @param {number}                  props.total   Righe trovate, su tutte le pagine.
- * @param {Object}                  props.query   { search, sort, order, page }.
- * @param {Object}                  props.initial La query iniziale, con la colonna di default.
- * @param {(query: Object) => void} props.onQuery
- * @param {string}                  props.title   Il titolo della barra.
- * @param {string}                  props.search  Il segnaposto della ricerca.
- * @param {string}                  props.empty   Il testo senza righe.
- * @param {Object}                  props.toolbar Nella barra, dopo la ricerca.
+ * @param {Object}                               props
+ * @param {string}                               props.label     Il nome dell'elenco.
+ * @param {string}                               props.text      Sul pulsante (di default label): il filtro scelto.
+ * @param {string}                               props.icon
+ * @param {boolean}                              props.active    Un filtro diverso da quello di default.
+ * @param {string}                               props.className Del pulsante, oltre a barrio-button.
+ * @param {string}                               props.placement Del menu.
+ * @param {Array}                                props.options   { value, label, count? }.
+ * @param {string|string[]}                      props.value     Con multiple, i valori scelti.
+ * @param {boolean}                              props.multiple
+ * @param {(value: string, on: boolean) => void} props.onChange
+ */
+export function Picker( {
+	label,
+	text = label,
+	icon,
+	active,
+	className = '',
+	placement = 'bottom-end',
+	options,
+	value,
+	multiple,
+	onChange,
+} ) {
+	return (
+		<Dropdown
+			popoverProps={ { placement } }
+			renderToggle={ ( { isOpen, onToggle } ) => (
+				<button
+					type="button"
+					className={ `barrio-button ${ className }${
+						active ? ' is-active' : ''
+					}` }
+					aria-expanded={ isOpen }
+					onClick={ onToggle }
+				>
+					{ icon && <Icon name={ icon } /> }
+					<span className="barrio-button__text">
+						{ text !== label && (
+							<span className="screen-reader-text">
+								{ label }:{ ' ' }
+							</span>
+						) }
+						{ text }
+					</span>
+					<Icon name="arrow-down-alt2" />
+				</button>
+			) }
+			renderContent={ () => (
+				<Choices
+					label={ label }
+					options={ options }
+					value={ value }
+					multiple={ multiple }
+					onChange={ onChange }
+				/>
+			) }
+		/>
+	);
+}
+
+// Oltre quante scelte compare la ricerca.
+const SEARCH_ABOVE = 5;
+
+// A parte perché la ricerca riparta vuota a ogni apertura.
+function Choices( { label, options, value, multiple, onChange } ) {
+	const name = useId();
+	const [ search, setSearch ] = useState( '' );
+	const term = search.trim().toLowerCase();
+	const found = options.filter( ( option ) =>
+		option.label.toLowerCase().includes( term )
+	);
+	return (
+		<div className="barrio-picker">
+			{ options.length > SEARCH_ABOVE && (
+				<input
+					type="search"
+					className="barrio-picker__search"
+					placeholder={ __( 'Search', 'barrio-suite' ) }
+					aria-label={ __( 'Search', 'barrio-suite' ) }
+					value={ search }
+					onChange={ ( event ) => setSearch( event.target.value ) }
+				/>
+			) }
+			<fieldset className="barrio-picker__list">
+				<legend className="screen-reader-text">{ label }</legend>
+				{ found.map( ( option ) => (
+					<label
+						key={ option.value }
+						className="barrio-picker__option"
+						htmlFor={ `${ name }-${ option.value }` }
+					>
+						<input
+							type={ multiple ? 'checkbox' : 'radio' }
+							id={ `${ name }-${ option.value }` }
+							name={ name }
+							checked={
+								multiple
+									? value.includes( option.value )
+									: value === option.value
+							}
+							onChange={ ( event ) =>
+								onChange( option.value, event.target.checked )
+							}
+						/>
+						{ option.label }
+						{ undefined !== option.count && (
+							<span className="barrio-picker__count">
+								{ option.count }
+							</span>
+						) }
+					</label>
+				) ) }
+				{ ! found.length && (
+					<p className="barrio-picker__empty">
+						{ __( 'No results.', 'barrio-suite' ) }
+					</p>
+				) }
+			</fieldset>
+		</div>
+	);
+}
+
+/**
+ * La tabella di tutte le pagine del plugin, uguale ovunque. Nella barra: ricerca, filtri (gli
+ * stati, se le righe ne hanno), colonne da mostrare e azioni sulle righe selezionate. Pagine e
+ * ordinamento a tre stati, con una colonna sempre ordinata. È controllata: rows è già la pagina
+ * da mostrare (localQuery() o il server).
+ *
+ * @param {Object}                   props
+ * @param {Array}                    props.columns { key, label, sort?: campo su cui ordinare, render?( row ), className?, hideable?: nelle colonne da scegliere, hidden?: nascosta all'inizio }.
+ * @param {Array}                    props.rows
+ * @param {number}                   props.total   Righe trovate, su tutte le pagine.
+ * @param {Object}                   props.query   { search, sort, order, page } e i filtri.
+ * @param {Object}                   props.initial La query iniziale, con la colonna di default.
+ * @param {(query: Object) => void}  props.onQuery
+ * @param {string}                   props.title   Il titolo della barra.
+ * @param {string}                   props.search  Il segnaposto della ricerca.
+ * @param {Array}                    props.filters { key: chiave della query, label, icon?, options: [ { value, label, count? } ] }.
+ * @param {(ids: number[]) => Array} props.bulk    Le voci del menu per le righe selezionate.
+ * @param {string}                   props.empty   Il testo senza righe.
+ * @param {Object}                   props.toolbar In fondo alla barra.
  */
 export function Table( {
 	columns,
@@ -404,116 +603,282 @@ export function Table( {
 	onQuery,
 	title,
 	search,
+	filters = [],
+	bulk,
 	empty,
 	toolbar,
 } ) {
+	// La selezione vale nella query in cui è nata e solo per le righe ancora mostrate: cambiando
+	// pagina, filtro o ordine si azzera, e le righe eliminate ne escono da sole.
+	const [ selection, setSelection ] = useState( { query, ids: [] } );
+	// Le colonne mostrate o nascoste a mano; le altre seguono hidden.
+	const [ shown, setShown ] = useState( {} );
+
 	const last = pages( total );
 	const page = Math.min( query.page, last );
 	const first = total ? ( page - 1 ) * PER_PAGE + 1 : 0;
 	const go = ( to ) => onQuery( { ...query, page: to } );
+	const searchFor = ( event ) =>
+		onQuery( { ...query, search: event.target.value, page: 1 } );
+
+	const ids = rows.map( ( row ) => row.id );
+	const selected =
+		selection.query === query
+			? selection.ids.filter( ( id ) => ids.includes( id ) )
+			: [];
+	const select = ( list ) => setSelection( { query, ids: list } );
+	const all = ids.length > 0 && selected.length === ids.length;
+	const hideable = columns.filter( ( column ) => column?.hideable );
+	const isShown = ( column ) => shown[ column.key ] ?? ! column.hidden;
+	const toggle = ( column, on ) => {
+		setShown( { ...shown, [ column.key ]: on } );
+		// Una colonna nascosta non può restare quella ordinata.
+		if ( ! on && column.sort === query.sort ) {
+			onQuery( {
+				...query,
+				sort: initial.sort,
+				order: initial.order,
+				page: 1,
+			} );
+		}
+	};
+
+	const visible = [
+		bulk && {
+			key: 'select',
+			className: 'is-narrow',
+			label: (
+				<input
+					type="checkbox"
+					aria-label={ __(
+						'Select all on this page',
+						'barrio-suite'
+					) }
+					checked={ all }
+					ref={ ( input ) => {
+						if ( input ) {
+							input.indeterminate = selected.length > 0 && ! all;
+						}
+					} }
+					onChange={ () => select( all ? [] : ids ) }
+				/>
+			),
+			render: ( row ) => (
+				<input
+					type="checkbox"
+					aria-label={ sprintf(
+						/* translators: %d: numero della riga (la colonna #). */
+						__( 'Select #%d', 'barrio-suite' ),
+						row.id
+					) }
+					checked={ selected.includes( row.id ) }
+					onChange={ () =>
+						select(
+							selected.includes( row.id )
+								? selected.filter( ( id ) => id !== row.id )
+								: [ ...selected, row.id ]
+						)
+					}
+				/>
+			),
+		},
+		...columns.filter( ( column ) => column && isShown( column ) ),
+	].filter( Boolean );
 
 	return (
 		<div className="barrio-stack">
 			<Bar title={ title }>
-				<div className="barrio-search">
-					<Icon name="search" />
-					<input
-						type="search"
-						className="barrio-input"
-						placeholder={ search }
-						aria-label={ search }
-						value={ query.search }
-						onChange={ ( event ) =>
-							onQuery( {
-								...query,
-								search: event.target.value,
-								page: 1,
-							} )
-						}
+				<div className="barrio-bar__tools">
+					<div className="barrio-search">
+						<Icon name="search" />
+						<input
+							type="search"
+							className="barrio-input"
+							placeholder={ search }
+							aria-label={ search }
+							value={ query.search }
+							onChange={ searchFor }
+						/>
+					</div>
+					{ /* Al posto della ricerca quando la barra è stretta: vedi fit(). */ }
+					<Dropdown
+						className="barrio-search-toggle"
+						popoverProps={ { placement: 'bottom-start' } }
+						renderToggle={ ( { isOpen, onToggle } ) => (
+							<button
+								type="button"
+								className={ `barrio-button${
+									query.search ? ' is-active' : ''
+								}` }
+								aria-label={ search }
+								aria-expanded={ isOpen }
+								onClick={ onToggle }
+							>
+								<Icon name="search" />
+							</button>
+						) }
+						renderContent={ () => (
+							<div className="barrio-picker">
+								<input
+									type="search"
+									className="barrio-picker__search"
+									placeholder={ search }
+									aria-label={ search }
+									value={ query.search }
+									onChange={ searchFor }
+								/>
+							</div>
+						) }
 					/>
+					{ filters.filter( Boolean ).map( ( filter ) => (
+						<Picker
+							key={ filter.key }
+							label={ filter.label }
+							icon={ filter.icon ?? 'filter' }
+							active={
+								query[ filter.key ] !== initial[ filter.key ]
+							}
+							text={
+								filter.options.find(
+									( option ) =>
+										option.value === query[ filter.key ]
+								)?.label
+							}
+							options={ filter.options }
+							value={ query[ filter.key ] }
+							onChange={ ( value ) =>
+								onQuery( {
+									...query,
+									[ filter.key ]: value,
+									page: 1,
+								} )
+							}
+						/>
+					) ) }
+					{ hideable.length > 0 && (
+						<Picker
+							multiple
+							icon="columns"
+							label={ __( 'Columns', 'barrio-suite' ) }
+							options={ hideable.map( ( column ) => ( {
+								value: column.key,
+								label: column.label,
+							} ) ) }
+							value={ hideable
+								.filter( isShown )
+								.map( ( column ) => column.key ) }
+							onChange={ ( key, on ) =>
+								toggle(
+									hideable.find(
+										( column ) => column.key === key
+									),
+									on
+								)
+							}
+						/>
+					) }
+					{ selected.length > 0 && (
+						<Menu
+							text={ sprintf(
+								/* translators: %d: righe selezionate. */
+								__( '%d selected', 'barrio-suite' ),
+								selected.length
+							) }
+							icon="yes-alt"
+							label={ __(
+								'Actions for the selected rows',
+								'barrio-suite'
+							) }
+							items={ bulk( selected ) }
+						/>
+					) }
 				</div>
 				{ toolbar }
 			</Bar>
-			<div className="barrio-card barrio-table__card">
-				<table className="barrio-table">
-					<thead>
-						<tr>
-							{ columns.map( ( column ) => {
-								const active = query.sort === column.sort;
-								let ariaSort;
-								if ( active ) {
-									ariaSort =
-										'asc' === query.order
-											? 'ascending'
-											: 'descending';
-								}
-								return (
-									<th
-										key={ column.key }
-										scope="col"
-										className={ column.className }
-										aria-sort={ ariaSort }
-									>
-										{ column.sort ? (
-											<button
-												type="button"
-												onClick={ () =>
-													onQuery(
-														nextSort(
-															query,
-															column.sort,
-															initial
-														)
-													)
-												}
-											>
-												{ column.label }
-												<Lucide
-													size={ 14 }
-													name={
-														active
-															? SORT_ICON[
-																	query.order
-																]
-															: 'arrow-up-down'
-													}
-												/>
-											</button>
-										) : (
-											column.label
-										) }
-									</th>
-								);
-							} ) }
-						</tr>
-					</thead>
-					<tbody>
-						{ rows.map( ( row ) => (
-							<tr key={ row.id }>
-								{ columns.map( ( column ) => (
-									<td
-										key={ column.key }
-										className={ column.className }
-									>
-										{ column.render
-											? column.render( row )
-											: row[ column.key ] }
-									</td>
-								) ) }
-							</tr>
-						) ) }
-						{ ! rows.length && (
+			<div className="barrio-card">
+				{ /* Scorre solo la tabella: la paginazione resta larga quanto la card. */ }
+				<div className="barrio-table__scroll">
+					<table className="barrio-table">
+						<thead>
 							<tr>
-								<td
-									colSpan={ columns.length }
-									className="barrio-table__empty"
-								>
-									{ empty }
-								</td>
+								{ visible.map( ( column ) => {
+									const active = query.sort === column.sort;
+									let ariaSort;
+									if ( active ) {
+										ariaSort =
+											'asc' === query.order
+												? 'ascending'
+												: 'descending';
+									}
+									return (
+										<th
+											key={ column.key }
+											scope="col"
+											className={ column.className }
+											aria-sort={ ariaSort }
+										>
+											{ column.sort ? (
+												<button
+													type="button"
+													onClick={ () =>
+														onQuery(
+															nextSort(
+																query,
+																column.sort,
+																initial
+															)
+														)
+													}
+												>
+													{ column.label }
+													<Lucide
+														size={ 14 }
+														name={
+															active
+																? SORT_ICON[
+																		query
+																			.order
+																	]
+																: 'arrow-up-down'
+														}
+													/>
+												</button>
+											) : (
+												column.label
+											) }
+										</th>
+									);
+								} ) }
 							</tr>
-						) }
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{ rows.map( ( row ) => (
+								<tr key={ row.id }>
+									{ visible.map( ( column ) => (
+										<td
+											key={ column.key }
+											className={ column.className }
+										>
+											{ column.render
+												? column.render( row )
+												: row[ column.key ] }
+										</td>
+									) ) }
+								</tr>
+							) ) }
+							{ ! rows.length && (
+								<tr>
+									<td
+										colSpan={ visible.length }
+										className="barrio-table__empty"
+									>
+										{ empty }
+									</td>
+								</tr>
+							) }
+						</tbody>
+					</table>
+				</div>
 				<div className="barrio-table__footer">
 					<span>
 						{ sprintf(

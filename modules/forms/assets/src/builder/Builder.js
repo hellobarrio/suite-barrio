@@ -179,7 +179,9 @@ export function Builder( { id } ) {
 					onClick={ () => showPreview() }
 				>
 					<Icon name="visibility" />
-					{ __( 'Preview', 'barrio-suite' ) }
+					<span className="barrio-button__text">
+						{ __( 'Preview', 'barrio-suite' ) }
+					</span>
 				</button>
 				<button
 					type="button"
@@ -188,9 +190,11 @@ export function Builder( { id } ) {
 					onClick={ save }
 				>
 					<Lucide name="save" />
-					{ 'save' === busy
-						? __( 'Saving…', 'barrio-suite' )
-						: __( 'Save', 'barrio-suite' ) }
+					<span className="barrio-button__text">
+						{ 'save' === busy
+							? __( 'Saving…', 'barrio-suite' )
+							: __( 'Save', 'barrio-suite' ) }
+					</span>
 				</button>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
@@ -244,7 +248,7 @@ export function Builder( { id } ) {
 				>
 					<div className="barrio-stack">
 						{ preview.subject ? (
-							<dl className="barrio-email-meta">
+							<dl className="barrio-dl">
 								<dt>{ __( 'To', 'barrio-suite' ) }</dt>
 								<dd>{ preview.to.join( ', ' ) || '—' }</dd>
 								<dt>{ __( 'Reply to', 'barrio-suite' ) }</dt>

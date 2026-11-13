@@ -14,8 +14,8 @@ arriveranno uno alla volta con la stessa struttura.
 | Database | Il centro del progetto: foreign key reali, CHECK, migrazioni versionate (vedi §2) |
 | Email | `wp_mail()`, che usa il PHPMailer incluso in WordPress, con l'SMTP configurato tramite `phpmailer_init` e applicato a **tutte** le email del sito |
 | Admin | Una pagina React (`@wordpress/scripts`) con intestazione (logo, nome, descrizione) e schede Form e Impostazioni; componenti di base in HTML nativo con un CSS del plugin (card, bottoni scuri), da `@wordpress/components` solo modale, popover e schede del builder |
-| Tabelle | **Regola fissa per tutte le tabelle del plugin**: ricerca, paginazione (20 righe) e ordinamento a tre stati (crescente → decrescente → ordine di default), con una colonna sempre ordinata (all'inizio quella di default, con la sua freccia); le azioni di riga stanno tutte in un menu "⋯". Stesso componente `Table` |
-| Pagine con salvataggio | Ogni pagina ha una barra sticky in alto (`Bar`), staccata di 16px da quella di WordPress e sempre con lo stesso schema: titolo a sinistra (con il ritorno, se c'è), azioni a destra con la principale per ultima, scura e con icona. Salva (attivo solo con modifiche) sostituisce i pulsanti per sezione; negli elenchi la barra ha la ricerca e "Nuovo". Avviso prima di lasciare la pagina con modifiche. Le anteprime (form, email) sono alte quanto il contenuto: scorre solo il modale. Negli elenchi "Aggiungi…" sta sempre nell'intestazione della sezione, a destra |
+| Tabelle | **Regola fissa per tutte le tabelle del plugin**, con lo stesso componente `Table`: nella barra ricerca, filtro per stato (sempre, se le righe hanno uno stato, con i conteggi), colonne da mostrare (filtri e colonne con lo stesso `Picker`: scelta singola o multipla, con la ricerca oltre 5 scelte; anche per il form delle registrazioni) e, con righe selezionate, il menu "N selezionate" delle azioni di massa; poi il menu "⋯" della tabella e l'azione principale. Selezione multipla con la prima colonna. Paginazione (20 righe) e ordinamento a tre stati (crescente → decrescente → ordine di default), con una colonna sempre ordinata (all'inizio quella di default, con la sua freccia); le azioni di riga stanno tutte in un menu "⋯" |
+| Pagine con salvataggio | Ogni pagina ha una barra sticky in alto (`Bar`), staccata di 16px da quella di WordPress e sempre con lo stesso schema: titolo a sinistra (con il ritorno, se c'è), azioni a destra con la principale per ultima, scura e con icona. Salva (attivo solo con modifiche) sostituisce i pulsanti per sezione; negli elenchi la barra ha la ricerca e "Nuovo". Avviso prima di lasciare la pagina con modifiche. Le anteprime (form, email) sono alte quanto il contenuto: scorre solo il modale. Negli elenchi "Aggiungi…" sta sempre nell'intestazione della sezione, a destra. La barra resta su una riga: se non ci sta, prima i pulsanti perdono il testo (il nome del form si accorcia), poi la ricerca diventa un pulsante; solo come ultima risorsa il titolo va sopra (`fit()` in `ui.js`). La colonna destra, quando c'è, è sticky. Sui telefoni niente esce dalla pagina: le tabelle scorrono in orizzontale con le colonne alla loro larghezza |
 | GraphQL | Nomi invariati: `hbForm`, `hbForms`, `hbSubmitForm` e tutti i tipi `HB*`/`Hb*` |
 | Plugin esterni | Nessuno è obbligatorio: senza WPGraphQL o WPML il plugin funziona e disattiva solo le funzioni che dipendono da loro (§4.1) |
 | Traduzioni | Editor interno; le traduzioni si salvano nel database dentro ogni versione del form. Le lingue disponibili vengono da WPML; senza WPML il plugin lavora in una sola lingua |
@@ -162,7 +162,7 @@ l'esistenza di un figlio).
 | Uso | Query | Indice |
 |---|---|---|
 | Render e invio | versione corrente: `WHERE form_id=? ORDER BY version DESC LIMIT 1`, poi campi e i18n | `form_version`, `version_position`, PK i18n |
-| Elenco registrazioni | `WHERE form_id=? ORDER BY created_at DESC LIMIT 50 OFFSET ?` | `form_created` |
+| Elenco registrazioni | `WHERE form_id=? ORDER BY created_at DESC LIMIT 20 OFFSET ?` | `form_created` |
 | Badge "non lette" | `COUNT(*) WHERE form_id=? AND is_read=0` | `form_read` |
 | Dettaglio | valori e file `WHERE entry_id=?` con join su `form_fields` | PK `entry_values`, `entry` |
 | Filtro per valore, statistiche opzioni | `WHERE field_id IN (…) AND value=?` / `GROUP BY value` | `field_value` |
@@ -260,14 +260,21 @@ cache di pagina.
 Admin, ognuno con `permission_callback` sulle capability e argomenti validati con lo schema:
 CRUD dei form (`PUT` con `base_version`), duplica, traduzioni per lingua, elenco registrazioni
 (paginato, con ricerca e filtri), dettaglio, segna come letta, azioni di massa, export CSV in
-streaming, download dei file, note. Già presenti dalle fasi 3 e 4:
+streaming, download dei file, note. Già presenti dalle fasi 3, 4 e 5:
 
 - form (`barrio_manage_forms`), nello stesso formato in lettura e in scrittura (quello di
   `dev/example-form.json`): `GET /forms/{id}?context=edit` (la stessa rotta del GET pubblico),
   `POST /forms`, `PUT /forms/{id}` con `base_version` (409 se nel frattempo qualcuno ha salvato),
   `PATCH /forms/{id}` per lo stato (non versionato), `DELETE /forms/{id}` (409 con registrazioni),
   `POST /forms/{id}/duplicate`, `POST /forms/preview` (il form non salvato, con il render del sito);
-- `GET /forms` (`edit_posts`: lo usa anche il blocco per scegliere il form): id, titolo, stato, registrazioni, ultima modifica;
+- `GET /forms` (`edit_posts` o `barrio_manage_entries`: lo usano anche il blocco per scegliere il form e la pagina
+  Registrazioni): id, titolo, stato, registrazioni, registrazioni da leggere, ultima modifica;
+- registrazioni (`barrio_manage_entries`): `GET /forms/{id}/entries` (pagina da 20 con `search`, `sort` = `created_at`,
+  `id`, `lang` o `field:chiave`, `order`, `page` e i filtri `read` e `lang`; colonne di tutte le versioni),
+  `GET /forms/{id}/entries/export` (CSV in streaming con gli stessi filtri), `POST /forms/{id}/entries/bulk`
+  (`read`, `unread`, `delete` su `ids` o con `all: true`), `GET /entries/{id}` (dettaglio con storico e notifiche),
+  `POST /entries/{id}/notes`, `GET /entries/{id}/files/{n}` (download). File e CSV sono link con `_wpnonce`;
+  il corpo lo invia `RestEntries::serve()` su `rest_pre_serve_request`, al posto del JSON;
 
 - `GET`/`PUT /settings` (`manage_options`): SMTP, template delle email e stato della password
   (`none`, `saved`, `unreadable` se i salt sono cambiati, `constant`); la password è in sola scrittura;
@@ -296,11 +303,12 @@ pannello e il server valida), `render()`, `normalize()` e `validate()`.
 
 ### 3.5 Admin
 
-Menu "Barrio" (che ospiterà i moduli futuri) con le voci Form, Registrazioni e Impostazioni.
+Menu "Barrio" (che ospiterà i moduli futuri) con le voci Form e Registrazioni; Impostazioni è una scheda di Form.
+Per chi gestisce solo le registrazioni (gli editor) il menu porta direttamente alle registrazioni.
 
-- **Pagina** (React, `assets/src/admin`): intestazione con logo e descrizione, schede Form e Impostazioni (la seconda solo con `manage_options`). Elenco dei form con la tabella del plugin (ricerca, pagine, ordinamento a tre stati), conteggio delle registrazioni e nel menu "⋯" modifica, duplica, copia lo shortcode, chiudi/riapri, elimina (con registrazioni va nel cestino; dal cestino ripristina o elimina).
+- **Pagina** (React, `assets/src/admin`): intestazione con logo e descrizione, schede Form e Impostazioni (la seconda solo con `manage_options`). Elenco dei form con la tabella del plugin: filtro Tutti (tranne il cestino) / Attivi / Chiusi / Cestino, colonne Registrazioni, Stato e Ultima modifica a scelta, conteggio delle registrazioni e nel menu "⋯" modifica, duplica, copia lo shortcode, chiudi/riapri, elimina (con registrazioni va nel cestino; dal cestino ripristina o elimina). Azioni di massa: riapri, chiudi, sposta nel cestino; nel cestino ripristina ed elimina (il server rifiuta i form con registrazioni).
 - **Builder** (React): struttura del form a sinistra (card con anteprima del campo, "Aggiungi campo" come menu), proprietà del campo a destra; la chiave segue l'etichetta finché non la si cambia; campi e scelte con drag & drop accessibile (`@dnd-kit/sortable`, anche da tastiera), pannello delle proprietà generato dallo schema del tipo (`title` e `description` delle proprietà), logica condizionale, preset delle scelte (`presets.json`, dal prototipo, con codici ISO per le nazioni e sigle per le province; il filtro `barrio_forms_presets` ne aggiunge), impostazioni, notifiche con l'anteprima dell'email (template vero, valori d'esempio, `POST /forms/preview` con `notification`), anteprima del form in un iframe con CSS e JS del frontend (non invia). Modifica i testi della lingua principale e conserva le altre; la scheda Traduzioni arriva con la fase 7, i pannelli delle integrazioni con la fase 8.
-- **Registrazioni**: la tabella del plugin con ricerca, pagine e ordinamento sul server (stessa query di `localQuery()`), più filtri e azioni di massa; dettaglio con file e storico, export CSV.
+- **Registrazioni** (pagina `barrio-entries`, `assets/src/entries`): un form alla volta, scelto nel titolo della barra (all'inizio quello con registrazioni da leggere). La tabella del plugin con ricerca, pagine e ordinamento sul server (anche sul valore di un campo), filtri letta/non letta e lingua, colonne dei campi a scelta (le prime tre di default, come nel prototipo), azioni di massa sulle selezionate e su tutte, export CSV con i filtri correnti. Dettaglio in `?entry=ID`: campi della versione compilata, file, dettagli, rinvio delle notifiche, storico con le note; aprirlo segna la registrazione come letta. Etichette e scelte sono nella lingua principale.
 - **Impostazioni** (scheda della stessa pagina): card SMTP, template delle email (logo dalla libreria dei media, colori, footer) ed email di test; un solo Salva nella barra sticky. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
 - **Capability**: `barrio_manage_forms` (agli admin) e `barrio_manage_entries` (ad admin ed editor), assegnate dalla migrazione `0002` e non all'attivazione, così arrivano anche agli altri siti di un multisite e alle installazioni già attive. Sostituiscono il trucco del menu diverso per gli editor.
 
@@ -398,5 +406,6 @@ Eliminato: Mailjet API (sostituito dall'SMTP).
 - **Test con WPML**: WPML è a pagamento e non si installa in CI. I test simulano i suoi filtri (sono l'unico punto di contatto); in più serve una prova manuale su un sito reale prima di chiudere la fase 7.
 - **Hosting dei clienti**: verificare all'attivazione su un sito reale di ognuno (versione di MySQL/MariaDB e InnoDB).
 - **Limite di invii per IP** (fase 2): usa `REMOTE_ADDR`. Dietro un proxy che non lo riscrive (Cloudflare senza `mod_remoteip`), o con un frontend headless che invia dal proprio server, tutti gli invii hanno lo stesso IP e il limite (10 ogni 10 minuti) vale per l'intero sito. Verificare sugli hosting dei clienti; se serve, un filtro sull'IP o sul limite.
-- **Download dei file** (fase 5): il controllo di WordPress sul contenuto è severo per i tipi `application/*` ma lascia passare come "non verificati" gli altri (un `.pdf` che contiene testo). I file non si eseguono (nome casuale senza estensione, cartella protetta), ma l'endpoint di download deve rispondere con `Content-Disposition: attachment` e `X-Content-Type-Options: nosniff`.
+- **Download dei file** (fase 5, fatto): il controllo di WordPress sul contenuto è severo per i tipi `application/*` ma lascia passare come "non verificati" gli altri (un `.pdf` che contiene testo). I file non si eseguono (nome casuale senza estensione, cartella protetta) e l'endpoint di download risponde con `Content-Disposition: attachment` e `X-Content-Type-Options: nosniff` (`RestEntriesTest`).
+- **Separatore del CSV**: punto e virgola se il separatore decimale della lingua del sito è la virgola (come fa Excel), altrimenti virgola; con il BOM UTF-8. Da provare con l'Excel dei clienti.
 - **Namespace REST condiviso**: il prototipo usa già `barrio/v1` (cookie banner, accessibilità: `/config`, `/scan`, `/consent-log`, `/accessibility`…). Le rotte dei form (`/forms/…`) non collidono; quando si porteranno quei moduli bisognerà scegliere rotte diverse o disattivarli nel prototipo.

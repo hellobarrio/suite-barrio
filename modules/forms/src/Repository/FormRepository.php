@@ -102,7 +102,7 @@ final class FormRepository {
 		return $updated > 0;
 	}
 
-	/** @return list<array{id: int, title: string, status: string, updated_at: string, entries: int}> I più recenti per primi. */
+	/** @return list<array{id: int, title: string, status: string, updated_at: string, entries: int, unread: int}> I più recenti per primi. */
 	public static function all(): array {
 		global $wpdb;
 		return array_map(
@@ -112,11 +112,14 @@ final class FormRepository {
 				'status'     => (string) $row['status'],
 				'updated_at' => (string) $row['updated_at'],
 				'entries'    => (int) $row['entries'],
+				'unread'     => (int) $row['unread'],
 			],
 			Db::rows(
 				$wpdb->prepare(
-					// Un conteggio per form sull'indice form_read, senza leggere le righe.
-					'SELECT f.id, f.title, f.status, f.updated_at, (SELECT COUNT(*) FROM %i e WHERE e.form_id = f.id) AS entries FROM %i f ORDER BY f.id DESC',
+					// Conteggi per form sull'indice form_read, senza leggere le righe.
+					'SELECT f.id, f.title, f.status, f.updated_at, (SELECT COUNT(*) FROM %i e WHERE e.form_id = f.id) AS entries,
+						(SELECT COUNT(*) FROM %i e WHERE e.form_id = f.id AND e.is_read = 0) AS unread FROM %i f ORDER BY f.id DESC',
+					Db::table( 'entries' ),
 					Db::table( 'entries' ),
 					Db::table( 'forms' )
 				)
@@ -255,6 +258,13 @@ final class FormRepository {
 			(string) $version['created_at'],
 			null === $version['created_by'] ? null : (int) $version['created_by']
 		);
+	}
+
+	/** @return list<FormVersion> Dalla più recente: la corrente e quelle che le registrazioni usano ancora. */
+	public static function versions( int $form_id ): array {
+		global $wpdb;
+		$ids = Db::col( $wpdb->prepare( 'SELECT id FROM %i WHERE form_id = %d ORDER BY version DESC', Db::table( 'form_versions' ), $form_id ) );
+		return array_values( array_filter( array_map( static fn( string $id ): ?FormVersion => self::version( (int) $id ), $ids ) ) );
 	}
 
 	public static function forget_user( int $user_id ): void {

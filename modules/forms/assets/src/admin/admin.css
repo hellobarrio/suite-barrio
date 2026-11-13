@@ -96,8 +96,13 @@
 
 /* Disposizione */
 
+/*
+ * minmax(0, 1fr): una tabella larga scorre nella sua card invece di allargare
+ * la colonna, e con lei la barra e la pagina.
+ */
 .barrio-stack {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 16px;
 }
 
@@ -110,6 +115,11 @@
 
 .barrio-row.is-nowrap {
 	flex-wrap: nowrap;
+}
+
+/* Bottoni larghi quanto il campo, come gli altri controlli della card. */
+.barrio-row.is-fill > * {
+	flex: 1;
 }
 
 .barrio-loading {
@@ -143,6 +153,7 @@
 /* Icone da 16px, come in shadcn. */
 .barrio-button .dashicons,
 .barrio-icon-button .dashicons {
+	flex: none;
 	width: 16px;
 	height: 16px;
 	font-size: 16px;
@@ -151,6 +162,11 @@
 .barrio-button:hover {
 	background: var(--barrio-soft);
 	color: var(--barrio-ink);
+}
+
+/* Un filtro diverso da quello di default. */
+.barrio-button.is-active {
+	border-color: var(--barrio-ink);
 }
 
 .barrio-button.is-primary {
@@ -277,7 +293,6 @@
 }
 
 .barrio-admin input[type="color"].barrio-input {
-	width: 56px;
 	padding: 4px;
 }
 
@@ -323,10 +338,19 @@
 	padding-top: 8px;
 }
 
+/* Un'azione senza etichetta (invia l'email di prova) sta sotto i controlli. */
+.barrio-wide .barrio-field__control:only-child {
+	grid-column: 2;
+}
+
 @media (max-width: 782px) {
 
 	.barrio-wide .barrio-field {
 		grid-template-columns: 1fr;
+	}
+
+	.barrio-wide .barrio-field__control:only-child {
+		grid-column: auto;
 	}
 }
 
@@ -339,8 +363,10 @@
 	box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
 }
 
+/* Se le azioni non ci stanno accanto al titolo, vanno sotto, a destra. */
 .barrio-card__header {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 12px;
 	align-items: center;
 	padding: 12px 20px;
@@ -495,12 +521,35 @@
 	box-shadow: 0 4px 16px rgb(0 0 0 / 6%);
 }
 
-.barrio-bar__end {
+.barrio-bar__end,
+.barrio-bar__tools {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 	align-items: center;
+}
+
+.barrio-bar__end {
 	margin-left: auto;
+}
+
+/*
+ * Su una riga sola (ogni assetto tranne is-stacked) niente va a capo e niente
+ * si restringe, tranne il nome del form: fit() in ui.js guarda se ci sta.
+ */
+.barrio-bar:not(.is-stacked),
+.barrio-bar:not(.is-stacked) :is(.barrio-bar__end, .barrio-bar__tools) {
+	flex-wrap: nowrap;
+}
+
+.barrio-bar > :is(.barrio-bar__title, .barrio-icon-button),
+.barrio-bar .barrio-search {
+	flex-shrink: 0;
+}
+
+/* Il selettore del form delle registrazioni. */
+.barrio-bar > .components-dropdown {
+	max-width: 360px;
 }
 
 .barrio-admin .barrio-bar__title {
@@ -508,6 +557,77 @@
 	color: var(--barrio-ink);
 	font-size: 16px;
 	font-weight: 600;
+	white-space: nowrap;
+}
+
+/* is-stacked, l'ultima risorsa: il titolo da solo sopra, il resto sotto. */
+.barrio-bar.is-stacked .barrio-bar__end {
+	flex: 1 1 100%;
+	justify-content: flex-end;
+}
+
+.barrio-bar.is-stacked .barrio-bar__tools {
+	flex: 1;
+}
+
+/* Sulla sua riga la ricerca prende lo spazio libero. */
+.barrio-bar.is-stacked .barrio-search {
+	flex: 1 1 120px;
+}
+
+/* Un titolo lungo si accorcia con i puntini invece di andare a capo. */
+.barrio-admin .barrio-bar.is-stacked .barrio-bar__title,
+.barrio-admin .barrio-bar.is-stacked .barrio-builder__name,
+.barrio-bar.is-stacked > .components-dropdown {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.barrio-admin .barrio-bar.is-stacked .barrio-bar__title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * is-compact: bottoni senza testo, che resta per gli screen reader. Il nome del
+ * form (builder, registrazioni) può accorciarsi fino a 120px.
+ */
+.barrio-admin .barrio-bar.is-compact .barrio-builder__name,
+.barrio-bar.is-compact > .components-dropdown {
+	min-width: 120px;
+}
+
+.barrio-bar.is-compact :is(.barrio-bar__end, .barrio-bar__tools) {
+	gap: 6px;
+}
+
+.barrio-bar.is-compact .barrio-bar__end .barrio-button__text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Quadrati come i bottoni con l'icona: 16px + 2 × 9px + il bordo = 36px. */
+.barrio-bar.is-compact .barrio-bar__end :is(.barrio-button, .barrio-chip) {
+	padding: 0 9px;
+}
+
+/* La freccia dei filtri: senza testo basta l'icona. */
+.barrio-bar.is-compact .barrio-bar__end .dashicons-arrow-down-alt2 {
+	display: none;
+}
+
+/* is-searchless: la ricerca diventa un bottone che la apre in un menu. */
+.barrio-bar .barrio-search-toggle,
+.barrio-bar.is-searchless .barrio-search {
+	display: none;
+}
+
+.barrio-bar.is-searchless .barrio-search-toggle {
+	display: block;
 }
 
 @media (max-width: 782px) {
@@ -560,8 +680,43 @@
 	padding-left: 34px;
 }
 
-.barrio-table__card {
+/*
+ * Chi scorre lo fa su un asse solo, senza overscroll su nessuno dei due.
+ * position: il riferimento dei testi per screen reader (assoluti) sta dentro
+ * lo scroll, altrimenti quello in fondo all'intestazione allarga la pagina.
+ */
+.barrio-table__scroll {
+	position: relative;
 	overflow-x: auto;
+	overflow-y: hidden;
+	overscroll-behavior: none;
+}
+
+/*
+ * WordPress ingrandisce caselle e radio sui telefoni: nel plugin (e nei suoi
+ * menu, fuori da .barrio-admin) restano come su desktop.
+ */
+@media (max-width: 782px) {
+
+	.barrio-admin input:is([type="checkbox"], [type="radio"]),
+	.barrio-picker input:is([type="checkbox"], [type="radio"]) {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.barrio-admin input[type="checkbox"]:checked::before,
+	.barrio-picker input[type="checkbox"]:checked::before {
+		width: 1.3125rem;
+		height: 1.3125rem;
+		margin: -0.1875rem 0 0 -0.25rem;
+	}
+
+	.barrio-admin input[type="radio"]:checked::before,
+	.barrio-picker input[type="radio"]:checked::before {
+		width: 0.5rem;
+		height: 0.5rem;
+		margin: auto;
+	}
 }
 
 .barrio-table {
@@ -613,10 +768,12 @@
 	flex: none;
 }
 
+/* Le colonne non si stringono sui piccoli schermi: la tabella scorre. */
 .barrio-table td {
 	padding: 10px 16px;
 	border-bottom: 1px solid var(--barrio-line);
 	vertical-align: middle;
+	white-space: nowrap;
 }
 
 .barrio-table tbody tr:last-child td {
@@ -668,6 +825,7 @@
 
 .barrio-builder {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 16px;
 }
 
@@ -704,18 +862,20 @@
 @media (max-width: 1100px) {
 
 	.barrio-fields {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 }
 
 .barrio-fields > div {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 12px;
 	align-content: start;
 }
 
 .barrio-fields__list {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 10px;
 	padding: 12px;
 	border: 2px dashed var(--barrio-line);
@@ -811,6 +971,10 @@
 	align-items: center;
 }
 
+.barrio-admin .barrio-preview-choices input {
+	margin: 0;
+}
+
 .barrio-preview-note {
 	padding: 12px;
 	border: 1px dashed #c3c4c7;
@@ -835,18 +999,32 @@
 }
 
 /*
- * Il pannello resta visibile mentre si scorre: 16px sotto la barra del builder
- * (48px + 58px) e 16px sopra il fondo. Se è più lungo scorre dentro, senza
- * barra di scorrimento e senza trascinare la pagina quando arriva in fondo.
+ * La colonna destra (builder, registrazione) resta visibile mentre si scorre:
+ * 16px sotto la barra (48px + 58px) e 16px sopra il fondo. Se è più lunga
+ * scorre dentro, senza barra di scorrimento e senza overscroll.
  */
 .barrio-panel {
 	box-sizing: border-box;
 	position: sticky;
 	top: 122px;
+	overflow-x: hidden;
 	overflow-y: auto;
 	max-height: calc(100vh - 138px);
 	overscroll-behavior: none;
 	scrollbar-width: none;
+}
+
+/*
+ * In colonna il pannello segue la pagina: sticky e alto quanto lo schermo
+ * tratterrebbe lo scorrimento.
+ */
+@media (max-width: 1100px) {
+
+	.barrio-panel {
+		position: static;
+		max-height: none;
+		overflow: visible;
+	}
 }
 
 .barrio-choices {
@@ -902,6 +1080,8 @@
 
 .barrio-preview-modal .components-modal__content {
 	padding-top: 24px;
+	overflow-x: hidden;
+	overscroll-behavior: none;
 }
 
 .barrio-preview-modal .barrio-stack > * {
@@ -967,17 +1147,177 @@
 	padding: 4px;
 }
 
-.barrio-email-meta {
+/* Etichette e valori: l'anteprima dell'email, una registrazione. */
+
+/* Le etichette al massimo al 40%: il resto ai valori, che vanno a capo. */
+.barrio-dl {
 	display: grid;
-	grid-template-columns: max-content 1fr;
-	gap: 6px 16px;
+	grid-template-columns: fit-content(40%) minmax(0, 1fr);
+	gap: 10px 16px;
+	margin: 0;
 }
 
-.barrio-email-meta dt {
+.barrio-dl dt {
 	color: #646970;
 	font-weight: 600;
 }
 
-.barrio-email-meta dd {
+.barrio-dl dd .barrio-button {
+	max-width: 100%;
+	height: auto;
+	min-height: var(--barrio-control);
+	padding-block: 8px;
+	overflow-wrap: anywhere;
+	white-space: normal;
+	text-align: left;
+}
+
+.barrio-dl dd {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
 	margin: 0;
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+
+/* Registrazioni */
+
+/* Il form scelto, nel titolo: un po' più chiaro che al passaggio. */
+.barrio-admin .barrio-bar__select {
+	max-width: 100%;
+	padding: 0 10px;
+	background: #fafafa;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.barrio-admin .barrio-bar__select:hover {
+	background: var(--barrio-soft);
+}
+
+.barrio-bar__select .barrio-button__text {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.barrio-table__title.is-unread {
+	font-weight: 700;
+}
+
+.barrio-table td.is-truncate {
+	overflow: hidden;
+	max-width: 240px;
+	text-overflow: ellipsis;
+}
+
+a.barrio-badge {
+	text-decoration: none;
+}
+
+.barrio-badge.is-error {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+
+/*
+ * Le scelte di Picker (form, filtri, colonne). Il popover sta fuori da
+ * .barrio-admin: niente variabili, e i margini di WordPress sulle caselle
+ * vanno azzerati.
+ */
+.barrio-picker {
+	min-width: 220px;
+	padding: 4px;
+}
+
+.barrio-picker .barrio-picker__search {
+	box-sizing: border-box;
+	width: 100%;
+	height: 32px;
+	min-height: 0;
+	margin: 0 0 4px;
+	padding: 0 10px;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+	box-shadow: none;
+	font-size: 14px;
+}
+
+/* Con tante colonne scorre l'elenco, la ricerca resta in alto. */
+.barrio-picker__list {
+	display: grid;
+	max-height: 300px;
+	margin: 0;
+	padding: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: none;
+	border: 0;
+}
+
+.barrio-picker__option {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 6px 8px;
+	border-radius: 4px;
+	color: #1d2327;
+	cursor: pointer;
+}
+
+.barrio-picker__option:hover {
+	background: #f6f7f7;
+}
+
+.barrio-picker__option input[type] {
+	flex: none;
+	margin: 0;
+}
+
+.barrio-picker__count {
+	margin-left: auto;
+	padding-left: 16px;
+	color: #646970;
+	font-variant-numeric: tabular-nums;
+}
+
+.barrio-picker__empty {
+	margin: 0;
+	padding: 6px 8px;
+	color: #646970;
+}
+
+.barrio-notes {
+	display: grid;
+	gap: 14px;
+	margin: 0;
+}
+
+/* Come una chat: tipo sopra, evento nel fumetto, data e autore sotto. */
+.barrio-notes li {
+	display: grid;
+	gap: 4px;
+	margin: 0;
+}
+
+.barrio-notes .barrio-badge {
+	justify-self: start;
+	margin-bottom: 4px;
+}
+
+.barrio-admin .barrio-notes__bubble {
+	margin: 0;
+	padding: 8px 12px;
+	border: 1px solid var(--barrio-line);
+	border-radius: 12px 12px 12px 4px;
+	background: var(--barrio-soft);
+	color: var(--barrio-ink);
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+
+.barrio-notes small {
+	color: var(--barrio-muted);
+	font-size: 12px;
 }

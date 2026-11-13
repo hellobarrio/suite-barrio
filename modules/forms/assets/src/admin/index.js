@@ -1,15 +1,26 @@
-// Pagina Barrio: intestazione e schede Form e Impostazioni. Sotto Form l'elenco, o il builder con
-// ?form=ID (o ?form=new). Ogni vista è un URL: link normali, niente router.
+// Pagine Barrio: intestazione e schede Form, Registrazioni e Impostazioni. Sotto Form l'elenco, o
+// il builder con ?form=ID (o ?form=new); le registrazioni sono una pagina a sé (page=barrio-entries),
+// con il dettaglio in ?entry=ID. Ogni vista è un URL: link normali, niente router.
 import apiFetch from '@wordpress/api-fetch';
 import { createRoot, useEffect, useState } from '@wordpress/element';
 import { __, _n, _x, sprintf } from '@wordpress/i18n';
 
 import { Builder } from '../builder/Builder.js';
 import { errorMessage } from '../builder/model.js';
+import { Entries } from '../entries/Entries.js';
+import { Entry } from '../entries/Entry.js';
 import { Settings } from '../settings/Settings.js';
 import './admin.css';
 import { initialQuery, localQuery } from './query.js';
-import { Icon, Loading, Menu, Notice, Table, pageUrl } from './ui.js';
+import {
+	Icon,
+	Loading,
+	Menu,
+	Notice,
+	Table,
+	entriesUrl,
+	pageUrl,
+} from './ui.js';
 
 const STATUS = {
 	active: [ __( 'Active', 'barrio-suite' ), 'is-success' ],
@@ -17,12 +28,11 @@ const STATUS = {
 	trash: [ __( 'Trash', 'barrio-suite' ), '' ],
 };
 
-// I più recenti per primi, come li restituisce il server.
-const INITIAL = initialQuery( 'id', 'desc' );
+// I più recenti per primi, come li restituisce il server. status '' = tutti tranne il cestino.
+const INITIAL = { ...initialQuery( 'id', 'desc' ), status: '' };
 
 function FormList() {
 	const [ forms, setForms ] = useState( null );
-	const [ trash, setTrash ] = useState( false );
 	const [ query, setQuery ] = useState( INITIAL );
 	const [ notice, setNotice ] = useState( null );
 
@@ -34,15 +44,24 @@ function FormList() {
 	};
 	useEffect( load, [] );
 
-	const act = ( path, method, data, message ) => {
+	// Una richiesta per form: sono pochi, una rotta per le azioni di massa non serve. Si ricarica
+	// anche se qualcuna fallisce, perché le altre sono andate.
+	const act = ( ids, { path = '', ...request }, message ) => {
 		setNotice( null );
-		apiFetch( { path: `/barrio/v1/forms/${ path }`, method, data } )
-			.then( () => {
-				load();
-				setNotice( { status: 'success', message } );
-			} )
-			.catch( fail );
+		Promise.all(
+			ids.map( ( id ) =>
+				apiFetch( {
+					path: `/barrio/v1/forms/${ id }${ path }`,
+					...request,
+				} )
+			)
+		)
+			.then( () => setNotice( { status: 'success', message } ) )
+			.catch( fail )
+			.finally( load );
 	};
+	const setStatus = ( ids, status, message ) =>
+		act( ids, { method: 'PATCH', data: { status } }, message );
 	const copied = () =>
 		setNotice( {
 			status: 'success',
@@ -70,29 +89,64 @@ function FormList() {
 		// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
 		if ( window.confirm( question ) ) {
 			if ( toTrash ) {
-				act(
-					form.id,
-					'PATCH',
-					{ status: 'trash' },
+				setStatus(
+					[ form.id ],
+					'trash',
 					__( 'Form moved to the trash.', 'barrio-suite' )
 				);
 			} else {
 				act(
-					form.id,
-					'DELETE',
-					undefined,
+					[ form.id ],
+					{ method: 'DELETE' },
 					__( 'Form deleted.', 'barrio-suite' )
 				);
 			}
+		}
+	};
+	// Dal cestino; quelli con registrazioni il server li rifiuta e lo dice.
+	const removeMany = ( ids ) => {
+		if (
+			// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
+			window.confirm(
+				sprintf(
+					/* translators: %d: form da eliminare. */
+					_n(
+						'Delete %d form permanently?',
+						'Delete %d forms permanently?',
+						ids.length,
+						'barrio-suite'
+					),
+					ids.length
+				)
+			)
+		) {
+			act(
+				ids,
+				{ method: 'DELETE' },
+				sprintf(
+					/* translators: %d: form eliminati. */
+					_n(
+						'%d form deleted.',
+						'%d forms deleted.',
+						ids.length,
+						'barrio-suite'
+					),
+					ids.length
+				)
+			);
 		}
 	};
 
 	if ( ! forms ) {
 		return notice ? <Notice notice={ notice } /> : <Loading />;
 	}
-	const trashed = forms.filter( ( f ) => 'trash' === f.status );
+	const trash = 'trash' === query.status;
+	const count = ( status ) =>
+		forms.filter( ( f ) => f.status === status ).length;
 	const { rows, total } = localQuery(
-		trash ? trashed : forms.filter( ( f ) => 'trash' !== f.status ),
+		forms.filter( ( f ) =>
+			query.status ? f.status === query.status : 'trash' !== f.status
+		),
 		query,
 		[ 'id', 'title' ]
 	);
@@ -119,9 +173,11 @@ function FormList() {
 			key: 'entries',
 			label: __( 'Entries', 'barrio-suite' ),
 			sort: 'entries',
+			hideable: true,
 			render: ( form ) => (
-				<span
+				<a
 					className={ `barrio-badge${ form.entries ? ' is-success' : '' }` }
+					href={ entriesUrl( { form: form.id } ) }
 				>
 					{ sprintf(
 						/* translators: %d: numero di registrazioni. */
@@ -133,13 +189,14 @@ function FormList() {
 						),
 						form.entries
 					) }
-				</span>
+				</a>
 			),
 		},
 		{
 			key: 'status',
 			label: __( 'Status', 'barrio-suite' ),
 			sort: 'status',
+			hideable: true,
 			render: ( form ) => (
 				<span
 					className={ `barrio-badge ${ STATUS[ form.status ][ 1 ] }` }
@@ -152,6 +209,7 @@ function FormList() {
 			key: 'modified',
 			label: __( 'Last modified', 'barrio-suite' ),
 			sort: 'updated_at',
+			hideable: true,
 		},
 		{
 			key: 'actions',
@@ -171,14 +229,18 @@ function FormList() {
 					items={
 						'trash' === form.status
 							? [
+									form.entries > 0 && {
+										label: __( 'Entries', 'barrio-suite' ),
+										icon: 'list-view',
+										href: entriesUrl( { form: form.id } ),
+									},
 									{
 										label: __( 'Restore', 'barrio-suite' ),
 										icon: 'undo',
 										onClick: () =>
-											act(
-												form.id,
-												'PATCH',
-												{ status: 'active' },
+											setStatus(
+												[ form.id ],
+												'active',
 												__(
 													'Form restored.',
 													'barrio-suite'
@@ -202,6 +264,11 @@ function FormList() {
 										href: pageUrl( { form: form.id } ),
 									},
 									{
+										label: __( 'Entries', 'barrio-suite' ),
+										icon: 'list-view',
+										href: entriesUrl( { form: form.id } ),
+									},
+									{
 										label: __(
 											'Duplicate',
 											'barrio-suite'
@@ -209,9 +276,11 @@ function FormList() {
 										icon: 'admin-page',
 										onClick: () =>
 											act(
-												`${ form.id }/duplicate`,
-												'POST',
-												undefined,
+												[ form.id ],
+												{
+													method: 'POST',
+													path: '/duplicate',
+												},
 												__(
 													'Form duplicated.',
 													'barrio-suite'
@@ -239,10 +308,9 @@ function FormList() {
 												),
 												icon: 'lock',
 												onClick: () =>
-													act(
-														form.id,
-														'PATCH',
-														{ status: 'closed' },
+													setStatus(
+														[ form.id ],
+														'closed',
 														__(
 															'Form closed.',
 															'barrio-suite'
@@ -256,10 +324,9 @@ function FormList() {
 												),
 												icon: 'unlock',
 												onClick: () =>
-													act(
-														form.id,
-														'PATCH',
-														{ status: 'active' },
+													setStatus(
+														[ form.id ],
+														'active',
 														__(
 															'Form reopened.',
 															'barrio-suite'
@@ -289,64 +356,169 @@ function FormList() {
 				query={ query }
 				initial={ INITIAL }
 				onQuery={ setQuery }
-				title={
-					trash
-						? __( 'Trash', 'barrio-suite' )
-						: __( 'All forms', 'barrio-suite' )
-				}
+				title={ __( 'Forms', 'barrio-suite' ) }
 				search={ __( 'Search forms', 'barrio-suite' ) }
 				empty={
 					trash
 						? __( 'The trash is empty.', 'barrio-suite' )
 						: __( 'No forms found.', 'barrio-suite' )
 				}
+				filters={ [
+					{
+						key: 'status',
+						label: __( 'Status', 'barrio-suite' ),
+						options: [
+							{
+								value: '',
+								label: __( 'All forms', 'barrio-suite' ),
+								count: forms.length - count( 'trash' ),
+							},
+							...Object.entries( STATUS ).map(
+								( [ value, [ label ] ] ) => ( {
+									value,
+									label,
+									count: count( value ),
+								} )
+							),
+						],
+					},
+				] }
+				bulk={ ( ids ) =>
+					trash
+						? [
+								{
+									label: __( 'Restore', 'barrio-suite' ),
+									icon: 'undo',
+									onClick: () =>
+										setStatus(
+											ids,
+											'active',
+											sprintf(
+												/* translators: %d: form ripristinati. */
+												_n(
+													'%d form restored.',
+													'%d forms restored.',
+													ids.length,
+													'barrio-suite'
+												),
+												ids.length
+											)
+										),
+								},
+								{
+									label: __(
+										'Delete permanently',
+										'barrio-suite'
+									),
+									icon: 'trash',
+									danger: true,
+									onClick: () => removeMany( ids ),
+								},
+							]
+						: [
+								{
+									label: __( 'Reopen', 'barrio-suite' ),
+									icon: 'unlock',
+									onClick: () =>
+										setStatus(
+											ids,
+											'active',
+											sprintf(
+												/* translators: %d: form riaperti. */
+												_n(
+													'%d form reopened.',
+													'%d forms reopened.',
+													ids.length,
+													'barrio-suite'
+												),
+												ids.length
+											)
+										),
+								},
+								{
+									label: __(
+										'Close to new entries',
+										'barrio-suite'
+									),
+									icon: 'lock',
+									onClick: () =>
+										setStatus(
+											ids,
+											'closed',
+											sprintf(
+												/* translators: %d: form chiusi. */
+												_n(
+													'%d form closed.',
+													'%d forms closed.',
+													ids.length,
+													'barrio-suite'
+												),
+												ids.length
+											)
+										),
+								},
+								// Nel cestino anche quelli senza registrazioni: si può tornare indietro.
+								{
+									label: __(
+										'Move to trash',
+										'barrio-suite'
+									),
+									icon: 'trash',
+									onClick: () =>
+										setStatus(
+											ids,
+											'trash',
+											sprintf(
+												/* translators: %d: form spostati nel cestino. */
+												_n(
+													'%d form moved to the trash.',
+													'%d forms moved to the trash.',
+													ids.length,
+													'barrio-suite'
+												),
+												ids.length
+											)
+										),
+								},
+							]
+				}
 				toolbar={
-					<>
-						{ ( trash || trashed.length > 0 ) && (
-							<button
-								type="button"
-								className="barrio-button"
-								onClick={ () => {
-									setTrash( ! trash );
-									setQuery( { ...query, page: 1 } );
-								} }
-							>
-								<Icon
-									name={ trash ? 'arrow-left-alt2' : 'trash' }
-								/>
-								{ trash
-									? __( 'All forms', 'barrio-suite' )
-									: sprintf(
-											/* translators: %d: form nel cestino. */
-											__( 'Trash (%d)', 'barrio-suite' ),
-											trashed.length
-										) }
-							</button>
-						) }
-						<a
-							className="barrio-button is-primary"
-							href={ pageUrl( { form: 'new' } ) }
-						>
-							<Icon name="plus-alt2" />
+					<a
+						className="barrio-button is-primary"
+						href={ pageUrl( { form: 'new' } ) }
+					>
+						<Icon name="plus-alt2" />
+						<span className="barrio-button__text">
 							{ __( 'New form', 'barrio-suite' ) }
-						</a>
-					</>
+						</span>
+					</a>
 				}
 			/>
 		</div>
 	);
 }
 
-const { canManageOptions } = window.barrioAdmin;
+const { canManageForms, canManageOptions } = window.barrioAdmin;
 const params = new URLSearchParams( window.location.search );
-const settings = canManageOptions && 'settings' === params.get( 'tab' );
-const form = params.get( 'form' );
+const id = ( name ) =>
+	/^[1-9]\d*$/.test( params.get( name ) ?? '' )
+		? Number( params.get( name ) )
+		: null;
+const entries = 'barrio-entries' === params.get( 'page' );
+const settings =
+	! entries && canManageOptions && 'settings' === params.get( 'tab' );
 
 let content = <FormList />;
-if ( settings ) {
+if ( entries ) {
+	content = id( 'entry' ) ? (
+		<Entry id={ id( 'entry' ) } />
+	) : (
+		<Entries form={ id( 'form' ) } />
+	);
+} else if ( settings ) {
 	content = <Settings />;
-} else if ( 'new' === form || /^[1-9]\d*$/.test( form ?? '' ) ) {
-	content = <Builder id={ 'new' === form ? null : Number( form ) } />;
+} else if ( 'new' === params.get( 'form' ) || id( 'form' ) ) {
+	content = <Builder id={ id( 'form' ) } />;
 }
 
 createRoot( document.getElementById( 'barrio-forms-admin' ) ).render(
@@ -384,11 +556,19 @@ createRoot( document.getElementById( 'barrio-forms-admin' ) ).render(
 			className="barrio-nav"
 			aria-label={ __( 'Sections', 'barrio-suite' ) }
 		>
+			{ canManageForms && (
+				<a
+					href={ pageUrl() }
+					aria-current={ entries || settings ? undefined : 'page' }
+				>
+					{ __( 'Forms', 'barrio-suite' ) }
+				</a>
+			) }
 			<a
-				href={ pageUrl() }
-				aria-current={ settings ? undefined : 'page' }
+				href={ entriesUrl() }
+				aria-current={ entries ? 'page' : undefined }
 			>
-				{ __( 'Forms', 'barrio-suite' ) }
+				{ __( 'Entries', 'barrio-suite' ) }
 			</a>
 			{ canManageOptions && (
 				<a

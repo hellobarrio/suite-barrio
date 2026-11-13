@@ -90,10 +90,12 @@ final readonly class MergeTags {
 	}
 
 	/**
+	 * Un valore come lo legge una persona: per le scelte l'etichetta nella lingua di $text.
+	 *
 	 * @param array{label?: string, placeholder?: string|null, error_message?: string|null, options?: array<string, string>|null} $text
-	 * @param non-empty-list<string> $values
+	 * @param list<string> $values
 	 */
-	private static function display( Field $field, array $text, array $values ): string {
+	public static function display( Field $field, array $text, array $values ): string {
 		$labels = array_column( FieldTypes::choices( $field, $text ), 'label', 'value' );
 		return implode(
 			', ',
