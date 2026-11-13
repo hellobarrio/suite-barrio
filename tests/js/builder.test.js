@@ -5,8 +5,12 @@ import { test } from 'node:test';
 import {
 	choiceRows,
 	errorMessage,
+	fillTranslations,
 	renameChoice,
+	setTranslation,
+	textIn,
 	toValue,
+	trimTranslations,
 	uniqueKey,
 	withChoices,
 	withTexts,
@@ -87,4 +91,94 @@ test( 'validation errors show the details', () => {
 		'fields[0][key] is not valid.'
 	);
 	assert.equal( errorMessage( { message: 'Conflict.' } ), 'Conflict.' );
+} );
+
+test( 'translations keep only their own texts and are completed when saved', () => {
+	const languages = [ 'it', 'en' ];
+	const form = {
+		i18n: {
+			it: { submit_label: 'Invia', success_message: null },
+			en: { submit_label: 'Send', success_message: null },
+		},
+		notifications: [
+			{
+				i18n: {
+					it: { subject: 'Ciao', heading: null, body: 'x' },
+					en: { subject: 'Ciao', heading: null, body: 'x' },
+				},
+			},
+		],
+		fields: [
+			{
+				config: { choices: [ 'a', 'b' ] },
+				i18n: {
+					it: {
+						label: 'Scelta',
+						placeholder: 'Scegli',
+						options: { a: 'Uno', b: 'Due' },
+					},
+					en: {
+						label: 'Choice',
+						placeholder: 'Scegli',
+						options: { a: 'One', b: 'Due', old: 'Old' },
+					},
+					fr: { label: 'Choix' },
+				},
+			},
+		],
+	};
+
+	const trimmed = trimTranslations( form, languages );
+	assert.deepEqual( trimmed.i18n.en, { submit_label: 'Send' } );
+	// Tutto uguale alla lingua principale: niente da tradurre.
+	assert.equal( trimmed.notifications[ 0 ].i18n.en, undefined );
+	const field = trimmed.fields[ 0 ];
+	assert.deepEqual( field.i18n.en, {
+		label: 'Choice',
+		options: { a: 'One', old: 'Old' },
+	} );
+	// Una lingua non più attiva resta com'è.
+	assert.deepEqual( field.i18n.fr, { label: 'Choix' } );
+
+	// La lingua principale cambia: i testi non tradotti la seguono, le scelte tolte spariscono.
+	const edited = {
+		...trimmed,
+		fields: [
+			{
+				...field,
+				i18n: {
+					...field.i18n,
+					it: { ...field.i18n.it, placeholder: 'Scegli…' },
+				},
+			},
+		],
+	};
+	const filled = fillTranslations( edited, languages );
+	assert.deepEqual( filled.i18n.en, {
+		submit_label: 'Send',
+		success_message: null,
+	} );
+	assert.equal( filled.notifications[ 0 ].i18n.en, undefined );
+	assert.deepEqual( filled.fields[ 0 ].i18n.en, {
+		label: 'Choice',
+		placeholder: 'Scegli…',
+		options: { a: 'One', b: 'Due' },
+	} );
+	assert.deepEqual( filled.fields[ 0 ].i18n.fr, { label: 'Choix' } );
+
+	// Ciò che vede il visitatore: la traduzione o la lingua principale, anche per le scelte.
+	assert.deepEqual( textIn( field, 'en', 'it' ), {
+		label: 'Choice',
+		placeholder: 'Scegli',
+		options: { a: 'One', b: 'Due' },
+	} );
+	assert.equal( textIn( field, 'it', 'it' ).label, 'Scelta' );
+
+	// Un testo svuotato torna quello della lingua principale; senza testi la lingua sparisce.
+	const cleared = setTranslation( field, 'en', 'label', '' );
+	assert.deepEqual( cleared.i18n.en, { options: { a: 'One', old: 'Old' } } );
+	assert.equal(
+		setTranslation( cleared, 'en', 'options', { a: '', old: '' } ).i18n.en,
+		undefined
+	);
 } );

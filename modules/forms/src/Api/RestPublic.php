@@ -59,7 +59,7 @@ final class RestPublic {
 		if ( 'edit' === $request['context'] ) {
 			return new WP_REST_Response( RestForms::view( $form ) );
 		}
-		$lang   = I18n::resolve( is_string( $request['lang'] ) ? $request['lang'] : null );
+		$lang   = I18n::resolve( $request['lang'] );
 		$fields = [];
 		foreach ( $form->current->fields as $field ) {
 			$fields[] = self::field( $field, I18n::pick( $field->i18n, $lang ) );
@@ -85,24 +85,30 @@ final class RestPublic {
 		// Non get_params(): l'id della rotta coprirebbe un campo con chiave "id".
 		$input = $request->get_json_params() ?: $request->get_body_params();
 		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null;
-		$entry = Submission::process( $form, $input, $request->get_file_params(), $ip, get_current_user_id() ?: null );
-		if ( $entry instanceof WP_Error ) {
-			return $entry;
-		}
+		// Errori e messaggio standard nella lingua del visitatore, non in quella della richiesta REST.
+		return I18n::in(
+			I18n::resolve( $input['_barrio_lang'] ?? null ),
+			static function () use ( $form, $input, $request, $ip ): WP_REST_Response|WP_Error {
+				$entry = Submission::process( $form, $input, $request->get_file_params(), $ip, get_current_user_id() ?: null );
+				if ( $entry instanceof WP_Error ) {
+					return $entry;
+				}
 
-		$text = I18n::pick( $form->i18n, $entry->lang );
-		return new WP_REST_Response(
-			apply_filters(
-				'barrio_forms_rest_response',
-				[
-					'message'  => $text['success_message'] ?? __( 'Thank you, your submission has been received.', 'barrio-suite' ),
-					// Null: si resta sulla pagina e si mostra il messaggio.
-					'redirect' => $text['success_url'] ?? null,
-				],
-				$entry,
-				$form
-			),
-			201
+				$text = I18n::pick( $form->i18n, $entry->lang );
+				return new WP_REST_Response(
+					apply_filters(
+						'barrio_forms_rest_response',
+						[
+							'message'  => $text['success_message'] ?? __( 'Thank you, your submission has been received.', 'barrio-suite' ),
+							// Null: si resta sulla pagina e si mostra il messaggio.
+							'redirect' => $text['success_url'] ?? null,
+						],
+						$entry,
+						$form
+					),
+					201
+				);
+			}
 		);
 	}
 

@@ -8,17 +8,17 @@ import {
 	Bar,
 	Card,
 	Icon,
+	Lang,
 	Loading,
 	Notice,
 	Text,
 	entriesUrl,
-	pageUrl,
 	restLink,
 	useUnsavedWarning,
 } from '../admin/ui.js';
 import { errorMessage } from '../builder/model.js';
 
-const { canManageForms, languages } = window.barrioAdmin;
+const { languages } = window.barrioAdmin;
 
 const LEVEL = {
 	info: [ __( 'Note', 'barrio-suite' ), '' ],
@@ -39,6 +39,48 @@ const Details = ( { items } ) => (
 			) ) }
 	</dl>
 );
+
+// Un valore come si legge meglio: il testo lungo con i suoi a capo, email e telefono come link, i
+// file da scaricare. Un campo vuoto, o nascosto dalla logica condizionale, è "—".
+function Answer( { field, entryId } ) {
+	if ( field.files.length ) {
+		return (
+			<div className="barrio-files">
+				{ field.files.map( ( file ) => (
+					<a
+						key={ file.index }
+						className="barrio-file"
+						href={ restLink(
+							`entries/${ entryId }/files/${ file.index }`
+						) }
+					>
+						<Icon name="media-document" />
+						<span className="barrio-file__name">{ file.name }</span>
+						<span className="barrio-file__size">{ file.size }</span>
+						<Icon name="download" />
+					</a>
+				) ) }
+			</div>
+		);
+	}
+	if ( ! field.value ) {
+		return <span className="barrio-answers__empty">—</span>;
+	}
+	switch ( field.type ) {
+		case 'textarea':
+			return <div className="barrio-answers__text">{ field.value }</div>;
+		case 'email':
+			return <a href={ `mailto:${ field.value }` }>{ field.value }</a>;
+		case 'tel':
+			return (
+				<a href={ `tel:${ field.value.replace( /\s/g, '' ) }` }>
+					{ field.value }
+				</a>
+			);
+		default:
+			return field.value;
+	}
+}
 
 export function Entry( { id } ) {
 	const [ entry, setEntry ] = useState( null );
@@ -186,42 +228,15 @@ export function Entry( { id } ) {
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 
 			<div className="barrio-fields">
-				<Card
-					icon="feedback"
-					title={ entry.form.title }
-					actions={
-						canManageForms && (
-							<a
-								className="barrio-icon-button"
-								href={ pageUrl( { form: entry.form.id } ) }
-								aria-label={ __( 'Edit form', 'barrio-suite' ) }
-							>
-								<Icon name="edit" />
-							</a>
-						)
-					}
-				>
-					<dl className="barrio-dl">
+				<Card icon="feedback" title={ __( 'Answers', 'barrio-suite' ) }>
+					<dl className="barrio-answers">
 						{ entry.fields.map( ( field ) => (
-							<Fragment key={ field.key }>
+							<div key={ field.key }>
 								<dt>{ field.label }</dt>
 								<dd>
-									{ field.files.map( ( file ) => (
-										<a
-											key={ file.index }
-											className="barrio-button"
-											href={ restLink(
-												`entries/${ id }/files/${ file.index }`
-											) }
-										>
-											<Icon name="download" />
-											{ `${ file.name } (${ file.size })` }
-										</a>
-									) ) }
-									{ field.value ||
-										( ! field.files.length && '—' ) }
+									<Answer field={ field } entryId={ id } />
 								</dd>
-							</Fragment>
+							</div>
 						) ) }
 					</dl>
 				</Card>
@@ -233,11 +248,16 @@ export function Entry( { id } ) {
 					>
 						<Details
 							items={ [
+								[
+									__( 'Form', 'barrio-suite' ),
+									entry.form.title,
+								],
 								[ __( 'Date', 'barrio-suite' ), entry.date ],
 								[
 									__( 'Language', 'barrio-suite' ),
-									languages.length > 1 &&
-										entry.lang.toUpperCase(),
+									languages.length > 1 && (
+										<Lang code={ entry.lang } />
+									),
 								],
 								[
 									__( 'Page', 'barrio-suite' ),

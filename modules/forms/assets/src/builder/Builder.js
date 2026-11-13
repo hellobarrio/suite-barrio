@@ -1,9 +1,10 @@
 // Builder di un form: carica con GET /forms/{id}?context=edit e salva con PUT e base_version
-// (409 se nel frattempo qualcuno ha salvato) o, per un form nuovo, con POST /forms.
+// (409 se nel frattempo qualcuno ha salvato) o, per un form nuovo, con POST /forms. Con più lingue
+// la barra sceglie quella dei testi: nelle altre si traducono solo i testi (Texts.js).
 import apiFetch from '@wordpress/api-fetch';
 import { Modal, TabPanel } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 import {
 	Bar,
@@ -13,18 +14,28 @@ import {
 	Loading,
 	Lucide,
 	Notice,
+	Picker,
 	SectionHead,
+	Select,
 	Shortcode,
 	Text,
+	langOption,
 	pageUrl,
 	useScrollIntoView,
 	useUnsavedWarning,
 } from '../admin/ui.js';
 import { Conditions } from './Conditions.js';
 import { FieldsTab, ruleFields } from './Fields.js';
-import { errorMessage, withTexts } from './model.js';
+import {
+	errorMessage,
+	fillTranslations,
+	trimTranslations,
+	withTexts,
+} from './model.js';
+import { Fixed, TextIn } from './Texts.js';
 
-const lang = window.barrioAdmin.languages[ 0 ];
+const { languages } = window.barrioAdmin;
+const main = languages[ 0 ];
 
 // Un testo facoltativo vuoto è null: il valore standard (docs/database.md).
 const orNull = ( optional, value ) => ( optional && ! value ? null : value );
@@ -32,7 +43,7 @@ const orNull = ( optional, value ) => ( optional && ! value ? null : value );
 const empty = () => ( {
 	title: '',
 	i18n: {
-		[ lang ]: {
+		[ main ]: {
 			submit_label: __( 'Submit', 'barrio-suite' ),
 			success_message: null,
 			success_url: null,
@@ -49,9 +60,11 @@ export function Builder( { id } ) {
 	const [ busy, setBusy ] = useState( null );
 	// L'anteprima aperta: del form, o di una notifica con destinatari e oggetto.
 	const [ preview, setPreview ] = useState( null );
+	// La lingua dei testi che si modificano (e delle anteprime).
+	const [ lang, setLang ] = useState( main );
 
 	const load = ( data ) => {
-		const loaded = withTexts( data, lang );
+		const loaded = trimTranslations( withTexts( data, main ), languages );
 		setForm( loaded );
 		setSaved( loaded );
 	};
@@ -86,6 +99,8 @@ export function Builder( { id } ) {
 	}
 
 	const update = ( changes ) => setForm( { ...form, ...changes } );
+	// Il formato del server: ogni lingua tradotta con tutti i testi.
+	const payload = fillTranslations( form, languages );
 	const request = ( kind, options, then ) => {
 		setBusy( kind );
 		setNotice( null );
@@ -101,9 +116,9 @@ export function Builder( { id } ) {
 				? {
 						path: `/barrio/v1/forms/${ form.id }`,
 						method: 'PUT',
-						data: { ...form, base_version: form.version },
+						data: { ...payload, base_version: form.version },
 					}
-				: { path: '/barrio/v1/forms', method: 'POST', data: form },
+				: { path: '/barrio/v1/forms', method: 'POST', data: payload },
 			( data ) => {
 				load( data );
 				if ( ! form.id ) {
@@ -126,7 +141,7 @@ export function Builder( { id } ) {
 			{
 				path: '/barrio/v1/forms/preview',
 				method: 'POST',
-				data: { ...form, notification },
+				data: { ...payload, notification, lang },
 			},
 			setPreview
 		);
@@ -172,6 +187,32 @@ export function Builder( { id } ) {
 						}
 					/>
 				) }
+				{ languages.length > 1 && (
+					<Picker
+						label={ __( 'Language', 'barrio-suite' ) }
+						text={ lang.toUpperCase() }
+						image={ langOption( lang ).image }
+						className="barrio-bar__lang"
+						active={ lang !== main }
+						options={ languages.map( ( code ) =>
+							langOption(
+								code,
+								code === main
+									? sprintf(
+											/* translators: %s: codice della lingua (IT). */
+											__(
+												'%s (main language)',
+												'barrio-suite'
+											),
+											code.toUpperCase()
+										)
+									: undefined
+							)
+						) }
+						value={ lang }
+						onChange={ setLang }
+					/>
+				) }
 				<button
 					type="button"
 					className="barrio-button"
@@ -198,14 +239,27 @@ export function Builder( { id } ) {
 				</button>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
+			<Notice
+				notice={
+					lang !== main && {
+						status: 'info',
+						message: sprintf(
+							/* translators: 1: lingua che si traduce (EN); 2: lingua principale (IT). */
+							__(
+								'You are editing the %1$s texts: an empty text shows the %2$s one. The settings in grey are the same in every language: change them in %2$s.',
+								'barrio-suite'
+							),
+							lang.toUpperCase(),
+							main.toUpperCase()
+						),
+					}
+				}
+			/>
 
 			<TabPanel
 				tabs={ [
 					{ name: 'fields', title: __( 'Fields', 'barrio-suite' ) },
-					{
-						name: 'submission',
-						title: __( 'Submission', 'barrio-suite' ),
-					},
+					{ name: 'options', title: __( 'Options', 'barrio-suite' ) },
 					{
 						name: 'notifications',
 						title: __( 'Notifications', 'barrio-suite' ),
@@ -217,15 +271,21 @@ export function Builder( { id } ) {
 						{ 'fields' === tab.name && (
 							<FieldsTab
 								fields={ form.fields }
+								lang={ lang }
 								onChange={ ( fields ) => update( { fields } ) }
 							/>
 						) }
-						{ 'submission' === tab.name && (
-							<SubmissionTab form={ form } update={ update } />
+						{ 'options' === tab.name && (
+							<OptionsTab
+								form={ form }
+								lang={ lang }
+								update={ update }
+							/>
 						) }
 						{ 'notifications' === tab.name && (
 							<NotificationsTab
 								form={ form }
+								lang={ lang }
 								update={ update }
 								onPreview={ showPreview }
 								busy={ !! busy }
@@ -293,54 +353,84 @@ function fitContent( { target: frame } ) {
 	} ).observe( root );
 }
 
-function SubmissionTab( { form, update } ) {
-	const text = form.i18n[ lang ];
-	const setText = ( key, optional ) => ( value ) =>
-		update( {
-			i18n: {
-				...form.i18n,
-				[ lang ]: { ...text, [ key ]: orNull( optional, value ) },
-			},
-		} );
+// Scheda Opzioni: il pulsante di invio e cosa succede dopo, un messaggio o un'altra pagina.
+function OptionsTab( { form, lang, update } ) {
+	const [ redirect, setRedirect ] = useState(
+		!! form.i18n[ main ].success_url
+	);
+	const props = { item: form, lang, onChange: update };
+	const setAfter = ( after ) => {
+		setRedirect( 'page' === after );
+		if ( 'page' !== after ) {
+			// Con il messaggio nessuna lingua apre una pagina.
+			update( {
+				i18n: Object.fromEntries(
+					Object.entries( form.i18n ).map( ( [ code, text ] ) => [
+						code,
+						{ ...text, success_url: null },
+					] )
+				),
+			} );
+		}
+	};
 	return (
 		<Card
 			className="barrio-wide"
 			icon="yes-alt"
 			title={ __( 'Submission', 'barrio-suite' ) }
-			description={ __(
-				'The button that sends the form and what visitors see afterwards.',
-				'barrio-suite'
-			) }
 		>
-			<Text
+			<TextIn
+				{ ...props }
+				name="submit_label"
 				label={ __( 'Submit button', 'barrio-suite' ) }
-				value={ text.submit_label }
-				onChange={ setText( 'submit_label' ) }
 			/>
-			<Text
-				multiline
-				label={ __( 'Success message', 'barrio-suite' ) }
-				help={ __(
-					'Shown after sending. Leave empty for the standard message.',
-					'barrio-suite'
-				) }
-				value={ text.success_message }
-				onChange={ setText( 'success_message', true ) }
-			/>
-			<Text
-				label={ __( 'Redirect after sending', 'barrio-suite' ) }
-				help={ __(
-					'A page to open instead of the message, like /thank-you/ or https://example.com/thank-you/. Leave empty to stay on the page.',
-					'barrio-suite'
-				) }
-				value={ text.success_url }
-				onChange={ setText( 'success_url', true ) }
-			/>
+			<Fixed lang={ lang }>
+				<Select
+					label={ __( 'After sending', 'barrio-suite' ) }
+					value={ redirect ? 'page' : 'message' }
+					options={ [
+						{
+							value: 'message',
+							label: __( 'Show a message', 'barrio-suite' ),
+						},
+						{
+							value: 'page',
+							label: __( 'Open another page', 'barrio-suite' ),
+						},
+					] }
+					onChange={ setAfter }
+				/>
+			</Fixed>
+			{ redirect ? (
+				<TextIn
+					{ ...props }
+					name="success_url"
+					optional
+					label={ __( 'Page to open', 'barrio-suite' ) }
+					help={ __(
+						'Like /thank-you/ or https://example.com/thank-you/.',
+						'barrio-suite'
+					) }
+				/>
+			) : (
+				<TextIn
+					{ ...props }
+					name="success_message"
+					optional
+					multiline
+					label={ __( 'Success message', 'barrio-suite' ) }
+					help={ __(
+						'Leave empty for the standard message.',
+						'barrio-suite'
+					) }
+				/>
+			) }
 		</Card>
 	);
 }
 
-function NotificationsTab( { form, update, onPreview, busy } ) {
+function NotificationsTab( { form, lang, update, onPreview, busy } ) {
+	const translating = lang !== main;
 	const [ added, setAdded ] = useState( null );
 	const set = ( i, notification ) =>
 		update( {
@@ -361,7 +451,7 @@ function NotificationsTab( { form, update, onPreview, busy } ) {
 					attach_files: false,
 					conditions: null,
 					i18n: {
-						[ lang ]: {
+						[ main ]: {
 							subject: __(
 								'New entry: {{form_title}}',
 								'barrio-suite'
@@ -394,6 +484,7 @@ function NotificationsTab( { form, update, onPreview, busy } ) {
 				<button
 					type="button"
 					className="barrio-button is-primary"
+					disabled={ translating }
 					onClick={ add }
 				>
 					<Icon name="plus-alt2" />
@@ -404,6 +495,7 @@ function NotificationsTab( { form, update, onPreview, busy } ) {
 				<NotificationCard
 					key={ i }
 					notification={ n }
+					lang={ lang }
 					fields={ fields }
 					tags={ tags }
 					isNew={ i === added }
@@ -433,8 +525,10 @@ function NotificationsTab( { form, update, onPreview, busy } ) {
 	);
 }
 
+// In un'altra lingua si traducono oggetto, intestazione e messaggio; il resto è uguale in tutte.
 function NotificationCard( {
 	notification: n,
+	lang,
 	fields,
 	tags,
 	isNew,
@@ -444,17 +538,10 @@ function NotificationCard( {
 	onRemove,
 } ) {
 	const ref = useScrollIntoView( isNew );
-	const text = n.i18n[ lang ];
+	const translating = lang !== main;
 	const set = ( key, optional ) => ( value ) =>
 		onChange( { ...n, [ key ]: orNull( optional, value ) } );
-	const setText = ( key, optional ) => ( value ) =>
-		onChange( {
-			...n,
-			i18n: {
-				...n.i18n,
-				[ lang ]: { ...text, [ key ]: orNull( optional, value ) },
-			},
-		} );
+	const props = { item: n, lang, onChange };
 
 	return (
 		<div ref={ ref } className="barrio-scroll-target">
@@ -466,6 +553,7 @@ function NotificationCard( {
 					<>
 						<Check
 							label={ __( 'Active', 'barrio-suite' ) }
+							disabled={ translating }
 							checked={ n.enabled }
 							onChange={ set( 'enabled' ) }
 						/>
@@ -485,6 +573,7 @@ function NotificationCard( {
 								'Remove notification',
 								'barrio-suite'
 							) }
+							disabled={ translating }
 							onClick={ onRemove }
 						>
 							<Icon name="trash" />
@@ -492,54 +581,57 @@ function NotificationCard( {
 					</>
 				}
 			>
-				<Text
-					label={ __( 'Name', 'barrio-suite' ) }
-					help={ __(
-						'Only for the admin, for example in the notes of the entries.',
-						'barrio-suite'
-					) }
-					value={ n.name }
-					onChange={ set( 'name' ) }
-				/>
-				<Text
-					label={ __( 'Send to', 'barrio-suite' ) }
-					help={ __(
-						'Addresses separated by commas; merge tags are allowed, like {{admin_email}} or {{email}}.',
-						'barrio-suite'
-					) }
-					value={ n.recipients }
-					onChange={ set( 'recipients' ) }
-				/>
-				<Text
-					label={ __( 'Reply to', 'barrio-suite' ) }
-					help={ __(
-						'Optional, for example {{email}}.',
-						'barrio-suite'
-					) }
-					value={ n.reply_to }
-					onChange={ set( 'reply_to', true ) }
-				/>
-				<Text
+				<Fixed lang={ lang }>
+					<Text
+						label={ __( 'Name', 'barrio-suite' ) }
+						help={ __(
+							'Only for the admin, for example in the notes of the entries.',
+							'barrio-suite'
+						) }
+						value={ n.name }
+						onChange={ set( 'name' ) }
+					/>
+					<Text
+						label={ __( 'Send to', 'barrio-suite' ) }
+						help={ __(
+							'Addresses separated by commas; merge tags are allowed, like {{admin_email}} or {{email}}.',
+							'barrio-suite'
+						) }
+						value={ n.recipients }
+						onChange={ set( 'recipients' ) }
+					/>
+					<Text
+						label={ __( 'Reply to', 'barrio-suite' ) }
+						help={ __(
+							'Optional, for example {{email}}.',
+							'barrio-suite'
+						) }
+						value={ n.reply_to }
+						onChange={ set( 'reply_to', true ) }
+					/>
+				</Fixed>
+				<TextIn
+					{ ...props }
+					name="subject"
 					label={ __( 'Subject', 'barrio-suite' ) }
-					value={ text.subject }
-					onChange={ setText( 'subject' ) }
 				/>
-				<Text
+				<TextIn
+					{ ...props }
+					name="heading"
+					optional
 					label={ __( 'Heading', 'barrio-suite' ) }
 					help={ __(
 						'Shown at the top of the email. Leave empty to use the subject.',
 						'barrio-suite'
 					) }
-					value={ text.heading }
-					onChange={ setText( 'heading', true ) }
 				/>
-				<Text
+				<TextIn
+					{ ...props }
+					name="body"
 					multiline
 					rows={ 8 }
 					label={ __( 'Message', 'barrio-suite' ) }
 					help={ __( 'HTML is allowed.', 'barrio-suite' ) }
-					value={ text.body }
-					onChange={ setText( 'body' ) }
 				/>
 				<div className="barrio-field">
 					<span className="barrio-field__label">
@@ -551,27 +643,32 @@ function NotificationCard( {
 						) ) }
 					</div>
 				</div>
-				<Check
-					label={ __( 'Attach the uploaded files', 'barrio-suite' ) }
-					checked={ n.attach_files }
-					onChange={ set( 'attach_files' ) }
-				/>
-				<Conditions
-					value={ n.conditions }
-					fields={ fields }
-					actions={ [
-						{
-							value: 'show',
-							label: __( 'Send it', 'barrio-suite' ),
-						},
-						{
-							value: 'hide',
-							label: __( 'Do not send it', 'barrio-suite' ),
-						},
-					] }
-					empty={ __( 'Add some fields first.', 'barrio-suite' ) }
-					onChange={ set( 'conditions' ) }
-				/>
+				<Fixed lang={ lang }>
+					<Check
+						label={ __(
+							'Attach the uploaded files',
+							'barrio-suite'
+						) }
+						checked={ n.attach_files }
+						onChange={ set( 'attach_files' ) }
+					/>
+					<Conditions
+						value={ n.conditions }
+						fields={ fields }
+						actions={ [
+							{
+								value: 'show',
+								label: __( 'Send it', 'barrio-suite' ),
+							},
+							{
+								value: 'hide',
+								label: __( 'Do not send it', 'barrio-suite' ),
+							},
+						] }
+						empty={ __( 'Add some fields first.', 'barrio-suite' ) }
+						onChange={ set( 'conditions' ) }
+					/>
+				</Fixed>
 			</Card>
 		</div>
 	);

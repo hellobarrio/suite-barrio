@@ -49,10 +49,17 @@ export const renameChoice = ( row, label ) => ( {
 	value: row.value === toValue( row.label ) ? toValue( label ) : row.value,
 } );
 
+// Ogni elemento con i testi per lingua: il form (testi dell'invio), le notifiche e i campi.
+const eachItem = ( form, change ) => ( {
+	...change( form ),
+	notifications: form.notifications.map( change ),
+	fields: form.fields.map( change ),
+} );
+
 // Il builder modifica i testi della lingua principale. Se mancano (per esempio è cambiata la
 // lingua principale di WPML) parte dai primi che ci sono; le altre lingue restano come sono.
-export function withTexts( form, lang ) {
-	const fill = ( item ) =>
+export const withTexts = ( form, lang ) =>
+	eachItem( form, ( item ) =>
 		item.i18n[ lang ]
 			? item
 			: {
@@ -61,13 +68,90 @@ export function withTexts( form, lang ) {
 						...item.i18n,
 						[ lang ]: Object.values( item.i18n )[ 0 ],
 					},
-				};
-	return {
-		...fill( form ),
-		notifications: form.notifications.map( fill ),
-		fields: form.fields.map( fill ),
-	};
+				}
+	);
+
+// Nel builder un'altra lingua ha solo i suoi testi: uno vuoto è quello della lingua
+// principale. Senza testi la lingua non ha la riga, e il sito mostra la lingua principale.
+function withTranslation( item, lang, text ) {
+	const own = {};
+	for ( const [ key, value ] of Object.entries( text ) ) {
+		if ( 'options' !== key ) {
+			if ( value ) {
+				own[ key ] = value;
+			}
+			continue;
+		}
+		const options = Object.entries( value ?? {} ).filter(
+			( [ , label ] ) => label
+		);
+		if ( options.length ) {
+			own.options = Object.fromEntries( options );
+		}
+	}
+	const i18n = { ...item.i18n, [ lang ]: own };
+	if ( ! Object.keys( own ).length ) {
+		delete i18n[ lang ];
+	}
+	return { ...item, i18n };
 }
+
+// Per le scelte key è "options" e value l'oggetto { valore: etichetta }.
+export const setTranslation = ( item, lang, key, value ) =>
+	withTranslation( item, lang, { ...item.i18n[ lang ], [ key ]: value } );
+
+// Al caricamento: delle altre lingue attive restano i testi diversi da quelli della lingua principale.
+export const trimTranslations = ( form, [ main, ...others ] ) =>
+	eachItem( form, ( item ) => {
+		const base = item.i18n[ main ];
+		return others.reduce( ( next, lang ) => {
+			const text = item.i18n[ lang ];
+			return text
+				? withTranslation( next, lang, {
+						...Object.fromEntries(
+							Object.entries( text ).filter(
+								( [ key, value ] ) =>
+									'options' !== key && value !== base[ key ]
+							)
+						),
+						options: Object.fromEntries(
+							Object.entries( text.options ?? {} ).filter(
+								( [ value, label ] ) =>
+									label !== base.options?.[ value ]
+							)
+						),
+					} )
+				: next;
+		}, item );
+	} );
+
+// Il testo che il visitatore vede in lang: la traduzione o, dove manca, la lingua principale.
+export function textIn( item, lang, main ) {
+	const base = item.i18n[ main ] ?? {};
+	const own = ( lang !== main && item.i18n[ lang ] ) || {};
+	const text = { ...base, ...own };
+	if ( base.options ) {
+		// Solo le scelte che ci sono ancora.
+		text.options = Object.fromEntries(
+			Object.entries( base.options ).map( ( [ value, label ] ) => [
+				value,
+				own.options?.[ value ] ?? label,
+			] )
+		);
+	}
+	return text;
+}
+
+// Al salvataggio ogni lingua tradotta ha la riga completa (il database vuole etichetta, oggetto…):
+// i testi non tradotti sono quelli della lingua principale di adesso, anche se è cambiata.
+export const fillTranslations = ( form, [ main, ...others ] ) =>
+	eachItem( form, ( item ) => {
+		const i18n = { ...item.i18n };
+		for ( const lang of others.filter( ( code ) => i18n[ code ] ) ) {
+			i18n[ lang ] = textIn( item, lang, main );
+		}
+		return { ...item, i18n };
+	} );
 
 // La validazione degli argomenti REST mette i dettagli in data.params ("fields[2][key] …").
 export const errorMessage = ( error ) =>

@@ -102,9 +102,33 @@ final class FormRepository {
 		return $updated > 0;
 	}
 
-	/** @return list<array{id: int, title: string, status: string, updated_at: string, entries: int, unread: int}> I più recenti per primi. */
+	/**
+	 * I più recenti per primi, con le lingue in cui il form ha dei testi: dell'invio, delle notifiche
+	 * o dei campi della versione corrente.
+	 *
+	 * @return list<array{id: int, title: string, status: string, updated_at: string, entries: int, unread: int, languages: list<string>}>
+	 */
 	public static function all(): array {
 		global $wpdb;
+		$languages = [];
+		$rows      = Db::rows(
+			$wpdb->prepare(
+				'SELECT form_id, lang FROM %i
+				UNION SELECT n.form_id, i.lang FROM %i i JOIN %i n ON n.id = i.notification_id
+				UNION SELECT v.form_id, i.lang FROM %i i JOIN %i f ON f.id = i.field_id JOIN %i v ON v.id = f.version_id
+					WHERE v.version = (SELECT MAX(version) FROM %i WHERE form_id = v.form_id)',
+				Db::table( 'form_i18n' ),
+				Db::table( 'form_notifications_i18n' ),
+				Db::table( 'form_notifications' ),
+				Db::table( 'form_fields_i18n' ),
+				Db::table( 'form_fields' ),
+				Db::table( 'form_versions' ),
+				Db::table( 'form_versions' )
+			)
+		);
+		foreach ( $rows as $row ) {
+			$languages[ (int) $row['form_id'] ][] = (string) $row['lang'];
+		}
 		return array_map(
 			static fn( array $row ): array => [
 				'id'         => (int) $row['id'],
@@ -113,6 +137,7 @@ final class FormRepository {
 				'updated_at' => (string) $row['updated_at'],
 				'entries'    => (int) $row['entries'],
 				'unread'     => (int) $row['unread'],
+				'languages'  => $languages[ (int) $row['id'] ] ?? [],
 			],
 			Db::rows(
 				$wpdb->prepare(

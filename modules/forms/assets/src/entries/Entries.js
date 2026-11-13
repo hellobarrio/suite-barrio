@@ -6,12 +6,15 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import { initialQuery } from '../admin/query.js';
 import {
+	Icon,
+	Lang,
 	Loading,
 	Menu,
 	Notice,
 	Picker,
 	Table,
 	entriesUrl,
+	langOption,
 	restLink,
 } from '../admin/ui.js';
 import { errorMessage } from '../builder/model.js';
@@ -112,13 +115,12 @@ export function Entries( { form: requested } ) {
 		window.history.replaceState( null, '', entriesUrl( { form: id } ) );
 	};
 
-	// ids null = tutte le registrazioni del form, non solo quelle filtrate.
-	const bulk = ( action, entries, message ) => {
+	const bulk = ( action, ids, message ) => {
 		setNotice( null );
 		apiFetch( {
 			path: `/barrio/v1/forms/${ formId }/entries/bulk`,
 			method: 'POST',
-			data: entries ? { action, ids: entries } : { action, all: true },
+			data: { action, ids },
 		} )
 			.then( ( result ) => {
 				setReload( ( n ) => n + 1 );
@@ -133,27 +135,16 @@ export function Entries( { form: requested } ) {
 				: __( 'Marked as unread.', 'barrio-suite' )
 		);
 	const remove = ( entries ) => {
-		const count = entries ? entries.length : form.entries;
-		const question = entries
-			? sprintf(
-					/* translators: %d: registrazioni da eliminare. */
-					_n(
-						'Delete %d entry permanently, with its files?',
-						'Delete %d entries permanently, with their files?',
-						count,
-						'barrio-suite'
-					),
-					count
-				)
-			: sprintf(
-					/* translators: 1: tutte le registrazioni del form; 2: nome del form. */
-					__(
-						'Delete all %1$d entries of "%2$s" permanently, with their files?',
-						'barrio-suite'
-					),
-					count,
-					form.title
-				);
+		const question = sprintf(
+			/* translators: %d: registrazioni da eliminare. */
+			_n(
+				'Delete %d entry permanently, with its files?',
+				'Delete %d entries permanently, with their files?',
+				entries.length,
+				'barrio-suite'
+			),
+			entries.length
+		);
 		// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
 		if ( window.confirm( question ) ) {
 			bulk( 'delete', entries, ( result ) =>
@@ -211,7 +202,9 @@ export function Entries( { form: requested } ) {
 			label: __( 'Language', 'barrio-suite' ),
 			sort: 'lang',
 			render: ( row ) => (
-				<span className="barrio-badge">{ row.lang.toUpperCase() }</span>
+				<span className="barrio-badge">
+					<Lang code={ row.lang } />
+				</span>
 			),
 		},
 		{
@@ -317,16 +310,12 @@ export function Entries( { form: requested } ) {
 					languages.length > 1 && {
 						key: 'lang',
 						label: __( 'Language', 'barrio-suite' ),
-						icon: 'translation',
 						options: [
 							{
 								value: '',
 								label: __( 'All languages', 'barrio-suite' ),
 							},
-							...languages.map( ( lang ) => ( {
-								value: lang,
-								label: lang.toUpperCase(),
-							} ) ),
+							...languages.map( ( lang ) => langOption( lang ) ),
 						],
 					},
 				] }
@@ -349,38 +338,24 @@ export function Entries( { form: requested } ) {
 					},
 				] }
 				toolbar={
-					<Menu
-						label={ __( 'More actions', 'barrio-suite' ) }
-						items={ [
-							{
-								// Con i filtri correnti.
-								label: __( 'Export CSV', 'barrio-suite' ),
-								icon: 'download',
-								href: restLink(
-									`forms/${ formId }/entries/export`,
-									params( {
-										search: query.search,
-										read: query.read,
-										lang: query.lang,
-									} )
-								),
-							},
-							{
-								label: __( 'Mark all as read', 'barrio-suite' ),
-								icon: 'yes',
-								onClick: () => read( null, true ),
-							},
-							form.entries > 0 && {
-								label: __(
-									'Delete all entries',
-									'barrio-suite'
-								),
-								icon: 'trash',
-								danger: true,
-								onClick: () => remove( null ),
-							},
-						] }
-					/>
+					// Con i filtri correnti. Le altre azioni sono sulle righe selezionate; eliminare
+					// tutte le registrazioni del sito è in Impostazioni → Privacy.
+					<a
+						className="barrio-button is-primary"
+						href={ restLink(
+							`forms/${ formId }/entries/export`,
+							params( {
+								search: query.search,
+								read: query.read,
+								lang: query.lang,
+							} )
+						) }
+					>
+						<Icon name="download" />
+						<span className="barrio-button__text">
+							{ __( 'Export CSV', 'barrio-suite' ) }
+						</span>
+					</a>
 				}
 			/>
 		</div>

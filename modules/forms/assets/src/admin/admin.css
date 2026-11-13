@@ -1,7 +1,7 @@
 /*
  * Pagine admin di Barrio Suite: card bianche, bottoni scuri, tabelle con
- * ricerca. .barrio-typegrid è fuori da .barrio-admin: i popover finiscono in
- * fondo al body.
+ * ricerca. I popover finiscono in fondo al body, fuori da .barrio-admin: lì
+ * niente variabili.
  */
 
 .barrio-admin {
@@ -138,7 +138,9 @@
 	justify-content: center;
 	height: var(--barrio-control);
 	padding: 0 14px;
-	border: 1px solid var(--barrio-line);
+
+	/* Lo stesso bordo dei campi: nella barra stanno accanto alla ricerca. */
+	border: 1px solid #c3c4c7;
 	border-radius: var(--barrio-radius-small);
 	background: #fff;
 	color: var(--barrio-ink);
@@ -189,7 +191,7 @@
 	background: #fcf0f1;
 }
 
-.barrio-button:disabled {
+.barrio-button:is(:disabled, [aria-disabled="true"]) {
 	opacity: 0.5;
 	cursor: default;
 }
@@ -260,6 +262,27 @@
 	color: var(--barrio-muted);
 	font-size: 12px;
 	font-weight: 400;
+}
+
+/* Il codice di una lingua con la sua bandiera, se c'è (Lang in ui.js). */
+.barrio-lang {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.barrio-flag {
+	flex: none;
+	width: 16px;
+	height: 12px;
+	border-radius: 2px;
+	object-fit: cover;
+}
+
+/* Sotto una traduzione, il testo originale con i suoi a capo. */
+.barrio-original {
+	white-space: pre-line;
+	overflow-wrap: anywhere;
 }
 
 /*
@@ -620,6 +643,14 @@
 	display: none;
 }
 
+/* La lingua del builder: bandiera e codice (EN-US) restano scritti. */
+.barrio-bar.is-compact .barrio-bar__lang .barrio-button__text {
+	position: static;
+	width: auto;
+	height: auto;
+	clip-path: none;
+}
+
 /* is-searchless: la ricerca diventa un bottone che la apre in un menu. */
 .barrio-bar .barrio-search-toggle,
 .barrio-bar.is-searchless .barrio-search {
@@ -841,9 +872,14 @@
 	border-color: var(--barrio-line);
 }
 
+/* Le schede che non stanno (sui telefoni) scorrono in orizzontale. */
 .barrio-admin .components-tab-panel__tabs {
 	margin-bottom: 16px;
 	border-bottom: 1px solid var(--barrio-line);
+	overflow-x: auto;
+	overflow-y: hidden;
+	overscroll-behavior: none;
+	scrollbar-width: none;
 }
 
 .barrio-admin .components-tab-panel__tabs-item {
@@ -955,9 +991,20 @@
 	touch-action: none;
 }
 
-.barrio-handle:hover {
+.barrio-handle:not(:disabled):hover {
 	background: var(--barrio-soft);
 	color: var(--barrio-ink);
+}
+
+/* In un'altra lingua l'ordine non cambia. */
+.barrio-handle:disabled {
+	color: var(--barrio-line);
+	cursor: default;
+}
+
+/* Impostazioni uguali in ogni lingua (Fixed): il fieldset non impagina. */
+.barrio-fixed {
+	display: contents;
 }
 
 .barrio-preview-choices {
@@ -1101,44 +1148,9 @@
 	scroll-margin: 122px 0 16px;
 }
 
-/* Popover "Aggiungi campo" */
-
-.barrio-typegrid {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(170px, 1fr));
-	gap: 2px;
-	padding: 8px;
-}
-
-.barrio-typegrid button {
-	display: flex;
-	gap: 10px;
-	align-items: center;
-	padding: 4px 8px 4px 4px;
-	border: 0;
-	border-radius: 6px;
-	background: none;
-	color: #1d2327;
-	font: inherit;
-	font-size: 13px;
-	text-align: left;
-	cursor: pointer;
-}
-
-.barrio-typegrid button:hover,
-.barrio-typegrid button:focus-visible {
-	outline: none;
-	background: #f6f7f7;
-}
-
-.barrio-typegrid .dashicons {
-	width: 28px;
-	height: 28px;
-	border-radius: 6px;
-	background: #f0f0f1;
-	font-size: 16px;
-	line-height: 28px;
-	text-align: center;
+/* Sotto la barra sticky (z-index 20): vedi inBar di Menu in ui.js. */
+.components-popover.barrio-popover-below {
+	z-index: 19;
 }
 
 /* Menu a tendina (popover, fuori da .barrio-admin). */
@@ -1162,16 +1174,6 @@
 	font-weight: 600;
 }
 
-.barrio-dl dd .barrio-button {
-	max-width: 100%;
-	height: auto;
-	min-height: var(--barrio-control);
-	padding-block: 8px;
-	overflow-wrap: anywhere;
-	white-space: normal;
-	text-align: left;
-}
-
 .barrio-dl dd {
 	display: flex;
 	flex-wrap: wrap;
@@ -1182,6 +1184,82 @@
 }
 
 /* Registrazioni */
+
+/* Le risposte: etichetta sopra, valore sotto, una riga per campo. */
+.barrio-answers {
+	margin: 0;
+}
+
+.barrio-answers > div {
+	padding: 12px 0;
+	border-top: 1px solid var(--barrio-line);
+}
+
+.barrio-answers > div:first-child {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.barrio-answers > div:last-child {
+	padding-bottom: 0;
+}
+
+.barrio-answers dt {
+	margin-bottom: 4px;
+	color: var(--barrio-muted);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.barrio-answers dd {
+	margin: 0;
+	color: var(--barrio-ink);
+	overflow-wrap: anywhere;
+}
+
+.barrio-answers__empty {
+	color: var(--barrio-muted);
+}
+
+.barrio-answers__text {
+	padding: 10px 12px;
+	border-radius: var(--barrio-radius-small);
+	background: var(--barrio-soft);
+	white-space: pre-wrap;
+}
+
+.barrio-files {
+	display: grid;
+	gap: 8px;
+}
+
+.barrio-admin .barrio-file {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	min-height: var(--barrio-control);
+	padding: 0 12px;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius-small);
+	color: var(--barrio-ink);
+	text-decoration: none;
+}
+
+.barrio-admin .barrio-file:hover {
+	background: var(--barrio-soft);
+}
+
+.barrio-file__name {
+	min-width: 0;
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+
+.barrio-file__size {
+	margin-left: auto;
+	color: var(--barrio-muted);
+	white-space: nowrap;
+}
 
 /* Il form scelto, nel titolo: un po' più chiaro che al passaggio. */
 .barrio-admin .barrio-bar__select {
@@ -1231,7 +1309,8 @@ a.barrio-badge {
 	padding: 4px;
 }
 
-.barrio-picker .barrio-picker__search {
+.barrio-picker .barrio-picker__search,
+.barrio-menu .barrio-picker__search {
 	box-sizing: border-box;
 	width: 100%;
 	height: 32px;
@@ -1242,6 +1321,14 @@ a.barrio-badge {
 	border-radius: 6px;
 	box-shadow: none;
 	font-size: 14px;
+}
+
+/* Il fuoco come nei campi, non quello blu di WordPress. */
+.barrio-picker .barrio-picker__search:focus,
+.barrio-menu .barrio-picker__search:focus {
+	border-color: #1d2327;
+	outline: none;
+	box-shadow: 0 0 0 1px #1d2327;
 }
 
 /* Con tante colonne scorre l'elenco, la ricerca resta in alto. */
@@ -1280,6 +1367,68 @@ a.barrio-badge {
 	padding-left: 16px;
 	color: #646970;
 	font-variant-numeric: tabular-nums;
+}
+
+/* Filtri e colonne in un solo pannello: scorre il pannello, non le liste. */
+.barrio-filters {
+	display: grid;
+	gap: 4px;
+	min-width: 240px;
+	max-height: min(480px, 70vh);
+	padding: 4px;
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: none;
+}
+
+.barrio-filters .barrio-picker {
+	min-width: 0;
+	padding: 0;
+}
+
+.barrio-filters .barrio-picker + .barrio-picker {
+	padding-top: 4px;
+	border-top: 1px solid #e2e4e7;
+}
+
+.barrio-filters .barrio-picker__list {
+	max-height: none;
+	overflow: visible;
+}
+
+.barrio-picker__heading {
+	padding: 8px 8px 4px;
+	color: #646970;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+/* Un .barrio-button, ma qui le variabili non arrivano. */
+.barrio-filters__clear {
+	justify-content: center;
+	height: 36px;
+	margin-top: 4px;
+	border-color: transparent;
+	border-radius: 6px;
+}
+
+.barrio-filters__clear:hover {
+	background: #f6f7f7;
+}
+
+.barrio-button__count {
+	box-sizing: border-box;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	border-radius: 9px;
+	background: var(--barrio-ink);
+	color: #fff;
+	font-size: 11px;
+	line-height: 18px;
+	text-align: center;
 }
 
 .barrio-picker__empty {

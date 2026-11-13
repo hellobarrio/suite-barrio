@@ -12,6 +12,7 @@ use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Mail\Smtp;
 use PHPMailer\PHPMailer\PHPMailer;
 use RuntimeException;
+use WP_Locale_Switcher;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_UnitTestCase;
@@ -32,14 +33,7 @@ final class NotificationsTest extends WP_UnitTestCase {
 		parent::set_up();
 		reset_phpmailer_instance();
 		// Sito in italiano e inglese: la lingua della registrazione decide testi ed etichette.
-		add_filter( 'wpml_default_language', static fn(): string => 'it' );
-		add_filter(
-			'wpml_active_languages',
-			static fn(): array => [
-				'it' => [],
-				'en' => [],
-			]
-		);
+		add_filter( 'barrio_forms_languages', static fn(): array => [ 'it', 'en' ] );
 		$this->form = FormRepository::create( 'Contact', [ 'it' => [ 'submit_label' => 'Invia' ] ], self::notifications(), new FormVersion( self::fields() ) );
 	}
 
@@ -79,6 +73,39 @@ final class NotificationsTest extends WP_UnitTestCase {
 		// La tabella prende il posto del paragrafo di {{all_fields}}.
 		$this->assertStringNotContainsString( '<p><table', $body );
 		$this->assertSame( [ [ 'notification', 'success', 'Notification "Admin" sent to team@example.org, admin@example.org.', null ] ], $this->notes() );
+	}
+
+	public function test_emails_are_in_the_language_of_the_entry_and_notes_in_that_of_the_site(): void {
+		// WordPress passa solo ai locale installati: qui si finge che ci sia l'italiano.
+		$switcher = $GLOBALS['wp_locale_switcher'];
+		add_filter( 'get_available_languages', static fn(): array => [ 'it_IT' ] );
+		$GLOBALS['wp_locale_switcher'] = new WP_Locale_Switcher(); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- globale di WordPress.
+		$GLOBALS['wp_locale_switcher']->init();
+		add_filter( 'barrio_forms_locale', static fn( string $locale, string $lang ): string => 'it' === $lang ? 'it_IT' : 'en_US', 10, 2 );
+		// Senza file di traduzione: ogni stringa del plugin dice in quale locale è nata.
+		add_filter( 'gettext_barrio-suite', static fn( string $translation ): string => get_locale() . ":{$translation}" );
+		$yes = static fn(): string => self::body( tests_retrieve_phpmailer_instance()->get_sent() );
+		try {
+			// La richiesta REST è in inglese: la nota passa all'italiano, la lingua principale.
+			$this->post( [ '_barrio_lang' => 'en' ] + self::VALID );
+			$this->assertStringContainsString( '<strong>Accetto la privacy (en)</strong><br>en_US:Yes</td>', $yes() );
+			$this->assertStringStartsWith( 'it_IT:Notification "Admin" sent', $this->notes()[0][2] );
+
+			// Un visitatore italiano: errori e messaggi standard in italiano.
+			$this->assertSame( 'it_IT:This field is required.', $this->post( [ '_barrio_lang' => 'it' ] )->get_data()['data']['fields']['name'] );
+			reset_phpmailer_instance();
+			$this->post( [ '_barrio_lang' => 'it' ] + self::VALID );
+			$this->assertStringContainsString( 'it_IT:Yes', $yes() );
+
+			// Il rinvio dall'admin (in inglese) resta nella lingua della registrazione.
+			reset_phpmailer_instance();
+			wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+			$this->resend( $this->form->notifications[0]->id );
+			$this->assertStringContainsString( '<strong>Accetto la privacy</strong><br>it_IT:Yes</td>', $yes() );
+			$this->assertSame( 'en_US', get_locale() );
+		} finally {
+			$GLOBALS['wp_locale_switcher'] = $switcher; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- globale di WordPress.
+		}
 	}
 
 	public function test_conditional_notifications_follow_the_entry_values(): void {

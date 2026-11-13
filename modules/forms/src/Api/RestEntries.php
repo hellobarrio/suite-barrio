@@ -255,6 +255,8 @@ final class RestEntries {
 			$values   = $entry->values[ (int) $field->id ] ?? [];
 			$fields[] = [
 				'key'   => $field->key,
+				// Per mostrare ogni valore a modo suo: il testo lungo con i suoi a capo, l'email come link…
+				'type'  => $field->type,
 				'label' => self::label( $field, $lang ),
 				'value' => $values ? MergeTags::display( $field, I18n::pick( $field->i18n, $lang ), $values ) : '',
 				'files' => $files,

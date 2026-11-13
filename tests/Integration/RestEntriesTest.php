@@ -238,11 +238,12 @@ final class RestEntriesTest extends WP_UnitTestCase {
 
 		$this->assertSame(
 			[
-				[ 'name', 'Name', 'Ada', [] ],
-				[ 'topic', 'Topic', 'A quote', [] ],
-				[ 'notes', 'Notes', '', [] ],
+				[ 'name', 'text', 'Name', 'Ada', [] ],
+				[ 'topic', 'radio', 'Topic', 'A quote', [] ],
+				[ 'notes', 'textarea', 'Notes', '', [] ],
 				[
 					'cv',
+					'file',
 					'CV',
 					'',
 					[
@@ -254,7 +255,7 @@ final class RestEntriesTest extends WP_UnitTestCase {
 					],
 				],
 			],
-			array_map( static fn( array $f ): array => [ $f['key'], $f['label'], $f['value'], $f['files'] ], $entry['fields'] )
+			array_map( static fn( array $f ): array => [ $f['key'], $f['type'], $f['label'], $f['value'], $f['files'] ], $entry['fields'] )
 		);
 		$this->assertSame( [ false, 'en', 'https://example.org/contatti/', 1 ], [ $entry['is_read'], $entry['lang'], $entry['source_url'], $entry['form']['version'] ] );
 		$this->assertSame( [ 'Admin' ], array_column( $entry['notifications'], 'name' ) );

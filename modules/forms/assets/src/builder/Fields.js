@@ -1,6 +1,7 @@
 // Scheda Campi: la struttura del form, ordinabile, e le proprietà del campo scelto. Le proprietà
 // della config vengono dallo schema del tipo (FieldTypes::schema()); le scelte hanno un editor
-// proprio, con i preset.
+// proprio, con i preset. In un'altra lingua (lang) restano solo i testi: la struttura si cambia
+// nella lingua principale.
 import {
 	DndContext,
 	KeyboardSensor,
@@ -16,7 +17,6 @@ import {
 	useSortable,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Dropdown } from '@wordpress/components';
 import { useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
@@ -30,10 +30,18 @@ import {
 	useScrollIntoView,
 } from '../admin/ui.js';
 import { Conditions } from './Conditions.js';
-import { choiceRows, renameChoice, uniqueKey, withChoices } from './model.js';
+import {
+	choiceRows,
+	renameChoice,
+	setTranslation,
+	textIn,
+	uniqueKey,
+	withChoices,
+} from './model.js';
+import { Fixed, TextIn } from './Texts.js';
 
 const { languages, types, presets } = window.barrioAdmin;
-const lang = languages[ 0 ];
+const main = languages[ 0 ];
 
 // Tipi senza un controllo da compilare: niente obbligatorio, segnaposto o messaggio di errore.
 const NO_INPUT = [ 'hidden', 'page_break' ];
@@ -55,14 +63,15 @@ const ICONS = {
 };
 
 // Etichetta senza HTML (il consenso ha un link), per gli elenchi.
-const plain = ( field ) =>
-	( field.i18n[ lang ]?.label ?? '' ).replace( /<[^>]*>/g, '' ).trim() ||
-	field.key;
+const plain = ( field, lang = main ) =>
+	( textIn( field, lang, main ).label ?? '' )
+		.replace( /<[^>]*>/g, '' )
+		.trim() || field.key;
 // Il consenso ha come etichetta il suo testo, l'interruzione di pagina il pulsante: si mostra il tipo.
-const title = ( field ) =>
+const fieldTitle = ( field, lang ) =>
 	[ 'consent', 'page_break' ].includes( field.type )
 		? types[ field.type ].label
-		: plain( field );
+		: plain( field, lang );
 
 function newField( type, keys ) {
 	const label =
@@ -76,7 +85,7 @@ function newField( type, keys ) {
 		config: 'file' === type ? { extensions: [ 'pdf', 'jpg', 'png' ] } : {},
 		conditions: null,
 		i18n: {
-			[ lang ]: {
+			[ main ]: {
 				label,
 				placeholder: null,
 				error_message: null,
@@ -85,7 +94,7 @@ function newField( type, keys ) {
 		},
 	};
 	return types[ type ].schema.properties.choices
-		? withChoices( field, lang, [
+		? withChoices( field, main, [
 				{ value: 'option_1', label: __( 'Option 1', 'barrio-suite' ) },
 				{ value: 'option_2', label: __( 'Option 2', 'barrio-suite' ) },
 			] )
@@ -99,10 +108,11 @@ export const ruleFields = ( fields ) =>
 		.map( ( f ) => ( {
 			key: f.key,
 			label: plain( f ),
-			choices: f.config.choices ? choiceRows( f, lang ) : null,
+			choices: f.config.choices ? choiceRows( f, main ) : null,
 		} ) );
 
-export function FieldsTab( { fields, onChange } ) {
+export function FieldsTab( { fields, lang, onChange } ) {
+	const translating = lang !== main;
 	const [ selected, setSelected ] = useState( fields.length ? 0 : null );
 	const [ added, setAdded ] = useState( null );
 	const [ ids, moveIds ] = useStableIds( fields.length );
@@ -134,6 +144,38 @@ export function FieldsTab( { fields, onChange } ) {
 		}
 	};
 
+	let panel = (
+		<Card
+			className="barrio-panel"
+			title={ __( 'Field properties', 'barrio-suite' ) }
+			description={ __(
+				'Select a field to edit its properties.',
+				'barrio-suite'
+			) }
+		/>
+	);
+	if ( field ) {
+		panel = (
+			<FieldPanel
+				// Un pannello nuovo per ogni campo: nessuno stato passa da un campo all'altro.
+				key={ ids[ selected ] }
+				field={ field }
+				lang={ lang }
+				previous={ fields.slice( 0, selected ) }
+				keys={ fields
+					.filter( ( f, i ) => i !== selected )
+					.map( ( f ) => f.key ) }
+				onChange={ ( changed ) =>
+					onChange(
+						fields.map( ( f, i ) =>
+							i === selected ? changed : f
+						)
+					)
+				}
+			/>
+		);
+	}
+
 	return (
 		<div className="barrio-fields">
 			<div>
@@ -143,7 +185,9 @@ export function FieldsTab( { fields, onChange } ) {
 						'barrio-suite'
 					) }
 				>
-					<AddField onAdd={ add } />
+					<Fixed lang={ lang }>
+						<AddField onAdd={ add } />
+					</Fixed>
 				</SectionHead>
 				<div className="barrio-fields__list">
 					{ fields.length ? (
@@ -159,9 +203,11 @@ export function FieldsTab( { fields, onChange } ) {
 							{ ( f, i, handle ) => (
 								<FieldCard
 									field={ f }
+									lang={ lang }
 									selected={ i === selected }
 									isNew={ i === added }
 									handle={ handle }
+									locked={ translating }
 									onSelect={ () => setSelected( i ) }
 									onRemove={ () => remove( i ) }
 								/>
@@ -177,74 +223,38 @@ export function FieldsTab( { fields, onChange } ) {
 					) }
 				</div>
 			</div>
-			{ field ? (
-				<FieldPanel
-					// Un pannello nuovo per ogni campo: nessuno stato passa da un campo all'altro.
-					key={ ids[ selected ] }
-					field={ field }
-					previous={ fields.slice( 0, selected ) }
-					keys={ fields
-						.filter( ( f, i ) => i !== selected )
-						.map( ( f ) => f.key ) }
-					onChange={ ( changed ) =>
-						onChange(
-							fields.map( ( f, i ) =>
-								i === selected ? changed : f
-							)
-						)
-					}
-				/>
-			) : (
-				<Card
-					className="barrio-panel"
-					title={ __( 'Field properties', 'barrio-suite' ) }
-					description={ __(
-						'Select a field to edit its properties.',
-						'barrio-suite'
-					) }
-				/>
-			) }
+			{ panel }
 		</div>
 	);
 }
 
-function AddField( { onAdd } ) {
-	return (
-		<Dropdown
-			popoverProps={ { placement: 'bottom-end' } }
-			renderToggle={ ( { isOpen, onToggle } ) => (
-				<button
-					type="button"
-					className="barrio-button is-primary"
-					aria-expanded={ isOpen }
-					onClick={ onToggle }
-				>
-					<Icon name="plus-alt2" />
-					{ __( 'Add field', 'barrio-suite' ) }
-				</button>
-			) }
-			renderContent={ ( { onClose } ) => (
-				<div className="barrio-typegrid">
-					{ Object.entries( types ).map( ( [ type, { label } ] ) => (
-						<button
-							key={ type }
-							type="button"
-							onClick={ () => {
-								onAdd( type );
-								onClose();
-							} }
-						>
-							<Icon name={ ICONS[ type ] ?? 'admin-generic' } />
-							{ label }
-						</button>
-					) ) }
-				</div>
-			) }
-		/>
-	);
-}
+// I tipi con la loro icona; con la ricerca, perché sono tanti.
+const AddField = ( { onAdd } ) => (
+	<Menu
+		label={ __( 'Field types', 'barrio-suite' ) }
+		text={ __( 'Add field', 'barrio-suite' ) }
+		icon="plus-alt2"
+		className="is-primary"
+		items={ Object.entries( types ).map( ( [ type, { label } ] ) => ( {
+			label,
+			icon: ICONS[ type ] ?? 'admin-generic',
+			onClick: () => onAdd( type ),
+		} ) ) }
+	/>
+);
 
-function FieldCard( { field, selected, isNew, handle, onSelect, onRemove } ) {
+// Una card della struttura. locked: in un'altra lingua la struttura non cambia, maniglia e cestino
+// sono disattivati.
+function FieldCard( {
+	field,
+	lang,
+	selected,
+	isNew,
+	handle,
+	locked,
+	onSelect,
+	onRemove,
+} ) {
 	const ref = useScrollIntoView( isNew );
 	return (
 		// Il titolo è il bottone accessibile; il clic sul resto della card è una scorciatoia.
@@ -257,14 +267,14 @@ function FieldCard( { field, selected, isNew, handle, onSelect, onRemove } ) {
 			onClick={ onSelect }
 		>
 			<div className="barrio-fieldcard__head">
-				<Handle { ...handle } />
+				<Handle { ...( locked ? { disabled: true } : handle ) } />
 				<button
 					type="button"
 					className="barrio-fieldcard__title"
 					aria-pressed={ selected }
 					onClick={ onSelect }
 				>
-					{ title( field ) }
+					{ fieldTitle( field, lang ) }
 					{ field.required && (
 						<>
 							<span
@@ -291,6 +301,7 @@ function FieldCard( { field, selected, isNew, handle, onSelect, onRemove } ) {
 					type="button"
 					className="barrio-icon-button is-danger"
 					aria-label={ __( 'Remove field', 'barrio-suite' ) }
+					disabled={ locked }
 					onClick={ ( event ) => {
 						event.stopPropagation();
 						onRemove();
@@ -300,16 +311,19 @@ function FieldCard( { field, selected, isNew, handle, onSelect, onRemove } ) {
 				</button>
 			</div>
 			<div className="barrio-fieldcard__preview" aria-hidden="true">
-				<Preview field={ field } />
+				<Preview field={ field } lang={ lang } />
 			</div>
 		</div>
 	);
 }
 
 // Come apparirà il campo, a grandi linee: il form vero è nell'anteprima.
-function Preview( { field } ) {
-	const text = field.i18n[ lang ] ?? {};
-	const choices = choiceRows( field, lang );
+function Preview( { field, lang } ) {
+	const text = textIn( field, lang, main );
+	const choices = ( field.config.choices ?? [] ).map( ( value ) => ( {
+		value,
+		label: text.options?.[ value ] ?? '',
+	} ) );
 	switch ( field.type ) {
 		case 'textarea':
 			return (
@@ -348,7 +362,8 @@ function Preview( { field } ) {
 			return (
 				<span className="barrio-preview-choices">
 					<span>
-						<input type="checkbox" disabled /> { plain( field ) }
+						<input type="checkbox" disabled />{ ' ' }
+						{ plain( field, lang ) }
 					</span>
 				</span>
 			);
@@ -399,21 +414,11 @@ function Preview( { field } ) {
 	}
 }
 
-function FieldPanel( { field, previous, keys, onChange } ) {
-	const text = field.i18n[ lang ];
+function FieldPanel( { field, lang, previous, keys, onChange } ) {
+	const translating = lang !== main;
+	const text = field.i18n[ main ];
 	const schema = types[ field.type ]?.schema ?? { properties: {} };
 	const set = ( changes ) => onChange( { ...field, ...changes } );
-	// Un testo facoltativo vuoto è null: il valore standard (docs/database.md).
-	const setText = ( key, optional ) => ( value ) =>
-		set( {
-			i18n: {
-				...field.i18n,
-				[ lang ]: {
-					...text,
-					[ key ]: optional && ! value ? null : value,
-				},
-			},
-		} );
 	// La chiave segue l'etichetta finché nessuno l'ha cambiata a mano.
 	const setLabel = ( label ) =>
 		set( {
@@ -421,7 +426,7 @@ function FieldPanel( { field, previous, keys, onChange } ) {
 				field.key === uniqueKey( text.label, keys )
 					? uniqueKey( label, keys )
 					: field.key,
-			i18n: { ...field.i18n, [ lang ]: { ...text, label } },
+			i18n: { ...field.i18n, [ main ]: { ...text, label } },
 		} );
 	const setConfig = ( key ) => ( value ) => {
 		const config = { ...field.config, [ key ]: value };
@@ -442,7 +447,10 @@ function FieldPanel( { field, previous, keys, onChange } ) {
 				</span>
 			}
 		>
-			<Text
+			<TextIn
+				item={ field }
+				lang={ lang }
+				name="label"
 				multiline={ 'consent' === field.type }
 				label={
 					{
@@ -459,8 +467,12 @@ function FieldPanel( { field, previous, keys, onChange } ) {
 							)
 						: undefined
 				}
-				value={ text.label }
-				onChange={ setLabel }
+				// Nella lingua principale la chiave segue l'etichetta.
+				onChange={
+					translating
+						? onChange
+						: ( changed ) => setLabel( changed.i18n[ main ].label )
+				}
 			/>
 			<Text
 				label={ __( 'Key', 'barrio-suite' ) }
@@ -468,23 +480,28 @@ function FieldPanel( { field, previous, keys, onChange } ) {
 					'Generated from the label until you change it. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores.',
 					'barrio-suite'
 				) }
+				disabled={ translating }
 				value={ field.key }
 				onChange={ ( key ) => set( { key } ) }
 			/>
 			{ PLACEHOLDER.includes( field.type ) && (
-				<Text
+				<TextIn
+					item={ field }
+					lang={ lang }
+					name="placeholder"
+					optional
 					label={
 						'select' === field.type
 							? __( 'Empty option', 'barrio-suite' )
 							: __( 'Placeholder', 'barrio-suite' )
 					}
-					value={ text.placeholder }
-					onChange={ setText( 'placeholder', true ) }
+					onChange={ onChange }
 				/>
 			) }
 			{ input && (
 				<Check
 					label={ __( 'Required field', 'barrio-suite' ) }
+					disabled={ translating }
 					checked={ field.required }
 					onChange={ ( required ) => set( { required } ) }
 				/>
@@ -494,48 +511,55 @@ function FieldPanel( { field, previous, keys, onChange } ) {
 					<Choices
 						key={ name }
 						field={ field }
+						lang={ lang }
 						onChange={ onChange }
 					/>
 				) : (
-					<ConfigControl
-						key={ name }
-						prop={ prop }
-						value={ field.config[ name ] }
-						onChange={ setConfig( name ) }
-					/>
+					<Fixed key={ name } lang={ lang }>
+						<ConfigControl
+							prop={ prop }
+							value={ field.config[ name ] }
+							onChange={ setConfig( name ) }
+						/>
+					</Fixed>
 				)
 			) }
 			{ input && (
-				<Text
+				<TextIn
+					item={ field }
+					lang={ lang }
+					name="error_message"
+					optional
 					label={ __( 'Error message', 'barrio-suite' ) }
 					help={ __(
 						'Shown when the value is missing or not valid. Leave empty for the standard messages.',
 						'barrio-suite'
 					) }
-					value={ text.error_message }
-					onChange={ setText( 'error_message', true ) }
+					onChange={ onChange }
 				/>
 			) }
 			{ 'page_break' !== field.type && (
-				<Conditions
-					value={ field.conditions }
-					fields={ ruleFields( previous ) }
-					actions={ [
-						{
-							value: 'show',
-							label: __( 'Show this field', 'barrio-suite' ),
-						},
-						{
-							value: 'hide',
-							label: __( 'Hide this field', 'barrio-suite' ),
-						},
-					] }
-					empty={ __(
-						'Rules can use only the fields above this one.',
-						'barrio-suite'
-					) }
-					onChange={ ( conditions ) => set( { conditions } ) }
-				/>
+				<Fixed lang={ lang }>
+					<Conditions
+						value={ field.conditions }
+						fields={ ruleFields( previous ) }
+						actions={ [
+							{
+								value: 'show',
+								label: __( 'Show this field', 'barrio-suite' ),
+							},
+							{
+								value: 'hide',
+								label: __( 'Hide this field', 'barrio-suite' ),
+							},
+						] }
+						empty={ __(
+							'Rules can use only the fields above this one.',
+							'barrio-suite'
+						) }
+						onChange={ ( conditions ) => set( { conditions } ) }
+					/>
+				</Fixed>
 			) }
 		</Card>
 	);
@@ -591,48 +615,53 @@ function ListInput( { prop, value, onChange } ) {
 	);
 }
 
-function Choices( { field, onChange } ) {
-	const rows = choiceRows( field, lang );
+// In un'altra lingua si traducono solo le etichette: l'originale è il segnaposto, e vuota vale quella.
+function Choices( { field, lang, onChange } ) {
+	const translating = lang !== main;
+	const own = field.i18n[ lang ]?.options ?? {};
+	const rows = choiceRows( field, main );
 	const [ ids, moveIds ] = useStableIds( rows.length );
-	const set = ( next ) => onChange( withChoices( field, lang, next ) );
+	const set = ( next ) => onChange( withChoices( field, main, next ) );
 	const edit = ( i, row ) =>
 		set( rows.map( ( r, j ) => ( i === j ? row : r ) ) );
 
 	return (
 		<>
 			<SectionHead title={ __( 'Choices', 'barrio-suite' ) } level={ 3 }>
-				<Menu
-					label={ __(
-						'Replace the choices with a preset',
-						'barrio-suite'
-					) }
-					text={ __( 'Presets', 'barrio-suite' ) }
-					icon="list-view"
-					items={ Object.entries( presets ).map(
-						( [ id, preset ] ) => ( {
-							label: `${ preset.label } (${ preset.choices.length })`,
-							onClick: () =>
-								set(
-									presets[ id ].choices.map(
-										( [ value, label ] ) => ( {
-											value,
-											label,
-										} )
-									)
-								),
-						} )
-					) }
-				/>
-				<button
-					type="button"
-					className="barrio-button"
-					onClick={ () =>
-						set( [ ...rows, { value: '', label: '' } ] )
-					}
-				>
-					<Icon name="plus-alt2" />
-					{ __( 'Add', 'barrio-suite' ) }
-				</button>
+				<Fixed lang={ lang }>
+					<Menu
+						label={ __(
+							'Replace the choices with a preset',
+							'barrio-suite'
+						) }
+						text={ __( 'Presets', 'barrio-suite' ) }
+						icon="list-view"
+						items={ Object.entries( presets ).map(
+							( [ id, preset ] ) => ( {
+								label: `${ preset.label } (${ preset.choices.length })`,
+								onClick: () =>
+									set(
+										presets[ id ].choices.map(
+											( [ value, label ] ) => ( {
+												value,
+												label,
+											} )
+										)
+									),
+							} )
+						) }
+					/>
+					<button
+						type="button"
+						className="barrio-button"
+						onClick={ () =>
+							set( [ ...rows, { value: '', label: '' } ] )
+						}
+					>
+						<Icon name="plus-alt2" />
+						{ __( 'Add', 'barrio-suite' ) }
+					</button>
+				</Fixed>
 			</SectionHead>
 			<div className="barrio-choices">
 				<Sortable
@@ -645,7 +674,11 @@ function Choices( { field, onChange } ) {
 				>
 					{ ( row, i, handle ) => (
 						<div className="barrio-choice">
-							<Handle { ...handle } />
+							<Handle
+								{ ...( translating
+									? { disabled: true }
+									: handle ) }
+							/>
 							<Text
 								label={ sprintf(
 									/* translators: %d: numero della scelta. */
@@ -653,10 +686,28 @@ function Choices( { field, onChange } ) {
 									i + 1
 								) }
 								hideLabel
-								placeholder={ __( 'Label', 'barrio-suite' ) }
-								value={ row.label }
+								placeholder={
+									translating
+										? row.label || row.value
+										: __( 'Label', 'barrio-suite' )
+								}
+								value={
+									translating ? own[ row.value ] : row.label
+								}
 								onChange={ ( label ) =>
-									edit( i, renameChoice( row, label ) )
+									translating
+										? onChange(
+												setTranslation(
+													field,
+													lang,
+													'options',
+													{
+														...own,
+														[ row.value ]: label,
+													}
+												)
+											)
+										: edit( i, renameChoice( row, label ) )
 								}
 							/>
 							<Text
@@ -667,6 +718,7 @@ function Choices( { field, onChange } ) {
 								) }
 								hideLabel
 								placeholder={ __( 'Value', 'barrio-suite' ) }
+								disabled={ translating }
 								value={ row.value }
 								onChange={ ( value ) =>
 									edit( i, { ...row, value } )
@@ -679,7 +731,7 @@ function Choices( { field, onChange } ) {
 									'Remove choice',
 									'barrio-suite'
 								) }
-								disabled={ rows.length === 1 }
+								disabled={ translating || rows.length === 1 }
 								onClick={ () =>
 									set( rows.filter( ( r, j ) => i !== j ) )
 								}

@@ -1,8 +1,9 @@
-// Scheda Impostazioni: SMTP, template delle email, email di test e privacy. Legge e salva con
+// Scheda Impostazioni: SMTP, template delle email, email di test e privacy (con l'eliminazione di
+// tutte le registrazioni, subito e senza Salva). Legge e salva con
 // GET/PUT /barrio/v1/settings; la password SMTP non torna mai dal server, se ne conosce solo lo stato.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { MediaUpload } from '@wordpress/media-utils';
 
 import {
@@ -79,6 +80,71 @@ export function Settings() {
 		apiFetch( options )
 			.then( ( data ) =>
 				setNotice( { status: 'success', message: then( data ) } )
+			)
+			.catch( ( error ) =>
+				setNotice( { status: 'error', message: errorMessage( error ) } )
+			)
+			.finally( () => setBusy( null ) );
+	};
+	// Le registrazioni di tutti i form, con la rotta di massa di ognuno: elimina a blocchi, con i file.
+	const deleteAll = () => {
+		setBusy( 'delete' );
+		setNotice( null );
+		apiFetch( { path: '/barrio/v1/forms' } )
+			.then( ( forms ) => {
+				const full = forms.filter( ( form ) => form.entries > 0 );
+				const total = full.reduce( ( n, form ) => n + form.entries, 0 );
+				if ( ! total ) {
+					return __(
+						'There are no entries to delete.',
+						'barrio-suite'
+					);
+				}
+				if (
+					// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
+					! window.confirm(
+						sprintf(
+							/* translators: %d: registrazioni di tutti i form. */
+							_n(
+								'Delete %d entry permanently, with its files? This cannot be undone.',
+								'Delete all %d entries of every form permanently, with their files? This cannot be undone.',
+								total,
+								'barrio-suite'
+							),
+							total
+						)
+					)
+				) {
+					return null;
+				}
+				return Promise.all(
+					full.map( ( form ) =>
+						apiFetch( {
+							path: `/barrio/v1/forms/${ form.id }/entries/bulk`,
+							method: 'POST',
+							data: { action: 'delete', all: true },
+						} )
+					)
+				).then( ( results ) => {
+					const deleted = results.reduce(
+						( n, result ) => n + result.deleted,
+						0
+					);
+					return sprintf(
+						/* translators: %d: registrazioni eliminate. */
+						_n(
+							'%d entry deleted.',
+							'%d entries deleted.',
+							deleted,
+							'barrio-suite'
+						),
+						deleted
+					);
+				} );
+			} )
+			.then(
+				( message ) =>
+					message && setNotice( { status: 'success', message } )
 			)
 			.catch( ( error ) =>
 				setNotice( { status: 'error', message: errorMessage( error ) } )
@@ -361,6 +427,24 @@ export function Settings() {
 						} )
 					}
 				/>
+				<Group
+					label={ __( 'All entries', 'barrio-suite' ) }
+					help={ __(
+						'Deletes the entries of every form, with their files, right away. It cannot be undone. To delete only some, select them in Entries.',
+						'barrio-suite'
+					) }
+				>
+					<button
+						type="button"
+						className="barrio-button is-danger"
+						disabled={ !! busy }
+						onClick={ deleteAll }
+					>
+						{ 'delete' === busy
+							? __( 'Deleting…', 'barrio-suite' )
+							: __( 'Delete all entries', 'barrio-suite' ) }
+					</button>
+				</Group>
 			</Card>
 		</div>
 	);

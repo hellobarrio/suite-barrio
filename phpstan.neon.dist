@@ -4,3 +4,4 @@ parameters:
 		- barrio-suite.php
 		- src
 		- modules
+		- extensions

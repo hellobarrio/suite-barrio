@@ -14,11 +14,11 @@ arriveranno uno alla volta con la stessa struttura.
 | Database | Il centro del progetto: foreign key reali, CHECK, migrazioni versionate (vedi §2) |
 | Email | `wp_mail()`, che usa il PHPMailer incluso in WordPress, con l'SMTP configurato tramite `phpmailer_init` e applicato a **tutte** le email del sito |
 | Admin | Una pagina React (`@wordpress/scripts`) con intestazione (logo, nome, descrizione) e schede Form e Impostazioni; componenti di base in HTML nativo con un CSS del plugin (card, bottoni scuri), da `@wordpress/components` solo modale, popover e schede del builder |
-| Tabelle | **Regola fissa per tutte le tabelle del plugin**, con lo stesso componente `Table`: nella barra ricerca, filtro per stato (sempre, se le righe hanno uno stato, con i conteggi), colonne da mostrare (filtri e colonne con lo stesso `Picker`: scelta singola o multipla, con la ricerca oltre 5 scelte; anche per il form delle registrazioni) e, con righe selezionate, il menu "N selezionate" delle azioni di massa; poi il menu "⋯" della tabella e l'azione principale. Selezione multipla con la prima colonna. Paginazione (20 righe) e ordinamento a tre stati (crescente → decrescente → ordine di default), con una colonna sempre ordinata (all'inizio quella di default, con la sua freccia); le azioni di riga stanno tutte in un menu "⋯" |
+| Tabelle | **Regola fissa per tutte le tabelle del plugin**, con lo stesso componente `Table`: nella barra ricerca, un solo pulsante Filtri e, con righe selezionate, il menu "N selezionate" delle azioni di massa; poi l'azione principale (Nuovo form, Esporta CSV). Il pannello Filtri ha una sezione per filtro (lo stato sempre, se le righe ne hanno uno, con i conteggi; la lingua; con la ricerca oltre 5 scelte) e le colonne da mostrare; sul pulsante il numero dei filtri attivi, in fondo "Clear filters" che riporta all'inizio filtri, colonne, ordinamento e ricerca. Le altre scelte singole (il form delle registrazioni, la lingua del builder) usano lo stesso `Picker`. Selezione multipla con la prima colonna. Paginazione (20 righe) e ordinamento a tre stati (crescente → decrescente → ordine di default), con una colonna sempre ordinata (all'inizio quella di default, con la sua freccia); le azioni di riga stanno tutte in un menu "⋯". Menu e scelte oltre 5 voci hanno la ricerca; bottoni e campi hanno lo stesso bordo |
 | Pagine con salvataggio | Ogni pagina ha una barra sticky in alto (`Bar`), staccata di 16px da quella di WordPress e sempre con lo stesso schema: titolo a sinistra (con il ritorno, se c'è), azioni a destra con la principale per ultima, scura e con icona. Salva (attivo solo con modifiche) sostituisce i pulsanti per sezione; negli elenchi la barra ha la ricerca e "Nuovo". Avviso prima di lasciare la pagina con modifiche. Le anteprime (form, email) sono alte quanto il contenuto: scorre solo il modale. Negli elenchi "Aggiungi…" sta sempre nell'intestazione della sezione, a destra. La barra resta su una riga: se non ci sta, prima i pulsanti perdono il testo (il nome del form si accorcia), poi la ricerca diventa un pulsante; solo come ultima risorsa il titolo va sopra (`fit()` in `ui.js`). La colonna destra, quando c'è, è sticky. Sui telefoni niente esce dalla pagina: le tabelle scorrono in orizzontale con le colonne alla loro larghezza |
-| GraphQL | Nomi invariati: `hbForm`, `hbForms`, `hbSubmitForm` e tutti i tipi `HB*`/`Hb*` |
-| Plugin esterni | Nessuno è obbligatorio: senza WPGraphQL o WPML il plugin funziona e disattiva solo le funzioni che dipendono da loro (§4.1) |
-| Traduzioni | Editor interno; le traduzioni si salvano nel database dentro ogni versione del form. Le lingue disponibili vengono da WPML; senza WPML il plugin lavora in una sola lingua |
+| GraphQL | Estensione separata `barrio-suite-wpgraphql` (fase 9), come WPML: il core non contiene codice per WPGraphQL. Nomi invariati: `hbForm`, `hbForms`, `hbSubmitForm` e tutti i tipi `HB*`/`Hb*` |
+| Plugin esterni | Nessuno è obbligatorio: senza WPGraphQL o WPML il plugin funziona e disattiva solo le funzioni che dipendono da loro (§4.1). Il core non contiene codice per plugin di terzi: ognuno si collega con un'estensione (`barrio-suite-wpml`, `barrio-suite-wpgraphql`), così passare a un altro plugin non lascia codice inutilizzato |
+| Traduzioni | Editor interno; le traduzioni si salvano nel database dentro ogni versione del form. Le lingue disponibili vengono dai filtri `barrio_forms_languages`, `barrio_forms_current_language`, `barrio_forms_locale` e `barrio_forms_language_flags`, a cui risponde un'estensione (`barrio-suite-wpml`); senza estensione il plugin lavora nella lingua del sito. Nel builder la lingua si sceglie nella barra: nelle altre lingue si modificano solo i testi, e uno vuoto è quello della lingua principale |
 | ACF | Il plugin non usa ACF |
 | Privacy | Privacy by design e by default (art. 25 GDPR) in tutto il plugin: si raccoglie e si salva solo ciò che serve al form; ogni raccolta in più è un'opzione disattivata di default |
 | Estensioni | Plugin separati (Mailchimp, MailUp, reCAPTCHA/Turnstile…) che usano hook e registri del core. Anche la migrazione dal prototipo è un'estensione: il core non contiene codice di compatibilità con il prototipo |
@@ -170,6 +170,7 @@ l'esistenza di un figlio).
 | Retention | `WHERE created_at < ? ORDER BY created_at LIMIT 200` (a blocchi; non `ORDER BY id`, che con molte righe vecchie richiede un filesort) | `created` |
 | Export CSV | stream a blocchi di 500 su `form_created` | `form_created` |
 | `hbForms.submissions` | `COUNT(*) … GROUP BY form_id` | `form_read` (copre la query) |
+| Lingue dei form nell'elenco | `UNION` dei testi del form, delle notifiche e dei campi della versione corrente | `form_version`, `version_position`, PK i18n |
 
 La definizione corrente del form (form, testi, notifiche, versione e campi: 7 query) si mette in `wp_cache` e si
 invalida al salvataggio; con un object cache persistente il render non tocca il database.
@@ -219,9 +220,8 @@ barrio-suite/
 │   │   ├── Submission/                    # pipeline con antispam, FileStore
 │   │   ├── Notifications.php, MergeTags.php  # email dopo l'invio, esito nelle note, rinvio
 │   │   ├── Integrations.php               # registro delle estensioni
-│   │   ├── I18n.php                       # lingue (da WPML se attivo, altrimenti solo quella del sito)
+│   │   ├── I18n.php                       # lingue dai filtri barrio_forms_* (senza estensione solo quella del sito), switch_to_locale
 │   │   ├── Api/Rest*.php
-│   │   ├── Api/GraphQL.php                # caricato solo se WPGraphQL è attivo
 │   │   ├── Frontend/Render.php            # shortcode + render del blocco
 │   │   ├── Privacy.php                    # retention, exporter/eraser
 │   │   └── Admin.php                      # menu Barrio e pagine React
@@ -229,6 +229,9 @@ barrio-suite/
 │   ├── assets/src/{admin,settings,builder,entries}/   # React, una build (forms-admin) di @wordpress/scripts in build/
 │   ├── presets.json                       # scelte pronte del builder (nazioni, province…)
 │   └── templates/email.php                # tabelle e stili in linea; restituisce una closure tipizzata
+├── extensions/                # plugin separati per i plugin di terzi, ognuno con il suo zip
+│   ├── barrio-suite-wpml/     # lingue da WPML (fase 7)
+│   └── barrio-suite-wpgraphql/ # schema hb* su Submission::process (fase 9)
 ├── tests/{Unit,Integration,fixtures}/
 ├── docs/{database.md,hooks.md}
 ├── composer.json              # solo strumenti di sviluppo
@@ -237,10 +240,10 @@ barrio-suite/
 
 ### 3.1 Pipeline di invio (unica)
 
-`Submission::process(Form $form, array $input, array $files, ?string $ip, ?int $user_id): Entry|WP_Error` viene chiamata da REST e da GraphQL.
+`Submission::process(Form $form, array $input, array $files, ?string $ip, ?int $user_id): Entry|WP_Error` viene chiamata dalla REST e dall'estensione GraphQL.
 
 1. Il form esiste ed è `active` (un form `closed` risponde con un messaggio dedicato).
-2. Lingua: dall'input se è tra le lingue attive (§4.1), altrimenti la lingua principale. Senza WPML esiste solo la lingua del sito, che si salva comunque in `lang`. Versione: quella che il form ha mostrato (`_barrio_version`), se esiste ancora, altrimenti la corrente: con la cache di pagina il visitatore può aver letto una versione precedente, ed è quella che la registrazione deve provare.
+2. Lingua: dall'input se è tra le lingue attive (§4.1), altrimenti la lingua principale; la REST risponde (errori, messaggio standard) in quella lingua. Senza estensione multilingua esiste solo la lingua del sito, che si salva comunque in `lang`. Versione: quella che il form ha mostrato (`_barrio_version`), se esiste ancora, altrimenti la corrente: con la cache di pagina il visitatore può aver letto una versione precedente, ed è quella che la registrazione deve provare.
 3. Antispam: honeypot, token impostato via JS, limite di invii per IP (transient con l'hash dell'IP, che scade dopo pochi minuti e non finisce nella registrazione), poi il filtro `barrio_forms_spam_check` per i captcha delle estensioni.
 4. Normalizzazione dei valori secondo il tipo di campo.
 5. **Logica condizionale valutata sul server**: i campi nascosti si ignorano (non sono obbligatori e non si salvano).
@@ -258,7 +261,7 @@ Pubblici: `GET /forms/{id}?lang=` (schema pubblico del form, usato da frontend e
 cache di pagina.
 
 Admin, ognuno con `permission_callback` sulle capability e argomenti validati con lo schema:
-CRUD dei form (`PUT` con `base_version`), duplica, traduzioni per lingua, elenco registrazioni
+CRUD dei form (`PUT` con `base_version`, con i testi di tutte le lingue), duplica, elenco registrazioni
 (paginato, con ricerca e filtri), dettaglio, segna come letta, azioni di massa, export CSV in
 streaming, download dei file, note. Già presenti dalle fasi 3, 4, 5 e 6:
 
@@ -268,7 +271,8 @@ streaming, download dei file, note. Già presenti dalle fasi 3, 4, 5 e 6:
   `PATCH /forms/{id}` per lo stato (non versionato), `DELETE /forms/{id}` (409 con registrazioni),
   `POST /forms/{id}/duplicate`, `POST /forms/preview` (il form non salvato, con il render del sito);
 - `GET /forms` (`edit_posts` o `barrio_manage_entries`: lo usano anche il blocco per scegliere il form e la pagina
-  Registrazioni): id, titolo, stato, registrazioni, registrazioni da leggere, ultima modifica;
+  Registrazioni): id, titolo, stato, registrazioni, registrazioni da leggere, ultima modifica, lingue con dei testi
+  (invio, notifiche e campi della versione corrente);
 - registrazioni (`barrio_manage_entries`): `GET /forms/{id}/entries` (pagina da 20 con `search`, `sort` = `created_at`,
   `id`, `lang` o `field:chiave`, `order`, `page` e i filtri `read` e `lang`; colonne di tutte le versioni),
   `GET /forms/{id}/entries/export` (CSV in streaming con gli stessi filtri), `POST /forms/{id}/entries/bulk`
@@ -306,10 +310,11 @@ pannello e il server valida), `render()`, `normalize()` e `validate()`.
 Menu "Barrio" (che ospiterà i moduli futuri) con le voci Form e Registrazioni; Impostazioni è una scheda di Form.
 Per chi gestisce solo le registrazioni (gli editor) il menu porta direttamente alle registrazioni.
 
-- **Pagina** (React, `assets/src/admin`): intestazione con logo e descrizione, schede Form e Impostazioni (la seconda solo con `manage_options`). Elenco dei form con la tabella del plugin: filtro Tutti (tranne il cestino) / Attivi / Chiusi / Cestino, colonne Registrazioni, Stato e Ultima modifica a scelta, conteggio delle registrazioni e nel menu "⋯" modifica, duplica, copia lo shortcode, chiudi/riapri, elimina (con registrazioni va nel cestino; dal cestino ripristina o elimina). Azioni di massa: riapri, chiudi, sposta nel cestino; nel cestino ripristina ed elimina (il server rifiuta i form con registrazioni).
-- **Builder** (React): struttura del form a sinistra (card con anteprima del campo, "Aggiungi campo" come menu), proprietà del campo a destra; la chiave segue l'etichetta finché non la si cambia; campi e scelte con drag & drop accessibile (`@dnd-kit/sortable`, anche da tastiera), pannello delle proprietà generato dallo schema del tipo (`title` e `description` delle proprietà), logica condizionale, preset delle scelte (`presets.json`, dal prototipo, con codici ISO per le nazioni e sigle per le province; il filtro `barrio_forms_presets` ne aggiunge), impostazioni, notifiche con l'anteprima dell'email (template vero, valori d'esempio, `POST /forms/preview` con `notification`), anteprima del form in un iframe con CSS e JS del frontend (non invia). Modifica i testi della lingua principale e conserva le altre; la scheda Traduzioni arriva con la fase 7, i pannelli delle integrazioni con la fase 8.
-- **Registrazioni** (pagina `barrio-entries`, `assets/src/entries`): un form alla volta, scelto nel titolo della barra (all'inizio quello con registrazioni da leggere). La tabella del plugin con ricerca, pagine e ordinamento sul server (anche sul valore di un campo), filtri letta/non letta e lingua, colonne dei campi a scelta (le prime tre di default, come nel prototipo), azioni di massa sulle selezionate e su tutte, export CSV con i filtri correnti. Dettaglio in `?entry=ID`: campi della versione compilata, file, dettagli, rinvio delle notifiche, storico con le note; aprirlo segna la registrazione come letta. Etichette e scelte sono nella lingua principale.
-- **Impostazioni** (scheda della stessa pagina): card SMTP, template delle email (logo dalla libreria dei media, colori, footer), email di test e Privacy (giorni di retention); un solo Salva nella barra sticky. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
+- **Pagina** (React, `assets/src/admin`): intestazione con logo e descrizione, schede Form e Impostazioni (la seconda solo con `manage_options`). Elenco dei form con la tabella del plugin: filtro Tutti (tranne il cestino) / Attivi / Chiusi / Cestino, colonne Registrazioni, Stato, Traduzioni e Ultima modifica a scelta, filtro Lingua (tutte; la principale, cioè i form non tradotti; un'altra lingua, cioè i form tradotti in quella; Traduzioni e il filtro solo con più lingue attive), conteggio delle registrazioni (il link alle registrazioni del form) e nel menu "⋯" modifica, duplica, copia lo shortcode, chiudi/riapri, elimina (con registrazioni va nel cestino; dal cestino ripristina o elimina). Azioni di massa: riapri, chiudi, sposta nel cestino; nel cestino ripristina ed elimina (il server rifiuta i form con registrazioni).
+- **Builder** (React): struttura del form a sinistra (card con anteprima del campo, "Aggiungi campo" come menu dei tipi con le icone e la ricerca), proprietà del campo a destra; la chiave segue l'etichetta finché non la si cambia; campi e scelte con drag & drop accessibile (`@dnd-kit/sortable`, anche da tastiera), pannello delle proprietà generato dallo schema del tipo (`title` e `description` delle proprietà), logica condizionale, preset delle scelte (`presets.json`, dal prototipo, con codici ISO per le nazioni e sigle per le province; il filtro `barrio_forms_presets` ne aggiunge). Schede Campi, Opzioni e Notifiche. Opzioni ha la card Invio: testo del pulsante e, dopo l'invio, un messaggio o un'altra pagina (passare al messaggio toglie la pagina in tutte le lingue); le opzioni future del form vanno qui. Notifiche con l'anteprima dell'email (template vero, valori d'esempio, `POST /forms/preview` con `notification`), anteprima del form in un iframe con CSS e JS del frontend (non invia). Le lingue sono nel punto seguente; i pannelli delle integrazioni arrivano con la fase 8.
+- **Lingue del builder** (solo con più lingue attive): la lingua si sceglie nella barra sticky (bandiera e codice, anche nella barra compatta) e Campi, Opzioni e Notifiche mostrano i testi in quella lingua, con sotto ogni testo l'originale e un solo avviso sopra le schede. Nelle altre lingue si modificano solo i testi: aggiunta, ordine e rimozione di campi e notifiche, chiave, obbligatorio, config, condizioni, valori delle scelte, nome, destinatari, allegati e "dopo l'invio" si cambiano nella lingua principale e nelle altre restano visibili ma disattivati (`Fixed`, un fieldset). Le etichette delle scelte hanno l'originale come segnaposto. Un testo vuoto nella lingua principale è disattivato con un messaggio; uno vuoto nella traduzione è quello della lingua principale (`TextIn` in `Texts.js`). Nel builder una lingua tiene solo i testi diversi dalla principale; al salvataggio la riga si completa con quelli della principale di quel momento, quindi un testo non tradotto segue le modifiche dell'originale (`trimTranslations`/`fillTranslations` in `model.js`). Anteprime del form e delle email nella lingua scelta (`POST /forms/preview` con `lang`).
+- **Registrazioni** (pagina `barrio-entries`, `assets/src/entries`): un form alla volta, scelto nel titolo della barra (all'inizio quello con registrazioni da leggere). La tabella del plugin con ricerca, pagine e ordinamento sul server (anche sul valore di un campo), filtri letta/non letta e lingua, colonne dei campi a scelta (le prime tre di default, come nel prototipo), azioni di massa sulle selezionate, export CSV con i filtri correnti come azione principale della barra (nessun menu "⋯" nella barra: eliminare tutte le registrazioni sta nelle Impostazioni). Dettaglio in `?entry=ID`: le risposte della versione compilata, una per riga con l'etichetta sopra (testo lungo con i suoi a capo, email e telefono come link, file da scaricare con nome e peso), i dettagli con il nome del form (nessun link al builder), rinvio delle notifiche, storico con le note; aprirlo segna la registrazione come letta. Etichette e scelte sono nella lingua principale.
+- **Impostazioni** (scheda della stessa pagina): card SMTP, template delle email (logo dalla libreria dei media, colori, footer), email di test e Privacy (giorni di retention ed "Elimina tutte le registrazioni", subito e con conferma, form per form con `POST /forms/{id}/entries/bulk` e `all: true`); un solo Salva nella barra sticky. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
 - **Capability**: `barrio_manage_forms` (agli admin) e `barrio_manage_entries` (ad admin ed editor), assegnate dalla migrazione `0002` e non all'attivazione, così arrivano anche agli altri siti di un multisite e alle installazioni già attive. Sostituiscono il trucco del menu diverso per gli editor.
 
 ---
@@ -327,15 +332,14 @@ Stringhe dell'interfaccia in inglese con `__()` e traduzione `it_IT` (anche per 
 
 | Plugin | Cosa abilita | Senza il plugin |
 |---|---|---|
-| WPGraphQL | `hbForm`, `hbForms`, `hbSubmitForm`, con `UserError` per gli errori e il debug di WPGraphQL al posto del campo `debug` (che resta nello schema, sempre `null`, per compatibilità) | Nessuno schema registrato e nessun errore; i frontend headless usano la REST API (`GET /forms/{id}`, `POST /forms/{id}/entries`) |
-| WPML | Lingue attive e principale, lingua corrente, scheda Traduzioni del builder, lingua salvata nelle registrazioni | Una sola lingua: scheda Traduzioni nascosta, `lang` = lingua del sito, form ed email nella lingua del sito. Le traduzioni già salvate restano nel database e tornano attive se WPML viene riattivato |
+| WPGraphQL, con l'estensione `barrio-suite-wpgraphql` | `hbForm`, `hbForms`, `hbSubmitForm`, con `UserError` per gli errori e il debug di WPGraphQL al posto del campo `debug` (che resta nello schema, sempre `null`, per compatibilità) | Nessuno schema registrato e nessun errore (anche con l'estensione attiva e WPGraphQL no); i frontend headless usano la REST API (`GET /forms/{id}`, `POST /forms/{id}/entries`) |
+| WPML, con l'estensione `barrio-suite-wpml` | Lingue attive e principale, lingua corrente, locale di ogni lingua, selettore della lingua nel builder, lingua salvata nelle registrazioni | Una sola lingua: selettore della lingua nascosto, `lang` = lingua del sito, form ed email nella lingua del sito. Le traduzioni già salvate restano nel database e tornano attive con l'estensione |
 | ACF | — | Nessun effetto: il plugin non lo usa |
 
 Regole:
-- Il core non chiama mai direttamente funzioni di un plugin esterno. Ogni integrazione sta in un solo file (`Api/GraphQL.php`, `I18n.php`), caricato o attivo solo se il plugin c'è.
-- WPML si legge con i suoi filtri (`apply_filters('wpml_active_languages', null)` e simili). Senza WPML i filtri restituiscono il valore di default, quindi il passaggio a una sola lingua non richiede codice di rilevamento.
-- L'elenco delle lingue passa dal filtro `barrio_forms_languages`: un'estensione può aggiungere Polylang senza toccare il core.
-- Le email si inviano nella lingua di chi compila con `switch_to_locale()` di WordPress, che funziona anche senza WPML.
+- Il core non chiama mai funzioni di un plugin esterno e non ne legge i filtri: ogni plugin di terzi ha la sua estensione in `extensions/`, che usa le API e i filtri del core. Senza il plugin di terzi l'estensione non fa niente e non dà errori.
+- Il multilingua è un'estensione separata (`extensions/barrio-suite-wpml`, un solo file da installare sui siti WPML): risponde ai filtri `barrio_forms_languages` (codici, la principale per prima), `barrio_forms_current_language`, `barrio_forms_locale` e `barrio_forms_language_flags` (le bandiere mostrate in admin accanto ai codici) leggendo quelli di WPML (`wpml_active_languages`, `wpml_default_language`, `wpml_current_language`). Nelle pagine di Barrio nasconde il selettore della lingua di WPML nella barra di WordPress (`wpml_show_admin_language_switcher`): lì la lingua si sceglie nel builder. Polylang o TranslatePress sarebbero un'altra estensione con gli stessi filtri, senza toccare il core.
+- Le email si inviano nella lingua di chi compila con `switch_to_locale()` di WordPress (`I18n::in()`), che funziona anche senza WPML; le note della registrazione restano nella lingua del sito.
 - La pagina Impostazioni mostra quali funzioni sono attive e quale plugin serve per le altre.
 
 ---
@@ -359,7 +363,8 @@ Le estensioni sono plugin separati che si agganciano a `barrio_forms_loaded`.
 - **Hook della pipeline**: `barrio_forms_spam_check`, `barrio_forms_validate`, `barrio_forms_entry_data`, `barrio_forms_after_submission`, `barrio_forms_notification`, `barrio_forms_rest_response`.
 - **Builder**: `barrio_forms_presets` per altre scelte pronte (`'id' => ['label' => …, 'choices' => [['valore', 'Etichetta'], …]]`).
 - **Tipi di campo**: `barrio_forms_register_field_type($slug, $definition)`.
-- **Integrazioni** (il concetto di *feed* di Gravity Forms): impostazioni globali e per form dichiarate come schema (il builder le mostra da solo; quelle marcate `translatable` compaiono nella scheda Traduzioni), un callback `process()` chiamato solo se la condizione del feed è vera, esito scritto nelle note.
+- **Lingue**: `barrio_forms_languages`, `barrio_forms_current_language`, `barrio_forms_locale`, `barrio_forms_language_flags` (§4.1).
+- **Integrazioni** (il concetto di *feed* di Gravity Forms): impostazioni globali e per form dichiarate come schema (il builder le mostra da solo; quelle marcate `translatable` si traducono scegliendo la lingua nella barra del builder), un callback `process()` chiamato solo se la condizione del feed è vera, esito scritto nelle note.
 - **Database**: le estensioni registrano le proprie migrazioni con il Migrator.
 
 ```php
@@ -392,9 +397,9 @@ Ogni fase si chiude con test verdi e un plugin installabile.
 | 4 | **Builder React** | Si crea un form completo senza toccare il JSON; il salvataggio concorrente dà `409` |
 | 5 | **Registrazioni**: tabella del plugin con ricerca, pagine e ordinamento sul server, dettaglio, letto/non letto, azioni di massa, CSV, file, note, capability per gli editor | Un editor gestisce le registrazioni senza accedere al builder |
 | 6 | **Privacy**: retention, exporter/eraser | Le richieste di accesso e cancellazione dei dati dagli strumenti di WordPress trovano e cancellano le registrazioni |
-| 7 | **Traduzioni**: scheda Traduzioni del builder, lingue da WPML, email nella lingua di chi compila | Form ed email in inglese su un sito WPML; le statistiche aggregano le lingue. Senza WPML la scheda non compare, tutto funziona in una lingua e le traduzioni salvate restano nel database |
+| 7 | **Traduzioni**: lingua dei testi scelta nella barra del builder, lingue da WPML (estensione `barrio-suite-wpml`), email nella lingua di chi compila | Form ed email in inglese su un sito WPML; le statistiche aggregano le lingue. Senza WPML il selettore della lingua non compare, tutto funziona in una lingua e le traduzioni salvate restano nel database |
 | 8 | **API estensioni** e documentazione, tabella delle impostazioni per form delle integrazioni (migrazione `0003`), **estensione Mailchimp** e **estensione captcha** come prove | Mailchimp e captcha funzionano senza modificare il core |
-| 9 | **GraphQL** con i nomi del prototipo, sulla pipeline unica (file base64 accettati ma passati dal FileStore) | Uno snapshot dei test confronta lo schema con quello del prototipo; un frontend Next.js esistente funziona senza modifiche; senza WPGraphQL il plugin non registra nulla e non dà errori |
+| 9 | **GraphQL** come estensione `barrio-suite-wpgraphql`, con i nomi del prototipo, sulla pipeline unica (file base64 accettati ma passati dal FileStore); la riga WPGraphQL della matrice CI passa all'estensione | Uno snapshot dei test confronta lo schema con quello del prototipo; un frontend Next.js esistente funziona senza modifiche; senza WPGraphQL l'estensione non registra nulla e non dà errori, e il core non ne sa niente |
 | 10 | **Migrazione dal prototipo**, come estensione separata da disattivare a migrazione finita (comando WP-CLI con prova a vuoto): form con lo **stesso ID**; v1 "archivio" con anche i campi presenti solo nelle vecchie registrazioni, v2 = definizione attuale; checkbox `"Label: true\|…"` → righe; file spostati nella cartella protetta; IP, user agent e referrer del prototipo non si importano (privacy by default); `_page_*` → `source_url` senza query string; Mailjet → SMTP (`in-v3.mailjet.com:587`); impostazioni MailUp e Mailchimp conservate per le estensioni; alias `[suite_barrio_form]`/`[wpb_form]` se liberi | Un sito reale passa al nuovo plugin con conteggi verificati prima e dopo |
 
 Fuori dal core e da sviluppare come estensioni: MailUp, Mailchimp, reCAPTCHA/Turnstile, migrazione dal prototipo.
@@ -403,7 +408,8 @@ Eliminato: Mailjet API (sostituito dall'SMTP).
 ## 8. Punti da verificare durante lo sviluppo
 
 - **Convivenza dello schema GraphQL**: il `graphql.php` del prototipo registra i tipi `hb*` anche con il modulo Forms disattivato. Va verificato come si comporta WPGraphQL con due registrazioni dello stesso nome; se serve, una riga nel prototipo che salti la registrazione quando `BARRIO_SUITE_VERSION` è definita.
-- **Test con WPML**: WPML è a pagamento e non si installa in CI. I test simulano i suoi filtri (sono l'unico punto di contatto); in più serve una prova manuale su un sito reale prima di chiudere la fase 7.
+- **Test con WPML** (fase 7, fatto): WPML è a pagamento e non si installa in CI. I test simulano i suoi filtri (`WpmlTest`, l'unico punto di contatto). Prova manuale sullo shop Docker con WPML (it, en-us, de): traduzioni dal builder, pagina inglese, invio, email in inglese, valori uguali nelle due lingue, estensione disattivata senza perdere le traduzioni.
+- **Traduzioni del plugin**: le stringhe standard ("This field is required.", "Yes" del consenso…) cambiano lingua con `switch_to_locale()` solo quando esisteranno i file `.mo`; oggi sono in inglese in tutte le lingue. Il locale cambia solo se WordPress ha installato la sua traduzione per quella lingua.
 - **Hosting dei clienti**: verificare all'attivazione su un sito reale di ognuno (versione di MySQL/MariaDB e InnoDB).
 - **Limite di invii per IP** (fase 2): usa `REMOTE_ADDR`. Dietro un proxy che non lo riscrive (Cloudflare senza `mod_remoteip`), o con un frontend headless che invia dal proprio server, tutti gli invii hanno lo stesso IP e il limite (10 ogni 10 minuti) vale per l'intero sito. Verificare sugli hosting dei clienti; se serve, un filtro sull'IP o sul limite.
 - **Download dei file** (fase 5, fatto): il controllo di WordPress sul contenuto è severo per i tipi `application/*` ma lascia passare come "non verificati" gli altri (un `.pdf` che contiene testo). I file non si eseguono (nome casuale senza estensione, cartella protetta) e l'endpoint di download risponde con `Content-Disposition: attachment` e `X-Content-Type-Options: nosniff` (`RestEntriesTest`).

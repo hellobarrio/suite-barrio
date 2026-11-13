@@ -40,7 +40,7 @@ final class Submission {
 			return new WP_Error( 'barrio_form_closed', __( 'This form is no longer accepting submissions.', 'barrio-suite' ), [ 'status' => 403 ] );
 		}
 
-		$lang    = I18n::resolve( self::scalar( $input['_barrio_lang'] ?? null ) );
+		$lang    = I18n::resolve( $input['_barrio_lang'] ?? null );
 		$version = $form->current;
 		$shown   = (int) self::scalar( $input['_barrio_version'] ?? null );
 		// La versione che il visitatore ha letto, se esiste ancora: è quella che la registrazione deve provare.

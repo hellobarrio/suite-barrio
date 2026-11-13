@@ -26,7 +26,8 @@
 		"lint:css": "wp-scripts lint-style",
 		"format": "wp-scripts format",
 		"test:js": "node --test 'tests/js/**/*.test.js'",
-		"zip": "npm run build && wp-scripts plugin-zip"
+		"zip": "npm run build && wp-scripts plugin-zip",
+		"zip:wpml": "cd extensions && zip -r ../barrio-suite-wpml.zip barrio-suite-wpml"
 	},
 	"devDependencies": {
 		"@dnd-kit/core": "^6.3.1",

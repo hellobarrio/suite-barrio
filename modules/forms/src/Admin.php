@@ -99,8 +99,10 @@ final class Admin {
 			];
 		}
 		return [
-			// La prima è la principale: il builder ne modifica i testi, le traduzioni arrivano con la fase 7.
+			// La prima è la principale; le altre si scelgono nella barra del builder per tradurre i testi.
 			'languages'        => I18n::languages(),
+			// Un oggetto anche se vuoto: [] in JSON sarebbe una lista.
+			'flags'            => (object) I18n::flags(),
 			'types'            => $types,
 			'presets'          => self::presets(),
 			'canManageForms'   => current_user_can( 'barrio_manage_forms' ),

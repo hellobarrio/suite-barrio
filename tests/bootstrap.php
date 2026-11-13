@@ -1,6 +1,6 @@
 <?php
 
-// Carica WordPress con Barrio Suite (e WPGraphQL se WP_GRAPHQL è impostata).
+// Carica WordPress con Barrio Suite e le sue estensioni (e WPGraphQL se WP_GRAPHQL è impostata).
 
 require dirname( __DIR__ ) . '/vendor/autoload.php'; // wp-phpunit imposta qui WP_PHPUNIT__DIR.
 
@@ -14,6 +14,8 @@ tests_add_filter(
 			require WP_PLUGIN_DIR . '/wp-graphql/wp-graphql.php';
 		}
 		require dirname( __DIR__ ) . '/barrio-suite.php';
+		// Inerte finché un test non simula i filtri di WPML (WpmlTest).
+		require dirname( __DIR__ ) . '/extensions/barrio-suite-wpml/barrio-suite-wpml.php';
 	}
 );
 

@@ -120,6 +120,7 @@ generate da `npm run seed -- --entries=100000`. `EXPLAIN` su MariaDB 12.3:
 | Retention (`EntryRepository::delete_older_than()`) | `WHERE created_at < ? ORDER BY created_at LIMIT 200` | `created` (coprente). Non `ORDER BY id`: con molte righe vecchie richiede un filesort su tutte |
 | Export CSV | `WHERE form_id = ? AND (created_at > ? OR (created_at = ? AND id > ?)) ORDER BY created_at, id LIMIT 500` | `form_created`; 20k righe (6 MB) in ~1 s via HTTP |
 | Conteggi per form | `GROUP BY form_id` | `form_read` (coprente, il più piccolo) |
+| Lingue dei form nell'elenco (`FormRepository::all()`) | `UNION` dei testi del form, delle notifiche e dei campi della versione corrente (`MAX(version)` per form) | scansione di `form_i18n` e delle notifiche (poche righe), `form_version` e `version_position` (coprenti), poi `PRIMARY` |
 
 Spazio occupato con quei dati: `entries` 9,5 MB + 16 MB di indici, `entry_values` 52 MB + 43 MB di indici. Le
 definizioni sono trascurabili: una versione con 10 campi in 2 lingue sono 31 righe, e restano solo le versioni usate.

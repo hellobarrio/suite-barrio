@@ -4,6 +4,7 @@ namespace BarrioSuite\Forms\Api;
 
 use BarrioSuite\Forms\Conditions;
 use BarrioSuite\Forms\FieldTypes;
+use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\Notifications;
 use BarrioSuite\Forms\Frontend\Render;
 use BarrioSuite\Forms\Model\Field;
@@ -88,7 +89,7 @@ final class RestForms {
 				'permission_callback' => $manage,
 			]
 		);
-		// Con notification (l'indice di una notifica) l'anteprima è della sua email.
+		// Con notification (l'indice di una notifica) l'anteprima è della sua email; con lang, in quella lingua.
 		register_rest_route(
 			'barrio/v1',
 			'/forms/preview',
@@ -101,6 +102,7 @@ final class RestForms {
 						'type'    => 'integer',
 						'minimum' => 0,
 					],
+					'lang'         => [ 'type' => 'string' ],
 				],
 			]
 		);
@@ -159,13 +161,14 @@ final class RestForms {
 		$now           = gmdate( 'Y-m-d H:i:s' );
 		$notifications = self::notifications( $request['notifications'] );
 		$form          = new Form( 0, (string) $request['title'], FormStatus::Active, $request['i18n'], $notifications, $version, $now, $now );
+		$lang          = I18n::resolve( $request['lang'] );
 		if ( null === $request['notification'] ) {
-			return new WP_REST_Response( [ 'html' => Render::preview( $form ) ] );
+			return new WP_REST_Response( [ 'html' => Render::preview( $form, $lang ) ] );
 		}
 		$notification = $notifications[ (int) $request['notification'] ] ?? null;
 		return null === $notification
 			? new WP_Error( 'barrio_notification_not_found', __( 'Notification not found.', 'barrio-suite' ), [ 'status' => 404 ] )
-			: new WP_REST_Response( Notifications::preview( $form, $notification ) );
+			: new WP_REST_Response( Notifications::preview( $form, $notification, $lang ) );
 	}
 
 	/** @return array<string, mixed> Il formato delle rotte di scrittura, più id, stato e versione. */

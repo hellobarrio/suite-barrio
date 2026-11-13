@@ -108,6 +108,27 @@ export const Loading = () => (
 	</div>
 );
 
+// Il codice di una lingua (EN-US) con la sua bandiera, se la fonte delle lingue ne ha una (WPML).
+export const Lang = ( { code } ) => (
+	<span className="barrio-lang">
+		{ window.barrioAdmin.flags[ code ] && (
+			<img
+				className="barrio-flag"
+				src={ window.barrioAdmin.flags[ code ] }
+				alt=""
+			/>
+		) }
+		{ code.toUpperCase() }
+	</span>
+);
+
+// Una scelta di un filtro per lingua, con la bandiera.
+export const langOption = ( code, label = code.toUpperCase() ) => ( {
+	value: code,
+	label,
+	image: window.barrioAdmin.flags[ code ],
+} );
+
 // addon: un bottone accanto al controllo (per esempio "Mostra" della password).
 export function Field( { label, help, addon, children } ) {
 	const id = useId();
@@ -297,23 +318,64 @@ export function SectionHead( { title, level = 2, children } ) {
 	);
 }
 
+// Oltre quante voci compare la ricerca, nelle scelte e nei menu.
+const SEARCH_ABOVE = 5;
+
+// La ricerca sopra le liste lunghe: chi la usa sta in un componente a parte, che si monta a ogni
+// apertura, così riparte vuota.
+function useSearch( items ) {
+	const [ search, setSearch ] = useState( '' );
+	const term = search.trim().toLowerCase();
+	return [
+		items.filter( ( item ) => item.label.toLowerCase().includes( term ) ),
+		items.length > SEARCH_ABOVE && (
+			<input
+				type="search"
+				className="barrio-picker__search"
+				placeholder={ __( 'Search', 'barrio-suite' ) }
+				aria-label={ __( 'Search', 'barrio-suite' ) }
+				value={ search }
+				onChange={ ( event ) => setSearch( event.target.value ) }
+			/>
+		),
+	];
+}
+
 /**
  * Menu a tendina: le azioni di una riga (senza text, il bottone "⋯") o una scelta (con text).
+ * Con tante voci ha la ricerca, come Picker.
  *
- * @param {Object} props
- * @param {string} props.label Il nome del menu, per chi usa uno screen reader.
- * @param {string} props.text  Il testo del bottone; senza, solo l'icona.
- * @param {string} props.icon
- * @param {Array}  props.items { label, icon?, onClick?, href?, danger? }; i falsy si saltano.
+ * @param {Object}  props
+ * @param {string}  props.label     Il nome del menu, per chi usa uno screen reader.
+ * @param {string}  props.text      Il testo del bottone; senza, solo l'icona.
+ * @param {string}  props.icon
+ * @param {string}  props.className Del bottone con il testo.
+ * @param {boolean} props.inBar     Aperto dalla barra sticky. Gli altri, scorrendo, passano sotto
+ *                                  la barra e sotto quella di WordPress (i popover sono nel body).
+ * @param {Array}   props.items     { label, icon?, onClick?, href?, danger? }; i falsy si saltano.
  */
-export function Menu( { label, text, icon = 'ellipsis', items } ) {
+export function Menu( {
+	label,
+	text,
+	icon = 'ellipsis',
+	className = '',
+	inBar,
+	items,
+} ) {
 	return (
 		<Dropdown
-			popoverProps={ { placement: 'bottom-end' } }
+			popoverProps={ {
+				placement: 'bottom-end',
+				className: inBar ? undefined : 'barrio-popover-below',
+			} }
 			renderToggle={ ( { isOpen, onToggle } ) => (
 				<button
 					type="button"
-					className={ text ? 'barrio-button' : 'barrio-icon-button' }
+					className={
+						text
+							? `barrio-button ${ className }`
+							: 'barrio-icon-button'
+					}
 					aria-label={ text ? undefined : label }
 					aria-haspopup="true"
 					aria-expanded={ isOpen }
@@ -326,29 +388,44 @@ export function Menu( { label, text, icon = 'ellipsis', items } ) {
 				</button>
 			) }
 			renderContent={ ( { onClose } ) => (
-				<NavigableMenu
-					role="menu"
-					aria-label={ label }
-					className="barrio-menu"
-				>
-					{ items.filter( Boolean ).map( ( item ) => (
-						<MenuItem
-							key={ item.label }
-							icon={ item.icon }
-							iconPosition="left"
-							href={ item.href }
-							isDestructive={ item.danger }
-							onClick={ () => {
-								onClose();
-								item.onClick?.();
-							} }
-						>
-							{ item.label }
-						</MenuItem>
-					) ) }
-				</NavigableMenu>
+				<MenuItems
+					label={ label }
+					items={ items.filter( Boolean ) }
+					onClose={ onClose }
+				/>
 			) }
 		/>
+	);
+}
+
+function MenuItems( { label, items, onClose } ) {
+	const [ found, search ] = useSearch( items );
+	return (
+		<div className="barrio-menu">
+			{ search }
+			<NavigableMenu role="menu" aria-label={ label }>
+				{ found.map( ( item ) => (
+					<MenuItem
+						key={ item.label }
+						icon={ item.icon }
+						iconPosition="left"
+						href={ item.href }
+						isDestructive={ item.danger }
+						onClick={ () => {
+							onClose();
+							item.onClick?.();
+						} }
+					>
+						{ item.label }
+					</MenuItem>
+				) ) }
+			</NavigableMenu>
+			{ ! found.length && (
+				<p className="barrio-picker__empty">
+					{ __( 'No results.', 'barrio-suite' ) }
+				</p>
+			) }
+		</div>
 	);
 }
 
@@ -446,33 +523,30 @@ export function Bar( { title, children } ) {
 }
 
 /**
- * Un pulsante della barra con un elenco di scelte, e la ricerca quando sono tante: il form delle
- * registrazioni e i filtri delle tabelle (una sola scelta), le colonne da mostrare (più scelte).
- * Ogni scelta si applica subito e l'elenco resta aperto, così con le frecce si scorrono i filtri;
- * si chiude con Esc o fuori.
+ * Un pulsante della barra con una scelta e la ricerca quando le opzioni sono tante: il form delle
+ * registrazioni, la lingua del builder. La scelta si applica subito e l'elenco resta aperto, così
+ * con le frecce si scorrono le opzioni; si chiude con Esc o fuori.
  *
- * @param {Object}                               props
- * @param {string}                               props.label     Il nome dell'elenco.
- * @param {string}                               props.text      Sul pulsante (di default label): il filtro scelto.
- * @param {string}                               props.icon
- * @param {boolean}                              props.active    Un filtro diverso da quello di default.
- * @param {string}                               props.className Del pulsante, oltre a barrio-button.
- * @param {string}                               props.placement Del menu.
- * @param {Array}                                props.options   { value, label, count? }.
- * @param {string|string[]}                      props.value     Con multiple, i valori scelti.
- * @param {boolean}                              props.multiple
- * @param {(value: string, on: boolean) => void} props.onChange
+ * @param {Object}                  props
+ * @param {string}                  props.label     Il nome dell'elenco.
+ * @param {string}                  props.text      Sul pulsante (di default label): l'opzione scelta.
+ * @param {string}                  props.image     Prima del testo: la bandiera della lingua scelta.
+ * @param {boolean}                 props.active    Diverso dal default.
+ * @param {string}                  props.className Del pulsante, oltre a barrio-button.
+ * @param {string}                  props.placement Del menu.
+ * @param {Array}                   props.options   { value, label, count?, image? }.
+ * @param {string}                  props.value
+ * @param {(value: string) => void} props.onChange
  */
 export function Picker( {
 	label,
 	text = label,
-	icon,
+	image,
 	active,
 	className = '',
 	placement = 'bottom-end',
 	options,
 	value,
-	multiple,
 	onChange,
 } ) {
 	return (
@@ -487,7 +561,9 @@ export function Picker( {
 					aria-expanded={ isOpen }
 					onClick={ onToggle }
 				>
-					{ icon && <Icon name={ icon } /> }
+					{ image && (
+						<img className="barrio-flag" src={ image } alt="" />
+					) }
 					<span className="barrio-button__text">
 						{ text !== label && (
 							<span className="screen-reader-text">
@@ -504,7 +580,6 @@ export function Picker( {
 					label={ label }
 					options={ options }
 					value={ value }
-					multiple={ multiple }
 					onChange={ onChange }
 				/>
 			) }
@@ -512,29 +587,18 @@ export function Picker( {
 	);
 }
 
-// Oltre quante scelte compare la ricerca.
-const SEARCH_ABOVE = 5;
-
-// A parte perché la ricerca riparta vuota a ogni apertura.
-function Choices( { label, options, value, multiple, onChange } ) {
+// heading: il nome si vede (le sezioni del pannello dei filtri); da solo lo dice già il pulsante.
+function Choices( { label, heading, options, value, multiple, onChange } ) {
 	const name = useId();
-	const [ search, setSearch ] = useState( '' );
-	const term = search.trim().toLowerCase();
-	const found = options.filter( ( option ) =>
-		option.label.toLowerCase().includes( term )
-	);
+	const [ found, search ] = useSearch( options );
 	return (
 		<div className="barrio-picker">
-			{ options.length > SEARCH_ABOVE && (
-				<input
-					type="search"
-					className="barrio-picker__search"
-					placeholder={ __( 'Search', 'barrio-suite' ) }
-					aria-label={ __( 'Search', 'barrio-suite' ) }
-					value={ search }
-					onChange={ ( event ) => setSearch( event.target.value ) }
-				/>
+			{ heading && (
+				<div className="barrio-picker__heading" aria-hidden="true">
+					{ label }
+				</div>
 			) }
+			{ search }
 			<fieldset className="barrio-picker__list">
 				<legend className="screen-reader-text">{ label }</legend>
 				{ found.map( ( option ) => (
@@ -556,6 +620,13 @@ function Choices( { label, options, value, multiple, onChange } ) {
 								onChange( option.value, event.target.checked )
 							}
 						/>
+						{ option.image && (
+							<img
+								className="barrio-flag"
+								src={ option.image }
+								alt=""
+							/>
+						) }
 						{ option.label }
 						{ undefined !== option.count && (
 							<span className="barrio-picker__count">
@@ -574,9 +645,100 @@ function Choices( { label, options, value, multiple, onChange } ) {
 	);
 }
 
+// I filtri di una tabella e le colonne da mostrare in un solo pannello. Sul pulsante il numero
+// dei filtri diversi da quelli iniziali; onClear riporta tutta la vista all'inizio (changed: se
+// qualcosa è cambiato, anche solo colonne, ordinamento o ricerca).
+function Filters( {
+	filters,
+	query,
+	initial,
+	onQuery,
+	columns,
+	shown,
+	onColumn,
+	changed,
+	onClear,
+} ) {
+	const active = filters.filter(
+		( filter ) => query[ filter.key ] !== initial[ filter.key ]
+	);
+	const label = __( 'Filters', 'barrio-suite' );
+	return (
+		<Dropdown
+			popoverProps={ { placement: 'bottom-end' } }
+			renderToggle={ ( { isOpen, onToggle } ) => (
+				<button
+					type="button"
+					className={ `barrio-button${
+						active.length ? ' is-active' : ''
+					}` }
+					aria-expanded={ isOpen }
+					onClick={ onToggle }
+				>
+					<Icon name="filter" />
+					<span className="barrio-button__text">{ label }</span>
+					{ active.length > 0 && (
+						<span className="barrio-button__count">
+							<span className="screen-reader-text">
+								{ __(
+									'Active filters:',
+									'barrio-suite'
+								) }{ ' ' }
+							</span>
+							{ active.length }
+						</span>
+					) }
+					<Icon name="arrow-down-alt2" />
+				</button>
+			) }
+			renderContent={ () => (
+				<div className="barrio-filters">
+					{ filters.map( ( filter ) => (
+						<Choices
+							key={ filter.key }
+							heading
+							label={ filter.label }
+							options={ filter.options }
+							value={ query[ filter.key ] }
+							onChange={ ( value ) =>
+								onQuery( {
+									...query,
+									[ filter.key ]: value,
+									page: 1,
+								} )
+							}
+						/>
+					) ) }
+					{ columns.length > 0 && (
+						<Choices
+							heading
+							multiple
+							label={ __( 'Columns', 'barrio-suite' ) }
+							options={ columns }
+							value={ shown }
+							onChange={ onColumn }
+						/>
+					) }
+					{ /* Sempre presente: se sparisse al clic, il focus uscirebbe dal pannello e
+					non si potrebbe più chiuderlo con Esc o cliccando fuori. */ }
+					<button
+						type="button"
+						className="barrio-button barrio-filters__clear"
+						aria-disabled={ ! changed }
+						onClick={ () => changed && onClear() }
+					>
+						{ __( 'Clear filters', 'barrio-suite' ) }
+					</button>
+				</div>
+			) }
+		/>
+	);
+}
+
 /**
- * La tabella di tutte le pagine del plugin, uguale ovunque. Nella barra: ricerca, filtri (gli
- * stati, se le righe ne hanno), colonne da mostrare e azioni sulle righe selezionate. Pagine e
+ * La tabella di tutte le pagine del plugin, uguale ovunque. Nella barra: ricerca, un pannello
+ * Filtri (i filtri, per esempio gli stati se le righe ne hanno, e le colonne da mostrare) e le
+ * azioni sulle righe selezionate. Pagine e
  * ordinamento a tre stati, con una colonna sempre ordinata. È controllata: rows è già la pagina
  * da mostrare (localQuery() o il server).
  *
@@ -589,7 +751,7 @@ function Choices( { label, options, value, multiple, onChange } ) {
  * @param {(query: Object) => void}  props.onQuery
  * @param {string}                   props.title   Il titolo della barra.
  * @param {string}                   props.search  Il segnaposto della ricerca.
- * @param {Array}                    props.filters { key: chiave della query, label, icon?, options: [ { value, label, count? } ] }.
+ * @param {Array}                    props.filters { key: chiave della query, label, options: [ { value, label, count?, image? } ] }.
  * @param {(ids: number[]) => Array} props.bulk    Le voci del menu per le righe selezionate.
  * @param {string}                   props.empty   Il testo senza righe.
  * @param {Object}                   props.toolbar In fondo alla barra.
@@ -603,7 +765,7 @@ export function Table( {
 	onQuery,
 	title,
 	search,
-	filters = [],
+	filters: allFilters = [],
 	bulk,
 	empty,
 	toolbar,
@@ -628,8 +790,15 @@ export function Table( {
 			: [];
 	const select = ( list ) => setSelection( { query, ids: list } );
 	const all = ids.length > 0 && selected.length === ids.length;
+	const filters = allFilters.filter( Boolean );
 	const hideable = columns.filter( ( column ) => column?.hideable );
 	const isShown = ( column ) => shown[ column.key ] ?? ! column.hidden;
+	// La vista è diversa da quella iniziale (la pagina non conta).
+	const changed =
+		Object.keys( initial ).some(
+			( key ) => 'page' !== key && query[ key ] !== initial[ key ]
+		) ||
+		hideable.some( ( column ) => isShown( column ) === !! column.hidden );
 	const toggle = ( column, on ) => {
 		setShown( { ...shown, [ column.key ]: on } );
 		// Una colonna nascosta non può restare quella ordinata.
@@ -730,44 +899,25 @@ export function Table( {
 							</div>
 						) }
 					/>
-					{ filters.filter( Boolean ).map( ( filter ) => (
-						<Picker
-							key={ filter.key }
-							label={ filter.label }
-							icon={ filter.icon ?? 'filter' }
-							active={
-								query[ filter.key ] !== initial[ filter.key ]
-							}
-							text={
-								filter.options.find(
-									( option ) =>
-										option.value === query[ filter.key ]
-								)?.label
-							}
-							options={ filter.options }
-							value={ query[ filter.key ] }
-							onChange={ ( value ) =>
-								onQuery( {
-									...query,
-									[ filter.key ]: value,
-									page: 1,
-								} )
-							}
-						/>
-					) ) }
-					{ hideable.length > 0 && (
-						<Picker
-							multiple
-							icon="columns"
-							label={ __( 'Columns', 'barrio-suite' ) }
-							options={ hideable.map( ( column ) => ( {
+					{ ( filters.length > 0 || hideable.length > 0 ) && (
+						<Filters
+							filters={ filters }
+							query={ query }
+							initial={ initial }
+							onQuery={ onQuery }
+							columns={ hideable.map( ( column ) => ( {
 								value: column.key,
 								label: column.label,
 							} ) ) }
-							value={ hideable
+							shown={ hideable
 								.filter( isShown )
 								.map( ( column ) => column.key ) }
-							onChange={ ( key, on ) =>
+							changed={ changed }
+							onClear={ () => {
+								setShown( {} );
+								onQuery( initial );
+							} }
+							onColumn={ ( key, on ) =>
 								toggle(
 									hideable.find(
 										( column ) => column.key === key
@@ -779,6 +929,7 @@ export function Table( {
 					) }
 					{ selected.length > 0 && (
 						<Menu
+							inBar
 							text={ sprintf(
 								/* translators: %d: righe selezionate. */
 								__( '%d selected', 'barrio-suite' ),

@@ -185,6 +185,19 @@ final class RestFormsTest extends WP_UnitTestCase {
 		$this->assertSame( [ $id ], array_column( $this->request( 'GET', '/forms' )->get_data(), 'id' ) );
 	}
 
+	public function test_the_list_has_the_languages_of_the_current_texts(): void {
+		$german                            = self::FORM;
+		$german['fields'][0]['i18n']['de'] = [ 'label' => 'E-Mail' ];
+		$id                                = $this->request( 'POST', '/forms', $german )->get_data()['id'];
+		$languages                         = fn(): array => array_column( $this->request( 'GET', '/forms' )->get_data(), 'languages', 'id' )[ $id ];
+		$this->assertEqualsCanonicalizing( [ 'en', 'it', 'de' ], $languages() );
+
+		// Senza il tedesco: la versione 1 resta per la sua registrazione, ma non conta.
+		EntryRepository::create( new Entry( $id, (int) FormRepository::get( $id )?->current->id, 'de', [] ) );
+		$this->assertSame( 200, $this->request( 'PUT', "/forms/{$id}", [ 'base_version' => 1 ] + self::FORM )->get_status() );
+		$this->assertEqualsCanonicalizing( [ 'en', 'it' ], $languages() );
+	}
+
 	public function test_the_preview_renders_the_unsaved_form(): void {
 		$html = $this->request( 'POST', '/forms/preview', self::FORM )->get_data()['html'];
 
@@ -192,6 +205,10 @@ final class RestFormsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'frontend/form.css', $html );
 		$this->assertStringContainsString( 'data-barrio-preview', $html );
 		$this->assertStringContainsString( '>Information</label>', $html );
+		// Nella lingua scelta nella scheda Traduzioni, se è attiva.
+		add_filter( 'barrio_forms_languages', static fn(): array => [ 'en', 'it' ] );
+		$this->assertStringContainsString( '>Un preventivo</label>', $this->request( 'POST', '/forms/preview', self::FORM + [ 'lang' => 'it' ] )->get_data()['html'] );
+		$this->assertStringContainsString( '>Information</label>', $this->request( 'POST', '/forms/preview', self::FORM + [ 'lang' => 'fr' ] )->get_data()['html'] );
 		$this->assertSame( 400, $this->request( 'POST', '/forms/preview', [ 'fields' => [ [ 'config' => [] ] + self::FORM['fields'][1] ] ] + self::FORM )->get_status() );
 		$this->assertSame( [], $this->request( 'GET', '/forms' )->get_data() );
 	}

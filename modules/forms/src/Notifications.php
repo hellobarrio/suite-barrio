@@ -34,12 +34,17 @@ final class Notifications {
 
 	// Listener di barrio_forms_after_submission: le notifiche attive con le condizioni soddisfatte.
 	public static function on_submission( Entry $entry, Form $form ): void {
-		$tags = MergeTags::of( $entry, $form );
-		foreach ( $form->notifications as $notification ) {
-			if ( $notification->enabled && Conditions::passes( $notification->conditions, $tags->values ) ) {
-				self::send( $notification, $entry, $tags );
+		I18n::in(
+			$entry->lang,
+			static function () use ( $entry, $form ): void {
+				$tags = MergeTags::of( $entry, $form );
+				foreach ( $form->notifications as $notification ) {
+					if ( $notification->enabled && Conditions::passes( $notification->conditions, $tags->values ) ) {
+						self::send( $notification, $entry, $tags );
+					}
+				}
 			}
-		}
+		);
 	}
 
 	// Rinvio dall'admin, con la configurazione attuale della notifica (un destinatario corretto nel
@@ -50,7 +55,7 @@ final class Notifications {
 		if ( null !== $entry && null !== $form ) {
 			foreach ( $form->notifications as $notification ) {
 				if ( $notification->id === $notification_id ) {
-					$error = self::send( $notification, $entry, MergeTags::of( $entry, $form ), get_current_user_id() ?: null );
+					$error = I18n::in( $entry->lang, static fn(): ?WP_Error => self::send( $notification, $entry, MergeTags::of( $entry, $form ), get_current_user_id() ?: null ) );
 					return null === $error ? null : new WP_Error( 'barrio_mail_failed', $error->get_error_message(), [ 'status' => 502 ] );
 				}
 			}
@@ -109,8 +114,12 @@ final class Notifications {
 	 *
 	 * @return array{to: list<string>, reply_to: string|null, subject: string, html: string}
 	 */
-	public static function preview( Form $form, Notification $notification ): array {
-		$lang   = I18n::languages()[0];
+	public static function preview( Form $form, Notification $notification, string $lang ): array {
+		return I18n::in( $lang, static fn(): array => self::sample_email( $form, $notification, $lang ) );
+	}
+
+	/** @return array{to: list<string>, reply_to: string|null, subject: string, html: string} */
+	private static function sample_email( Form $form, Notification $notification, string $lang ): array {
 		$fields = [];
 		$values = [];
 		$files  = [];
@@ -196,16 +205,20 @@ final class Notifications {
 			$error = new WP_Error( 'barrio_notification_failed', $e->getMessage() );
 		}
 
-		EntryRepository::add_note(
-			(int) $entry->id,
-			'notification',
-			null === $error ? NoteLevel::Success : NoteLevel::Error,
-			null === $error
-				/* translators: 1: nome della notifica; 2: destinatari. */
-				? sprintf( __( 'Notification "%1$s" sent to %2$s.', 'barrio-suite' ), $notification->name, implode( ', ', $to ) )
-				/* translators: 1: nome della notifica; 2: messaggio di errore. */
-				: sprintf( __( 'Notification "%1$s" could not be sent: %2$s', 'barrio-suite' ), $notification->name, $error->get_error_message() ),
-			$user_id
+		// L'email è nella lingua di chi ha compilato, la nota in quella del sito.
+		I18n::in(
+			I18n::languages()[0],
+			static fn() => EntryRepository::add_note(
+				(int) $entry->id,
+				'notification',
+				null === $error ? NoteLevel::Success : NoteLevel::Error,
+				null === $error
+					/* translators: 1: nome della notifica; 2: destinatari. */
+					? sprintf( __( 'Notification "%1$s" sent to %2$s.', 'barrio-suite' ), $notification->name, implode( ', ', $to ) )
+					/* translators: 1: nome della notifica; 2: messaggio di errore. */
+					: sprintf( __( 'Notification "%1$s" could not be sent: %2$s', 'barrio-suite' ), $notification->name, $error->get_error_message() ),
+				$user_id
+			)
 		);
 		return $error;
 	}

@@ -14,11 +14,13 @@ import './admin.css';
 import { initialQuery, localQuery } from './query.js';
 import {
 	Icon,
+	Lang,
 	Loading,
 	Menu,
 	Notice,
 	Table,
 	entriesUrl,
+	langOption,
 	pageUrl,
 } from './ui.js';
 
@@ -28,8 +30,12 @@ const STATUS = {
 	trash: [ __( 'Trash', 'barrio-suite' ), '' ],
 };
 
-// I più recenti per primi, come li restituisce il server. status '' = tutti tranne il cestino.
-const INITIAL = { ...initialQuery( 'id', 'desc' ), status: '' };
+// I più recenti per primi, come li restituisce il server. status '' = tutti tranne il cestino;
+// lang '' = in qualsiasi lingua.
+const INITIAL = { ...initialQuery( 'id', 'desc' ), status: '', lang: '' };
+
+// La lingua principale e quelle in cui si traduce.
+const [ main, ...translations ] = window.barrioAdmin.languages;
 
 function FormList() {
 	const [ forms, setForms ] = useState( null );
@@ -143,10 +149,21 @@ function FormList() {
 	const trash = 'trash' === query.status;
 	const count = ( status ) =>
 		forms.filter( ( f ) => f.status === status ).length;
+	const visible = forms.filter( ( f ) =>
+		query.status ? f.status === query.status : 'trash' !== f.status
+	);
+	// Con un'altra lingua i form che hanno qualche testo in quella lingua (gli altri si mostrano
+	// nella principale); con la principale quelli che non sono tradotti in nessuna.
+	const inLanguage = ( lang ) =>
+		visible.filter( ( f ) =>
+			lang === main
+				? ! translations.some( ( code ) =>
+						f.languages.includes( code )
+					)
+				: f.languages.includes( lang )
+		);
 	const { rows, total } = localQuery(
-		forms.filter( ( f ) =>
-			query.status ? f.status === query.status : 'trash' !== f.status
-		),
+		query.lang ? inLanguage( query.lang ) : visible,
 		query,
 		[ 'id', 'title' ]
 	);
@@ -205,6 +222,27 @@ function FormList() {
 				</span>
 			),
 		},
+		translations.length > 0 && {
+			key: 'languages',
+			label: __( 'Translations', 'barrio-suite' ),
+			hideable: true,
+			render: ( form ) => {
+				const done = translations.filter( ( lang ) =>
+					form.languages.includes( lang )
+				);
+				return done.length ? (
+					<span className="barrio-row is-nowrap">
+						{ done.map( ( lang ) => (
+							<span key={ lang } className="barrio-badge">
+								<Lang code={ lang } />
+							</span>
+						) ) }
+					</span>
+				) : (
+					'—'
+				);
+			},
+		},
 		{
 			key: 'modified',
 			label: __( 'Last modified', 'barrio-suite' ),
@@ -229,11 +267,6 @@ function FormList() {
 					items={
 						'trash' === form.status
 							? [
-									form.entries > 0 && {
-										label: __( 'Entries', 'barrio-suite' ),
-										icon: 'list-view',
-										href: entriesUrl( { form: form.id } ),
-									},
 									{
 										label: __( 'Restore', 'barrio-suite' ),
 										icon: 'undo',
@@ -262,11 +295,6 @@ function FormList() {
 										label: __( 'Edit', 'barrio-suite' ),
 										icon: 'edit',
 										href: pageUrl( { form: form.id } ),
-									},
-									{
-										label: __( 'Entries', 'barrio-suite' ),
-										icon: 'list-view',
-										href: entriesUrl( { form: form.id } ),
 									},
 									{
 										label: __(
@@ -380,6 +408,21 @@ function FormList() {
 									count: count( value ),
 								} )
 							),
+						],
+					},
+					translations.length > 0 && {
+						key: 'lang',
+						label: __( 'Language', 'barrio-suite' ),
+						options: [
+							{
+								value: '',
+								label: __( 'All languages', 'barrio-suite' ),
+								count: visible.length,
+							},
+							...[ main, ...translations ].map( ( lang ) => ( {
+								...langOption( lang ),
+								count: inLanguage( lang ).length,
+							} ) ),
 						],
 					},
 				] }

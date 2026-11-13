@@ -40,10 +40,10 @@ final class Render {
 	}
 
 	/**
-	 * Una pagina con il solo form, nella lingua principale, per l'anteprima del builder (in un
-	 * iframe). Il form funziona come sul sito ma non invia: il JS si ferma dopo la validazione.
+	 * Una pagina con il solo form, per l'anteprima del builder (in un iframe). Il form funziona
+	 * come sul sito ma non invia: il JS si ferma dopo la validazione.
 	 */
-	public static function preview( Form $form ): string {
+	public static function preview( Form $form, string $lang ): string {
 		$assets = self::assets();
 		$ver    = '?ver=' . BARRIO_SUITE_VERSION;
 		return sprintf(
@@ -52,7 +52,7 @@ final class Render {
 			esc_url( "{$assets}frontend/form.css{$ver}" ),
 			wp_json_encode( [ 'imports' => [ '@barrio/forms-conditions' => "{$assets}frontend/conditions.js{$ver}" ] ] ),
 			esc_url( "{$assets}frontend/form.js{$ver}" ),
-			self::html( $form, I18n::languages()[0], true )
+			I18n::in( $lang, static fn(): string => self::html( $form, $lang, true ) )
 		);
 	}
 
