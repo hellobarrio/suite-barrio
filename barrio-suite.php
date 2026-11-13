@@ -34,4 +34,5 @@ spl_autoload_register(
 );
 
 register_activation_hook( __FILE__, [ BarrioSuite\Plugin::class, 'activate' ] );
+register_deactivation_hook( __FILE__, [ BarrioSuite\Plugin::class, 'deactivate' ] );
 add_action( 'plugins_loaded', [ BarrioSuite\Plugin::class, 'boot' ] );

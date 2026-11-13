@@ -21,6 +21,12 @@ final class Plugin {
 		self::boot();
 	}
 
+	public static function deactivate(): void {
+		foreach ( self::MODULES as $module_class ) {
+			$module_class::deactivate();
+		}
+	}
+
 	public static function boot(): void {
 		// Per tutte le email del sito, anche con un modulo spento.
 		Smtp::boot();

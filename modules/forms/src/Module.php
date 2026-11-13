@@ -22,6 +22,14 @@ final class Module {
 		add_filter( 'rest_pre_serve_request', [ RestEntries::class, 'serve' ], 10, 2 );
 		add_action( 'admin_menu', [ Admin::class, 'menu' ] );
 		add_action( 'barrio_forms_after_submission', [ Notifications::class, 'on_submission' ], 10, 2 );
+		add_filter( 'wp_privacy_personal_data_exporters', [ Privacy::class, 'exporters' ] );
+		add_filter( 'wp_privacy_personal_data_erasers', [ Privacy::class, 'erasers' ] );
+		add_action( 'init', [ Privacy::class, 'schedule' ] );
+		add_action( Privacy::CRON, [ Privacy::class, 'purge' ] );
+	}
+
+	public static function deactivate(): void {
+		wp_clear_scheduled_hook( Privacy::CRON );
 	}
 
 	// Niente FK verso le tabelle di WordPress (docs/database.md): i riferimenti agli utenti si azzerano qui.

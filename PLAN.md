@@ -137,7 +137,7 @@ vincoli funzionano allo stesso modo. Le colonne di identificatori e insiemi chiu
 (`status`, `field_key`, `type`, `lang`, `stored_path`, `source`, `level`) sono `utf8mb4_bin`: con la
 collation di WordPress, che ignora le maiuscole, i CHECK accetterebbero `'Active'` o `'Email'`.
 Le impostazioni globali (SMTP, retention, template email) **non** sono tabelle: sono opzioni
-WordPress (`barrio_smtp`, `barrio_smtp_password` cifrata, `barrio_forms_email`) con un JSON Schema,
+WordPress (`barrio_smtp`, `barrio_smtp_password` cifrata, `barrio_forms_email`, `barrio_forms_privacy`) con un JSON Schema,
 validate dalla rotta REST `/barrio/v1/settings`, l'unico punto che le scrive. Niente `register_setting()`:
 servirebbe solo a `options.php` e a `/wp/v2/settings`, che non usiamo (la password non deve mai tornare
 indietro). Le impostazioni per form delle integrazioni arrivano in fase 8 con una tabella propria
@@ -260,7 +260,7 @@ cache di pagina.
 Admin, ognuno con `permission_callback` sulle capability e argomenti validati con lo schema:
 CRUD dei form (`PUT` con `base_version`), duplica, traduzioni per lingua, elenco registrazioni
 (paginato, con ricerca e filtri), dettaglio, segna come letta, azioni di massa, export CSV in
-streaming, download dei file, note. Già presenti dalle fasi 3, 4 e 5:
+streaming, download dei file, note. Già presenti dalle fasi 3, 4, 5 e 6:
 
 - form (`barrio_manage_forms`), nello stesso formato in lettura e in scrittura (quello di
   `dev/example-form.json`): `GET /forms/{id}?context=edit` (la stessa rotta del GET pubblico),
@@ -276,7 +276,7 @@ streaming, download dei file, note. Già presenti dalle fasi 3, 4 e 5:
   `POST /entries/{id}/notes`, `GET /entries/{id}/files/{n}` (download). File e CSV sono link con `_wpnonce`;
   il corpo lo invia `RestEntries::serve()` su `rest_pre_serve_request`, al posto del JSON;
 
-- `GET`/`PUT /settings` (`manage_options`): SMTP, template delle email e stato della password
+- `GET`/`PUT /settings` (`manage_options`): SMTP, template delle email, privacy (`retention_days`) e stato della password
   (`none`, `saved`, `unreadable` se i salt sono cambiati, `constant`); la password è in sola scrittura;
 - `POST /settings/test-email` (`manage_options`): con le impostazioni salvate e il template delle notifiche;
 - `POST /entries/{id}/notifications/{notification}/resend` (`barrio_manage_entries`): con la
@@ -309,7 +309,7 @@ Per chi gestisce solo le registrazioni (gli editor) il menu porta direttamente a
 - **Pagina** (React, `assets/src/admin`): intestazione con logo e descrizione, schede Form e Impostazioni (la seconda solo con `manage_options`). Elenco dei form con la tabella del plugin: filtro Tutti (tranne il cestino) / Attivi / Chiusi / Cestino, colonne Registrazioni, Stato e Ultima modifica a scelta, conteggio delle registrazioni e nel menu "⋯" modifica, duplica, copia lo shortcode, chiudi/riapri, elimina (con registrazioni va nel cestino; dal cestino ripristina o elimina). Azioni di massa: riapri, chiudi, sposta nel cestino; nel cestino ripristina ed elimina (il server rifiuta i form con registrazioni).
 - **Builder** (React): struttura del form a sinistra (card con anteprima del campo, "Aggiungi campo" come menu), proprietà del campo a destra; la chiave segue l'etichetta finché non la si cambia; campi e scelte con drag & drop accessibile (`@dnd-kit/sortable`, anche da tastiera), pannello delle proprietà generato dallo schema del tipo (`title` e `description` delle proprietà), logica condizionale, preset delle scelte (`presets.json`, dal prototipo, con codici ISO per le nazioni e sigle per le province; il filtro `barrio_forms_presets` ne aggiunge), impostazioni, notifiche con l'anteprima dell'email (template vero, valori d'esempio, `POST /forms/preview` con `notification`), anteprima del form in un iframe con CSS e JS del frontend (non invia). Modifica i testi della lingua principale e conserva le altre; la scheda Traduzioni arriva con la fase 7, i pannelli delle integrazioni con la fase 8.
 - **Registrazioni** (pagina `barrio-entries`, `assets/src/entries`): un form alla volta, scelto nel titolo della barra (all'inizio quello con registrazioni da leggere). La tabella del plugin con ricerca, pagine e ordinamento sul server (anche sul valore di un campo), filtri letta/non letta e lingua, colonne dei campi a scelta (le prime tre di default, come nel prototipo), azioni di massa sulle selezionate e su tutte, export CSV con i filtri correnti. Dettaglio in `?entry=ID`: campi della versione compilata, file, dettagli, rinvio delle notifiche, storico con le note; aprirlo segna la registrazione come letta. Etichette e scelte sono nella lingua principale.
-- **Impostazioni** (scheda della stessa pagina): card SMTP, template delle email (logo dalla libreria dei media, colori, footer) ed email di test; un solo Salva nella barra sticky. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
+- **Impostazioni** (scheda della stessa pagina): card SMTP, template delle email (logo dalla libreria dei media, colori, footer), email di test e Privacy (giorni di retention); un solo Salva nella barra sticky. Richiedono `manage_options`: l'SMTP vale per tutte le email del sito.
 - **Capability**: `barrio_manage_forms` (agli admin) e `barrio_manage_entries` (ad admin ed editor), assegnate dalla migrazione `0002` e non all'attivazione, così arrivano anche agli altri siti di un multisite e alle installazioni già attive. Sostituiscono il trucco del menu diverso per gli editor.
 
 ---
@@ -348,7 +348,7 @@ Regole:
 - **Email**: header (From, Reply-To) ripuliti da a capo e validati; i merge tag nell'oggetto non possono iniettare header. Nei destinatari i merge tag si sostituiscono dopo aver diviso sulle virgole e ogni parte deve essere un solo indirizzo valido, quindi un valore inviato non aggiunge destinatari; i tag fissi (`{{admin_email}}`) vincono su un campo con la stessa chiave.
 - **Export CSV**: le celle che iniziano con `= + - @` si neutralizzano (CSV injection).
 - **Affidabilità**: la registrazione si salva prima di qualsiasi effetto collaterale; gli errori di notifiche e integrazioni restano nelle note; ogni notifica si può rinviare.
-- **Privacy by default**: nessun IP, user agent o referrer salvato; URL della pagina di invio senza query string né frammento (vincolo `be_url_chk`); retention configurabile; registrazione degli strumenti Privacy di WordPress con la ricerca per email tramite l'indice `field_value`. Ogni raccolta in più arriva come opzione disattivata di default.
+- **Privacy by default**: nessun IP, user agent o referrer salvato; URL della pagina di invio senza query string né frammento (vincolo `be_url_chk`); retention configurabile in giorni (0, il default, conserva tutto; WP-Cron giornaliero a blocchi di 200, con un altro giro se l'arretrato supera 20 secondi); exporter ed eraser negli strumenti Privacy di WordPress con la ricerca per email tramite l'indice `field_value` (`Privacy.php`). Una registrazione appartiene a chi ha l'indirizzo in un campo email, non all'utente collegato (un admin può compilare per conto di altri); l'esportazione usa etichette e scelte nella lingua in cui la persona ha letto il form, la cancellazione elimina la registrazione intera con i file. Ogni raccolta in più arriva come opzione disattivata di default.
 
 ---
 
@@ -408,4 +408,5 @@ Eliminato: Mailjet API (sostituito dall'SMTP).
 - **Limite di invii per IP** (fase 2): usa `REMOTE_ADDR`. Dietro un proxy che non lo riscrive (Cloudflare senza `mod_remoteip`), o con un frontend headless che invia dal proprio server, tutti gli invii hanno lo stesso IP e il limite (10 ogni 10 minuti) vale per l'intero sito. Verificare sugli hosting dei clienti; se serve, un filtro sull'IP o sul limite.
 - **Download dei file** (fase 5, fatto): il controllo di WordPress sul contenuto è severo per i tipi `application/*` ma lascia passare come "non verificati" gli altri (un `.pdf` che contiene testo). I file non si eseguono (nome casuale senza estensione, cartella protetta) e l'endpoint di download risponde con `Content-Disposition: attachment` e `X-Content-Type-Options: nosniff` (`RestEntriesTest`).
 - **Separatore del CSV**: punto e virgola se il separatore decimale della lingua del sito è la virgola (come fa Excel), altrimenti virgola; con il BOM UTF-8. Da provare con l'Excel dei clienti.
+- **File nell'esportazione dei dati personali** (fase 6): WordPress non ha un modo per allegare file all'esportazione, quindi c'è solo il nome; il file si scarica dal dettaglio della registrazione. Se un cliente lo chiede, si aggiungono allo ZIP con l'azione `wp_privacy_personal_data_export_file_created`.
 - **Namespace REST condiviso**: il prototipo usa già `barrio/v1` (cookie banner, accessibilità: `/config`, `/scan`, `/consent-log`, `/accessibility`…). Le rotte dei form (`/forms/…`) non collidono; quando si porteranno quei moduli bisognerà scegliere rotte diverse o disattivarli nel prototipo.

@@ -34,7 +34,7 @@ final class Notifications {
 
 	// Listener di barrio_forms_after_submission: le notifiche attive con le condizioni soddisfatte.
 	public static function on_submission( Entry $entry, Form $form ): void {
-		$tags = self::tags( $entry, $form );
+		$tags = MergeTags::of( $entry, $form );
 		foreach ( $form->notifications as $notification ) {
 			if ( $notification->enabled && Conditions::passes( $notification->conditions, $tags->values ) ) {
 				self::send( $notification, $entry, $tags );
@@ -50,7 +50,7 @@ final class Notifications {
 		if ( null !== $entry && null !== $form ) {
 			foreach ( $form->notifications as $notification ) {
 				if ( $notification->id === $notification_id ) {
-					$error = self::send( $notification, $entry, self::tags( $entry, $form ), get_current_user_id() ?: null );
+					$error = self::send( $notification, $entry, MergeTags::of( $entry, $form ), get_current_user_id() ?: null );
 					return null === $error ? null : new WP_Error( 'barrio_mail_failed', $error->get_error_message(), [ 'status' => 502 ] );
 				}
 			}
@@ -101,12 +101,6 @@ final class Notifications {
 	/** @param array<string, mixed> $settings Già validate con schema(); quelle assenti restano come sono. */
 	public static function save_settings( array $settings ): void {
 		update_option( self::OPTION, array_intersect_key( $settings, self::DEFAULTS ) + self::settings(), false );
-	}
-
-	// La versione compilata, che con la cache di pagina può non essere la corrente.
-	private static function tags( Entry $entry, Form $form ): MergeTags {
-		$version = $entry->version_id === $form->current->id ? $form->current : FormRepository::version( $entry->version_id );
-		return new MergeTags( $entry, $form, $version ?? $form->current );
 	}
 
 	/**

@@ -116,6 +116,44 @@ final class EntryRepository {
 		return self::hydrate( Db::rows( "SELECT e.* FROM {$table} WHERE {$where} ORDER BY e.created_at, e.id" . $wpdb->prepare( ' LIMIT %d', $size ) ) );
 	}
 
+	/**
+	 * Le registrazioni con questo indirizzo in un campo email, per gli strumenti Privacy di WordPress.
+	 * Con la collation di WordPress il confronto ignora le maiuscole; usa l'indice field_value.
+	 *
+	 * @return list<Entry> Dalla più vecchia.
+	 */
+	public static function by_email( string $email, int $limit, int $offset = 0 ): array {
+		global $wpdb;
+		return self::hydrate(
+			Db::rows(
+				$wpdb->prepare(
+					'SELECT * FROM %i WHERE id IN (SELECT v.entry_id FROM %i v JOIN %i f ON f.id = v.field_id WHERE f.type = %s AND v.value = %s) ORDER BY id LIMIT %d OFFSET %d',
+					Db::table( 'entries' ),
+					Db::table( 'entry_values' ),
+					Db::table( 'form_fields' ),
+					'email',
+					$email,
+					$limit,
+					$offset
+				)
+			)
+		);
+	}
+
+	/**
+	 * Retention: le $limit registrazioni più vecchie inviate prima di $before (UTC), con i loro file.
+	 *
+	 * @return int Le registrazioni eliminate: meno di $limit quando non ne restano altre.
+	 */
+	public static function delete_older_than( string $before, int $limit = 200 ): int {
+		global $wpdb;
+		$ids = array_map( 'intval', Db::col( $wpdb->prepare( 'SELECT id FROM %i WHERE created_at < %s ORDER BY created_at LIMIT %d', Db::table( 'entries' ), $before, $limit ) ) );
+		if ( $ids ) {
+			self::delete( ...$ids );
+		}
+		return count( $ids );
+	}
+
 	/** @param list<int>|null $ids Null = tutte le registrazioni del form. */
 	public static function set_read( int $form_id, ?array $ids, bool $read ): void {
 		global $wpdb;

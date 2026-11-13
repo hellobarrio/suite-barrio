@@ -1,4 +1,4 @@
-// Scheda Impostazioni: SMTP, template delle email ed email di test. Legge e salva con
+// Scheda Impostazioni: SMTP, template delle email, email di test e privacy. Legge e salva con
 // GET/PUT /barrio/v1/settings; la password SMTP non torna mai dal server, se ne conosce solo lo stato.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
@@ -35,6 +35,7 @@ export function Settings() {
 	const [ saved, setSaved ] = useState( null );
 	const [ smtp, setSmtp ] = useState( null );
 	const [ email, setEmail ] = useState( null );
+	const [ privacy, setPrivacy ] = useState( null );
 	const [ password, setPassword ] = useState( '' );
 	const [ showPassword, setShowPassword ] = useState( false );
 	const [ testTo, setTestTo ] = useState( '' );
@@ -47,6 +48,7 @@ export function Settings() {
 				setSaved( data );
 				setSmtp( data.smtp );
 				setEmail( data.email );
+				setPrivacy( data.privacy );
 			} )
 			.catch( ( error ) =>
 				setNotice( { status: 'error', message: errorMessage( error ) } )
@@ -55,8 +57,12 @@ export function Settings() {
 
 	const dirty =
 		'' !== password ||
-		JSON.stringify( { smtp, email } ) !==
-			JSON.stringify( { smtp: saved?.smtp, email: saved?.email } );
+		JSON.stringify( { smtp, email, privacy } ) !==
+			JSON.stringify( {
+				smtp: saved?.smtp,
+				email: saved?.email,
+				privacy: saved?.privacy,
+			} );
 	useUnsavedWarning( dirty );
 
 	if ( ! saved ) {
@@ -85,12 +91,13 @@ export function Settings() {
 			{
 				path: '/barrio/v1/settings',
 				method: 'PUT',
-				data: { smtp, email, ...( password && { password } ) },
+				data: { smtp, email, privacy, ...( password && { password } ) },
 			},
 			( response ) => {
 				setSaved( response );
 				setSmtp( response.smtp );
 				setEmail( response.email );
+				setPrivacy( response.privacy );
 				setPassword( '' );
 				return __( 'Settings saved.', 'barrio-suite' );
 			}
@@ -98,7 +105,7 @@ export function Settings() {
 
 	return (
 		<div className="barrio-stack">
-			<Bar title={ __( 'Email settings', 'barrio-suite' ) }>
+			<Bar title={ __( 'Settings', 'barrio-suite' ) }>
 				<button
 					type="button"
 					className="barrio-button is-primary"
@@ -323,6 +330,37 @@ export function Settings() {
 						</button>
 					</div>
 				</div>
+			</Card>
+
+			<Card
+				className="barrio-wide"
+				icon="privacy"
+				title={ __( 'Privacy', 'barrio-suite' ) }
+				description={ __(
+					'Requests to export or erase personal data, from Tools in WordPress, include the form entries that contain the email address in an email field.',
+					'barrio-suite'
+				) }
+			>
+				<Text
+					label={ __(
+						'Delete entries after (days)',
+						'barrio-suite'
+					) }
+					help={ __(
+						'Entries older than this are deleted every day, with their files. Leave 0 to keep them until you delete them.',
+						'barrio-suite'
+					) }
+					type="number"
+					min={ 0 }
+					max={ 3650 }
+					value={ privacy.retention_days }
+					onChange={ ( value ) =>
+						setPrivacy( {
+							...privacy,
+							retention_days: Number( value ),
+						} )
+					}
+				/>
 			</Card>
 		</div>
 	);

@@ -6,6 +6,7 @@ use BarrioSuite\Forms\Model\Entry;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormVersion;
+use BarrioSuite\Forms\Repository\FormRepository;
 
 /**
  * Merge tag delle notifiche, nella lingua della registrazione:
@@ -22,7 +23,7 @@ final readonly class MergeTags {
 	public array $values;
 
 	/** @var array<string, array{label: string, value: string}> Campi compilati, nell'ordine del form. */
-	private array $fields;
+	public array $fields;
 
 	/** @var array<string, string> */
 	private array $tags;
@@ -58,6 +59,12 @@ final readonly class MergeTags {
 			'site_name'   => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'admin_email' => (string) get_option( 'admin_email' ),
 		] + array_map( static fn( array $field ): string => $field['value'], $fields );
+	}
+
+	// Con la versione compilata, che con la cache di pagina può non essere la corrente.
+	public static function of( Entry $entry, Form $form ): self {
+		$version = $entry->version_id === $form->current->id ? $form->current : FormRepository::version( $entry->version_id );
+		return new self( $entry, $form, $version ?? $form->current );
 	}
 
 	// I valori così come sono, per oggetto e indirizzi: chi li usa toglie gli a capo o valida.

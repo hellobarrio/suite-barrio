@@ -116,8 +116,8 @@ generate da `npm run seed -- --entries=100000`. `EXPLAIN` su MariaDB 12.3:
 | Dettaglio | `entry_values WHERE entry_id = ?` JOIN `form_fields` | `PRIMARY`, `PRIMARY` |
 | Filtro per valore | `WHERE field_id IN (…) AND value = ?` | `field_value` |
 | Statistiche opzioni | `WHERE field_id IN (…) GROUP BY value` | `field_value` + tabella temporanea (~20k righe per campo) |
-| Ricerca GDPR per email | `form_fields WHERE type = 'email'` JOIN `entry_values … value = ?` | scansione di `form_fields` (poche righe) + `field_value` |
-| Retention | `WHERE created_at < ? ORDER BY created_at LIMIT 200` | `created` (coprente). Non `ORDER BY id`: con molte righe vecchie richiede un filesort su tutte |
+| Ricerca GDPR per email (`EntryRepository::by_email()`) | `form_fields WHERE type = 'email'` JOIN `entry_values … value = ?` | scansione di `form_fields` (poche righe) + `field_value` |
+| Retention (`EntryRepository::delete_older_than()`) | `WHERE created_at < ? ORDER BY created_at LIMIT 200` | `created` (coprente). Non `ORDER BY id`: con molte righe vecchie richiede un filesort su tutte |
 | Export CSV | `WHERE form_id = ? AND (created_at > ? OR (created_at = ? AND id > ?)) ORDER BY created_at, id LIMIT 500` | `form_created`; 20k righe (6 MB) in ~1 s via HTTP |
 | Conteggi per form | `GROUP BY form_id` | `form_read` (coprente, il più piccolo) |
 

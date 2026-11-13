@@ -4,6 +4,7 @@ namespace BarrioSuite\Forms\Api;
 
 use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\Notifications;
+use BarrioSuite\Forms\Privacy;
 use BarrioSuite\Mail\Smtp;
 use WP_Error;
 use WP_REST_Request;
@@ -34,6 +35,7 @@ final class RestAdmin {
 					'args'                => [
 						'smtp'     => Smtp::schema(),
 						'email'    => Notifications::schema(),
+						'privacy'  => Privacy::schema(),
 						// In sola scrittura: non torna mai indietro. Assente o vuota = resta quella salvata.
 						'password' => [
 							'type'      => 'string',
@@ -67,6 +69,7 @@ final class RestAdmin {
 				'smtp'            => Smtp::settings(),
 				'password_status' => Smtp::password_status(),
 				'email'           => Notifications::settings(),
+				'privacy'         => Privacy::settings(),
 			]
 		);
 	}
@@ -80,6 +83,9 @@ final class RestAdmin {
 		}
 		if ( is_array( $request['email'] ) ) {
 			Notifications::save_settings( $request['email'] );
+		}
+		if ( is_array( $request['privacy'] ) ) {
+			Privacy::save_settings( $request['privacy'] );
 		}
 		return self::settings();
 	}
