@@ -22,10 +22,16 @@ final class Module {
 		add_filter( 'rest_pre_serve_request', [ RestEntries::class, 'serve' ], 10, 2 );
 		add_action( 'admin_menu', [ Admin::class, 'menu' ] );
 		add_action( 'barrio_forms_after_submission', [ Notifications::class, 'on_submission' ], 10, 2 );
+		add_action( 'barrio_forms_after_submission', [ Integrations::class, 'on_submission' ], 20, 2 );
 		add_filter( 'wp_privacy_personal_data_exporters', [ Privacy::class, 'exporters' ] );
 		add_filter( 'wp_privacy_personal_data_erasers', [ Privacy::class, 'erasers' ] );
 		add_action( 'init', [ Privacy::class, 'schedule' ] );
 		add_action( Privacy::CRON, [ Privacy::class, 'purge' ] );
+
+		// Le estensioni si registrano qui. Su init e non subito: i nomi che passano sono tradotti, e
+		// prima di init WordPress segnala le traduzioni caricate troppo presto.
+		require_once dirname( __DIR__ ) . '/functions.php';
+		add_action( 'init', static fn() => do_action( 'barrio_forms_loaded' ), 5 );
 	}
 
 	public static function deactivate(): void {

@@ -11,6 +11,7 @@ use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Model\FormVersion;
+use BarrioSuite\Forms\Model\Integration;
 use BarrioSuite\Forms\Model\Notification;
 use BarrioSuite\Forms\Repository\FormRepository;
 use InvalidArgumentException;
@@ -20,8 +21,8 @@ use WP_REST_Response;
 
 /**
  * Rotte del builder. Il form ha lo stesso formato in lettura (GET /forms/{id}?context=edit, in
- * RestPublic) e in scrittura: titolo, testi per lingua, notifiche e campi come nei modelli. È anche
- * il formato di dev/example-form.json.
+ * RestPublic) e in scrittura: titolo, testi per lingua, notifiche, campi e integrazioni come nei
+ * modelli. È anche il formato di dev/example-form.json.
  */
 final class RestForms {
 
@@ -145,8 +146,8 @@ final class RestForms {
 		}
 		/* translators: %s: titolo del form copiato. */
 		$title = mb_substr( sprintf( __( '%s (copy)', 'barrio-suite' ), $form->title ), 0, 191 );
-		// create() ignora gli id: campi e notifiche diventano righe nuove.
-		return new WP_REST_Response( self::view( FormRepository::create( $title, $form->i18n, $form->notifications, $form->current ) ), 201 );
+		// create() ignora gli id: campi, notifiche e integrazioni diventano righe nuove.
+		return new WP_REST_Response( self::view( FormRepository::create( $title, $form->i18n, $form->notifications, $form->current, $form->integrations ) ), 201 );
 	}
 
 	// Il form non salvato, con il render del sito, o una sua notifica: per le anteprime del builder.
@@ -202,6 +203,16 @@ final class RestForms {
 					'i18n'       => $f->i18n,
 				],
 				$form->current->fields
+			),
+			'integrations'  => array_map(
+				static fn( Integration $i ): array => [
+					'slug'       => $i->slug,
+					'enabled'    => $i->enabled,
+					'settings'   => (object) $i->settings,
+					'conditions' => $i->conditions,
+					'i18n'       => (object) array_map( static fn( array $settings ): object => (object) $settings, $i->i18n ),
+				],
+				$form->integrations
 			),
 		];
 	}
@@ -309,18 +320,42 @@ final class RestForms {
 				],
 				[ 'key', 'type', 'i18n' ]
 			),
+			// Le impostazioni le valida FormRepository con lo schema dell'estensione. Assente = nessuna.
+			'integrations'  => [
+				'required' => false,
+				'default'  => [],
+			] + $list(
+				[
+					'slug'       => [
+						'type'      => 'string',
+						'pattern'   => '^[a-z][a-z0-9_-]*$',
+						'maxLength' => 64,
+					],
+					'enabled'    => [ 'type' => 'boolean' ],
+					'settings'   => [ 'type' => 'object' ],
+					'conditions' => $conditions,
+					'i18n'       => [
+						'type'                 => 'object',
+						'patternProperties'    => [ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$' => [ 'type' => 'object' ] ],
+						'additionalProperties' => false,
+					],
+				],
+				[ 'slug' ]
+			),
 		];
 	}
 
 	// I dati arrivano già validati e ripuliti dallo schema degli argomenti.
 	private static function write( WP_REST_Request $request, ?int $id ): WP_REST_Response|WP_Error {
 		$notifications = self::notifications( $request['notifications'] );
+		$integrations  = self::integrations( $request['integrations'] );
 		try {
 			$form = null === $id
-				? FormRepository::create( $request['title'], $request['i18n'], $notifications, self::version( $request['fields'] ) )
-				: FormRepository::save( $id, $request['base_version'], $request['title'], $request['i18n'], $notifications, self::version( $request['fields'] ) );
+				? FormRepository::create( $request['title'], $request['i18n'], $notifications, self::version( $request['fields'] ), $integrations )
+				: FormRepository::save( $id, $request['base_version'], $request['title'], $request['i18n'], $notifications, self::version( $request['fields'] ), $integrations );
 		} catch ( InvalidArgumentException $e ) {
-			// Config dei campi, condizioni, chiavi ripetute: errori di chi scrive il form, non del server.
+			// Config dei campi, condizioni, chiavi ripetute, impostazioni delle integrazioni: errori di chi
+			// scrive il form, non del server.
 			return new WP_Error( 'barrio_invalid_form', $e->getMessage(), [ 'status' => 400 ] );
 		}
 		return $form instanceof WP_Error ? $form : new WP_REST_Response( self::view( $form ), null === $id ? 201 : 200 );
@@ -334,6 +369,17 @@ final class RestForms {
 		return array_map(
 			static fn( array $n ): Notification => new Notification( $n['name'], $n['recipients'], $n['i18n'], $n['reply_to'] ?? null, $n['enabled'] ?? true, $n['attach_files'] ?? false, $n['conditions'] ?? null ),
 			$notifications
+		);
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $integrations
+	 * @return list<Integration>
+	 */
+	private static function integrations( array $integrations ): array {
+		return array_map(
+			static fn( array $i ): Integration => new Integration( $i['slug'], $i['settings'] ?? [], $i['i18n'] ?? [], $i['enabled'] ?? true, $i['conditions'] ?? null ),
+			$integrations
 		);
 	}
 

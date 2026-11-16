@@ -5,6 +5,7 @@
 		"src",
 		"build",
 		"modules/*/src",
+		"modules/*/functions.php",
 		"modules/*/migrations",
 		"modules/*/templates",
 		"modules/*/assets/frontend",
@@ -27,7 +28,8 @@
 		"format": "wp-scripts format",
 		"test:js": "node --test 'tests/js/**/*.test.js'",
 		"zip": "npm run build && wp-scripts plugin-zip",
-		"zip:wpml": "cd extensions && zip -r ../barrio-suite-wpml.zip barrio-suite-wpml"
+		"zip:extensions": "cd extensions && for e in */; do rm -f \"../${e%/}.zip\" && zip -qr \"../${e%/}.zip\" \"$e\"; done",
+		"release": "npm run zip && npm run zip:extensions && node dev/release.js"
 	},
 	"devDependencies": {
 		"@dnd-kit/core": "^6.3.1",

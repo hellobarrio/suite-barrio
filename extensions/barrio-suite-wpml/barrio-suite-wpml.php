@@ -1,12 +1,13 @@
 <?php
 /**
  * Plugin Name:       Barrio Suite WPML
- * Description:       Languages of the Barrio Suite forms from WPML: translations tab, forms and emails in the visitor's language.
+ * Description:       Languages of the Barrio Suite forms from WPML: translations in the builder, forms and emails in the visitor's language.
  * Version:           0.1.0
  * Requires at least: 6.6
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
+ * Update URI:        https://github.com/hellobarrio/barrio-suite
  * Text Domain:       barrio-suite-wpml
  */
 

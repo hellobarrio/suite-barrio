@@ -36,6 +36,8 @@ final class Render {
 		// Gli asset si caricano solo nelle pagine che hanno un form.
 		wp_enqueue_style( 'barrio-forms' );
 		wp_enqueue_script_module( '@barrio/forms' );
+		// Per gli script delle estensioni (un captcha) nelle sole pagine con un form.
+		do_action( 'barrio_forms_render', $form );
 		return self::html( $form, I18n::current() );
 	}
 

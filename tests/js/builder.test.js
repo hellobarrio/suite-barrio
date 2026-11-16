@@ -182,3 +182,37 @@ test( 'translations keep only their own texts and are completed when saved', () 
 		undefined
 	);
 } );
+
+test( 'integrations translate their translatable settings like the other texts', () => {
+	const languages = [ 'it', 'en' ];
+	const form = {
+		i18n: { it: { submit_label: 'Invia' } },
+		notifications: [],
+		fields: [],
+		integrations: [
+			{
+				slug: 'mailchimp',
+				settings: { email_field: 'email' },
+				i18n: {
+					it: { list_id: 'lista-it', tags: 'Sito' },
+					en: { list_id: 'list-en', tags: 'Sito' },
+				},
+			},
+			// Senza impostazioni traducibili.
+			{ slug: 'crm', settings: {}, i18n: {} },
+		],
+	};
+
+	const loaded = trimTranslations( withTexts( form, 'it' ), languages );
+	assert.deepEqual( loaded.integrations[ 0 ].i18n.en, {
+		list_id: 'list-en',
+	} );
+	assert.deepEqual( loaded.integrations[ 1 ].i18n, { it: {} } );
+
+	const filled = fillTranslations( loaded, languages );
+	assert.deepEqual( filled.integrations[ 0 ].i18n.en, {
+		list_id: 'list-en',
+		tags: 'Sito',
+	} );
+	assert.deepEqual( filled.integrations[ 1 ].i18n, { it: {} } );
+} );

@@ -49,15 +49,18 @@ export const renameChoice = ( row, label ) => ( {
 	value: row.value === toValue( row.label ) ? toValue( label ) : row.value,
 } );
 
-// Ogni elemento con i testi per lingua: il form (testi dell'invio), le notifiche e i campi.
+// Ogni elemento con i testi per lingua: il form (testi dell'invio), le notifiche, i campi e le
+// integrazioni (le impostazioni traducibili).
 const eachItem = ( form, change ) => ( {
 	...change( form ),
 	notifications: form.notifications.map( change ),
 	fields: form.fields.map( change ),
+	integrations: ( form.integrations ?? [] ).map( change ),
 } );
 
 // Il builder modifica i testi della lingua principale. Se mancano (per esempio è cambiata la
-// lingua principale di WPML) parte dai primi che ci sono; le altre lingue restano come sono.
+// lingua principale di WPML) parte dai primi che ci sono, o da nessuno (un'integrazione senza
+// impostazioni traducibili); le altre lingue restano come sono.
 export const withTexts = ( form, lang ) =>
 	eachItem( form, ( item ) =>
 		item.i18n[ lang ]
@@ -66,7 +69,7 @@ export const withTexts = ( form, lang ) =>
 					...item,
 					i18n: {
 						...item.i18n,
-						[ lang ]: Object.values( item.i18n )[ 0 ],
+						[ lang ]: Object.values( item.i18n )[ 0 ] ?? {},
 					},
 				}
 	);

@@ -1,6 +1,7 @@
-// Scheda Impostazioni: SMTP, template delle email, email di test e privacy (con l'eliminazione di
-// tutte le registrazioni, subito e senza Salva). Legge e salva con
-// GET/PUT /barrio/v1/settings; la password SMTP non torna mai dal server, se ne conosce solo lo stato.
+// Scheda Impostazioni: SMTP, template delle email, email di test, privacy (con l'eliminazione di
+// tutte le registrazioni, subito e senza Salva) e le impostazioni globali delle integrazioni. Legge e
+// salva con GET/PUT /barrio/v1/settings; la password SMTP e i segreti delle integrazioni non tornano
+// mai dal server, se ne conosce solo lo stato.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
@@ -17,7 +18,22 @@ import {
 	Text,
 	useUnsavedWarning,
 } from '../admin/ui.js';
+import { SettingControl } from '../builder/Integrations.js';
 import { errorMessage } from '../builder/model.js';
+
+// Le integrazioni delle estensioni con impostazioni globali, una card ciascuna.
+const GLOBAL = Object.entries( window.barrioAdmin.integrations ).filter(
+	( [ , definition ] ) => Object.keys( definition.global_settings ).length
+);
+
+// Lo stato di un segreto delle integrazioni (una chiave API), come quello della password SMTP.
+const SECRET_HELP = {
+	saved: __( 'Saved: leave empty to keep it.', 'barrio-suite' ),
+	unreadable: __(
+		'The saved value can no longer be read, probably because the WordPress security keys have changed. Enter it again.',
+		'barrio-suite'
+	),
+};
 
 const PASSWORD_HELP = {
 	none: '',
@@ -37,6 +53,8 @@ export function Settings() {
 	const [ smtp, setSmtp ] = useState( null );
 	const [ email, setEmail ] = useState( null );
 	const [ privacy, setPrivacy ] = useState( null );
+	// Le impostazioni globali delle integrazioni, per slug. I segreti ci sono solo se appena scritti.
+	const [ integrations, setIntegrations ] = useState( null );
 	const [ password, setPassword ] = useState( '' );
 	const [ showPassword, setShowPassword ] = useState( false );
 	const [ testTo, setTestTo ] = useState( '' );
@@ -50,6 +68,7 @@ export function Settings() {
 				setSmtp( data.smtp );
 				setEmail( data.email );
 				setPrivacy( data.privacy );
+				setIntegrations( data.integrations );
 			} )
 			.catch( ( error ) =>
 				setNotice( { status: 'error', message: errorMessage( error ) } )
@@ -58,11 +77,12 @@ export function Settings() {
 
 	const dirty =
 		'' !== password ||
-		JSON.stringify( { smtp, email, privacy } ) !==
+		JSON.stringify( { smtp, email, privacy, integrations } ) !==
 			JSON.stringify( {
 				smtp: saved?.smtp,
 				email: saved?.email,
 				privacy: saved?.privacy,
+				integrations: saved?.integrations,
 			} );
 	useUnsavedWarning( dirty );
 
@@ -72,6 +92,14 @@ export function Settings() {
 
 	const setSmtpField = ( key ) => ( value ) =>
 		setSmtp( { ...smtp, [ key ]: value } );
+	// Un segreto vuoto non si invia: resta quello salvato, e la pagina torna senza modifiche.
+	const setGlobal = ( slug, name, secret ) => ( value ) => {
+		const values = { ...integrations[ slug ], [ name ]: value };
+		if ( secret && '' === value ) {
+			delete values[ name ];
+		}
+		setIntegrations( { ...integrations, [ slug ]: values } );
+	};
 	const setEmailField = ( key ) => ( value ) =>
 		setEmail( { ...email, [ key ]: value } );
 	const request = ( kind, options, then ) => {
@@ -157,13 +185,20 @@ export function Settings() {
 			{
 				path: '/barrio/v1/settings',
 				method: 'PUT',
-				data: { smtp, email, privacy, ...( password && { password } ) },
+				data: {
+					smtp,
+					email,
+					privacy,
+					integrations,
+					...( password && { password } ),
+				},
 			},
 			( response ) => {
 				setSaved( response );
 				setSmtp( response.smtp );
 				setEmail( response.email );
 				setPrivacy( response.privacy );
+				setIntegrations( response.integrations );
 				setPassword( '' );
 				return __( 'Settings saved.', 'barrio-suite' );
 			}
@@ -446,6 +481,54 @@ export function Settings() {
 					</button>
 				</Group>
 			</Card>
+
+			{ GLOBAL.map( ( [ slug, definition ] ) => (
+				<Card
+					key={ slug }
+					className="barrio-wide"
+					icon="admin-plugins"
+					title={ definition.label }
+					description={ definition.description }
+				>
+					{ Object.entries( definition.global_settings ).map(
+						( [ name, schema ] ) => {
+							if ( 'password' !== schema.format ) {
+								return (
+									<SettingControl
+										key={ name }
+										name={ name }
+										schema={ schema }
+										value={ integrations[ slug ]?.[ name ] }
+										onChange={ setGlobal( slug, name ) }
+									/>
+								);
+							}
+							const status = saved.secrets[ slug ]?.[ name ];
+							return (
+								<Text
+									key={ name }
+									label={ schema.title ?? name }
+									type="password"
+									autoComplete="new-password"
+									help={ [
+										schema.description,
+										SECRET_HELP[ status ],
+									]
+										.filter( Boolean )
+										.join( ' ' ) }
+									placeholder={
+										'saved' === status ? '••••••••' : ''
+									}
+									value={
+										integrations[ slug ]?.[ name ] ?? ''
+									}
+									onChange={ setGlobal( slug, name, true ) }
+								/>
+							);
+						}
+					) }
+				</Card>
+			) ) }
 		</div>
 	);
 }

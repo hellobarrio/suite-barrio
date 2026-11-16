@@ -101,12 +101,14 @@ function newField( type, keys ) {
 		: field;
 }
 
-// I campi che una regola può usare: per un campo quelli che lo precedono, per una notifica tutti.
+// I campi che una regola può usare: per un campo quelli che lo precedono, per una notifica o
+// un'integrazione tutti.
 export const ruleFields = ( fields ) =>
 	fields
 		.filter( ( f ) => 'page_break' !== f.type )
 		.map( ( f ) => ( {
 			key: f.key,
+			type: f.type,
 			label: plain( f ),
 			choices: f.config.choices ? choiceRows( f, main ) : null,
 		} ) );

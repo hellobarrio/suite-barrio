@@ -4,24 +4,26 @@ namespace BarrioSuite\Forms;
 
 /**
  * Menu "Barrio", che ospiterà anche i moduli futuri. Una sola app React (assets/src/admin, compilata
- * in build/) per due pagine: Form (elenco, builder e la scheda Impostazioni, che richiede
- * manage_options perché l'SMTP vale per tutte le email del sito) e Registrazioni, che basta agli editor.
+ * in build/) per due pagine: Form, con le schede Form (elenco e builder), Registrazioni, che basta
+ * agli editor, e Impostazioni, che richiede manage_options perché l'SMTP vale per tutte le email del
+ * sito; Estensioni, che non è dei form (src/Extensions.php).
+ * ponytail: menu e app stanno nel modulo Forms finché è l'unico; con un secondo modulo passano al core.
  */
 final class Admin {
 
 	private const PAGE = 'barrio-forms';
 
-	// Chi non gestisce i form (gli editor) ha solo le registrazioni, e il menu porta lì: con un padre
-	// che non può aprire, WordPress collegherebbe "Barrio" a una pagina che gli risponde 403.
+	// Una voce per modulo. Form basta che si possano leggere le registrazioni: chi non gestisce i form
+	// (gli editor) ci trova solo quelle (assets/src/admin/index.js).
 	public static function menu(): void {
-		$parent = current_user_can( 'barrio_manage_forms' ) ? self::PAGE : 'barrio-entries';
-		add_menu_page( 'Barrio', 'Barrio', 'barrio_manage_entries', $parent, [ self::class, 'page' ], 'dashicons-feedback', 30 );
+		add_menu_page( 'Barrio', 'Barrio', 'barrio_manage_entries', self::PAGE, [ self::class, 'page' ], 'dashicons-feedback', 30 );
 		$pages = [
-			self::PAGE       => [ __( 'Forms', 'barrio-suite' ), 'barrio_manage_forms' ],
-			'barrio-entries' => [ __( 'Entries', 'barrio-suite' ), 'barrio_manage_entries' ],
+			self::PAGE          => [ __( 'Forms', 'barrio-suite' ), 'barrio_manage_entries' ],
+			// Installare e aggiornare richiedono altre capability (src/Extensions.php).
+			'barrio-extensions' => [ __( 'Extensions', 'barrio-suite' ), 'activate_plugins' ],
 		];
 		foreach ( $pages as $slug => [ $title, $capability ] ) {
-			$hook = add_submenu_page( $parent, $title, $title, $capability, $slug, [ self::class, 'page' ] );
+			$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );
 			if ( $hook ) {
 				add_action( "load-{$hook}", [ self::class, 'enqueue' ] );
 			}
@@ -105,6 +107,7 @@ final class Admin {
 			'flags'            => (object) I18n::flags(),
 			'types'            => $types,
 			'presets'          => self::presets(),
+			'integrations'     => (object) Integrations::definitions(),
 			'canManageForms'   => current_user_can( 'barrio_manage_forms' ),
 			'canManageOptions' => current_user_can( 'manage_options' ),
 			// Per i download (file ed export CSV), che sono link e non passano da apiFetch.

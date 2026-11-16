@@ -22,7 +22,7 @@ export const pageUrl = ( params = {} ) =>
 	'?' + new URLSearchParams( { page: 'barrio-forms', ...params } );
 
 export const entriesUrl = ( params ) =>
-	pageUrl( { page: 'barrio-entries', ...params } );
+	pageUrl( { tab: 'entries', ...params } );
 
 // Un download (file, CSV) è un link e non passa da apiFetch: il nonce va nell'URL. Con i
 // permalink semplici l'URL della REST ha già un "?" (?rest_route=).
@@ -284,7 +284,11 @@ export const Card = ( {
 export function Shortcode( { id, onCopy } ) {
 	const code = `[barrio_form id="${ id }"]`;
 	if ( ! window.navigator.clipboard ) {
-		return <code className="barrio-chip">{ code }</code>;
+		return (
+			<code className="barrio-chip">
+				<span className="barrio-chip__text">{ code }</span>
+			</code>
+		);
 	}
 	return (
 		<button
@@ -299,7 +303,9 @@ export function Shortcode( { id, onCopy } ) {
 				window.navigator.clipboard.writeText( code ).then( onCopy )
 			}
 		>
-			<span className="barrio-button__text">{ code }</span>
+			<span className="barrio-button__text barrio-chip__text">
+				{ code }
+			</span>
 			<Icon name="admin-page" />
 		</button>
 	);

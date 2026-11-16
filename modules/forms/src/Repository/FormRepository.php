@@ -5,10 +5,12 @@ namespace BarrioSuite\Forms\Repository;
 use BarrioSuite\Database\Db;
 use BarrioSuite\Forms\Conditions;
 use BarrioSuite\Forms\FieldTypes;
+use BarrioSuite\Forms\Integrations;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Model\FormVersion;
+use BarrioSuite\Forms\Model\Integration;
 use BarrioSuite\Forms\Model\Notification;
 use InvalidArgumentException;
 use LogicException;
@@ -24,10 +26,11 @@ final class FormRepository {
 	/**
 	 * @param FormTexts          $i18n
 	 * @param list<Notification> $notifications
+	 * @param list<Integration>  $integrations
 	 */
-	public static function create( string $title, array $i18n, array $notifications, FormVersion $version ): Form {
+	public static function create( string $title, array $i18n, array $notifications, FormVersion $version, array $integrations = [] ): Form {
 		$id = Db::transaction(
-			static function () use ( $title, $i18n, $notifications, $version ): int {
+			static function () use ( $title, $i18n, $notifications, $version, $integrations ): int {
 				$now = gmdate( 'Y-m-d H:i:s' );
 				$id  = Db::insert(
 					Db::table( 'forms' ),
@@ -38,7 +41,7 @@ final class FormRepository {
 						'updated_at' => $now,
 					]
 				);
-				self::insert_settings( $id, $i18n, $notifications );
+				self::insert_settings( $id, $i18n, $notifications, $integrations );
 				self::insert_version( $id, 1, $version, $now );
 				return $id;
 			}
@@ -53,11 +56,12 @@ final class FormRepository {
 	 *
 	 * @param FormTexts          $i18n
 	 * @param list<Notification> $notifications
+	 * @param list<Integration>  $integrations
 	 */
-	public static function save( int $id, int $base_version, string $title, array $i18n, array $notifications, FormVersion $version ): Form|WP_Error {
+	public static function save( int $id, int $base_version, string $title, array $i18n, array $notifications, FormVersion $version, array $integrations = [] ): Form|WP_Error {
 		global $wpdb;
 		$error = Db::transaction(
-			static function () use ( $wpdb, $id, $base_version, $title, $i18n, $notifications, $version ): ?WP_Error {
+			static function () use ( $wpdb, $id, $base_version, $title, $i18n, $notifications, $version, $integrations ): ?WP_Error {
 				// La riga del form resta bloccata fino al commit: i salvataggi di uno stesso form
 				// avvengono uno alla volta. FOR UPDATE legge l'ultimo dato confermato anche
 				// dentro una transazione già aperta.
@@ -78,10 +82,11 @@ final class FormRepository {
 
 				$now = gmdate( 'Y-m-d H:i:s' );
 				Db::query( $wpdb->prepare( 'UPDATE %i SET title = %s, updated_at = %s WHERE id = %d', Db::table( 'forms' ), $title, $now, $id ) );
-				// Testi e notifiche non sono versionati: si sostituiscono. Le traduzioni seguono in CASCADE.
-				Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE form_id = %d', Db::table( 'form_i18n' ), $id ) );
-				Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE form_id = %d', Db::table( 'form_notifications' ), $id ) );
-				self::insert_settings( $id, $i18n, $notifications );
+				// Testi, notifiche e integrazioni non sono versionati: si sostituiscono. Le traduzioni seguono in CASCADE.
+				foreach ( [ 'form_i18n', 'form_notifications', 'form_integrations' ] as $table ) {
+					Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE form_id = %d', Db::table( $table ), $id ) );
+				}
+				self::insert_settings( $id, $i18n, $notifications, $integrations );
 				self::insert_version( $id, $current + 1, $version, $now );
 				// Elimina le versioni precedenti che nessuna registrazione usa. Per quelle usate il
 				// RESTRICT di entries fa fallire la cancellazione e IGNORE passa alla riga successiva.
@@ -223,6 +228,29 @@ final class FormRepository {
 			);
 		}
 
+		$integration_i18n = [];
+		$rows             = Db::rows(
+			$wpdb->prepare(
+				'SELECT i.* FROM %i i JOIN %i g ON g.id = i.integration_id WHERE g.form_id = %d',
+				Db::table( 'form_integrations_i18n' ),
+				Db::table( 'form_integrations' ),
+				$id
+			)
+		);
+		foreach ( $rows as $text ) {
+			$integration_i18n[ (int) $text['integration_id'] ][ (string) $text['lang'] ] = self::decode( $text['settings'] ) ?? [];
+		}
+		$integrations = [];
+		foreach ( Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE form_id = %d ORDER BY id', Db::table( 'form_integrations' ), $id ) ) as $integration ) {
+			$integrations[] = new Integration(
+				(string) $integration['slug'],
+				self::decode( $integration['settings'] ) ?? [],
+				$integration_i18n[ (int) $integration['id'] ] ?? [],
+				'1' === $integration['is_enabled'],
+				self::decode( $integration['conditions'] )
+			);
+		}
+
 		$form = new Form(
 			$id,
 			(string) $row['title'],
@@ -231,7 +259,8 @@ final class FormRepository {
 			$notifications,
 			self::version( (int) $row['version_id'] ) ?? throw new LogicException( esc_html( "Version {$row['version_id']} not found." ) ),
 			(string) $row['created_at'],
-			(string) $row['updated_at']
+			(string) $row['updated_at'],
+			$integrations
 		);
 		wp_cache_set( $id, $form, self::CACHE_GROUP );
 		return $form;
@@ -300,8 +329,9 @@ final class FormRepository {
 	/**
 	 * @param FormTexts          $i18n
 	 * @param list<Notification> $notifications
+	 * @param list<Integration>  $integrations
 	 */
-	private static function insert_settings( int $form_id, array $i18n, array $notifications ): void {
+	private static function insert_settings( int $form_id, array $i18n, array $notifications, array $integrations ): void {
 		foreach ( $i18n as $lang => $text ) {
 			Db::insert(
 				Db::table( 'form_i18n' ),
@@ -345,6 +375,40 @@ final class FormRepository {
 						'subject'         => $text['subject'],
 						'heading'         => $text['heading'] ?? null,
 						'body'            => $text['body'],
+					]
+				);
+			}
+		}
+		$slugs = [];
+		foreach ( $integrations as $integration ) {
+			// Lo vieterebbe anche la UNIQUE form_slug, ma con un errore del database.
+			if ( isset( $slugs[ $integration->slug ] ) ) {
+				throw new InvalidArgumentException( esc_html( "Integration '{$integration->slug}' is used twice." ) );
+			}
+			$slugs[ $integration->slug ] = true;
+			// Il JSON si valida con lo schema dell'estensione prima di ogni scrittura (docs/database.md).
+			$error = Integrations::check( $integration );
+			if ( null !== $error ) {
+				throw new InvalidArgumentException( esc_html( "Integration '{$integration->slug}': {$error}" ) );
+			}
+			$integration_id = Db::insert(
+				Db::table( 'form_integrations' ),
+				[
+					'form_id'    => $form_id,
+					'slug'       => $integration->slug,
+					'is_enabled' => (int) $integration->enabled,
+					'settings'   => self::encode( $integration->settings ),
+					'conditions' => self::encode( $integration->conditions ),
+				]
+			);
+			// Una lingua senza impostazioni traducibili non ha la riga: varrebbero comunque quelle della principale.
+			foreach ( array_filter( $integration->i18n ) as $lang => $settings ) {
+				Db::insert(
+					Db::table( 'form_integrations_i18n' ),
+					[
+						'integration_id' => $integration_id,
+						'lang'           => $lang,
+						'settings'       => self::encode( $settings ),
 					]
 				);
 			}

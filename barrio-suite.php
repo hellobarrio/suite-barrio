@@ -7,6 +7,7 @@
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
+ * Update URI:        https://github.com/hellobarrio/barrio-suite
  * Text Domain:       barrio-suite
  */
 

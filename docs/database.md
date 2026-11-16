@@ -1,7 +1,8 @@
 # Database del modulo Forms
 
-Lo schema è in [`modules/forms/migrations/0001_initial.php`](../modules/forms/migrations/0001_initial.php):
-quella è la fonte di verità, qui ci sono le ragioni e le regole per usarlo.
+Lo schema è in [`modules/forms/migrations/0001_initial.php`](../modules/forms/migrations/0001_initial.php), più le
+impostazioni per form delle integrazioni in [`0003_integrations.php`](../modules/forms/migrations/0003_integrations.php)
+(la `0002` assegna le capability): quella è la fonte di verità, qui ci sono le ragioni e le regole per usarlo.
 I test che dimostrano ogni vincolo sono in [`tests/Integration/SchemaTest.php`](../tests/Integration/SchemaTest.php)
 e girano in CI su MySQL 8.0 e MariaDB 10.5.
 
@@ -10,6 +11,8 @@ erDiagram
   FORMS ||--o{ FORM_I18N : "testi di invio"
   FORMS ||--o{ FORM_NOTIFICATIONS : "notifiche"
   FORM_NOTIFICATIONS ||--|{ FORM_NOTIFICATIONS_I18N : "testi"
+  FORMS ||--o{ FORM_INTEGRATIONS : "integrazioni"
+  FORM_INTEGRATIONS ||--o{ FORM_INTEGRATIONS_I18N : "impostazioni tradotte"
   FORMS ||--|{ FORM_VERSIONS : "versioni"
   FORM_VERSIONS ||--|{ FORM_FIELDS : "campi"
   FORM_FIELDS ||--|{ FORM_FIELDS_I18N : "testi"
@@ -24,12 +27,14 @@ erDiagram
 ## Regole
 
 - **InnoDB, charset di WordPress**, date `DATETIME` in UTC scritte da PHP (`gmdate()`), mai `DEFAULT CURRENT_TIMESTAMP`.
-- **Identificatori in `utf8mb4_bin`** (`status`, `field_key`, `type`, `lang`, `stored_path`, `source`, `level`): con la
+- **Identificatori in `utf8mb4_bin`** (`status`, `field_key`, `type`, `slug`, `lang`, `stored_path`, `source`, `level`): con la
   collation di WordPress, che ignora le maiuscole, `CHECK (status IN ('active', …))` accetterebbe `'Active'` e
   `REGEXP '^[a-z]…'` accetterebbe `'Email'`. Non `ascii_bin`: con due charset nella stessa tabella `wpdb` la tratta
   come ASCII e rifiuta qualsiasi query scritta a mano che contenga testo non ASCII.
 - **Una colonna per ciò che si interroga, JSON (con `CHECK JSON_TYPE = 'OBJECT'`) per la configurazione** letta e
-  scritta in blocco: `config` e `conditions` dei campi, `conditions` delle notifiche, `options` dei testi. In PHP il
+  scritta in blocco: `config` e `conditions` dei campi, `conditions` delle notifiche, `options` dei testi, `settings`
+  e `conditions` delle integrazioni. Quando il contenuto lo definisce un'estensione (il tipo di un campo, le
+  impostazioni di un'integrazione) si valida in PHP con lo schema che l'estensione registra. In PHP il
   JSON vuoto si scrive come `{}`: `json_encode([])` darebbe `[]`, che il CHECK rifiuta. L'ordine delle chiavi di un
   oggetto JSON non si conserva (MySQL le riordina): ciò che ha un ordine è una lista. Per questo le etichette delle
   scelte (`options`, `{valore: etichetta}`) seguono l'ordine dei valori in `config`.
@@ -45,7 +50,8 @@ erDiagram
   Nessuna FK verso le tabelle di WordPress: `user_id` e `created_by` si azzerano sull'hook `deleted_user`.
 - **Insiemi chiusi due volte**: CHECK nel database ed `enum` PHP (`FormStatus`, `NoteLevel`); un test verifica che coincidano.
 - **Nomi dei vincoli con il prefisso delle tabelle** (`wp_bf_status_chk`), perché in MySQL sono unici per database.
-  I più lunghi sono `{prefisso}bff_required_chk` e `{prefisso}bffi_options_chk`: il prefisso può avere al massimo 48 caratteri.
+  MySQL accetta nomi fino a 64 caratteri, e il più lungo è quello della tabella `{prefisso}barrio_form_notifications_i18n`:
+  il prefisso può avere al massimo 34 caratteri.
 - **Solo i Repository scrivono SQL**, sempre con `$wpdb->prepare()` (`%i` per i nomi), e passano da `Db`, che
   trasforma ogni errore del database in un'eccezione.
 - **Ogni scrittura su più tabelle è in `Db::transaction()`**. Dentro un'altra transazione, o con autocommit spento
@@ -59,15 +65,18 @@ Ogni registrazione punta alla versione compilata, quindi etichette, scelte e tes
 come erano, in tutte le lingue: vale come prova del consenso.
 
 Il resto è configurazione corrente e si sostituisce a ogni salvataggio: i testi di invio e di conferma
-(`form_i18n`), che il visitatore vede dopo l'invio, e le notifiche, il cui rinvio deve usare la configurazione
-corretta (un destinatario sistemato), non quella di allora.
+(`form_i18n`), che il visitatore vede dopo l'invio, le notifiche, il cui rinvio deve usare la configurazione
+corretta (un destinatario sistemato), non quella di allora, e le integrazioni (`form_integrations`): una per
+estensione e per form, con le impostazioni traducibili in `form_integrations_i18n`, una riga per lingua solo se
+ne ha. Lo `slug` è aperto come il tipo dei campi; le righe di un'estensione disattivata restano e tornano valide
+quando la si riattiva.
 
 `FormRepository::save()`:
 
 1. `SELECT … FOR UPDATE` sulla riga del form: i salvataggi dello stesso form avvengono uno alla volta.
 2. Se la versione corrente non è quella da cui è partito chi salva, risponde `409` senza scrivere nulla. Il numero
    di versione è il blocco ottimistico, quindi ogni salvataggio crea una versione, anche se cambiano solo testi o notifiche.
-3. Sostituisce testi del form e notifiche (le traduzioni delle notifiche seguono in CASCADE).
+3. Sostituisce testi del form, notifiche e integrazioni (le loro traduzioni seguono in CASCADE).
 4. Inserisce la versione `corrente + 1` con campi e testi.
 5. `DELETE IGNORE` delle versioni precedenti: quelle usate da registrazioni restano, perché il RESTRICT di
    `entries` fa fallire la loro cancellazione e `IGNORE` passa alla riga successiva. Così è il database a decidere
@@ -78,15 +87,15 @@ registrazioni) viene rifiutato dalla FK: nessun dato incoerente, l'utente ricari
 
 `field_key` identifica lo stesso campo tra le versioni (HTML, GraphQL, merge tag, export); l'`id` cambia a ogni versione.
 
-Form, testi, notifiche e versione corrente si leggono con 7 query e restano nella object cache (gruppo
-`barrio_forms`) fino al salvataggio successivo.
+Form, testi, notifiche, integrazioni e versione corrente si leggono con 9 query e restano nella object cache
+(gruppo `barrio_forms`) fino al salvataggio successivo.
 
 ## Catena delle cancellazioni
 
 | Cosa | Comportamento |
 |---|---|
 | Form con registrazioni | Bloccato (RESTRICT di `entries` sulla versione). `FormRepository::delete()` risponde `409`: prima si cancellano le registrazioni |
-| Form senza registrazioni | Testi, notifiche, versioni, campi e relative traduzioni seguono in CASCADE |
+| Form senza registrazioni | Testi, notifiche, integrazioni, versioni, campi e relative traduzioni seguono in CASCADE |
 | Registrazione con file | Bloccata con un DELETE diretto (`befi_entry_fk`). `EntryRepository::delete()` elimina i file dal disco, poi le righe dei file, poi la registrazione; valori e note seguono in CASCADE |
 | Versione usata da registrazioni | Bloccata (`be_version_fk`) |
 | Campo con valori o file | Bloccato (`bev_field_fk`, `befi_field_fk`) |
@@ -96,7 +105,10 @@ Vincoli affidati al codice, perché il database non sa esprimerli:
 - i valori e i file di una registrazione appartengono a campi della sua versione: lo controlla l'unico punto di
   scrittura, `EntryRepository::create()` (test in `EntryRepositoryTest`); nel database servirebbe una FK a tre
   colonne su ogni valore;
-- ogni campo e ogni notifica hanno almeno una riga di testi: `FormRepository` (test in `FormRepositoryTest`).
+- ogni campo e ogni notifica hanno almeno una riga di testi: `FormRepository` (test in `FormRepositoryTest`);
+- le impostazioni di un'integrazione rispettano lo schema della sua estensione, e ogni integrazione compare una
+  volta per form (anche la UNIQUE `form_slug` lo vieta, ma con un errore del database): `FormRepository` con
+  `Integrations::check()` (test in `IntegrationsTest`).
 
 ## Query e indici
 
@@ -108,6 +120,7 @@ generate da `npm run seed -- --entries=100000`. `EXPLAIN` su MariaDB 12.3:
 | Versione corrente | `forms` JOIN `form_versions … ORDER BY version DESC LIMIT 1` | `PRIMARY` + `form_version` (coprente) |
 | Testi del form | `form_i18n WHERE form_id = ?` | `PRIMARY` |
 | Notifiche e testi | `WHERE form_id = ? ORDER BY position`, JOIN `form_notifications_i18n` | `form_position`, `PRIMARY` |
+| Integrazioni e impostazioni tradotte | `WHERE form_id = ? ORDER BY id`, JOIN `form_integrations_i18n` | `form_slug` (poche righe per form), `PRIMARY` |
 | Campi e testi | `WHERE version_id = ? ORDER BY position`, JOIN `form_fields_i18n` | `version_position`, `PRIMARY` |
 | Elenco registrazioni | `WHERE form_id = ? ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?` | `form_created`, senza filesort |
 | Ricerca libera | `EXISTS (SELECT 1 FROM entry_values WHERE entry_id = e.id AND value LIKE '%…%')` | `PRIMARY` di `entry_values` per registrazione: ~100 ms a query su 20k registrazioni (il totale e la pagina sono due query) |
@@ -148,7 +161,8 @@ valori dentro il JSON esiste solo su MySQL (indici multi-valore), non su MariaDB
 
 - **Backup e ripristino**: `mysqldump` (e `wp db export`) salva FK e CHECK; nel ripristino i controlli FK sono
   disattivati, quindi l'ordine delle tabelle non conta. Provato ripristinando il dump con il prefisso cambiato
-  (`wp_` → `nx_`) nello stesso database: 12 FK e 18 CHECK per prefisso, senza conflitti di nomi e funzionanti.
+  (`wp_` → `nx_`) nello stesso database: 12 FK e 18 CHECK per prefisso, senza conflitti di nomi e funzionanti. Era
+  prima della migrazione `0003`, che aggiunge 2 FK e 6 CHECK con gli stessi nomi a prefisso (14 FK e 24 CHECK).
 - **Cambio di prefisso con `RENAME TABLE`** (lo fanno alcuni plugin): InnoDB aggiorna da solo i riferimenti delle FK,
   ma i nomi dei vincoli restano con il prefisso vecchio. Funziona; crea problemi solo se nello stesso database si
   installa un altro WordPress con il prefisso vecchio, perché i nomi dei vincoli andrebbero in conflitto.

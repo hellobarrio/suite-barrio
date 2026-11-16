@@ -501,7 +501,14 @@
 	color: var(--barrio-ink);
 	font-family: Menlo, Consolas, monospace;
 	font-size: 11px;
+	white-space: nowrap;
 	cursor: pointer;
+}
+
+/* Lo shortcode si accorcia con i puntini invece di andare a capo. */
+.barrio-chip__text {
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 /* Titolo di sezione a sinistra e le sue azioni ("Aggiungi…") a destra. */
@@ -554,6 +561,18 @@
 
 .barrio-bar__end {
 	margin-left: auto;
+}
+
+/*
+ * Nel builder lo shortcode si accorcia fino a 120px ("[barrio_for…") prima che
+ * fit() passi ai bottoni senza testo.
+ */
+.barrio-bar:not(.is-compact) .barrio-bar__end:has(> .barrio-chip) {
+	min-width: 0;
+}
+
+.barrio-bar:not(.is-compact) .barrio-chip {
+	min-width: 120px;
 }
 
 /*
@@ -643,8 +662,11 @@
 	display: none;
 }
 
-/* La lingua del builder: bandiera e codice (EN-US) restano scritti. */
-.barrio-bar.is-compact .barrio-bar__lang .barrio-button__text {
+/*
+ * La lingua del builder: resta la bandiera, o il codice (EN-US) se la lingua
+ * non ne ha una.
+ */
+.barrio-bar.is-compact .barrio-bar__lang:not(:has(.barrio-flag)) .barrio-button__text {
 	position: static;
 	width: auto;
 	height: auto;

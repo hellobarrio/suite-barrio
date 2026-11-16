@@ -26,6 +26,7 @@ import {
 } from '../admin/ui.js';
 import { Conditions } from './Conditions.js';
 import { FieldsTab, ruleFields } from './Fields.js';
+import { IntegrationsTab, formIntegrations } from './Integrations.js';
 import {
 	errorMessage,
 	fillTranslations,
@@ -51,6 +52,7 @@ const empty = () => ( {
 	},
 	notifications: [],
 	fields: [],
+	integrations: [],
 } );
 
 export function Builder( { id } ) {
@@ -264,7 +266,13 @@ export function Builder( { id } ) {
 						name: 'notifications',
 						title: __( 'Notifications', 'barrio-suite' ),
 					},
-				] }
+					// Solo con un'estensione che ne aggiunge, o con quelle già salvate nel form.
+					( formIntegrations.length > 0 ||
+						form.integrations.length > 0 ) && {
+						name: 'integrations',
+						title: __( 'Integrations', 'barrio-suite' ),
+					},
+				].filter( Boolean ) }
 			>
 				{ ( tab ) => (
 					<>
@@ -277,6 +285,13 @@ export function Builder( { id } ) {
 						) }
 						{ 'options' === tab.name && (
 							<OptionsTab
+								form={ form }
+								lang={ lang }
+								update={ update }
+							/>
+						) }
+						{ 'integrations' === tab.name && (
+							<IntegrationsTab
 								form={ form }
 								lang={ lang }
 								update={ update }

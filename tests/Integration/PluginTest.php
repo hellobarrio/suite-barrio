@@ -14,7 +14,7 @@ final class PluginTest extends WP_UnitTestCase {
 	}
 
 	public function test_forms_module_boots_once_its_schema_is_current(): void {
-		$this->assertSame( '2', get_option( 'barrio_forms_db_version' ) );
+		$this->assertSame( '3', get_option( 'barrio_forms_db_version' ) );
 		$this->assertSame( 10, has_action( 'deleted_user', [ Module::class, 'forget_user' ] ) );
 	}
 

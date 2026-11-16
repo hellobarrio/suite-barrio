@@ -14,8 +14,10 @@ tests_add_filter(
 			require WP_PLUGIN_DIR . '/wp-graphql/wp-graphql.php';
 		}
 		require dirname( __DIR__ ) . '/barrio-suite.php';
-		// Inerte finché un test non simula i filtri di WPML (WpmlTest).
+		// Inerti finché un test non simula i filtri di WPML (WpmlTest) o non le configura.
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-wpml/barrio-suite-wpml.php';
+		require dirname( __DIR__ ) . '/extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php';
+		require dirname( __DIR__ ) . '/extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php';
 	}
 );
 

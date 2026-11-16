@@ -12,7 +12,7 @@ use WP_UnitTestCase;
 // Nel SQL {tabella} diventa il nome completo, {nome} l'id creato in set_up, {p} il prefisso.
 final class SchemaTest extends WP_UnitTestCase {
 
-	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes' ];
+	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_integrations', 'form_integrations_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes' ];
 
 	/** @var array<string, int> */
 	private array $id = [];
@@ -22,6 +22,8 @@ final class SchemaTest extends WP_UnitTestCase {
 		$this->id['form']           = $this->insert( 'forms', [ 'title' => 'Contact' ] );
 		$this->id['other_form']     = $this->insert( 'forms', [ 'title' => 'Other' ] );
 		$this->id['notification']   = $this->settings( $this->id['form'] );
+		$this->id['integration']    = $this->integration( $this->id['form'] );
+		$this->id['other_integ']    = $this->integration( $this->id['other_form'] );
 		$this->id['other_notif']    = $this->settings( $this->id['other_form'] );
 		$this->id['version']        = $this->version( $this->id['form'], 1 );
 		$this->id['unused_version'] = $this->version( $this->id['form'], 2 );
@@ -74,6 +76,12 @@ final class SchemaTest extends WP_UnitTestCase {
 			'attach_files not 0 or 1'                => [ 'UPDATE {form_notifications} SET attach_files = 2 WHERE id = {notification}', '{p}bfn_attach_chk' ],
 			'notification conditions a list'         => [ "UPDATE {form_notifications} SET conditions = '[]' WHERE id = {notification}", '{p}bfn_cond_chk' ],
 			'notification text lang a locale'        => [ "UPDATE {form_notifications_i18n} SET lang = 'en_US' WHERE notification_id = {notification}", '{p}bfni_lang_chk' ],
+			'integration slug with uppercase'        => [ "UPDATE {form_integrations} SET slug = 'Mailchimp' WHERE id = {integration}", '{p}bfg_slug_chk' ],
+			'integration is_enabled not 0 or 1'      => [ 'UPDATE {form_integrations} SET is_enabled = 2 WHERE id = {integration}', '{p}bfg_enabled_chk' ],
+			'integration settings a list'            => [ "UPDATE {form_integrations} SET settings = '[]' WHERE id = {integration}", '{p}bfg_settings_chk' ],
+			'integration conditions a string'        => [ "UPDATE {form_integrations} SET conditions = '\"x\"' WHERE id = {integration}", '{p}bfg_cond_chk' ],
+			'integration text lang uppercase'        => [ "UPDATE {form_integrations_i18n} SET lang = 'EN' WHERE integration_id = {integration}", '{p}bfgi_lang_chk' ],
+			'integration texts a list'               => [ "UPDATE {form_integrations_i18n} SET settings = '[]' WHERE integration_id = {integration}", '{p}bfgi_json_chk' ],
 			'field key with uppercase'               => [ "UPDATE {form_fields} SET field_key = 'Email' WHERE id = {email}", '{p}bff_key_chk' ],
 			'field key starting with a digit'        => [ "UPDATE {form_fields} SET field_key = '2email' WHERE id = {email}", '{p}bff_key_chk' ],
 			'is_required not 0 or 1'                 => [ 'UPDATE {form_fields} SET is_required = 2 WHERE id = {email}', '{p}bff_required_chk' ],
@@ -93,6 +101,8 @@ final class SchemaTest extends WP_UnitTestCase {
 			'texts of a missing form'                => [ "INSERT INTO {form_i18n} (form_id, lang, submit_label) VALUES (999999, 'it', 'Invia')", '{p}bfi_form_fk' ],
 			'notification of a missing form'         => [ "INSERT INTO {form_notifications} (form_id, name, recipients, position) VALUES (999999, 'Admin', 'a@example.com', 0)", '{p}bfn_form_fk' ],
 			'texts of a missing notification'        => [ "INSERT INTO {form_notifications_i18n} (notification_id, lang, subject, body) VALUES (999999, 'it', 'S', 'B')", '{p}bfni_notif_fk' ],
+			'integration of a missing form'          => [ "INSERT INTO {form_integrations} (form_id, slug, settings) VALUES (999999, 'mailchimp', '{}')", '{p}bfg_form_fk' ],
+			'texts of a missing integration'         => [ "INSERT INTO {form_integrations_i18n} (integration_id, lang, settings) VALUES (999999, 'it', '{}')", '{p}bfgi_integ_fk' ],
 			'version of a missing form'              => [ "INSERT INTO {form_versions} (form_id, version, created_at) VALUES (999999, 1, '2026-01-01')", '{p}bfv_form_fk' ],
 			'field of a missing version'             => [ "INSERT INTO {form_fields} (version_id, field_key, type, position, config) VALUES (999999, 'x', 'text', 0, '{}')", '{p}bff_version_fk' ],
 			'texts of a missing field'               => [ "INSERT INTO {form_fields_i18n} (field_id, lang, label) VALUES (999999, 'en', 'X')", '{p}bffi_field_fk' ],
@@ -114,6 +124,8 @@ final class SchemaTest extends WP_UnitTestCase {
 			'two form texts, same lang'              => [ "INSERT INTO {form_i18n} (form_id, lang, submit_label) VALUES ({form}, 'it', 'Invia')", 'PRIMARY' ],
 			'two notifications in the same position' => [ "INSERT INTO {form_notifications} (form_id, name, recipients, position) VALUES ({form}, 'Copy', 'a@example.com', 0)", 'form_position' ],
 			'two notification texts, same lang'      => [ "INSERT INTO {form_notifications_i18n} (notification_id, lang, subject, body) VALUES ({notification}, 'it', 'S', 'B')", 'PRIMARY' ],
+			'the same integration twice in a form'   => [ "INSERT INTO {form_integrations} (form_id, slug, settings) VALUES ({form}, 'mailchimp', '{}')", 'form_slug' ],
+			'two integration texts, same lang'       => [ "INSERT INTO {form_integrations_i18n} (integration_id, lang, settings) VALUES ({integration}, 'it', '{}')", 'PRIMARY' ],
 			'two versions with the same number'      => [ "INSERT INTO {form_versions} (form_id, version, created_at) VALUES ({form}, 1, '2026-01-01')", 'form_version' ],
 			'two fields with the same key'           => [ "INSERT INTO {form_fields} (version_id, field_key, type, position, config) VALUES ({version}, 'email', 'text', 9, '{}')", 'version_key' ],
 			'two fields in the same position'        => [ "INSERT INTO {form_fields} (version_id, field_key, type, position, config) VALUES ({version}, 'other', 'text', 0, '{}')", 'version_position' ],
@@ -143,6 +155,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'success url with a query'   => [ "UPDATE {form_i18n} SET success_url = 'https://example.com/grazie?ok=1' WHERE form_id = {form}" ],
 			'standard success'           => [ 'UPDATE {form_i18n} SET success_message = NULL, success_url = NULL WHERE form_id = {form}' ],
 			'conditional notification'   => [ "UPDATE {form_notifications} SET conditions = '{\"all\": []}' WHERE id = {notification}" ],
+			'integration slug with dash' => [ "UPDATE {form_integrations} SET slug = 'mail-up_2' WHERE id = {integration}" ],
 			'field key with digits'      => [ "UPDATE {form_fields} SET field_key = 'email_2' WHERE id = {email}" ],
 			'always visible field'       => [ 'UPDATE {form_fields} SET conditions = NULL WHERE id = {email}' ],
 			'options as value: label'    => [ "UPDATE {form_fields_i18n} SET options = '{\"to\": \"Torino\"}' WHERE field_id = {email}" ],
@@ -179,6 +192,8 @@ final class SchemaTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $this->rows( 'form_i18n', 'form_id', $this->id['other_form'] ) );
 		$this->assertSame( 0, $this->rows( 'form_notifications', 'form_id', $this->id['other_form'] ) );
 		$this->assertSame( 0, $this->rows( 'form_notifications_i18n', 'notification_id', $this->id['other_notif'] ) );
+		$this->assertSame( 0, $this->rows( 'form_integrations', 'form_id', $this->id['other_form'] ) );
+		$this->assertSame( 0, $this->rows( 'form_integrations_i18n', 'integration_id', $this->id['other_integ'] ) );
 	}
 
 	/** @return array<string, array{string, list<string>}> */
@@ -271,6 +286,27 @@ final class SchemaTest extends WP_UnitTestCase {
 				'lang'            => 'it',
 				'subject'         => 'Nuova richiesta',
 				'body'            => '{{all_fields}}',
+			]
+		);
+		return $id;
+	}
+
+	// Un'integrazione con le impostazioni in italiano; restituisce il suo id.
+	private function integration( int $form_id ): int {
+		$id = $this->insert(
+			'form_integrations',
+			[
+				'form_id'  => $form_id,
+				'slug'     => 'mailchimp',
+				'settings' => '{}',
+			]
+		);
+		$this->insert(
+			'form_integrations_i18n',
+			[
+				'integration_id' => $id,
+				'lang'           => 'it',
+				'settings'       => '{"list_id": "abc"}',
 			]
 		);
 		return $id;

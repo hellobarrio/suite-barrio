@@ -2,5 +2,5 @@
 /vendor/
 /build/
 /.phpunit.result.cache
-/barrio-suite.zip
-/barrio-suite-wpml.zip
+/barrio-suite*.zip
+/catalog.json

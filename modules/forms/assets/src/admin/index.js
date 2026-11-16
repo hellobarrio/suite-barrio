@@ -1,6 +1,7 @@
 // Pagine Barrio: intestazione e schede Form, Registrazioni e Impostazioni. Sotto Form l'elenco, o
-// il builder con ?form=ID (o ?form=new); le registrazioni sono una pagina a sé (page=barrio-entries),
-// con il dettaglio in ?entry=ID. Ogni vista è un URL: link normali, niente router.
+// il builder con ?form=ID (o ?form=new); sotto Registrazioni (tab=entries) quelle di un form, con il
+// dettaglio in ?entry=ID. Estensioni (page=barrio-extensions) non è dei form: niente schede.
+// Ogni vista è un URL: link normali, niente router.
 import apiFetch from '@wordpress/api-fetch';
 import { createRoot, useEffect, useState } from '@wordpress/element';
 import { __, _n, _x, sprintf } from '@wordpress/i18n';
@@ -9,6 +10,7 @@ import { Builder } from '../builder/Builder.js';
 import { errorMessage } from '../builder/model.js';
 import { Entries } from '../entries/Entries.js';
 import { Entry } from '../entries/Entry.js';
+import { Extensions } from '../extensions/Extensions.js';
 import { Settings } from '../settings/Settings.js';
 import './admin.css';
 import { initialQuery, localQuery } from './query.js';
@@ -547,9 +549,10 @@ const id = ( name ) =>
 	/^[1-9]\d*$/.test( params.get( name ) ?? '' )
 		? Number( params.get( name ) )
 		: null;
-const entries = 'barrio-entries' === params.get( 'page' );
-const settings =
-	! entries && canManageOptions && 'settings' === params.get( 'tab' );
+const tab = params.get( 'tab' );
+const settings = canManageOptions && 'settings' === tab;
+// Chi non gestisce i form (gli editor) ha solo le registrazioni, senza schede.
+const entries = ! settings && ( 'entries' === tab || ! canManageForms );
 
 let content = <FormList />;
 if ( entries ) {
@@ -563,6 +566,30 @@ if ( entries ) {
 } else if ( 'new' === params.get( 'form' ) || id( 'form' ) ) {
 	content = <Builder id={ id( 'form' ) } />;
 }
+
+// Le schede dei form; Estensioni è una pagina a sé, per tutta la suite.
+const forms = canManageForms && (
+	<nav className="barrio-nav" aria-label={ __( 'Sections', 'barrio-suite' ) }>
+		<a
+			href={ pageUrl() }
+			aria-current={ entries || settings ? undefined : 'page' }
+		>
+			{ __( 'Forms', 'barrio-suite' ) }
+		</a>
+		<a href={ entriesUrl() } aria-current={ entries ? 'page' : undefined }>
+			{ __( 'Entries', 'barrio-suite' ) }
+		</a>
+		{ canManageOptions && (
+			<a
+				href={ pageUrl( { tab: 'settings' } ) }
+				aria-current={ settings ? 'page' : undefined }
+			>
+				{ __( 'Settings', 'barrio-suite' ) }
+			</a>
+		) }
+	</nav>
+);
+const extensions = 'barrio-extensions' === params.get( 'page' );
 
 createRoot( document.getElementById( 'barrio-forms-admin' ) ).render(
 	<div className="barrio-admin">
@@ -585,43 +612,27 @@ createRoot( document.getElementById( 'barrio-forms-admin' ) ).render(
 			<div>
 				<h1>
 					Barrio Suite{ ' ' }
-					<span>/ { __( 'Forms', 'barrio-suite' ) }</span>
+					<span>
+						/{ ' ' }
+						{ extensions
+							? __( 'Extensions', 'barrio-suite' )
+							: __( 'Forms', 'barrio-suite' ) }
+					</span>
 				</h1>
 				<p>
-					{ __(
-						'Contact forms, their notifications and the email of the site.',
-						'barrio-suite'
-					) }
+					{ extensions
+						? __(
+								'Plugins that connect Barrio Suite to other services.',
+								'barrio-suite'
+							)
+						: __(
+								'Contact forms, their notifications and the email of the site.',
+								'barrio-suite'
+							) }
 				</p>
 			</div>
 		</header>
-		<nav
-			className="barrio-nav"
-			aria-label={ __( 'Sections', 'barrio-suite' ) }
-		>
-			{ canManageForms && (
-				<a
-					href={ pageUrl() }
-					aria-current={ entries || settings ? undefined : 'page' }
-				>
-					{ __( 'Forms', 'barrio-suite' ) }
-				</a>
-			) }
-			<a
-				href={ entriesUrl() }
-				aria-current={ entries ? 'page' : undefined }
-			>
-				{ __( 'Entries', 'barrio-suite' ) }
-			</a>
-			{ canManageOptions && (
-				<a
-					href={ pageUrl( { tab: 'settings' } ) }
-					aria-current={ settings ? 'page' : undefined }
-				>
-					{ __( 'Settings', 'barrio-suite' ) }
-				</a>
-			) }
-		</nav>
-		{ content }
+		{ extensions ? <Extensions /> : forms }
+		{ ! extensions && content }
 	</div>
 );

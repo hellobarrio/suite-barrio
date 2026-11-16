@@ -30,6 +30,8 @@ final class Plugin {
 	public static function boot(): void {
 		// Per tutte le email del sito, anche con un modulo spento.
 		Smtp::boot();
+		// REST e aggiornamenti delle estensioni anche con lo schema non aggiornato; la pagina è del modulo Forms.
+		Extensions::boot();
 		foreach ( self::MODULES as $module => $module_class ) {
 			$migrator = new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" );
 			$error    = $migrator->run();

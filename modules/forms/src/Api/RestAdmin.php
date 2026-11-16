@@ -3,6 +3,7 @@
 namespace BarrioSuite\Forms\Api;
 
 use BarrioSuite\Forms\I18n;
+use BarrioSuite\Forms\Integrations;
 use BarrioSuite\Forms\Notifications;
 use BarrioSuite\Forms\Privacy;
 use BarrioSuite\Mail\Smtp;
@@ -13,7 +14,8 @@ use WP_REST_Server;
 
 /**
  * Rotte dell'admin. Le impostazioni valgono per tutto il sito (l'SMTP anche per le email di
- * WordPress e degli altri plugin), quindi richiedono manage_options.
+ * WordPress e degli altri plugin), quindi richiedono manage_options. Comprendono quelle globali
+ * delle integrazioni, con i segreti in sola scrittura come la password SMTP.
  */
 final class RestAdmin {
 
@@ -33,11 +35,12 @@ final class RestAdmin {
 					'callback'            => [ self::class, 'save_settings' ],
 					'permission_callback' => $admin,
 					'args'                => [
-						'smtp'     => Smtp::schema(),
-						'email'    => Notifications::schema(),
-						'privacy'  => Privacy::schema(),
+						'smtp'         => Smtp::schema(),
+						'email'        => Notifications::schema(),
+						'privacy'      => Privacy::schema(),
+						'integrations' => Integrations::schema(),
 						// In sola scrittura: non torna mai indietro. Assente o vuota = resta quella salvata.
-						'password' => [
+						'password'     => [
 							'type'      => 'string',
 							'maxLength' => 255,
 						],
@@ -70,7 +73,7 @@ final class RestAdmin {
 				'password_status' => Smtp::password_status(),
 				'email'           => Notifications::settings(),
 				'privacy'         => Privacy::settings(),
-			]
+			] + Integrations::view()
 		);
 	}
 
@@ -86,6 +89,9 @@ final class RestAdmin {
 		}
 		if ( is_array( $request['privacy'] ) ) {
 			Privacy::save_settings( $request['privacy'] );
+		}
+		if ( is_array( $request['integrations'] ) ) {
+			Integrations::save_settings( $request['integrations'] );
 		}
 		return self::settings();
 	}

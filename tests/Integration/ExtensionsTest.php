@@ -1,0 +1,189 @@
+<?php
+
+namespace BarrioSuite\Tests\Integration;
+
+use BarrioSuite\Extensions;
+use ReflectionProperty;
+use WP_Error;
+use WP_REST_Request;
+use WP_REST_Response;
+use WP_UnitTestCase;
+use ZipArchive;
+
+// Catalogo delle release GitHub, aggiornamenti in Bacheca e pagina Estensioni. GitHub è simulato su
+// pre_http_request; l'installazione passa davvero dall'installatore di WordPress, con uno zip finto
+// (barrio-suite-demo) al posto del download.
+final class ExtensionsTest extends WP_UnitTestCase {
+
+	private const DEMO = 'barrio-suite-demo/barrio-suite-demo.php';
+
+	/** @var array<string, array<string, string>>|WP_Error Il catalogo che GitHub restituisce. */
+	private array|WP_Error $catalog = [];
+
+	/** @var list<string> */
+	private array $requests = [];
+
+	/** @var string La versione dello zip finto. */
+	private string $zip_version = '0.1.0';
+
+	public function set_up(): void {
+		parent::set_up();
+		// Il catalogo resta in memoria per tutta la richiesta: ogni test parte senza.
+		( new ReflectionProperty( Extensions::class, 'catalog' ) )->setValue( null, null );
+		delete_site_transient( 'barrio_extensions_catalog' );
+		$this->catalog = [
+			'barrio-suite'           => self::item( 'Barrio Suite', '0.1.0' ),
+			'barrio-suite-mailchimp' => self::item( 'Barrio Suite Mailchimp', '0.2.0' ),
+			'barrio-suite-demo'      => self::item( 'Barrio Suite Demo', '0.1.0' ),
+		];
+		add_filter(
+			'pre_http_request',
+			function ( mixed $pre, array $args, string $url ): array|WP_Error {
+				// Dopo un'installazione WordPress chiede gli aggiornamenti a wordpress.org: niente rete nei test.
+				if ( ! str_starts_with( $url, Extensions::REPO ) ) {
+					return new WP_Error( 'http_request_blocked', 'No network in the tests.' );
+				}
+				$this->requests[] = $url;
+				return $this->catalog instanceof WP_Error ? $this->catalog : [
+					'headers'  => [],
+					'body'     => (string) wp_json_encode( [ 'plugins' => $this->catalog ] ),
+					'response' => [ 'code' => 200 ],
+					'cookies'  => [],
+				];
+			},
+			10,
+			3
+		);
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		// I test scrivono nella cartella dei plugin dell'installazione di prova.
+		add_filter( 'filesystem_method', static fn(): string => 'direct' );
+		add_filter( 'upgrader_pre_download', fn(): string => $this->zip() );
+	}
+
+	public function tear_down(): void {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
+		$GLOBALS['wp_filesystem']->delete( WP_PLUGIN_DIR . '/barrio-suite-demo', true );
+		wp_clean_plugins_cache();
+		parent::tear_down();
+	}
+
+	public function test_every_plugin_points_to_the_repository_for_updates(): void {
+		$root = dirname( __DIR__, 2 );
+		foreach ( [ "{$root}/barrio-suite.php", ...glob( "{$root}/extensions/*/barrio-suite-*.php" ) ] as $file ) {
+			$this->assertSame( Extensions::REPO, get_file_data( $file, [ 'uri' => 'Update URI' ] )['uri'], $file );
+		}
+	}
+
+	public function test_wordpress_finds_updates_of_our_plugins_in_the_catalog(): void {
+		// Lo zip è sempre quello della release: un catalogo alterato non fa scaricare altro.
+		$this->catalog['barrio-suite-mailchimp']['package'] = 'https://evil.example.com/x.zip';
+		$update = static fn( string $uri, string $file ): mixed => apply_filters(
+			'update_plugins_github.com', // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound, WordPress.NamingConventions.ValidHookName.UseUnderscores -- filtro di WordPress.
+			false,
+			[
+				'UpdateURI' => $uri,
+				'Version'   => '0.1.0',
+			],
+			$file,
+			[]
+		);
+
+		$this->assertFalse( $update( 'https://github.com/someone/else', 'else/else.php' ) );
+		$this->assertSame( [], $this->requests, 'Another plugin on GitHub does not load the catalog.' );
+
+		$this->assertSame(
+			[
+				'slug'         => 'barrio-suite-mailchimp',
+				'version'      => '0.2.0',
+				'package'      => Extensions::REPO . '/releases/latest/download/barrio-suite-mailchimp.zip',
+				'url'          => Extensions::REPO,
+				'requires'     => '6.6',
+				'requires_php' => '8.2',
+			],
+			$update( Extensions::REPO, 'barrio-suite-mailchimp/barrio-suite-mailchimp.php' )
+		);
+		$this->assertSame( '0.1.0', $update( Extensions::REPO, 'barrio-suite/barrio-suite.php' )['version'] );
+		$this->assertFalse( $update( Extensions::REPO, 'barrio-suite-other/barrio-suite-other.php' ), 'Not in the catalog.' );
+		// Un solo download per richiesta, e poi la copia dell'ultima ora.
+		$this->assertSame( [ Extensions::REPO . '/releases/latest/download/catalog.json' ], $this->requests );
+		$this->assertArrayHasKey( 'barrio-suite-mailchimp', get_site_transient( 'barrio_extensions_catalog' ) );
+	}
+
+	public function test_the_page_installs_updates_and_switches_an_extension(): void {
+		$this->assertSame(
+			[
+				[ 'barrio-suite-demo', 'Barrio Suite Demo', '0.1.0', null, false ],
+				[ 'barrio-suite-mailchimp', 'Barrio Suite Mailchimp', '0.2.0', null, false ],
+			],
+			$this->extensions( $this->request( 'GET' ) )
+		);
+
+		$this->assertSame( [ 'barrio-suite-demo', 'Barrio Suite Demo', '0.1.0', '0.1.0', true ], $this->extensions( $this->request( 'POST', 'install' ) )[0] );
+		$this->assertTrue( is_plugin_active( self::DEMO ) );
+		$this->assertSame( 409, $this->request( 'POST', 'install' )->get_status(), 'Already installed.' );
+
+		$this->catalog['barrio-suite-demo'] = self::item( 'Barrio Suite Demo', '0.2.0' );
+		$this->zip_version                  = '0.2.0';
+		$this->request( 'GET', refresh: true );
+		$this->assertSame( [ 'barrio-suite-demo', 'Barrio Suite Demo', '0.2.0', '0.2.0', true ], $this->extensions( $this->request( 'POST', 'update' ) )[0] );
+
+		$this->assertFalse( $this->extensions( $this->request( 'POST', 'deactivate' ) )[0][4] );
+		$this->assertFalse( is_plugin_active( self::DEMO ) );
+		$this->assertTrue( $this->extensions( $this->request( 'POST', 'activate' ) )[0][4] );
+	}
+
+	public function test_without_the_catalog_the_installed_extensions_are_still_listed(): void {
+		$this->request( 'POST', 'install' );
+		( new ReflectionProperty( Extensions::class, 'catalog' ) )->setValue( null, null );
+		$this->catalog = new WP_Error( 'http_request_failed', 'cURL error 6' );
+
+		$response = $this->request( 'GET', refresh: true );
+
+		$this->assertStringContainsString( 'cURL error 6', $response->get_data()['error'] );
+		$this->assertSame( [ [ 'barrio-suite-demo', 'Barrio Suite Demo', null, '0.1.0', true ] ], $this->extensions( $response ) );
+		$this->assertSame( 502, $this->request( 'POST', 'update' )->get_status() );
+	}
+
+	public function test_only_who_manages_plugins_can_use_the_page(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$this->assertSame( 403, $this->request( 'GET' )->get_status() );
+		$this->assertSame( 403, $this->request( 'POST', 'install' )->get_status() );
+		$this->assertDirectoryDoesNotExist( WP_PLUGIN_DIR . '/barrio-suite-demo' );
+	}
+
+	/** @return array<string, string> */
+	private static function item( string $name, string $version ): array {
+		return [
+			'name'         => $name,
+			'description'  => "{$name} for the tests.",
+			'version'      => $version,
+			'requires'     => '6.6',
+			'requires_php' => '8.2',
+		];
+	}
+
+	// Uno zip nuovo a ogni download: WordPress lo elimina dopo l'installazione.
+	private function zip(): string {
+		$zip  = new ZipArchive();
+		$path = wp_tempnam( 'barrio-suite-demo.zip' );
+		$zip->open( $path, ZipArchive::OVERWRITE );
+		$zip->addFromString( self::DEMO, "<?php\n/**\n * Plugin Name: Barrio Suite Demo\n * Version: {$this->zip_version}\n * Update URI: " . Extensions::REPO . "\n */\n" );
+		$zip->close();
+		return $path;
+	}
+
+	private function request( string $method, ?string $action = null, bool $refresh = false ): WP_REST_Response {
+		$request = new WP_REST_Request( $method, '/barrio/v1/extensions' . ( $action ? '/barrio-suite-demo' : '' ) );
+		$request->set_param( 'action', $action );
+		$request->set_param( 'refresh', $refresh );
+		return rest_do_request( $request );
+	}
+
+	/** @return list<array{string, string, ?string, ?string, bool}> slug, nome, versione pubblicata, installata, attiva. */
+	private function extensions( WP_REST_Response $response ): array {
+		$this->assertSame( 200, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
+		return array_map( static fn( array $x ): array => [ $x['slug'], $x['name'], $x['version'], $x['installed'], $x['active'] ], $response->get_data()['extensions'] );
+	}
+}

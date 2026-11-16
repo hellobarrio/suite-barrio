@@ -6,14 +6,18 @@ use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Submission\FileStore;
 
 /**
- * Tipi di campo core, con i nomi del prototipo più consent e hidden. Per ogni tipo: lo schema
- * della config (validato prima di ogni scrittura; il builder ne ricava il pannello),
- * come normalizzare e validare il valore inviato e come mostrarlo.
- * ponytail: i tipi sono dei match; il registro per le estensioni arriva con la loro API (fase 8).
+ * Tipi di campo core, con i nomi del prototipo più consent e hidden, e quelli delle estensioni
+ * (register(), docs/hooks.md). Per ogni tipo: lo schema della config (validato prima di ogni
+ * scrittura; il builder ne ricava il pannello), come normalizzare e validare il valore inviato e
+ * come mostrarlo.
  *
  * @phpstan-type FieldText array{label?: string, placeholder?: string|null, error_message?: string|null, options?: array<string, string>|null}
+ * @phpstan-type Definition array{label: string, schema?: array<string, mixed>, render?: callable(Field, FieldText, string): string, normalize?: callable(Field, mixed): list<string>, validate?: callable(Field, string): ?string}
  */
 final class FieldTypes {
+
+	/** @var array<string, Definition> */
+	private static array $registered = [];
 
 	// Tag ammessi nelle etichette: servono al link alla privacy policy nel consenso.
 	private const LABEL_HTML = [
@@ -35,9 +39,24 @@ final class FieldTypes {
 		'datepicker' => 'date',
 	];
 
+	/**
+	 * Un tipo di un'estensione. Senza render è un campo di testo; senza normalize il valore è una
+	 * riga di testo; validate riceve ogni valore non vuoto. I tipi core non si sostituiscono.
+	 *
+	 * @param Definition $definition
+	 */
+	public static function register( string $slug, array $definition ): void {
+		// La colonna form_fields.type è lunga 32 caratteri.
+		if ( ! preg_match( '/^[a-z][a-z0-9_]{0,31}$/', $slug ) || ( isset( self::labels()[ $slug ] ) && ! isset( self::$registered[ $slug ] ) ) ) {
+			_doing_it_wrong( __METHOD__, esc_html( "Field type \"{$slug}\": the slug must match ^[a-z][a-z0-9_]*$ and not be a core type." ), '0.1.0' );
+			return;
+		}
+		self::$registered[ $slug ] = $definition;
+	}
+
 	/** @return array<string, string> Il nome di ogni tipo, nell'ordine del builder. */
 	public static function labels(): array {
-		return [
+		$core = [
 			'text'       => __( 'Text', 'barrio-suite' ),
 			'email'      => __( 'Email', 'barrio-suite' ),
 			'tel'        => __( 'Phone', 'barrio-suite' ),
@@ -50,8 +69,9 @@ final class FieldTypes {
 			'file'       => __( 'File upload', 'barrio-suite' ),
 			'consent'    => __( 'Consent', 'barrio-suite' ),
 			'hidden'     => __( 'Hidden', 'barrio-suite' ),
-			'page_break' => __( 'Page break', 'barrio-suite' ),
 		];
+		// Quelli delle estensioni prima dell'interruzione di pagina, che chiude l'elenco.
+		return $core + array_map( static fn( array $definition ): string => $definition['label'], self::$registered ) + [ 'page_break' => __( 'Page break', 'barrio-suite' ) ];
 	}
 
 	/**
@@ -137,7 +157,7 @@ final class FieldTypes {
 				]
 			),
 			'email', 'textarea', 'datepicker', 'consent', 'page_break' => $object(),
-			default                       => null,
+			default                       => isset( self::$registered[ $type ] ) ? self::$registered[ $type ]['schema'] ?? $object() : null,
 		};
 	}
 
@@ -173,7 +193,7 @@ final class FieldTypes {
 			'hidden'     => [ isset( $field->config['param'] ) ? self::line( $raw ) : (string) ( $field->config['value'] ?? '' ) ],
 			'file'       => [ is_array( $raw ) && UPLOAD_ERR_NO_FILE !== ( $raw['error'] ?? UPLOAD_ERR_NO_FILE ) ? self::line( $raw['name'] ?? '' ) : '' ],
 			'page_break' => [],
-			default      => [ self::line( $raw ) ],
+			default      => isset( self::$registered[ $field->type ]['normalize'] ) ? ( self::$registered[ $field->type ]['normalize'] )( $field, $raw ) : [ self::line( $raw ) ],
 		};
 		return array_values( array_unique( array_filter( $values, static fn( string $v ): bool => '' !== $v ) ) );
 	}
@@ -203,6 +223,9 @@ final class FieldTypes {
 	 * @param FieldText $text
 	 */
 	public static function render( Field $field, array $text, string $id ): string {
+		if ( isset( self::$registered[ $field->type ]['render'] ) ) {
+			return ( self::$registered[ $field->type ]['render'] )( $field, $text, $id );
+		}
 		$label = self::label_html( $text['label'] ?? '' ) . ( $field->required ? ' <span class="barrio-form__required" aria-hidden="true">*</span>' : '' );
 		$attrs = [
 			'id'               => $id,
@@ -346,6 +369,9 @@ final class FieldTypes {
 		if ( mb_strlen( $value ) > $max ) {
 			/* translators: %d: numero massimo di caratteri. */
 			return sprintf( __( 'Please use at most %d characters.', 'barrio-suite' ), $max );
+		}
+		if ( isset( self::$registered[ $field->type ]['validate'] ) ) {
+			return ( self::$registered[ $field->type ]['validate'] )( $field, $value );
 		}
 		switch ( $field->type ) {
 			case 'email':
