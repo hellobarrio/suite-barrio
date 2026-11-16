@@ -15,14 +15,16 @@ le risposte dei servizi si simulano con `pre_http_request`.
 ## Pubblicazione e installazione
 
 Ogni estensione è un plugin a sé, in `extensions/<slug>/<slug>.php`, con l'header
-`Update URI: https://github.com/hellobarrio/barrio-suite`, lo stesso di Barrio Suite (`Extensions::REPO`;
+`Update URI: https://github.com/hellobarrio/suite-barrio`, lo stesso di Barrio Suite (`Extensions::REPO`;
 `ExtensionsTest` controlla che coincidano). Una cartella nuova con quell'header entra da sola nella
 release successiva.
 
 1. `npm run release` prepara gli zip di Barrio Suite e delle estensioni e `catalog.json`, con nome,
-   descrizione, versione e requisiti presi dagli header dei plugin.
-2. Si caricano come asset di una nuova release del repository GitHub. Ogni sito legge il catalogo
-   dell'ultima release (`…/releases/latest/download/catalog.json`, tenuto in cache un'ora).
+   descrizione, versione e requisiti presi dagli header dei plugin. WordPress propone un aggiornamento
+   solo se la versione sale: prima si alza `Version` nei plugin cambiati.
+2. Si caricano come asset di una nuova release del repository GitHub, con il tag (`v0.1.0`…) sul
+   branch `stable`. Ogni sito legge il catalogo dell'ultima release
+   (`…/releases/latest/download/catalog.json`, tenuto in cache un'ora).
 3. Nei siti, Barrio → Extensions elenca le estensioni con Installa, Attiva, Disattiva e
    Aggiorna, usando l'installatore di WordPress; servono le capability `install_plugins`,
    `update_plugins` e `activate_plugins` (con `DISALLOW_FILE_MODS` restano solo attiva e disattiva).

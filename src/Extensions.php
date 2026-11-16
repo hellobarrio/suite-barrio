@@ -23,7 +23,7 @@ use WP_REST_Response;
 final class Extensions {
 
 	// Anche nell'header Update URI di ogni plugin: ExtensionsTest controlla che coincidano.
-	public const REPO      = 'https://github.com/hellobarrio/barrio-suite';
+	public const REPO      = 'https://github.com/hellobarrio/suite-barrio';
 	private const DOWNLOAD = self::REPO . '/releases/latest/download/';
 	private const CATALOG  = self::DOWNLOAD . 'catalog.json';
 	private const CACHE    = 'barrio_extensions_catalog';
