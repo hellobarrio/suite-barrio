@@ -7,3 +7,4 @@ parameters:
 		- extensions
 	scanFiles:
 		- tests/wpgraphql.stub
+		- tests/wp-cli.stub

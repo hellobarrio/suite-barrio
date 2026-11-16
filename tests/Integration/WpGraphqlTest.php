@@ -256,6 +256,42 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertStringEqualsFile( FileStore::dir() . '/' . $entry->files[0]['stored_path'], 'Hello' );
 	}
 
+	// I frontend del prototipo non hanno il consenso: lo ricevono come la loro checkbox della privacy.
+	public function test_a_consent_is_a_checkbox_with_one_choice_for_the_prototype_frontends(): void {
+		$label      = 'I accept the <a href="/privacy/">privacy policy</a>';
+		$this->form = FormRepository::create(
+			'Newsletter',
+			[ 'en' => [ 'submit_label' => 'Send' ] ],
+			[],
+			new FormVersion( [ new Field( 'privacy', 'consent', [ 'en' => [ 'label' => $label ] ], true ) ] )
+		);
+
+		$field = graphql(
+			[
+				'query'     => self::GET_FORM,
+				'variables' => [ 'id' => $this->form->id ],
+			]
+		)['data']['hbForm']['steps'][0]['fields'][0];
+		$this->assertSame(
+			[
+				'checkbox',
+				'',
+				[
+					[
+						'value' => '1',
+						'label' => $label,
+					],
+				],
+			],
+			[ $field['type'], $field['label'], $field['options'] ]
+		);
+
+		$this->assertFalse( $this->submit( [ 'privacy' => "{$label}: false" ] )['success'] );
+		$payload = $this->submit( [ 'privacy' => "{$label}: true" ] );
+		$this->assertTrue( $payload['success'] );
+		$this->assertSame( [ '1' ], EntryRepository::get( $payload['submissionId'] )->values[ (int) $this->form->current->fields[0]->id ] );
+	}
+
 	public function test_checkboxes_also_arrive_as_values_separated_by_commas(): void {
 		$payload = $this->submit(
 			[

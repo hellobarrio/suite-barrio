@@ -1,7 +1,7 @@
 # API per le estensioni
 
 Le estensioni sono plugin separati che usano solo l'API qui sotto: il core non contiene codice per
-plugin o servizi di terzi. Quattro esempi completi, in `extensions/`:
+plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
 
 | Estensione | Cosa mostra |
 |---|---|
@@ -9,9 +9,10 @@ plugin o servizi di terzi. Quattro esempi completi, in `extensions/`:
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_forms_languages` e seguenti |
 | [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio: lo schema GraphQL del prototipo sopra `FormRepository` e `Submission::process()` (vedi [GraphQL](#graphql)) |
+| [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle di un altro plugin e scrive con `FormRepository::create()` (con l'ID) ed `EntryRepository::create()` (con data e stato di lettura), in un comando WP-CLI (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
 
 I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`,
-`WpGraphqlTest`): le risposte dei servizi si simulano con `pre_http_request`. `WpGraphqlTest` gira solo con
+`WpGraphqlTest`, `MigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. `WpGraphqlTest` gira solo con
 WPGraphQL, come nella riga WPGraphQL della CI: in locale si installa una volta nell'ambiente dei test
 (`npx wp-env run tests-cli wp plugin install wp-graphql`) e si lancia `npm run test:php:graphql`.
 
@@ -193,6 +194,9 @@ i frontend Next.js del prototipo funzionano senza modifiche. Senza WPGraphQL non
 - **Precedenza sul prototipo**: registra lo schema con priorità 9, prima del prototipo (10), che registra gli
   stessi nomi anche con il suo modulo Forms disattivato. WPGraphQL tiene la prima registrazione e scarta le
   altre (`DUPLICATE_TYPE` nel suo debug), quindi con tutti e due attivi rispondono i form di Barrio Suite.
+- **Consenso**: i frontend del prototipo non conoscono il tipo `consent` (`hello_standard` non lo mostra), quindi
+  arriva come la loro checkbox della privacy: `type: checkbox`, etichetta vuota e una scelta con valore `1` ed
+  etichetta il testo con il link; `"Etichetta: true"` torna come consenso dato.
 - **Invio**: la stessa pipeline della REST. I valori arrivano nel formato del prototipo e diventano quelli
   della pipeline: checkbox come `"Etichetta: true | Etichetta: false"` (etichette nella lingua del form) o
   valori separati da virgole, date come `dd/MM/yyyy` (il `format` del campo), file come JSON
@@ -208,6 +212,58 @@ i frontend Next.js del prototipo funzionano senza modifiche. Senza WPGraphQL non
   (è quello del frontend, non chi compila).
 - **`hbForms`**: come `GET /barrio/v1/forms`, solo per chi può modificare gli articoli o gestire le
   registrazioni (nel prototipo era pubblico); senza permesso è un errore GraphQL.
+
+## Migrazione dal prototipo
+
+`barrio-suite-migration` porta su Barrio Suite il modulo Forms di Suite Barrio (il prototipo), un sito alla volta:
+
+```sh
+wp barrio forms migrate --dry-run   # tutta l'importazione e poi il rollback: conteggi e avvisi, niente salvato
+wp barrio forms migrate
+```
+
+- **Prima**: spegnere il modulo Forms del prototipo (Suite Barrio → Strumenti), altrimenti ciò che riceve dopo
+  resta lì; sui siti WPML attivare `barrio-suite-wpml`, che dà la lingua principale; per le chiavi di Mailchimp e
+  reCAPTCHA attivare le loro estensioni, perché i segreti si cifrano con il loro schema. Il comando si può
+  rilanciare: salta i form già presenti e copia le impostazioni solo dove mancano.
+- **Form**: lo stesso ID, così shortcode e frontend headless restano validi. Se l'ID è già di un altro form di
+  Barrio Suite è un errore (quel form prenderebbe il posto di questo nelle pagine): va risolto prima di
+  continuare. I form migrati si ricordano nell'opzione `barrio_migration_forms` e al giro dopo si saltano. Ogni form passa in una transazione con le sue registrazioni; prima del commit i conteggi del
+  prototipo e di Barrio Suite si confrontano nel database e, se non tornano, si annulla il form. La versione 1 è
+  l'archivio, con anche i campi che esistono solo nelle registrazioni vecchie (testo lungo o file); la 2, solo
+  se diversa, è la definizione attuale.
+- **Campi**: le chiavi diventano `^[a-z][a-z0-9_]*$` (il comando segnala quelle cambiate), e merge tag, regole e
+  integrazioni le seguono. Il valore di una scelta è la sua etichetta nella lingua principale senza HTML, cioè
+  quello che il prototipo salvava; le traduzioni (per posizione) diventano righe `_i18n` complete. La checkbox della privacy,
+  con il link nella sua unica scelta, diventa un campo Consenso con il link (anche nei frontend GraphQL, vedi
+  sopra); nelle altre scelte l'HTML si toglie e il comando lo segnala.
+- **Registrazioni**: checkbox da array o da `"Etichetta: true | …"` e scelte tradotte diventano valori, le date
+  `dd/mm/yyyy` diventano `Y-m-d`, `_page_url` diventa `source_url` senza query string, la data passa in UTC
+  (`UNIX_TIMESTAMP()` nel fuso della sessione MySQL) e sono tutte già lette. IP, user agent, referrer e titolo
+  della pagina non si importano. I file passano dagli upload alla cartella protetta: copia, commit, poi
+  eliminazione dell'originale; uno che non c'è più finisce in `missing_files`.
+- **Notifiche**: destinatario, risposta a, oggetto, titolo e testo (o `{{all_fields}}`, con `{{source_url}}` se
+  il form mostrava la pagina), con gli allegati se il form ha un campo file, come nel prototipo. Mittente e Bcc
+  per notifica non esistono più: il comando li segnala e vale il mittente dell'SMTP.
+- **Impostazioni globali**: Mailjet diventa l'SMTP `in-v3.mailjet.com:587` con le stesse chiavi (solo se l'SMTP è
+  vuoto; il mittente è quello delle notifiche o l'email dell'amministratore, come nel prototipo), poi le chiavi di
+  Mailchimp e reCAPTCHA, logo e colori delle email del form modificato per ultimo, la retention (anni × 365).
+- **Integrazioni per form**: Mailchimp con le impostazioni della sua estensione. MailUp, che non ha ancora
+  un'estensione, si salva come `mailup` con `email_field` e `merge_fields` come Mailchimp, `list_id` e
+  `group_id` tradotti, e l'opt-in come condizione `not_empty` (il prototipo iscriveva solo chi spuntava):
+  sono le impostazioni che l'estensione MailUp dovrà dichiarare.
+- **Shortcode**: quando tutti i form sono in Barrio Suite, il comando riscrive `[suite_barrio_form` e `[wpb_form`
+  in `[barrio_form` con `wp search-replace`, nelle tabelle di WordPress: contenuti, dati dei page builder e dei
+  widget, anche serializzati (con `--dry-run` mostra solo quante sostituzioni farebbe). Gli attributi, cioè l'ID,
+  restano. Non tocca i file del tema: uno shortcode scritto lì (`do_shortcode()`) continua a funzionare finché
+  l'estensione è attiva, che li registra quando il prototipo non li usa.
+- **Dopo**: spento il modulo Forms del prototipo e svuotata la cache delle pagine, l'estensione si può eliminare.
+  Il prototipo solo se il sito non usa nient'altro di suo: è anche popup, banner, cookie banner con il registro
+  dei consensi, SEO, orari, dati aziendali, llms.txt, accessibilità, e i frontend come `hello_standard` leggono
+  da lui `hbPopup`, `hbBanner`, `hbOrari`, `hbCompanyInfo`, `hbSeoSite`, `hbSchemaRaw`, `hbRedirects`,
+  `hbSitemap`, `hbLlms`. Le tabelle `wpb_forms`, `wpb_form_submissions` e `wpb_forms_translations` e le opzioni
+  `suite_barrio_forms_*` restano: contengono le registrazioni vecchie, con IP e dati personali, quindi si
+  eliminano a mano appena verificata la migrazione (`wp db query "DROP TABLE …"`).
 
 ## Database
 

@@ -35,6 +35,7 @@ final class EntryRepository {
 						'form_id'    => $entry->form_id,
 						'version_id' => $entry->version_id,
 						'lang'       => $entry->lang,
+						'is_read'    => (int) $entry->is_read,
 						'user_id'    => $entry->user_id,
 						'source_url' => $source_url,
 						'created_at' => $created_at,
@@ -64,7 +65,7 @@ final class EntryRepository {
 				return $id;
 			}
 		);
-		return new Entry( $entry->form_id, $entry->version_id, $entry->lang, $entry->values, $entry->files, $entry->user_id, $source_url, $created_at, $id );
+		return new Entry( $entry->form_id, $entry->version_id, $entry->lang, $entry->values, $entry->files, $entry->user_id, $source_url, $created_at, $id, $entry->is_read );
 	}
 
 	public static function get( int $id ): ?Entry {

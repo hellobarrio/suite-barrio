@@ -27,14 +27,15 @@ final class FormRepository {
 	 * @param FormTexts          $i18n
 	 * @param list<Notification> $notifications
 	 * @param list<Integration>  $integrations
+	 * @param int|null           $id Per un'importazione che deve tenere gli ID (gli shortcode nelle pagine); null = il successivo.
 	 */
-	public static function create( string $title, array $i18n, array $notifications, FormVersion $version, array $integrations = [] ): Form {
+	public static function create( string $title, array $i18n, array $notifications, FormVersion $version, array $integrations = [], ?int $id = null ): Form {
 		$id = Db::transaction(
-			static function () use ( $title, $i18n, $notifications, $version, $integrations ): int {
+			static function () use ( $title, $i18n, $notifications, $version, $integrations, $id ): int {
 				$now = gmdate( 'Y-m-d H:i:s' );
 				$id  = Db::insert(
 					Db::table( 'forms' ),
-					[
+					( null === $id ? [] : [ 'id' => $id ] ) + [
 						'title'      => $title,
 						'status'     => FormStatus::Active->value,
 						'created_at' => $now,

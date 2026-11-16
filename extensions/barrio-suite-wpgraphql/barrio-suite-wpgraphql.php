@@ -87,7 +87,7 @@ function barrio_wpgraphql_register(): void {
 			'fields'      => [
 				'id'               => $string( 'Same as name.' ),
 				'name'             => $string( 'The key of the field: the name to submit its value with.' ),
-				'type'             => $string( 'text, email, textarea, tel, number, datepicker, select, radio, checkbox, file, consent, hidden or the type of an extension.' ),
+				'type'             => $string( 'text, email, textarea, tel, number, datepicker, select, radio, checkbox, file, hidden or the type of an extension. A consent is a checkbox with one choice, whose label has the links.' ),
 				'label'            => $string( 'May contain links, strong, em and br (the privacy policy link of a consent).' ),
 				'placeholder'      => $string(),
 				'errorMessage'     => $string( 'The custom error message, if any.' ),
@@ -271,11 +271,14 @@ function barrio_wpgraphql_form( int $id, mixed $lang ): ?array {
  */
 function barrio_wpgraphql_field( Field $field, array $text ): array {
 	$config = $field->config;
+	// I frontend del prototipo non conoscono il consenso: lo mostrano come la checkbox con una sola scelta
+	// che il prototipo usava per la privacy, con il link nell'etichetta della scelta.
+	$consent = 'consent' === $field->type;
 	return [
 		'id'               => $field->key,
 		'name'             => $field->key,
-		'type'             => $field->type,
-		'label'            => FieldTypes::label_html( $text['label'] ?? '' ),
+		'type'             => $consent ? 'checkbox' : $field->type,
+		'label'            => $consent ? '' : FieldTypes::label_html( $text['label'] ?? '' ),
 		'placeholder'      => $text['placeholder'] ?? '',
 		'errorMessage'     => $text['error_message'] ?? '',
 		'required'         => $field->required,
@@ -283,7 +286,12 @@ function barrio_wpgraphql_field( Field $field, array $text ): array {
 		'min'              => isset( $config['min'] ) ? (string) $config['min'] : null,
 		'max'              => isset( $config['max'] ) ? (string) $config['max'] : null,
 		'format'           => 'datepicker' === $field->type ? 'dd/MM/yyyy' : '',
-		'options'          => FieldTypes::choices( $field, $text ),
+		'options'          => $consent ? [
+			[
+				'value' => '1',
+				'label' => FieldTypes::label_html( $text['label'] ?? '' ),
+			],
+		] : FieldTypes::choices( $field, $text ),
 		'conditionalLogic' => null === $field->conditions ? null : [
 			'enabled'   => true,
 			'action'    => $field->conditions['action'],
@@ -348,6 +356,9 @@ function barrio_wpgraphql_submit( array $input ): array {
 			$files[ $key ] = barrio_wpgraphql_file( $value );
 		} elseif ( 'checkbox' === $type ) {
 			$values[ $key ] = barrio_wpgraphql_checked( $fields[ $key ], $value, $lang );
+		} elseif ( 'consent' === $type ) {
+			// La checkbox di barrio_wpgraphql_field(): "Etichetta: true" se spuntata, oppure il valore 1.
+			$values[ $key ] = preg_match( '/: true$/', $value ) ? '1' : $value;
 		} elseif ( 'datepicker' === $type ) {
 			// Il formato di HBFormField.format; la pipeline vuole Y-m-d.
 			$values[ $key ] = preg_replace( '#^(\d{2})[/.-](\d{2})[/.-](\d{4})$#', '$3-$2-$1', trim( $value ) );

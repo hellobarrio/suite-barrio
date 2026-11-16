@@ -19,6 +19,7 @@ tests_add_filter(
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php';
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php';
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php';
+		require dirname( __DIR__ ) . '/extensions/barrio-suite-migration/barrio-suite-migration.php';
 	}
 );
 
