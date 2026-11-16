@@ -5,3 +5,5 @@ parameters:
 		- src
 		- modules
 		- extensions
+	scanFiles:
+		- tests/wpgraphql.stub

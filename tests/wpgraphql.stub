@@ -1,0 +1,20 @@
+<?php
+// Per PHPStan: le funzioni di WPGraphQL che usa extensions/barrio-suite-wpgraphql.
+
+namespace {
+	/** @param array<string, mixed> $config */
+	function register_graphql_object_type( string $type_name, array $config ): void {}
+
+	/** @param array<string, mixed> $config */
+	function register_graphql_input_type( string $type_name, array $config ): void {}
+
+	/** @param array<string, mixed> $config */
+	function register_graphql_field( string $type_name, string $field_name, array $config ): void {}
+
+	/** @param array<string, mixed> $config */
+	function register_graphql_mutation( string $mutation_name, array $config ): void {}
+}
+
+namespace GraphQL\Error {
+	class UserError extends \RuntimeException {}
+}

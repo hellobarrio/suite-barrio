@@ -63,7 +63,7 @@ final class FileStore {
 		self::protect();
 		$path = gmdate( 'Y/m/' ) . bin2hex( random_bytes( 16 ) );
 		$file = self::dir() . '/' . $path;
-		// rename() e non move_uploaded_file(): accetta anche i file temporanei del plugin (GraphQL, fase 9).
+		// rename() e non move_uploaded_file(): accetta anche i file temporanei (estensione barrio-suite-wpgraphql).
 		if ( ! wp_mkdir_p( dirname( $file ) ) || ! rename( $tmp_name, $file ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
 			throw new RuntimeException( 'Could not store the uploaded file.' );
 		}

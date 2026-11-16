@@ -158,9 +158,11 @@ final class RecaptchaTest extends WP_UnitTestCase {
 		$this->assertSame( [], $this->requests );
 	}
 
+	// Solo l'avviso dell'estensione: con WPGraphQL c'è anche il suo, sulla raccolta di dati.
 	private function notice(): string {
+		$this->assertSame( 10, has_action( 'admin_notices', 'barrio_recaptcha_notice' ) );
 		ob_start();
-		do_action( 'admin_notices' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- hook di WordPress.
+		barrio_recaptcha_notice();
 		return (string) ob_get_clean();
 	}
 

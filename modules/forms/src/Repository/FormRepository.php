@@ -111,7 +111,7 @@ final class FormRepository {
 	 * I più recenti per primi, con le lingue in cui il form ha dei testi: dell'invio, delle notifiche
 	 * o dei campi della versione corrente.
 	 *
-	 * @return list<array{id: int, title: string, status: string, updated_at: string, entries: int, unread: int, languages: list<string>}>
+	 * @return list<array{id: int, title: string, status: string, created_at: string, updated_at: string, entries: int, unread: int, languages: list<string>}>
 	 */
 	public static function all(): array {
 		global $wpdb;
@@ -139,6 +139,7 @@ final class FormRepository {
 				'id'         => (int) $row['id'],
 				'title'      => (string) $row['title'],
 				'status'     => (string) $row['status'],
+				'created_at' => (string) $row['created_at'],
 				'updated_at' => (string) $row['updated_at'],
 				'entries'    => (int) $row['entries'],
 				'unread'     => (int) $row['unread'],
@@ -147,7 +148,7 @@ final class FormRepository {
 			Db::rows(
 				$wpdb->prepare(
 					// Conteggi per form sull'indice form_read, senza leggere le righe.
-					'SELECT f.id, f.title, f.status, f.updated_at, (SELECT COUNT(*) FROM %i e WHERE e.form_id = f.id) AS entries,
+					'SELECT f.id, f.title, f.status, f.created_at, f.updated_at, (SELECT COUNT(*) FROM %i e WHERE e.form_id = f.id) AS entries,
 						(SELECT COUNT(*) FROM %i e WHERE e.form_id = f.id AND e.is_read = 0) AS unread FROM %i f ORDER BY f.id DESC',
 					Db::table( 'entries' ),
 					Db::table( 'entries' ),

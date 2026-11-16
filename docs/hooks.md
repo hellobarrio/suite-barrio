@@ -1,16 +1,19 @@
 # API per le estensioni
 
 Le estensioni sono plugin separati che usano solo l'API qui sotto: il core non contiene codice per
-plugin o servizi di terzi. Tre esempi completi, in `extensions/`:
+plugin o servizi di terzi. Quattro esempi completi, in `extensions/`:
 
 | Estensione | Cosa mostra |
 |---|---|
 | [`barrio-suite-mailchimp`](../extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php) | Un'integrazione con impostazioni globali (la chiave API) e per form, anche tradotte, e `process()` |
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_forms_languages` e seguenti |
+| [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio: lo schema GraphQL del prototipo sopra `FormRepository` e `Submission::process()` (vedi [GraphQL](#graphql)) |
 
-I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`):
-le risposte dei servizi si simulano con `pre_http_request`.
+I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`,
+`WpGraphqlTest`): le risposte dei servizi si simulano con `pre_http_request`. `WpGraphqlTest` gira solo con
+WPGraphQL, come nella riga WPGraphQL della CI: in locale si installa una volta nell'ambiente dei test
+(`npx wp-env run tests-cli wp plugin install wp-graphql`) e si lancia `npm run test:php:graphql`.
 
 ## Pubblicazione e installazione
 
@@ -180,6 +183,31 @@ dipendenze di `wp_enqueue_script_module()`):
 
 I valori che un'estensione aggiunge all'invio iniziano con `_` (`_barrio_recaptcha`): le chiavi dei campi
 non possono, quindi non si scontrano con un campo. Un frontend headless deve inviarli da sé.
+
+## GraphQL
+
+`barrio-suite-wpgraphql` espone i form con lo schema del prototipo, `hbForm(id, lang)`, `hbForms` e
+`hbSubmitForm`, con gli stessi nomi e tipi (`tests/fixtures/wpgraphql-schema.txt`, stampato dal prototipo):
+i frontend Next.js del prototipo funzionano senza modifiche. Senza WPGraphQL non registra niente.
+
+- **Precedenza sul prototipo**: registra lo schema con priorità 9, prima del prototipo (10), che registra gli
+  stessi nomi anche con il suo modulo Forms disattivato. WPGraphQL tiene la prima registrazione e scarta le
+  altre (`DUPLICATE_TYPE` nel suo debug), quindi con tutti e due attivi rispondono i form di Barrio Suite.
+- **Invio**: la stessa pipeline della REST. I valori arrivano nel formato del prototipo e diventano quelli
+  della pipeline: checkbox come `"Etichetta: true | Etichetta: false"` (etichette nella lingua del form) o
+  valori separati da virgole, date come `dd/MM/yyyy` (il `format` del campo), file come JSON
+  `{"content": base64, "filename": "…"}` scritto in un file temporaneo che passa da `FileStore::check()`.
+  `pageUrl` diventa la pagina della registrazione (senza query string); `pageTitle` e `pageReferrer` non si
+  salvano. I valori per le estensioni stanno tra i campi (`{name: "_barrio_recaptcha", value: token}`).
+- **Esito**: un invio rifiutato torna con `success: false`, `message` e `errors` (`"Etichetta: errore"`, uno
+  per campo), come nel prototipo; un'eccezione la gestisce WPGraphQL, con il messaggio solo nel suo debug
+  (`debug` resta nello schema, sempre `null`).
+- **Antispam**: un client GraphQL non ha il segno del JavaScript, quindi restano il limite per IP e i
+  captcha. Il limite vale solo per le richieste anonime: un frontend con l'application password invia dal
+  suo server, con lo stesso IP per tutti i visitatori. La registrazione non salva l'utente della richiesta
+  (è quello del frontend, non chi compila).
+- **`hbForms`**: come `GET /barrio/v1/forms`, solo per chi può modificare gli articoli o gestire le
+  registrazioni (nel prototipo era pubblico); senza permesso è un errore GraphQL.
 
 ## Database
 

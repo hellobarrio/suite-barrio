@@ -43,6 +43,7 @@
 				<element value="barrio-suite"/>
 				<element value="barrio-suite-mailchimp"/>
 				<element value="barrio-suite-recaptcha"/>
+				<element value="barrio-suite-wpgraphql"/>
 			</property>
 		</properties>
 	</rule>

@@ -1,0 +1,91 @@
+RootQuery.hbForm(id: Int, lang: String): HBForm
+RootQuery.hbForms: [HBFormListItem]
+RootMutation.hbSubmitForm(input: HbSubmitFormInput!): HbSubmitFormPayload
+
+type HBConditionalLogic {
+  action: String
+  enabled: Boolean
+  logicType: String
+  rules: [HBConditionalLogicRule]
+}
+
+type HBConditionalLogicRule {
+  fieldName: String
+  operator: String
+  value: String
+}
+
+type HBForm {
+  createdAt: String
+  fields: [HBFormField]
+  id: Int!
+  settings: HBFormSettings
+  steps: [HBFormStep]
+  title: String
+  updatedAt: String
+}
+
+type HBFormField {
+  conditionalLogic: HBConditionalLogic
+  errorMessage: String
+  format: String
+  id: String
+  label: String
+  max: String
+  min: String
+  name: String
+  options: [HBFormOption]
+  pattern: String
+  placeholder: String
+  required: Boolean
+  type: String
+}
+
+type HBFormListItem {
+  createdAt: String
+  id: Int!
+  submissions: Int
+  title: String
+}
+
+type HBFormOption {
+  label: String
+  value: String
+}
+
+type HBFormSettings {
+  afterSubmit: String
+  displayPageInfo: Boolean
+  errorMessage: String
+  redirectUrl: String
+  submitText: String
+  successMessage: String
+}
+
+type HBFormStep {
+  fields: [HBFormField]
+}
+
+input HbFormFieldInput {
+  name: String!
+  value: String
+}
+
+input HbSubmitFormInput {
+  clientMutationId: String
+  fields: [HbFormFieldInput]!
+  formId: Int!
+  lang: String
+  pageReferrer: String
+  pageTitle: String
+  pageUrl: String
+}
+
+type HbSubmitFormPayload {
+  clientMutationId: String
+  debug: [String]
+  errors: [String]
+  message: String
+  submissionId: Int
+  success: Boolean!
+}
