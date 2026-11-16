@@ -10,7 +10,15 @@ import {
 } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
-import { Bar, Card, Icon, Loading, Notice, pageUrl } from '../admin/ui.js';
+import {
+	Bar,
+	Card,
+	Icon,
+	Loading,
+	Notice,
+	Search,
+	pageUrl,
+} from '../admin/ui.js';
 import { errorMessage } from '../builder/model.js';
 
 const DONE = {
@@ -26,13 +34,16 @@ const DONE = {
 	deactivate: ( name ) =>
 		/* translators: %s: nome dell'estensione. */
 		sprintf( __( '%s deactivated.', 'barrio-suite' ), name ),
+	delete: ( name ) =>
+		/* translators: %s: nome dell'estensione. */
+		sprintf( __( '%s deleted.', 'barrio-suite' ), name ),
 };
 
 // "Mailchimp" e non "Barrio Suite Mailchimp", come nelle Impostazioni e nel builder: la pagina è già di Barrio Suite.
 const short = ( name ) => name.replace( /^Barrio Suite /, '' );
 
 // Più recente di quella installata: le versioni sono x.y.z.
-const newer = ( available, installed ) =>
+export const newer = ( available, installed ) =>
 	available.localeCompare( installed, undefined, { numeric: true } ) > 0;
 
 export function Extensions() {
@@ -40,6 +51,7 @@ export function Extensions() {
 	const [ notice, setNotice ] = useState( null );
 	// L'azione in corso, come "mailchimp-install", o "refresh".
 	const [ busy, setBusy ] = useState( null );
+	const [ search, setSearch ] = useState( '' );
 
 	const request = ( kind, options, message ) => {
 		setBusy( kind );
@@ -74,22 +86,51 @@ export function Extensions() {
 			},
 			DONE[ action ]( short( extension.name ) )
 		);
-	const button = ( extension, action, label, primary ) => (
+	// Elimina chiede conferma: non si annulla.
+	const confirmed = ( extension, action ) =>
+		'delete' !== action ||
+		// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
+		window.confirm(
+			sprintf(
+				/* translators: %s: nome dell'estensione. */
+				__(
+					'Delete %s? Its files are removed from the site; you can install it again from this page.',
+					'barrio-suite'
+				),
+				short( extension.name )
+			)
+		);
+	const button = ( extension, action, label, style = '' ) => (
 		<button
 			type="button"
-			className={ `barrio-button${ primary ? ' is-primary' : '' }` }
+			className={ `barrio-button ${ style }` }
 			disabled={ !! busy }
-			onClick={ () => act( extension, action ) }
+			onClick={ () =>
+				confirmed( extension, action ) && act( extension, action )
+			}
 		>
 			{ `${ extension.slug }-${ action }` === busy
 				? __( 'Please wait…', 'barrio-suite' )
 				: label }
 		</button>
 	);
+	const term = search.trim().toLowerCase();
+	const found = data.extensions.filter( ( extension ) =>
+		`${ extension.name } ${ extension.description }`
+			.toLowerCase()
+			.includes( term )
+	);
 
 	return (
 		<div className="barrio-stack">
 			<Bar title={ __( 'Extensions', 'barrio-suite' ) }>
+				<div className="barrio-bar__tools">
+					<Search
+						label={ __( 'Search extensions', 'barrio-suite' ) }
+						value={ search }
+						onChange={ setSearch }
+					/>
+				</div>
 				{ data.can_install && (
 					<a className="barrio-button" href={ data.upload_url }>
 						<Icon name="upload" />
@@ -132,7 +173,7 @@ export function Extensions() {
 					{ a: <a href={ pageUrl( { tab: 'settings' } ) } /> }
 				) }
 			</p>
-			{ data.extensions.map( ( extension ) => {
+			{ found.map( ( extension ) => {
 				const update =
 					extension.installed &&
 					extension.version &&
@@ -179,7 +220,7 @@ export function Extensions() {
 										extension,
 										'install',
 										__( 'Install', 'barrio-suite' ),
-										true
+										'is-primary'
 									) }
 								{ extension.active &&
 									button(
@@ -187,13 +228,23 @@ export function Extensions() {
 										'deactivate',
 										__( 'Deactivate', 'barrio-suite' )
 									) }
+								{ /* Prima delle altre: la principale resta per ultima. */ }
+								{ extension.installed &&
+									! extension.active &&
+									data.can_delete &&
+									button(
+										extension,
+										'delete',
+										__( 'Delete', 'barrio-suite' ),
+										'is-danger'
+									) }
 								{ extension.installed &&
 									! extension.active &&
 									button(
 										extension,
 										'activate',
 										__( 'Activate', 'barrio-suite' ),
-										! update
+										update ? '' : 'is-primary'
 									) }
 								{ update &&
 									data.can_update &&
@@ -201,7 +252,7 @@ export function Extensions() {
 										extension,
 										'update',
 										__( 'Update', 'barrio-suite' ),
-										true
+										'is-primary'
 									) }
 							</>
 						}
@@ -210,12 +261,16 @@ export function Extensions() {
 					</Card>
 				);
 			} ) }
-			{ ! data.extensions.length && (
+			{ ! found.length && (
 				<Card
-					description={ __(
-						'No extensions are available yet.',
-						'barrio-suite'
-					) }
+					description={
+						data.extensions.length
+							? __( 'No extensions found.', 'barrio-suite' )
+							: __(
+									'No extensions are available yet.',
+									'barrio-suite'
+								)
+					}
 				/>
 			) }
 		</div>

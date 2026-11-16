@@ -22,9 +22,15 @@ final class Plugin {
 	}
 
 	public static function deactivate(): void {
+		Extensions::deactivate();
 		foreach ( self::MODULES as $module_class ) {
 			$module_class::deactivate();
 		}
+	}
+
+	// Da uninstall.php: elimina i dati solo dove il sito lo ha scelto.
+	public static function uninstall(): void {
+		Uninstall::run( array_values( self::MODULES ) );
 	}
 
 	public static function boot(): void {
@@ -32,6 +38,8 @@ final class Plugin {
 		Smtp::boot();
 		// REST e aggiornamenti delle estensioni anche con lo schema non aggiornato; la pagina è del modulo Forms.
 		Extensions::boot();
+		Launch::boot();
+		Uninstall::boot();
 		foreach ( self::MODULES as $module => $module_class ) {
 			$migrator = new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" );
 			$error    = $migrator->run();

@@ -133,6 +133,97 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertTrue( $this->extensions( $this->request( 'POST', 'activate' ) )[0][4] );
 	}
 
+	// Le impostazioni: Barrio Suite con la versione pubblicata, e gli aggiornamenti automatici di
+	// WordPress per lei e per tutte le estensioni, anche quelle installate dopo.
+	public function test_the_settings_page_shows_the_version_and_switches_automatic_updates(): void {
+		// La suite di test di WordPress li spegne.
+		add_filter( 'automatic_updater_disabled', '__return_false' );
+		$suite = plugin_basename( dirname( __DIR__, 2 ) . '/barrio-suite.php' );
+		update_site_option( 'auto_update_plugins', [ 'akismet/akismet.php' ] );
+		$this->catalog['barrio-suite'] = self::item( 'Barrio Suite', '9.0.0' );
+
+		$data = $this->request( 'GET' )->get_data();
+		$this->assertSame(
+			[
+				'version'   => '9.0.0',
+				'installed' => BARRIO_SUITE_VERSION,
+			],
+			$data['suite']
+		);
+		$this->assertFalse( $data['auto_update'] );
+		$this->assertTrue( $data['can_auto_update'] );
+
+		$this->assertTrue( $this->auto_update( true )->get_data()['auto_update'] );
+		$this->assertSame( [ 'akismet/akismet.php', $suite ], get_site_option( 'auto_update_plugins' ) );
+
+		$this->request( 'POST', 'install' );
+		$this->assertSame( [ 'akismet/akismet.php', $suite, self::DEMO ], get_site_option( 'auto_update_plugins' ) );
+
+		$this->assertFalse( $this->auto_update( false )->get_data()['auto_update'] );
+		$this->assertSame( [ 'akismet/akismet.php' ], get_site_option( 'auto_update_plugins' ), 'The other plugins keep theirs.' );
+
+		add_filter( 'plugins_auto_update_enabled', '__return_false' );
+		$this->assertFalse( $this->request( 'GET' )->get_data()['can_auto_update'] );
+		$this->assertSame( 403, $this->auto_update( true )->get_status() );
+	}
+
+	public function test_an_inactive_extension_can_be_deleted(): void {
+		$this->request( 'POST', 'install' );
+		$this->assertSame( 409, $this->request( 'POST', 'delete' )->get_status(), 'Active: it is deactivated first.' );
+
+		$this->request( 'POST', 'deactivate' );
+
+		$this->assertSame( [ 'barrio-suite-demo', 'Barrio Suite Demo', '0.1.0', null, false ], $this->extensions( $this->request( 'POST', 'delete' ) )[0] );
+		$this->assertDirectoryDoesNotExist( WP_PLUGIN_DIR . '/barrio-suite-demo' );
+	}
+
+	public function test_our_plugins_update_by_themselves_only_at_night(): void {
+		add_filter( 'automatic_updater_disabled', '__return_false' );
+		// wordpress.org, a cui WordPress chiede gli aggiornamenti degli altri plugin prima dei nostri.
+		add_filter(
+			'pre_http_request',
+			static fn( mixed $pre, array $args, string $url ): mixed => str_contains( $url, 'api.wordpress.org/plugins/update-check' ) ? [
+				'headers'  => [],
+				'body'     => '{"plugins":[],"translations":[],"no_update":[]}',
+				'response' => [ 'code' => 200 ],
+				'cookies'  => [],
+			] : $pre,
+			20,
+			3
+		);
+		$this->request( 'POST', 'install' );
+		// Attiva, WordPress la proverebbe con una richiesta al sito dopo l'aggiornamento.
+		$this->request( 'POST', 'deactivate' );
+		$this->catalog['barrio-suite-demo'] = self::item( 'Barrio Suite Demo', '0.2.0' );
+		$this->zip_version                  = '0.2.0';
+
+		Extensions::nightly();
+		$this->assertSame( '0.1.0', $this->extensions( $this->request( 'GET' ) )[0][3], 'Automatic updates are off.' );
+
+		$this->auto_update( true );
+		Extensions::nightly();
+		$this->assertSame( '0.2.0', $this->extensions( $this->request( 'GET' ) )[0][3] );
+
+		// Di giorno, nel giro di WP-Cron di WordPress, no; fuori da WP-Cron il filtro non cambia niente.
+		$ours = (object) [ 'id' => Extensions::REPO ];
+		add_filter( 'wp_doing_cron', '__return_true' );
+		$this->assertFalse( apply_filters( 'auto_update_plugin', true, $ours ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WordPress.
+		$this->assertTrue( apply_filters( 'auto_update_plugin', true, (object) [ 'id' => 'w.org/plugins/akismet' ] ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WordPress.
+		remove_filter( 'wp_doing_cron', '__return_true' );
+		$this->assertNull( apply_filters( 'auto_update_plugin', null, $ours ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WordPress.
+	}
+
+	public function test_the_nightly_update_is_at_midnight_of_the_site(): void {
+		update_option( 'timezone_string', 'Europe/Rome' );
+		wp_clear_scheduled_hook( 'barrio_nightly_update' );
+
+		Extensions::schedule();
+
+		$next = wp_next_scheduled( 'barrio_nightly_update' );
+		$this->assertSame( '00:00', wp_date( 'H:i', $next ) );
+		$this->assertLessThanOrEqual( DAY_IN_SECONDS, $next - time() );
+	}
+
 	public function test_without_the_catalog_the_installed_extensions_are_still_listed(): void {
 		$this->request( 'POST', 'install' );
 		( new ReflectionProperty( Extensions::class, 'catalog' ) )->setValue( null, null );
@@ -150,6 +241,7 @@ final class ExtensionsTest extends WP_UnitTestCase {
 
 		$this->assertSame( 403, $this->request( 'GET' )->get_status() );
 		$this->assertSame( 403, $this->request( 'POST', 'install' )->get_status() );
+		$this->assertSame( 403, $this->request( 'POST', 'delete' )->get_status() );
 		$this->assertDirectoryDoesNotExist( WP_PLUGIN_DIR . '/barrio-suite-demo' );
 	}
 
@@ -178,6 +270,12 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$request = new WP_REST_Request( $method, '/barrio/v1/extensions' . ( $action ? '/barrio-suite-demo' : '' ) );
 		$request->set_param( 'action', $action );
 		$request->set_param( 'refresh', $refresh );
+		return rest_do_request( $request );
+	}
+
+	private function auto_update( bool $on ): WP_REST_Response {
+		$request = new WP_REST_Request( 'PUT', '/barrio/v1/extensions' );
+		$request->set_param( 'auto_update', $on );
 		return rest_do_request( $request );
 	}
 

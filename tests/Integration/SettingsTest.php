@@ -30,6 +30,8 @@ final class SettingsTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		reset_phpmailer_instance();
 		parent::tear_down();
+		// I ruoli restano in memoria anche dopo il rollback: si rileggono dal database.
+		wp_roles()->for_site();
 	}
 
 	public function test_settings_are_saved_and_the_password_never_comes_back(): void {
@@ -97,6 +99,39 @@ final class SettingsTest extends WP_UnitTestCase {
 		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/settings' ) )->get_status() );
 		$this->assertSame( 403, $this->put( [ 'smtp' => self::SMTP ] )->get_status() );
 		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'POST', '/barrio/v1/settings/test-email' ) )->get_status() );
+	}
+
+	// Permessi: cosa può fare ogni ruolo, nei ruoli di WordPress. Gli amministratori hanno sempre tutto.
+	public function test_each_role_gets_the_capabilities_chosen_in_the_settings(): void {
+		$settings = $this->get();
+		$this->assertSame( [ 'barrio_manage_entries' ], $settings['roles']['editor'], 'From migration 0002.' );
+		$this->assertSame( [], $settings['roles']['author'] );
+		$this->assertArrayNotHasKey( 'administrator', $settings['roles'] );
+		$this->assertSame( 'Administrator', $settings['role_names']['administrator'] );
+
+		$response = $this->put(
+			[
+				'roles' => [
+					'editor'        => [ 'barrio_manage_forms' ],
+					'author'        => [ 'barrio_manage_entries' ],
+					'administrator' => [],
+					'unknown'       => [ 'barrio_manage_forms' ],
+				],
+			]
+		);
+
+		$this->assertSame( [ 'barrio_manage_forms' ], $response->get_data()['roles']['editor'] );
+		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_manage_entries' ) );
+		$this->assertTrue( get_role( 'author' )->has_cap( 'barrio_manage_entries' ) );
+		$this->assertTrue( get_role( 'administrator' )->has_cap( 'barrio_manage_forms' ), 'Administrators keep everything.' );
+		$this->assertSame( [], $response->get_data()['roles']['contributor'], 'Roles not sent stay as they are.' );
+		$this->assertSame( 400, $this->put( [ 'roles' => [ 'editor' => [ 'manage_options' ] ] ] )->get_status(), 'Only the capabilities of the module.' );
+
+		// Chi gestisce solo i form vede l'elenco, non le registrazioni.
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( 200, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/forms' ) )->get_status() );
+		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/forms/1/entries' ) )->get_status() );
+		$this->assertSame( 403, $this->put( [ 'roles' => [ 'editor' => [ 'barrio_manage_entries' ] ] ] )->get_status() );
 	}
 
 	public function test_phpmailer_is_configured_for_every_email(): void {

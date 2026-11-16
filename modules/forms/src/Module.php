@@ -9,6 +9,8 @@ use BarrioSuite\Forms\Api\RestPublic;
 use BarrioSuite\Forms\Frontend\Render;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
+use BarrioSuite\Forms\Submission\FileStore;
+use BarrioSuite\Mail\Smtp;
 
 final class Module {
 
@@ -27,6 +29,7 @@ final class Module {
 		add_filter( 'wp_privacy_personal_data_erasers', [ Privacy::class, 'erasers' ] );
 		add_action( 'init', [ Privacy::class, 'schedule' ] );
 		add_action( Privacy::CRON, [ Privacy::class, 'purge' ] );
+		add_filter( 'barrio_launch_steps', [ self::class, 'launch_steps' ] );
 
 		// Le estensioni si registrano qui. Su init e non subito: i nomi che passano sono tradotti, e
 		// prima di init WordPress segnala le traduzioni caricate troppo presto.
@@ -36,6 +39,38 @@ final class Module {
 
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( Privacy::CRON );
+	}
+
+	// Disinstallando, se il sito lo ha scelto: tabelle e opzioni le elimina il core (src/Uninstall.php).
+	public static function uninstall(): void {
+		foreach ( wp_roles()->role_objects as $role ) {
+			foreach ( RestAdmin::CAPS as $cap ) {
+				$role->remove_cap( $cap );
+			}
+		}
+		// Senza accesso diretto ai file (FTP) i file delle registrazioni restano in uploads.
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		if ( WP_Filesystem() ) {
+			$GLOBALS['wp_filesystem']->delete( FileStore::dir(), true );
+		}
+	}
+
+	/**
+	 * Messa online (src/Launch.php): un solo passaggio per il modulo, fatto quando le email partono
+	 * dall'SMTP (senza utente il server non chiede la password), hanno il logo e le registrazioni
+	 * hanno una durata. Contro lo spam bastano honeypot e limite per IP; reCAPTCHA è facoltativo.
+	 *
+	 * @param array<string, bool> $steps
+	 * @return array<string, bool>
+	 */
+	public static function launch_steps( array $steps ): array {
+		$smtp = Smtp::settings();
+		return $steps + [
+			'forms' => '' !== $smtp['host'] && '' !== $smtp['from_email']
+				&& ( '' === $smtp['username'] || in_array( Smtp::password_status(), [ 'saved', 'constant' ], true ) )
+				&& '' !== Notifications::settings()['logo']
+				&& Privacy::settings()['retention_days'] > 0,
+		];
 	}
 
 	// Niente FK verso le tabelle di WordPress (docs/database.md): i riferimenti agli utenti si azzerano qui.

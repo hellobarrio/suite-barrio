@@ -169,6 +169,7 @@ disattivata mostra un campo di testo e non si salva finché il campo non si togl
 | `barrio_forms_current_language` | filtro | `?string` | La lingua della pagina |
 | `barrio_forms_locale` | filtro | `string $locale`, `string $lang` | Il locale di WordPress di una lingua |
 | `barrio_forms_language_flags` | filtro | `array $flags` | URL della bandiera per codice, per l'admin |
+| `barrio_launch_steps` | filtro | `array<string, bool> $steps` | Messa online (`src/Launch.php`): per passaggio, se è configurato secondo le impostazioni vere. Un passaggio per modulo (Forms: `forms`) più quelli del sito; un passaggio nuovo compare nella guida solo se `assets/src/launch/Launch.js` sa come configurarlo |
 
 ## Nel browser
 

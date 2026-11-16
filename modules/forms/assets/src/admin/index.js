@@ -1,16 +1,19 @@
-// Pagine Barrio: intestazione e schede Form, Registrazioni e Impostazioni. Sotto Form l'elenco, o
-// il builder con ?form=ID (o ?form=new); sotto Registrazioni (tab=entries) quelle di un form, con il
-// dettaglio in ?entry=ID. Estensioni (page=barrio-extensions) non è dei form: niente schede.
-// Ogni vista è un URL: link normali, niente router.
+// Pagine Barrio: intestazione e, nella pagina Form, le schede Form, Registrazioni e Impostazioni.
+// Sotto Form l'elenco, o il builder con ?form=ID (o ?form=new); sotto Registrazioni (tab=entries)
+// quelle di un form, con il dettaglio in ?entry=ID. Bacheca (page=barrio), Estensioni e Impostazioni
+// del plugin non sono dei form: niente schede. Ogni vista è un URL: link normali, niente router.
 import apiFetch from '@wordpress/api-fetch';
 import { createRoot, useEffect, useState } from '@wordpress/element';
 import { __, _n, _x, sprintf } from '@wordpress/i18n';
 
 import { Builder } from '../builder/Builder.js';
 import { errorMessage } from '../builder/model.js';
+import { Dashboard } from '../dashboard/Dashboard.js';
 import { Entries } from '../entries/Entries.js';
 import { Entry } from '../entries/Entry.js';
 import { Extensions } from '../extensions/Extensions.js';
+import { General } from '../general/General.js';
+import { Launch } from '../launch/Launch.js';
 import { Settings } from '../settings/Settings.js';
 import './admin.css';
 import { initialQuery, localQuery } from './query.js';
@@ -193,23 +196,33 @@ function FormList() {
 			label: __( 'Entries', 'barrio-suite' ),
 			sort: 'entries',
 			hideable: true,
-			render: ( form ) => (
-				<a
-					className={ `barrio-badge${ form.entries ? ' is-success' : '' }` }
-					href={ entriesUrl( { form: form.id } ) }
-				>
-					{ sprintf(
-						/* translators: %d: numero di registrazioni. */
-						_n(
-							'%d entry',
-							'%d entries',
-							form.entries,
-							'barrio-suite'
-						),
-						form.entries
-					) }
-				</a>
-			),
+			// Il link alle registrazioni solo per chi le può vedere.
+			render: ( form ) => {
+				const Tag = canManageEntries ? 'a' : 'span';
+				return (
+					<Tag
+						className={ `barrio-badge${
+							form.entries ? ' is-success' : ''
+						}` }
+						href={
+							canManageEntries
+								? entriesUrl( { form: form.id } )
+								: undefined
+						}
+					>
+						{ sprintf(
+							/* translators: %d: numero di registrazioni. */
+							_n(
+								'%d entry',
+								'%d entries',
+								form.entries,
+								'barrio-suite'
+							),
+							form.entries
+						) }
+					</Tag>
+				);
+			},
 		},
 		{
 			key: 'status',
@@ -543,7 +556,8 @@ function FormList() {
 	);
 }
 
-const { canManageForms, canManageOptions } = window.barrioAdmin;
+const { canManageForms, canManageEntries, canManageOptions } =
+	window.barrioAdmin;
 const params = new URLSearchParams( window.location.search );
 const id = ( name ) =>
 	/^[1-9]\d*$/.test( params.get( name ) ?? '' )
@@ -551,8 +565,10 @@ const id = ( name ) =>
 		: null;
 const tab = params.get( 'tab' );
 const settings = canManageOptions && 'settings' === tab;
-// Chi non gestisce i form (gli editor) ha solo le registrazioni, senza schede.
-const entries = ! settings && ( 'entries' === tab || ! canManageForms );
+// Chi non gestisce i form (di default gli editor) ha solo le registrazioni, senza schede; chi
+// gestisce solo i form non ha le registrazioni.
+const entries =
+	canManageEntries && ! settings && ( 'entries' === tab || ! canManageForms );
 
 let content = <FormList />;
 if ( entries ) {
@@ -567,8 +583,8 @@ if ( entries ) {
 	content = <Builder id={ id( 'form' ) } />;
 }
 
-// Le schede dei form; Estensioni è una pagina a sé, per tutta la suite.
-const forms = canManageForms && (
+// Le schede dei form; le altre pagine sono di tutta la suite.
+const tabs = canManageForms && (
 	<nav className="barrio-nav" aria-label={ __( 'Sections', 'barrio-suite' ) }>
 		<a
 			href={ pageUrl() }
@@ -576,9 +592,14 @@ const forms = canManageForms && (
 		>
 			{ __( 'Forms', 'barrio-suite' ) }
 		</a>
-		<a href={ entriesUrl() } aria-current={ entries ? 'page' : undefined }>
-			{ __( 'Entries', 'barrio-suite' ) }
-		</a>
+		{ canManageEntries && (
+			<a
+				href={ entriesUrl() }
+				aria-current={ entries ? 'page' : undefined }
+			>
+				{ __( 'Entries', 'barrio-suite' ) }
+			</a>
+		) }
 		{ canManageOptions && (
 			<a
 				href={ pageUrl( { tab: 'settings' } ) }
@@ -589,50 +610,88 @@ const forms = canManageForms && (
 		) }
 	</nav>
 );
-const extensions = 'barrio-extensions' === params.get( 'page' );
+
+// Il nome della pagina dopo "Barrio Suite" (senza, la Bacheca mostra la versione), la descrizione e
+// il contenuto.
+const PAGES = {
+	barrio: {
+		description: __(
+			'Forms and site tools by Hellobarrio.',
+			'barrio-suite'
+		),
+		page: <Dashboard />,
+	},
+	'barrio-extensions': {
+		title: __( 'Extensions', 'barrio-suite' ),
+		description: __(
+			'Plugins that connect Barrio Suite to other services.',
+			'barrio-suite'
+		),
+		page: <Extensions />,
+	},
+	'barrio-settings': {
+		title: __( 'Settings', 'barrio-suite' ),
+		description: __(
+			'Settings of the whole plugin, like updates.',
+			'barrio-suite'
+		),
+		page: <General />,
+	},
+};
+// La messa online è una vista della Bacheca: niente voce di menu.
+if ( 'barrio' === params.get( 'page' ) && params.has( 'launch' ) ) {
+	PAGES.barrio = {
+		title: __( 'Site launch', 'barrio-suite' ),
+		description: __(
+			'Check that the site is ready to go online and configure what is missing.',
+			'barrio-suite'
+		),
+		page: <Launch />,
+	};
+}
+const { title, description, page } = PAGES[ params.get( 'page' ) ] ?? {
+	title: __( 'Forms', 'barrio-suite' ),
+	description: __(
+		'Contact forms, their notifications and the email of the site.',
+		'barrio-suite'
+	),
+	page: (
+		<>
+			{ tabs }
+			{ content }
+		</>
+	),
+};
 
 createRoot( document.getElementById( 'barrio-forms-admin' ) ).render(
 	<div className="barrio-admin">
 		<header className="barrio-header">
+			{ /* L'icona del prototipo, come nel menu di WordPress. */ }
 			<span className="barrio-header__logo">
 				<svg
-					width="28"
-					height="28"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
+					width="26"
+					height="26"
+					viewBox="0 0 20 20"
+					fill="currentColor"
 					aria-hidden="true"
 				>
-					<rect x="3" y="4" width="18" height="16" rx="2" />
-					<path d="M7 9h10M7 13h6M7 17h4" />
+					<path d="M5,5h2.5v2.5H5ZM0,8.75h2.5v2.5H0ZM2.5,11.25h2.5v2.5H2.5ZM5,13.75h10v2.5H5ZM17.5,8.75h2.5v2.5H17.5ZM15,11.25h2.5v2.5H15ZM12.5,5h2.5v2.5H12.5Z" />
 				</svg>
 			</span>
 			<div>
 				<h1>
 					Barrio Suite{ ' ' }
-					<span>
-						/{ ' ' }
-						{ extensions
-							? __( 'Extensions', 'barrio-suite' )
-							: __( 'Forms', 'barrio-suite' ) }
-					</span>
+					{ title ? (
+						<span>/ { title }</span>
+					) : (
+						<span className="barrio-badge">
+							v{ window.barrioAdmin.version }
+						</span>
+					) }
 				</h1>
-				<p>
-					{ extensions
-						? __(
-								'Plugins that connect Barrio Suite to other services.',
-								'barrio-suite'
-							)
-						: __(
-								'Contact forms, their notifications and the email of the site.',
-								'barrio-suite'
-							) }
-				</p>
+				<p>{ description }</p>
 			</div>
 		</header>
-		{ extensions ? <Extensions /> : forms }
-		{ ! extensions && content }
+		{ page }
 	</div>
 );

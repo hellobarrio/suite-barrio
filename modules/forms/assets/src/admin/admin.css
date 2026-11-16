@@ -68,6 +68,14 @@
 	font-size: 14px;
 }
 
+/* La versione, nella Bacheca. */
+.barrio-header h1 .barrio-badge {
+	border: 1px solid var(--barrio-line);
+	font-size: 12px;
+	font-weight: 600;
+	vertical-align: 4px;
+}
+
 .barrio-nav {
 	display: flex;
 	gap: 8px;
@@ -366,6 +374,17 @@
 	grid-column: 2;
 }
 
+/* Più caselle sulla stessa riga (i Permessi), all'altezza dell'etichetta. */
+.barrio-checks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 24px;
+}
+
+.barrio-wide .barrio-checks {
+	padding-top: 8px;
+}
+
 @media (max-width: 782px) {
 
 	.barrio-wide .barrio-field {
@@ -375,6 +394,99 @@
 	.barrio-wide .barrio-field__control:only-child {
 		grid-column: auto;
 	}
+
+	.barrio-wide .barrio-checks {
+		padding-top: 0;
+	}
+}
+
+/* Bacheca: una card per modulo, intestazione colorata come nel prototipo. */
+
+.barrio-modules {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+	gap: 16px;
+}
+
+.barrio-module {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.barrio-module__head {
+	display: flex;
+	gap: 14px;
+	align-items: center;
+	padding: 18px 20px;
+	color: #fff;
+}
+
+.barrio-module__icon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 42px;
+	height: 42px;
+	border-radius: 10px;
+	background: rgb(255 255 255 / 18%);
+}
+
+.barrio-module__icon .dashicons {
+	width: 22px;
+	height: 22px;
+	font-size: 22px;
+}
+
+.barrio-admin .barrio-module__title {
+	margin: 0;
+	color: #fff;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.barrio-module__head p {
+	margin: 2px 0 0;
+	color: rgb(255 255 255 / 80%);
+	font-size: 12px;
+}
+
+/* I bottoni restano in fondo anche quando la card accanto ha più numeri. */
+.barrio-module__body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 16px;
+	padding: 8px 20px 20px;
+}
+
+.barrio-module__body > .barrio-row {
+	margin-top: auto;
+}
+
+.barrio-module__stats {
+	margin: 0;
+}
+
+.barrio-module__stats div {
+	display: flex;
+	gap: 12px;
+	justify-content: space-between;
+	padding: 8px 0;
+}
+
+.barrio-module__stats div + div {
+	border-top: 1px solid var(--barrio-line);
+}
+
+.barrio-module__stats dt {
+	color: var(--barrio-muted);
+}
+
+.barrio-module__stats dd {
+	margin: 0;
+	color: var(--barrio-ink);
+	font-weight: 600;
 }
 
 /* Card, avvisi, etichette */
@@ -1491,4 +1603,117 @@ a.barrio-badge {
 .barrio-notes small {
 	color: var(--barrio-muted);
 	font-size: 12px;
+}
+
+/*
+ * Messa online: il banner della Bacheca (scuro da fare, verde se il sito è
+ * pronto) e i passaggi della guida.
+ */
+
+.barrio-launch {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	align-items: center;
+	padding: 20px 24px;
+	border-radius: var(--barrio-radius);
+	background: linear-gradient(135deg, #1d2327, #2c3338);
+	color: #fff;
+}
+
+.barrio-launch.is-done {
+	border: 1px solid #b8e6bf;
+	background: #edfaef;
+	color: #1e4620;
+}
+
+.barrio-launch__icon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 42px;
+	height: 42px;
+	border-radius: 10px;
+	background: rgb(255 255 255 / 12%);
+}
+
+.barrio-launch.is-done .barrio-launch__icon {
+	background: #1a7f37;
+	color: #fff;
+}
+
+.barrio-launch__text {
+	flex: 1 1 240px;
+}
+
+.barrio-admin .barrio-launch h2 {
+	margin: 0;
+	color: inherit;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.barrio-launch p {
+	margin: 2px 0 0;
+	opacity: 0.8;
+}
+
+.barrio-steps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.barrio-steps li {
+	margin: 0;
+}
+
+.barrio-steps button {
+	display: inline-flex;
+	box-sizing: border-box;
+	gap: 8px;
+	align-items: center;
+	height: var(--barrio-control);
+	padding: 0 14px 0 6px;
+	border: 1px solid var(--barrio-line);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--barrio-muted);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.barrio-steps button:hover,
+.barrio-steps button[aria-current="step"] {
+	border-color: var(--barrio-ink);
+	color: var(--barrio-ink);
+}
+
+.barrio-steps__mark {
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var(--barrio-soft);
+	font-size: 12px;
+}
+
+.barrio-steps__mark .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+}
+
+.barrio-steps .is-done .barrio-steps__mark {
+	background: #1a7f37;
+	color: #fff;
+}
+
+.barrio-steps [aria-current="step"] .barrio-steps__mark {
+	background: var(--barrio-ink);
+	color: #fff;
 }

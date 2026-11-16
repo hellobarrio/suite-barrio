@@ -529,6 +529,56 @@ export function Bar( { title, children } ) {
 }
 
 /**
+ * La ricerca nella barra, dentro .barrio-bar__tools. Quando la barra è stretta diventa un bottone
+ * che la apre in un menu: vedi fit().
+ *
+ * @param {Object}                  props
+ * @param {string}                  props.label    Anche il segnaposto.
+ * @param {string}                  props.value
+ * @param {(value: string) => void} props.onChange
+ */
+export function Search( { label, value, onChange } ) {
+	const input = ( className ) => (
+		<input
+			type="search"
+			className={ className }
+			placeholder={ label }
+			aria-label={ label }
+			value={ value }
+			onChange={ ( event ) => onChange( event.target.value ) }
+		/>
+	);
+	return (
+		<>
+			<div className="barrio-search">
+				<Icon name="search" />
+				{ input( 'barrio-input' ) }
+			</div>
+			<Dropdown
+				className="barrio-search-toggle"
+				popoverProps={ { placement: 'bottom-start' } }
+				renderToggle={ ( { isOpen, onToggle } ) => (
+					<button
+						type="button"
+						className={ `barrio-button${ value ? ' is-active' : '' }` }
+						aria-label={ label }
+						aria-expanded={ isOpen }
+						onClick={ onToggle }
+					>
+						<Icon name="search" />
+					</button>
+				) }
+				renderContent={ () => (
+					<div className="barrio-picker">
+						{ input( 'barrio-picker__search' ) }
+					</div>
+				) }
+			/>
+		</>
+	);
+}
+
+/**
  * Un pulsante della barra con una scelta e la ricerca quando le opzioni sono tante: il form delle
  * registrazioni, la lingua del builder. La scelta si applica subito e l'elenco resta aperto, così
  * con le frecce si scorrono le opzioni; si chiude con Esc o fuori.
@@ -786,8 +836,6 @@ export function Table( {
 	const page = Math.min( query.page, last );
 	const first = total ? ( page - 1 ) * PER_PAGE + 1 : 0;
 	const go = ( to ) => onQuery( { ...query, page: to } );
-	const searchFor = ( event ) =>
-		onQuery( { ...query, search: event.target.value, page: 1 } );
 
 	const ids = rows.map( ( row ) => row.id );
 	const selected =
@@ -864,46 +912,12 @@ export function Table( {
 		<div className="barrio-stack">
 			<Bar title={ title }>
 				<div className="barrio-bar__tools">
-					<div className="barrio-search">
-						<Icon name="search" />
-						<input
-							type="search"
-							className="barrio-input"
-							placeholder={ search }
-							aria-label={ search }
-							value={ query.search }
-							onChange={ searchFor }
-						/>
-					</div>
-					{ /* Al posto della ricerca quando la barra è stretta: vedi fit(). */ }
-					<Dropdown
-						className="barrio-search-toggle"
-						popoverProps={ { placement: 'bottom-start' } }
-						renderToggle={ ( { isOpen, onToggle } ) => (
-							<button
-								type="button"
-								className={ `barrio-button${
-									query.search ? ' is-active' : ''
-								}` }
-								aria-label={ search }
-								aria-expanded={ isOpen }
-								onClick={ onToggle }
-							>
-								<Icon name="search" />
-							</button>
-						) }
-						renderContent={ () => (
-							<div className="barrio-picker">
-								<input
-									type="search"
-									className="barrio-picker__search"
-									placeholder={ search }
-									aria-label={ search }
-									value={ query.search }
-									onChange={ searchFor }
-								/>
-							</div>
-						) }
+					<Search
+						label={ search }
+						value={ query.search }
+						onChange={ ( value ) =>
+							onQuery( { ...query, search: value, page: 1 } )
+						}
 					/>
 					{ ( filters.length > 0 || hideable.length > 0 ) && (
 						<Filters

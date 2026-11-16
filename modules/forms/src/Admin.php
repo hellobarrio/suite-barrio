@@ -4,23 +4,34 @@ namespace BarrioSuite\Forms;
 
 /**
  * Menu "Barrio", che ospiterà anche i moduli futuri. Una sola app React (assets/src/admin, compilata
- * in build/) per due pagine: Form, con le schede Form (elenco e builder), Registrazioni, che basta
- * agli editor, e Impostazioni, che richiede manage_options perché l'SMTP vale per tutte le email del
- * sito; Estensioni, che non è dei form (src/Extensions.php).
+ * in build/) per tutte le pagine: la Bacheca, con una card per modulo; Form, con le schede Form (elenco
+ * e builder), Registrazioni, che basta agli editor, e Impostazioni, che richiede manage_options perché
+ * l'SMTP vale per tutte le email del sito; Estensioni e Impostazioni del plugin (gli aggiornamenti),
+ * che non sono dei form (src/Extensions.php).
  * ponytail: menu e app stanno nel modulo Forms finché è l'unico; con un secondo modulo passano al core.
  */
 final class Admin {
 
-	private const PAGE = 'barrio-forms';
+	private const PAGE = 'barrio';
 
-	// Una voce per modulo. Form basta che si possano leggere le registrazioni: chi non gestisce i form
-	// (gli editor) ci trova solo quelle (assets/src/admin/index.js).
+	// L'icona del prototipo: WordPress ricolora l'SVG come le altre icone del menu.
+	private const ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgcm9sZT0iaW1nIj48cGF0aCBmaWxsPSJibGFjayIgZD0iTTUsNWgyLjV2Mi41SDVaTTAsOC43NWgyLjV2Mi41SDBaTTIuNSwxMS4yNWgyLjV2Mi41SDIuNVpNNSwxMy43NWgxMHYyLjVINVpNMTcuNSw4Ljc1aDIuNXYyLjVIMTcuNVpNMTUsMTEuMjVoMi41djIuNUgxNVpNMTIuNSw1aDIuNXYyLjVIMTIuNVoiLz48L3N2Zz4=';
+
+	// Una voce per modulo. Bacheca e Form si aprono con una delle due capability, che i ruoli hanno
+	// anche separate (Form → Impostazioni → Permessi): ognuno ci trova solo ciò che può fare
+	// (assets/src/admin/index.js).
+	// ponytail: la Bacheca ha le capability del solo modulo; con un secondo modulo diventa 'read' e
+	// ogni card controlla la sua.
 	public static function menu(): void {
-		add_menu_page( 'Barrio', 'Barrio', 'barrio_manage_entries', self::PAGE, [ self::class, 'page' ], 'dashicons-feedback', 30 );
+		$forms = current_user_can( 'barrio_manage_entries' ) ? 'barrio_manage_entries' : 'barrio_manage_forms';
+		add_menu_page( 'Barrio Suite', 'Barrio', $forms, self::PAGE, [ self::class, 'page' ], self::ICON, 30 );
 		$pages = [
-			self::PAGE          => [ __( 'Forms', 'barrio-suite' ), 'barrio_manage_entries' ],
+			self::PAGE          => [ __( 'Dashboard', 'barrio-suite' ), $forms ],
+			'barrio-forms'      => [ __( 'Forms', 'barrio-suite' ), $forms ],
 			// Installare e aggiornare richiedono altre capability (src/Extensions.php).
 			'barrio-extensions' => [ __( 'Extensions', 'barrio-suite' ), 'activate_plugins' ],
+			// Per ora solo gli aggiornamenti: la stessa capability di Estensioni, che ne legge i dati.
+			'barrio-settings'   => [ __( 'Settings', 'barrio-suite' ), 'activate_plugins' ],
 		];
 		foreach ( $pages as $slug => [ $title, $capability ] ) {
 			$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );
@@ -109,7 +120,9 @@ final class Admin {
 			'presets'          => self::presets(),
 			'integrations'     => (object) Integrations::definitions(),
 			'canManageForms'   => current_user_can( 'barrio_manage_forms' ),
+			'canManageEntries' => current_user_can( 'barrio_manage_entries' ),
 			'canManageOptions' => current_user_can( 'manage_options' ),
+			'version'          => BARRIO_SUITE_VERSION,
 			// Per i download (file ed export CSV), che sono link e non passano da apiFetch.
 			'rest'             => [
 				'url'   => rest_url( 'barrio/v1/' ),

@@ -2,6 +2,7 @@
 	"name": "barrio-suite",
 	"files": [
 		"barrio-suite.php",
+		"uninstall.php",
 		"src",
 		"build",
 		"modules/*/src",

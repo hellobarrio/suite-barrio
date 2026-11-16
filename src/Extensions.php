@@ -2,8 +2,11 @@
 
 namespace BarrioSuite;
 
+use DateTimeImmutable;
 use Plugin_Upgrader;
+use stdClass;
 use WP_Ajax_Upgrader_Skin;
+use WP_Automatic_Updater;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -13,7 +16,10 @@ use WP_REST_Response;
  * repository (npm run release). Il catalog.json dell'ultima release dà nome e versione di ognuno; lo zip
  * è sempre l'asset {slug}.zip della stessa release, quindi un catalogo alterato non fa scaricare altro:
  *
- * - la pagina Estensioni (Barrio → Extensions) le installa, attiva, disattiva e aggiorna con l'installatore di WordPress;
+ * - la pagina Estensioni (Barrio → Extensions) le installa, attiva, disattiva, aggiorna ed elimina con
+ *   l'installatore di WordPress;
+ * - la pagina Impostazioni (Barrio → Settings) aggiorna Barrio Suite allo stesso modo e attiva per tutti
+ *   gli aggiornamenti automatici di WordPress, che per i nostri plugin avvengono ogni notte (nightly());
  * - gli aggiornamenti, anche di Barrio Suite, compaiono in Bacheca → Aggiornamenti come quelli degli
  *   altri plugin: ognuno ha l'header "Update URI: {REPO}" e qui si risponde al filtro di WordPress
  *   per quell'host (update_plugins_github.com).
@@ -27,13 +33,73 @@ final class Extensions {
 	private const DOWNLOAD = self::REPO . '/releases/latest/download/';
 	private const CATALOG  = self::DOWNLOAD . 'catalog.json';
 	private const CACHE    = 'barrio_extensions_catalog';
+	private const NIGHTLY  = 'barrio_nightly_update';
 
 	/** @var array<string, Item>|WP_Error|null Per richiesta: anche un errore, così non si riprova per ogni plugin. */
 	private static array|WP_Error|null $catalog = null;
 
+	// Durante nightly(): solo allora WordPress aggiorna da solo i nostri plugin.
+	private static bool $night = false;
+
 	public static function boot(): void {
 		add_filter( 'update_plugins_github.com', [ self::class, 'update' ], 10, 3 );
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
+		add_action( 'init', [ self::class, 'schedule' ] );
+		add_action( self::NIGHTLY, [ self::class, 'nightly' ] );
+		add_filter( 'auto_update_plugin', [ self::class, 'at_night' ], 10, 2 );
+	}
+
+	public static function deactivate(): void {
+		wp_clear_scheduled_hook( self::NIGHTLY );
+	}
+
+	/*
+	 * Un evento singolo alla prossima mezzanotte del sito, rimesso dopo ogni giro: segue il fuso del sito
+	 * e l'ora legale, che un evento 'daily' sposterebbe. WP-Cron parte alla prima visita dopo mezzanotte.
+	 * Solo sul sito principale, come gli aggiornamenti automatici di WordPress: i plugin sono di tutta la rete.
+	 */
+	public static function schedule(): void {
+		if ( is_main_network() && is_main_site() && ! wp_next_scheduled( self::NIGHTLY ) ) {
+			wp_schedule_single_event( ( new DateTimeImmutable( 'tomorrow', wp_timezone() ) )->getTimestamp(), self::NIGHTLY );
+		}
+	}
+
+	/**
+	 * Ogni notte i nostri plugin con gli aggiornamenti automatici accesi passano all'ultima versione,
+	 * con l'aggiornatore automatico di WordPress: controlla la compatibilità e, se dopo l'aggiornamento
+	 * il sito dà un errore fatale, torna alla versione di prima.
+	 */
+	public static function nightly(): void {
+		$ours = array_column( self::installed(), 'file' );
+		if ( ! array_intersect( $ours, (array) get_site_option( 'auto_update_plugins', [] ) ) ) {
+			return;
+		}
+		require_once ABSPATH . 'wp-admin/includes/admin.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		// Il catalogo e le versioni di adesso, non quelli dell'ultimo controllo di WordPress.
+		delete_site_transient( self::CACHE );
+		self::$catalog = null;
+		delete_site_transient( 'update_plugins' );
+		wp_update_plugins();
+		$updates     = get_site_transient( 'update_plugins' );
+		$updater     = new WP_Automatic_Updater();
+		self::$night = true;
+		foreach ( $updates instanceof stdClass ? $updates->response : [] as $item ) {
+			if ( in_array( $item->plugin, $ours, true ) && ! self::is_checkout( dirname( $item->plugin ) ) ) {
+				$updater->update( 'plugin', $item );
+			}
+		}
+		self::$night = false;
+	}
+
+	/**
+	 * Nel suo giro con WP-Cron WordPress non aggiorna i nostri plugin: lo fa nightly(). Fuori da WP-Cron
+	 * il filtro non cambia niente, così in Plugin il link degli aggiornamenti automatici resta il solito.
+	 *
+	 * @param bool|null $update
+	 */
+	public static function at_night( mixed $update, object $item ): mixed {
+		return ! self::$night && wp_doing_cron() && self::REPO === ( $item->id ?? null ) ? false : $update;
 	}
 
 	/**
@@ -62,11 +128,25 @@ final class Extensions {
 			'barrio/v1',
 			'/extensions',
 			[
-				'methods'             => 'GET',
-				'callback'            => [ self::class, 'list' ],
-				'permission_callback' => static fn(): bool => current_user_can( 'activate_plugins' ),
-				// refresh: senza la copia del catalogo dell'ultima ora ("Cerca aggiornamenti").
-				'args'                => [ 'refresh' => [ 'type' => 'boolean' ] ],
+				[
+					'methods'             => 'GET',
+					'callback'            => [ self::class, 'list' ],
+					'permission_callback' => static fn(): bool => current_user_can( 'activate_plugins' ),
+					// refresh: senza la copia del catalogo dell'ultima ora ("Cerca aggiornamenti").
+					'args'                => [ 'refresh' => [ 'type' => 'boolean' ] ],
+				],
+				[
+					'methods'             => 'PUT',
+					'callback'            => [ self::class, 'save' ],
+					// Come il link "Attiva gli aggiornamenti automatici" in Plugin.
+					'permission_callback' => static fn(): bool => self::can_auto_update(),
+					'args'                => [
+						'auto_update' => [
+							'type'     => 'boolean',
+							'required' => true,
+						],
+					],
+				],
 			]
 		);
 		register_rest_route(
@@ -82,12 +162,13 @@ final class Extensions {
 						'update'     => 'update_plugins',
 						'activate'   => 'activate_plugins',
 						'deactivate' => 'activate_plugins',
+						'delete'     => 'delete_plugins',
 					][ $request['action'] ] ?? 'do_not_allow'
 				),
 				'args'                => [
 					'action' => [
 						'type'     => 'string',
-						'enum'     => [ 'install', 'update', 'activate', 'deactivate' ],
+						'enum'     => [ 'install', 'update', 'activate', 'deactivate', 'delete' ],
 						'required' => true,
 					],
 				],
@@ -124,13 +205,27 @@ final class Extensions {
 		usort( $list, static fn( array $a, array $b ): int => strcasecmp( $a['name'], $b['name'] ) );
 		return new WP_REST_Response(
 			[
-				'extensions'  => $list,
-				'error'       => $catalog instanceof WP_Error ? $catalog->get_error_message() : null,
-				'can_install' => current_user_can( 'install_plugins' ),
-				'can_update'  => current_user_can( 'update_plugins' ),
-				'upload_url'  => network_admin_url( 'plugin-install.php?tab=upload' ),
+				'extensions'      => $list,
+				// Barrio Suite si aggiorna come un'estensione, dalla pagina Impostazioni.
+				'suite'           => [
+					'version'   => $items['barrio-suite']['version'] ?? null,
+					'installed' => BARRIO_SUITE_VERSION,
+				],
+				'error'           => $catalog instanceof WP_Error ? $catalog->get_error_message() : null,
+				'can_install'     => current_user_can( 'install_plugins' ),
+				'can_update'      => current_user_can( 'update_plugins' ),
+				'can_delete'      => current_user_can( 'delete_plugins' ),
+				'auto_update'     => self::auto_update(),
+				'can_auto_update' => self::can_auto_update(),
+				'upload_url'      => network_admin_url( 'plugin-install.php?tab=upload' ),
 			]
 		);
+	}
+
+	// Risponde con l'elenco aggiornato, come GET /extensions.
+	public static function save( WP_REST_Request $request ): WP_REST_Response {
+		self::set_auto_update( (bool) $request['auto_update'] );
+		return self::list( new WP_REST_Request() );
 	}
 
 	// Risponde con l'elenco aggiornato, come GET /extensions.
@@ -147,6 +242,12 @@ final class Extensions {
 		$error = null;
 		if ( 'install' === $action && null === $local && null !== $item ) {
 			$error = self::install( self::DOWNLOAD . "{$slug}.zip", false ) ?? activate_plugin( (string) ( self::installed()[ $slug ]['file'] ?? '' ) );
+			// Una nuova estensione si aggiorna da sola come le altre.
+			if ( null === $error && self::auto_update() ) {
+				self::set_auto_update( true );
+			}
+		} elseif ( 'update' === $action && self::is_checkout( $slug ) ) {
+			$error = new WP_Error( 'barrio_checkout', __( 'This is a development copy with git: update it with git.', 'barrio-suite' ), [ 'status' => 409 ] );
 		} elseif ( 'update' === $action && null !== $local && null !== $item ) {
 			$error = self::install( self::DOWNLOAD . "{$slug}.zip", true );
 		} elseif ( 'activate' === $action && null !== $local ) {
@@ -154,6 +255,8 @@ final class Extensions {
 		} elseif ( 'deactivate' === $action && null !== $local && ! is_plugin_active_for_network( $local['file'] ) ) {
 			// Non se è attiva in tutta la rete di un multisite: si disattiverebbe ovunque.
 			deactivate_plugins( $local['file'] );
+		} elseif ( 'delete' === $action && null !== $local && ! is_plugin_active( $local['file'] ) ) {
+			$error = self::delete( $local['file'] );
 		} else {
 			$error = new WP_Error( 'barrio_extension_state', __( 'This extension cannot do that now: reload the page.', 'barrio-suite' ), [ 'status' => 409 ] );
 		}
@@ -162,6 +265,31 @@ final class Extensions {
 			return new WP_Error( $error->get_error_code(), $error->get_error_message(), [ 'status' => is_array( $data ) ? $data['status'] ?? 500 : 500 ] );
 		}
 		return self::list( new WP_REST_Request() );
+	}
+
+	/*
+	 * Gli aggiornamenti automatici sono quelli di WordPress (l'opzione auto_update_plugins, la stessa del
+	 * link in Plugin): attivi per Barrio Suite e tutte le estensioni insieme, e si leggono da Barrio Suite.
+	 */
+	public static function auto_update(): bool {
+		return in_array( plugin_basename( dirname( __DIR__ ) . '/barrio-suite.php' ), (array) get_site_option( 'auto_update_plugins', [] ), true );
+	}
+
+	private static function set_auto_update( bool $on ): void {
+		$ours = array_column( self::installed(), 'file' );
+		$list = array_diff( (array) get_site_option( 'auto_update_plugins', [] ), $ours );
+		update_site_option( 'auto_update_plugins', array_values( $on ? [ ...$list, ...$ours ] : $list ) );
+	}
+
+	// Spenti da AUTOMATIC_UPDATER_DISABLED o da un filtro, o senza update_plugins (DISALLOW_FILE_MODS).
+	public static function can_auto_update(): bool {
+		require_once ABSPATH . 'wp-admin/includes/update.php';
+		return current_user_can( 'update_plugins' ) && wp_is_auto_update_enabled_for_type( 'plugin' );
+	}
+
+	// Una copia di sviluppo non si sovrascrive con lo zip: si perderebbe il lavoro non pubblicato.
+	private static function is_checkout( string $slug ): bool {
+		return is_dir( WP_PLUGIN_DIR . "/{$slug}/.git" );
 	}
 
 	/** @return array<string, Item>|WP_Error Per slug, cioè la cartella del plugin. */
@@ -211,6 +339,20 @@ final class Extensions {
 			}
 		}
 		return $installed;
+	}
+
+	// Come Plugin → Elimina, che esegue anche l'uninstall.php del plugin, se ce l'ha.
+	private static function delete( string $file ): ?WP_Error {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		// Senza accesso diretto ai file WordPress stamperebbe il modulo delle credenziali FTP: qui nessuno lo vede.
+		ob_start();
+		$result = delete_plugins( [ $file ] );
+		ob_end_clean();
+		wp_clean_plugins_cache();
+		if ( true === $result ) {
+			return null;
+		}
+		return $result instanceof WP_Error ? $result : new WP_Error( 'barrio_filesystem', __( 'WordPress cannot delete plugin files on this server: delete the extension from Plugins.', 'barrio-suite' ) );
 	}
 
 	// Con l'installatore di WordPress, come Plugin → Aggiungi nuovo; $overwrite sostituisce la versione installata.

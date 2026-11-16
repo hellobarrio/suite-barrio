@@ -7,6 +7,7 @@ use BarrioSuite\Forms\Integrations;
 use BarrioSuite\Forms\Notifications;
 use BarrioSuite\Forms\Privacy;
 use BarrioSuite\Mail\Smtp;
+use BarrioSuite\Roles;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -15,9 +16,12 @@ use WP_REST_Server;
 /**
  * Rotte dell'admin. Le impostazioni valgono per tutto il sito (l'SMTP anche per le email di
  * WordPress e degli altri plugin), quindi richiedono manage_options. Comprendono quelle globali
- * delle integrazioni, con i segreti in sola scrittura come la password SMTP.
+ * delle integrazioni, con i segreti in sola scrittura come la password SMTP, e cosa può fare ogni ruolo.
  */
 final class RestAdmin {
+
+	// Le capability del modulo, che si assegnano ai ruoli nei Permessi.
+	public const CAPS = [ 'barrio_manage_forms', 'barrio_manage_entries' ];
 
 	public static function register(): void {
 		$admin = static fn(): bool => current_user_can( 'manage_options' );
@@ -39,6 +43,7 @@ final class RestAdmin {
 						'email'        => Notifications::schema(),
 						'privacy'      => Privacy::schema(),
 						'integrations' => Integrations::schema(),
+						'roles'        => Roles::schema( self::CAPS ),
 						// In sola scrittura: non torna mai indietro. Assente o vuota = resta quella salvata.
 						'password'     => [
 							'type'      => 'string',
@@ -73,7 +78,7 @@ final class RestAdmin {
 				'password_status' => Smtp::password_status(),
 				'email'           => Notifications::settings(),
 				'privacy'         => Privacy::settings(),
-			] + Integrations::view()
+			] + Integrations::view() + Roles::get( self::CAPS )
 		);
 	}
 
@@ -92,6 +97,9 @@ final class RestAdmin {
 		}
 		if ( is_array( $request['integrations'] ) ) {
 			Integrations::save_settings( $request['integrations'] );
+		}
+		if ( is_array( $request['roles'] ) ) {
+			Roles::save( self::CAPS, $request['roles'] );
 		}
 		return self::settings();
 	}

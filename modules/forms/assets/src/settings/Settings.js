@@ -1,51 +1,39 @@
 // Scheda Impostazioni: SMTP, template delle email, email di test, privacy (con l'eliminazione di
-// tutte le registrazioni, subito e senza Salva) e le impostazioni globali delle integrazioni. Legge e
-// salva con GET/PUT /barrio/v1/settings; la password SMTP e i segreti delle integrazioni non tornano
-// mai dal server, se ne conosce solo lo stato.
+// tutte le registrazioni, subito e senza Salva), cosa può fare ogni ruolo e le impostazioni globali
+// delle integrazioni (i campi sono in Sections.js). Legge e salva con GET/PUT /barrio/v1/settings;
+// la password SMTP e i segreti delle integrazioni non tornano mai dal server, se ne conosce solo lo stato.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { MediaUpload } from '@wordpress/media-utils';
 
 import {
 	Bar,
 	Card,
+	Check,
 	Group,
 	Loading,
 	Lucide,
 	Notice,
-	Select,
-	Text,
 	useUnsavedWarning,
 } from '../admin/ui.js';
-import { SettingControl } from '../builder/Integrations.js';
 import { errorMessage } from '../builder/model.js';
+import {
+	GlobalFields,
+	RetentionField,
+	SmtpFields,
+	TemplateFields,
+	TestEmail,
+} from './Sections.js';
 
 // Le integrazioni delle estensioni con impostazioni globali, una card ciascuna.
 const GLOBAL = Object.entries( window.barrioAdmin.integrations ).filter(
 	( [ , definition ] ) => Object.keys( definition.global_settings ).length
 );
 
-// Lo stato di un segreto delle integrazioni (una chiave API), come quello della password SMTP.
-const SECRET_HELP = {
-	saved: __( 'Saved: leave empty to keep it.', 'barrio-suite' ),
-	unreadable: __(
-		'The saved value can no longer be read, probably because the WordPress security keys have changed. Enter it again.',
-		'barrio-suite'
-	),
-};
-
-const PASSWORD_HELP = {
-	none: '',
-	saved: __( 'Leave empty to keep the saved password.', 'barrio-suite' ),
-	constant: __(
-		'Defined in wp-config.php with the BARRIO_SMTP_PASSWORD constant.',
-		'barrio-suite'
-	),
-	unreadable: __(
-		'The saved password can no longer be read, probably because the WordPress security keys have changed. Enter it again.',
-		'barrio-suite'
-	),
+// Le capability del modulo, nei Permessi (RestAdmin::CAPS).
+const CAPS = {
+	barrio_manage_forms: __( 'Create and edit forms', 'barrio-suite' ),
+	barrio_manage_entries: __( 'See and manage entries', 'barrio-suite' ),
 };
 
 export function Settings() {
@@ -55,9 +43,9 @@ export function Settings() {
 	const [ privacy, setPrivacy ] = useState( null );
 	// Le impostazioni globali delle integrazioni, per slug. I segreti ci sono solo se appena scritti.
 	const [ integrations, setIntegrations ] = useState( null );
+	// Per ruolo le capability che ha; gli amministratori non ci sono, hanno sempre tutto.
+	const [ roles, setRoles ] = useState( null );
 	const [ password, setPassword ] = useState( '' );
-	const [ showPassword, setShowPassword ] = useState( false );
-	const [ testTo, setTestTo ] = useState( '' );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( null );
 
@@ -69,6 +57,7 @@ export function Settings() {
 				setEmail( data.email );
 				setPrivacy( data.privacy );
 				setIntegrations( data.integrations );
+				setRoles( data.roles );
 			} )
 			.catch( ( error ) =>
 				setNotice( { status: 'error', message: errorMessage( error ) } )
@@ -77,12 +66,13 @@ export function Settings() {
 
 	const dirty =
 		'' !== password ||
-		JSON.stringify( { smtp, email, privacy, integrations } ) !==
+		JSON.stringify( { smtp, email, privacy, integrations, roles } ) !==
 			JSON.stringify( {
 				smtp: saved?.smtp,
 				email: saved?.email,
 				privacy: saved?.privacy,
 				integrations: saved?.integrations,
+				roles: saved?.roles,
 			} );
 	useUnsavedWarning( dirty );
 
@@ -90,18 +80,14 @@ export function Settings() {
 		return notice ? <Notice notice={ notice } /> : <Loading />;
 	}
 
-	const setSmtpField = ( key ) => ( value ) =>
-		setSmtp( { ...smtp, [ key ]: value } );
-	// Un segreto vuoto non si invia: resta quello salvato, e la pagina torna senza modifiche.
-	const setGlobal = ( slug, name, secret ) => ( value ) => {
-		const values = { ...integrations[ slug ], [ name ]: value };
-		if ( secret && '' === value ) {
-			delete values[ name ];
-		}
-		setIntegrations( { ...integrations, [ slug ]: values } );
-	};
-	const setEmailField = ( key ) => ( value ) =>
-		setEmail( { ...email, [ key ]: value } );
+	// Nell'ordine di CAPS, così il confronto con quelle salvate non dipende dall'ordine dei clic.
+	const setCap = ( role, cap ) => ( on ) =>
+		setRoles( {
+			...roles,
+			[ role ]: Object.keys( CAPS ).filter( ( key ) =>
+				key === cap ? on : roles[ role ].includes( key )
+			),
+		} );
 	const request = ( kind, options, then ) => {
 		setBusy( kind );
 		setNotice( null );
@@ -190,6 +176,7 @@ export function Settings() {
 					email,
 					privacy,
 					integrations,
+					roles,
 					...( password && { password } ),
 				},
 			},
@@ -199,6 +186,7 @@ export function Settings() {
 				setEmail( response.email );
 				setPrivacy( response.privacy );
 				setIntegrations( response.integrations );
+				setRoles( response.roles );
 				setPassword( '' );
 				return __( 'Settings saved.', 'barrio-suite' );
 			}
@@ -231,79 +219,12 @@ export function Settings() {
 					'barrio-suite'
 				) }
 			>
-				<Text
-					label={ __( 'Host', 'barrio-suite' ) }
-					placeholder="smtp.example.com"
-					value={ smtp.host }
-					onChange={ setSmtpField( 'host' ) }
-				/>
-				<Text
-					label={ __( 'Port', 'barrio-suite' ) }
-					type="number"
-					min={ 1 }
-					max={ 65535 }
-					value={ smtp.port }
-					onChange={ ( value ) =>
-						setSmtpField( 'port' )( Number( value ) )
-					}
-				/>
-				<Select
-					label={ __( 'Encryption', 'barrio-suite' ) }
-					value={ smtp.encryption }
-					options={ [
-						{ label: 'TLS (STARTTLS)', value: 'tls' },
-						{ label: 'SSL', value: 'ssl' },
-						{ label: __( 'None', 'barrio-suite' ), value: 'none' },
-					] }
-					onChange={ setSmtpField( 'encryption' ) }
-				/>
-				<Text
-					label={ __( 'Username', 'barrio-suite' ) }
-					help={ __(
-						'Leave empty if the server does not require authentication.',
-						'barrio-suite'
-					) }
-					autoComplete="off"
-					value={ smtp.username }
-					onChange={ setSmtpField( 'username' ) }
-				/>
-				<Text
-					label={ __( 'Password', 'barrio-suite' ) }
-					type={ showPassword ? 'text' : 'password' }
-					autoComplete="new-password"
-					help={ PASSWORD_HELP[ saved.password_status ] }
-					placeholder={
-						'saved' === saved.password_status ? '••••••••' : ''
-					}
-					disabled={ 'constant' === saved.password_status }
-					value={ password }
-					onChange={ setPassword }
-					addon={
-						<button
-							type="button"
-							className="barrio-button"
-							onClick={ () => setShowPassword( ! showPassword ) }
-						>
-							{ showPassword
-								? __( 'Hide', 'barrio-suite' )
-								: __( 'Show', 'barrio-suite' ) }
-						</button>
-					}
-				/>
-				<Text
-					label={ __( 'From email', 'barrio-suite' ) }
-					help={ __(
-						'The sender of every email the site sends. SMTP servers usually accept only the addresses of their own domain.',
-						'barrio-suite'
-					) }
-					type="email"
-					value={ smtp.from_email }
-					onChange={ setSmtpField( 'from_email' ) }
-				/>
-				<Text
-					label={ __( 'From name', 'barrio-suite' ) }
-					value={ smtp.from_name }
-					onChange={ setSmtpField( 'from_name' ) }
+				<SmtpFields
+					smtp={ smtp }
+					onChange={ setSmtp }
+					password={ password }
+					onPassword={ setPassword }
+					passwordStatus={ saved.password_status }
 				/>
 			</Card>
 
@@ -316,71 +237,7 @@ export function Settings() {
 					'barrio-suite'
 				) }
 			>
-				<Group
-					label={ __( 'Logo', 'barrio-suite' ) }
-					help={ __(
-						'Shown at the top of form emails, 48 pixels high. Without a logo the site name is shown.',
-						'barrio-suite'
-					) }
-				>
-					{ email.logo && (
-						<img
-							className="barrio-logo"
-							src={ email.logo }
-							alt=""
-						/>
-					) }
-					<div className="barrio-row is-fill">
-						<MediaUpload
-							allowedTypes={ [ 'image' ] }
-							onSelect={ ( media ) =>
-								setEmailField( 'logo' )( media.url )
-							}
-							render={ ( { open } ) => (
-								<button
-									type="button"
-									className="barrio-button"
-									onClick={ open }
-								>
-									{ email.logo
-										? __( 'Replace logo', 'barrio-suite' )
-										: __( 'Choose logo', 'barrio-suite' ) }
-								</button>
-							) }
-						/>
-						{ email.logo && (
-							<button
-								type="button"
-								className="barrio-button is-danger"
-								onClick={ () => setEmailField( 'logo' )( '' ) }
-							>
-								{ __( 'Remove', 'barrio-suite' ) }
-							</button>
-						) }
-					</div>
-				</Group>
-				<Text
-					label={ __( 'Accent color', 'barrio-suite' ) }
-					type="color"
-					value={ email.accent_color }
-					onChange={ setEmailField( 'accent_color' ) }
-				/>
-				<Text
-					label={ __( 'Background color', 'barrio-suite' ) }
-					type="color"
-					value={ email.background_color }
-					onChange={ setEmailField( 'background_color' ) }
-				/>
-				<Text
-					multiline
-					label={ __( 'Footer', 'barrio-suite' ) }
-					help={ __(
-						'Shown at the bottom of form emails; links are allowed. Leave empty to show the site name.',
-						'barrio-suite'
-					) }
-					value={ email.footer }
-					onChange={ setEmailField( 'footer' ) }
-				/>
+				<TemplateFields email={ email } onChange={ setEmail } />
 			</Card>
 
 			<Card
@@ -392,45 +249,7 @@ export function Settings() {
 					'barrio-suite'
 				) }
 			>
-				<Text
-					label={ __( 'Send to', 'barrio-suite' ) }
-					help={
-						dirty
-							? __(
-									'Save your changes first: the test uses the saved settings.',
-									'barrio-suite'
-								)
-							: __(
-									'Leave empty to send it to your own address.',
-									'barrio-suite'
-								)
-					}
-					type="email"
-					value={ testTo }
-					onChange={ setTestTo }
-				/>
-				<div className="barrio-field">
-					<div className="barrio-field__control">
-						<button
-							type="button"
-							className="barrio-button"
-							disabled={ !! busy || dirty }
-							onClick={ () =>
-								request(
-									'test',
-									{
-										path: '/barrio/v1/settings/test-email',
-										method: 'POST',
-										data: testTo ? { to: testTo } : {},
-									},
-									( data ) => data.message
-								)
-							}
-						>
-							{ __( 'Send test email', 'barrio-suite' ) }
-						</button>
-					</div>
-				</div>
+				<TestEmail dirty={ dirty } onNotice={ setNotice } />
 			</Card>
 
 			<Card
@@ -442,26 +261,7 @@ export function Settings() {
 					'barrio-suite'
 				) }
 			>
-				<Text
-					label={ __(
-						'Delete entries after (days)',
-						'barrio-suite'
-					) }
-					help={ __(
-						'Entries older than this are deleted every day, with their files. Leave 0 to keep them until you delete them.',
-						'barrio-suite'
-					) }
-					type="number"
-					min={ 0 }
-					max={ 3650 }
-					value={ privacy.retention_days }
-					onChange={ ( value ) =>
-						setPrivacy( {
-							...privacy,
-							retention_days: Number( value ),
-						} )
-					}
-				/>
+				<RetentionField privacy={ privacy } onChange={ setPrivacy } />
 				<Group
 					label={ __( 'All entries', 'barrio-suite' ) }
 					help={ __(
@@ -482,6 +282,40 @@ export function Settings() {
 				</Group>
 			</Card>
 
+			<Card
+				className="barrio-wide"
+				icon="groups"
+				title={ __( 'Permissions', 'barrio-suite' ) }
+				description={ __(
+					'What each role can do in Forms. Administrators can always do everything; only administrators change these settings.',
+					'barrio-suite'
+				) }
+			>
+				{ /* Gli amministratori non sono in roles: tutto spuntato e fisso. */ }
+				{ Object.entries( saved.role_names ).map(
+					( [ role, name ] ) => (
+						<Group key={ role } label={ name }>
+							<div className="barrio-checks">
+								{ Object.entries( CAPS ).map(
+									( [ cap, label ] ) => (
+										<Check
+											key={ cap }
+											label={ label }
+											disabled={ ! roles[ role ] }
+											checked={
+												! roles[ role ] ||
+												roles[ role ].includes( cap )
+											}
+											onChange={ setCap( role, cap ) }
+										/>
+									)
+								) }
+							</div>
+						</Group>
+					)
+				) }
+			</Card>
+
 			{ GLOBAL.map( ( [ slug, definition ] ) => (
 				<Card
 					key={ slug }
@@ -490,43 +324,17 @@ export function Settings() {
 					title={ definition.label }
 					description={ definition.description }
 				>
-					{ Object.entries( definition.global_settings ).map(
-						( [ name, schema ] ) => {
-							if ( 'password' !== schema.format ) {
-								return (
-									<SettingControl
-										key={ name }
-										name={ name }
-										schema={ schema }
-										value={ integrations[ slug ]?.[ name ] }
-										onChange={ setGlobal( slug, name ) }
-									/>
-								);
-							}
-							const status = saved.secrets[ slug ]?.[ name ];
-							return (
-								<Text
-									key={ name }
-									label={ schema.title ?? name }
-									type="password"
-									autoComplete="new-password"
-									help={ [
-										schema.description,
-										SECRET_HELP[ status ],
-									]
-										.filter( Boolean )
-										.join( ' ' ) }
-									placeholder={
-										'saved' === status ? '••••••••' : ''
-									}
-									value={
-										integrations[ slug ]?.[ name ] ?? ''
-									}
-									onChange={ setGlobal( slug, name, true ) }
-								/>
-							);
+					<GlobalFields
+						definition={ definition }
+						values={ integrations[ slug ] }
+						secrets={ saved.secrets[ slug ] }
+						onChange={ ( values ) =>
+							setIntegrations( {
+								...integrations,
+								[ slug ]: values,
+							} )
 						}
-					) }
+					/>
 				</Card>
 			) ) }
 		</div>
