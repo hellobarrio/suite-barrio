@@ -54,6 +54,10 @@ final class UninstallTest extends WP_UnitTestCase {
 		$request->set_body_params( [ 'delete_data' => true ] );
 		$this->assertTrue( rest_do_request( $request )->get_data()['delete_data'] );
 		$tables = $wpdb->get_col( $wpdb->prepare( 'SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE %s', $wpdb->esc_like( $wpdb->prefix . 'barrio_' ) . '%' ) );
+		$post   = self::factory()->post->create();
+		$term   = self::factory()->category->create();
+		update_post_meta( $post, '_barrio_seo_title', 'Title' );
+		update_term_meta( $term, '_barrio_seo_index', 'noindex' );
 
 		Plugin::uninstall();
 
@@ -64,6 +68,11 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertFalse( get_option( 'barrio_delete_data' ) );
 		$this->assertFalse( get_role( 'administrator' )->has_cap( 'barrio_manage_forms' ) );
 		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_manage_entries' ) );
+		$this->assertContains( $wpdb->prefix . 'barrio_redirects', $this->dropped );
+		$this->assertFalse( get_role( 'administrator' )->has_cap( 'barrio_manage_seo' ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_edit_seo' ) );
+		$this->assertFalse( metadata_exists( 'post', $post, '_barrio_seo_title' ) );
+		$this->assertFalse( metadata_exists( 'term', $term, '_barrio_seo_index' ) );
 		$this->assertDirectoryDoesNotExist( FileStore::dir() );
 		$this->assertSame( '1', $wpdb->get_var( 'SELECT @@FOREIGN_KEY_CHECKS' ) );
 	}

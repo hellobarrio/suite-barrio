@@ -21,7 +21,16 @@ import { settingsSections } from '../extensions/Extensions.js';
 import { smtpSection } from './Smtp.js';
 
 // I nomi dei moduli di Modules::ALL (src/Modules.php).
-const MODULES = { forms: FORMS };
+const MODULES = {
+	forms: FORMS,
+	seo: {
+		title: __( 'SEO', 'barrio-suite' ),
+		description: __(
+			'Titles, descriptions, sitemap and redirects. Turn it off if the site uses another SEO plugin, such as Yoast or Rank Math.',
+			'barrio-suite'
+		),
+	},
+};
 
 // GET e PUT /barrio/v1/modules: per modulo, acceso o no. Cambiano il menu: dopo il salvataggio la
 // pagina si ricarica.
@@ -84,7 +93,7 @@ const uninstallSection = {
 					'barrio-suite'
 				) }
 				help={ __(
-					'Forms, entries with their files, settings and permissions of this site. It cannot be undone: export the entries you need first.',
+					'Forms, entries with their files, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first.',
 					'barrio-suite'
 				) }
 				checked={ draft }
