@@ -143,12 +143,14 @@ nei termini).
   - `robots` con `wp_robots` (il core aggiunge già `max-image-preview:large`);
   - `canonical`, che sui singoli passa da `get_canonical_url` e su archivi, home e tassonomie è il nostro (la pagina 2 ha la sua);
   - Open Graph: `og:type` (`article` sui post, `website` altrove), `title`, `description`, `url` (= canonical), `site_name`, `image` con le dimensioni, `locale`;
-  - Twitter `summary_large_image`.
+  - Twitter: solo `twitter:card` `summary_large_image`, perché X legge titolo, descrizione e immagine da Open Graph.
+
+  Ricerca e 404 hanno solo il titolo e il robots del core: niente descrizione, canonical, Open Graph o JSON-LD.
 - **JSON-LD**: un solo `@graph` con:
   - Organization o il tipo scelto (`#organization`);
   - WebSite (`#website`);
-  - WebPage o CollectionPage (con un `ItemList` di al più 200 voci);
-  - BreadcrumbList (Home > antenati > pagina; per i termini, i genitori).
+  - WebPage, o CollectionPage per gli archivi e per le pagine con `_barrio_seo_collection` (con un `ItemList` di al più 200 voci indicizzabili);
+  - BreadcrumbList (Home > antenati > pagina; per i termini, i genitori), con i titoli dei contenuti e non quelli SEO. La home non ne ha.
 
   Niente grafo sulle pagine noindex.
 - **Sitemap**: quella del core, con:
@@ -164,7 +166,11 @@ nei termini).
   - **Redirect automatici** (se `auto_redirects`): quando cambia l'URL di un contenuto pubblicato o di un termine, anche cambiando il genitore, si crea un 301.
     - niente loop;
     - catene appiattite (A→B→C diventa A→C);
-    - un redirect che partiva dal nuovo URL si toglie.
+    - un redirect che partiva dal nuovo URL si toglie;
+    - cambiano anche gli URL dei discendenti (pagine figlie, termini figli);
+    - la destinazione è l'URL relativo vero, con la `/` finale dei permalink, così WordPress non aggiunge un secondo redirect.
+
+    `// ponytail:` i post con il termine nel permalink (`%category%`) non seguono il cambio del termine.
 
     Servono soprattutto ai siti headless: in WordPress i post hanno già `_wp_old_slug`, ma il frontend Next.js no.
 - **llms.txt e llms-full.txt**: li serve WordPress (`parse_request`, `text/plain; charset=utf-8`) dalla cache. Il contenuto è come nel prototipo:
@@ -172,6 +178,8 @@ nei termini).
   - sezioni per tipo e tassonomia secondo `llms`;
   - "Navigazione" dai menu;
   - con più lingue, una sezione per lingua.
+
+  In llms-full.txt il testo è il `post_content` senza HTML né shortcode (non `the_content`, che renderebbe anche i form), fino a 4000 caratteri; in llms.txt la descrizione di `Seo\Meta`. La cache (transient, al più un giorno) si svuota con `clean_post_cache`, `clean_term_cache`, le impostazioni SEO e il nome del sito.
 
   Un file vero in `ABSPATH` ha la precedenza, perché il web server lo serve prima di WordPress: la migrazione elimina quelli del prototipo.
 - **Non si stampano**: meta keywords; hreflang, che lo fa WPML; `priority` e `changefreq`.
@@ -232,8 +240,8 @@ Menu Barrio: Bacheca, Form, SEO, Estensioni, Impostazioni. Un modulo spento non 
 
 Hook nuovi, solo quelli che un'estensione di questo piano usa (come dopo l'audit):
 - `barrio_seo_loaded` (su `init`, priorità 5);
-- `barrio_seo_changed` (`'settings'`, `'redirects'` o l'ID di un post o di un termine): serve al ponte di
-  revalidation e, più avanti, a un'estensione di revalidation per Next.js;
+- `barrio_seo_changed` (`'settings'`, `'redirects'` o l'ID di un post o di un termine, quest'ultimo con il pannello
+  in S3): serve al ponte di revalidation e, più avanti, a un'estensione di revalidation per Next.js;
 - `barrio_seo_url` (l'URL di una pagina, in ogni punto in cui il modulo lo scrive): serve all'estensione WPGraphQL;
 - in JS, `barrio.seo.generators` con `@wordpress/hooks`: un generatore registrato fa comparire "Genera".
 

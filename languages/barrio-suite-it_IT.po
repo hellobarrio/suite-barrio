@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Barrio Suite 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite\n"
-"POT-Creation-Date: 2026-11-17T13:11:52+00:00\n"
+"POT-Creation-Date: 2026-11-17T13:50:19+00:00\n"
 "PO-Revision-Date: 2026-11-17 08:54+0000\n"
 "Last-Translator: Hellobarrio\n"
 "Language-Team: Italian\n"
@@ -190,7 +190,8 @@ msgstr "File non trovato."
 
 #: modules/forms/src/Api/RestEntries.php:351
 #: modules/forms/src/FieldTypes.php:45 modules/forms/src/Privacy.php:71
-#: build/barrio-admin.js:23 build/barrio-admin.js:25
+#: modules/seo/src/Llms.php:120 build/barrio-admin.js:23
+#: build/barrio-admin.js:25
 msgid "Date"
 msgstr "Data"
 
@@ -568,6 +569,26 @@ msgstr "Non è stato possibile accettare il tuo invio."
 #: modules/forms/src/Submission/Submission.php:150
 msgid "Too many submissions. Please try again in a few minutes."
 msgstr "Troppi invii. Riprova tra qualche minuto."
+
+#: modules/seo/src/Llms.php:110
+msgid "Navigation"
+msgstr "Navigazione"
+
+#: modules/seo/src/Meta.php:26
+msgid "Page not found"
+msgstr "Pagina non trovata"
+
+#. translators: %s: search terms.
+#: modules/seo/src/Meta.php:28
+#, php-format
+msgid "Search results for “%s”"
+msgstr "Risultati della ricerca per “%s”"
+
+#. translators: %d: page number.
+#: modules/seo/src/Meta.php:116
+#, php-format
+msgid "Page %d"
+msgstr "Pagina %d"
 
 #: src/Admin.php:26 build/barrio-admin.js:52
 msgid "Dashboard"

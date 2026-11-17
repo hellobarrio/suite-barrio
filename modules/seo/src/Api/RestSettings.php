@@ -44,6 +44,7 @@ final class RestSettings {
 		if ( is_array( $request['roles'] ) ) {
 			Roles::save( Module::CAPS, $request['roles'] );
 		}
+		do_action( 'barrio_seo_changed', 'settings' );
 		return self::get();
 	}
 }
