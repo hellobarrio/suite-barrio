@@ -1,0 +1,10 @@
+[
+	{ "name": "page then site", "title": "Chi siamo", "page": 1, "site": "Pizzeria Da Mario", "separator": "—", "order": "page_site", "expected": "Chi siamo — Pizzeria Da Mario" },
+	{ "name": "site then page", "title": "Chi siamo", "page": 1, "site": "Pizzeria Da Mario", "separator": "|", "order": "site_page", "expected": "Pizzeria Da Mario | Chi siamo" },
+	{ "name": "the page number after the first page", "title": "Blog", "page": 2, "site": "Pizzeria Da Mario", "separator": "—", "order": "page_site", "expected": "Blog — Page 2 — Pizzeria Da Mario" },
+	{ "name": "the page number stays with the title when the site comes first", "title": "Blog", "page": 3, "site": "Pizzeria Da Mario", "separator": "·", "order": "site_page", "expected": "Pizzeria Da Mario · Blog · Page 3" },
+	{ "name": "without a title only the site", "title": "", "page": 1, "site": "Pizzeria Da Mario", "separator": "—", "order": "page_site", "expected": "Pizzeria Da Mario" },
+	{ "name": "a title equal to the site name is not repeated", "title": "Pizzeria Da Mario", "page": 1, "site": "Pizzeria Da Mario", "separator": "—", "order": "site_page", "expected": "Pizzeria Da Mario" },
+	{ "name": "without a site name only the title", "title": "Chi siamo", "page": 1, "site": "", "separator": "—", "order": "site_page", "expected": "Chi siamo" },
+	{ "name": "text is not escaped", "title": "Caffè & \"Co\"", "page": 1, "site": "Bar <Sport>", "separator": "-", "order": "page_site", "expected": "Caffè & \"Co\" - Bar <Sport>" }
+]

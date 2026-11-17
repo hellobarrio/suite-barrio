@@ -23,7 +23,7 @@ Barrio Suite starts with a Forms module:
 * A block and the `[barrio_form id="…"]` shortcode, both cache friendly (no nonce in the page).
 * Translations of every text when an extension provides the languages (for example WPML).
 
-And an SEO module: titles and meta descriptions, Open Graph, JSON-LD (organization, website, page and breadcrumbs), the WordPress sitemap with only indexable content, redirects (also created automatically when the URL of a content changes) and llms.txt. If the site already uses another SEO plugin, such as Yoast SEO or Rank Math, turn the SEO module off.
+And an SEO module: titles and meta descriptions, Open Graph, JSON-LD (organization, website, page and breadcrumbs), the WordPress sitemap with only indexable content, redirects (also created automatically when the URL of a content changes) and llms.txt. An SEO panel in the block editor, the classic editor and the term pages shows the Google and social previews and a score with the checks to improve. If the site already uses another SEO plugin, such as Yoast SEO or Rank Math, turn the SEO module off.
 
 Every module can be turned off in Barrio → Settings: it disappears from the menu and from the site, and its data is kept.
 

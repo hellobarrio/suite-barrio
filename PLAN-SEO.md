@@ -125,14 +125,14 @@ modules/seo/
 │   ├── Redirects.php    # esecuzione e redirect automatici
 │   ├── Repository/RedirectRepository.php   # l'unico a usare $wpdb
 │   ├── Llms.php
-│   ├── Editor.php       # sidebar dell'editor a blocchi, metabox classica, campi dei termini
+│   ├── Editor.php       # sidebar dell'editor a blocchi, metabox classica, campi dei termini e loro salvataggio
 │   └── Api/RestSettings.php, RestRedirects.php, RestContents.php
-└── assets/src/{seo,editor}/   # pagina SEO e pannello; title.js e score.js condivisi
+└── assets/src/{seo,editor}/   # pagina SEO e pannello (Panel.js); title.js e score.js condivisi
 tests/fixtures/seo-title.json  # lo stesso titolo in PHP e in JS
 ```
 
-Ci sono due build: `barrio-admin` (shell, Forms e SEO) e `seo-editor` (il pannello, caricato nell'editor e
-nei termini).
+Ci sono tre build: `barrio-admin` (shell, Forms e SEO), `seo-sidebar` (il pannello nell'editor a blocchi) e
+`seo-form` (lo stesso pannello nella metabox classica e nei termini, senza caricare l'editor a blocchi).
 
 ## 4. Output nel sito
 
@@ -211,21 +211,41 @@ Menu Barrio: Bacheca, Form, SEO, Estensioni, Impostazioni. Un modulo spento non 
   - nell'editor classico, e nei tipi senza editor a blocchi, è una metabox;
   - nei termini, i campi stanno nella pagina di modifica.
 
+  Nella metabox e nei termini il pannello scrive i meta in un campo nascosto del form (con un nonce per contenuto),
+  e si salvano con `WP_REST_Post_Meta_Fields` e `WP_REST_Term_Meta_Fields`: la validazione e i permessi della REST.
+  Titolo, riassunto, contenuto, nome e descrizione aggiornano il pannello mentre si scrive.
+  `// ponytail:` il contenuto dell'editor visuale classico (TinyMCE) arriva solo salvando o passando al testo.
+
   Il componente è lo stesso ovunque:
   - le anteprime di Google e social;
-  - titolo e descrizione con i contatori (60/160);
+  - titolo e descrizione con i contatori (60/160; il titolo si conta con il nome del sito, come lo mostra Google);
   - l'immagine, con quella in evidenza come segnaposto;
   - le parole chiave (la prima è la principale);
   - Indicizza e Segui a tre stati: Predefinito (con il valore ereditato), Sì, No;
   - la pagina archivio, solo nelle pagine;
   - il punteggio.
-- **Punteggio**: i controlli del prototipo, più la parola chiave principale nello slug:
-  - titolo e descrizione presenti e della lunghezza giusta;
-  - immagine presente;
-  - parole chiave presenti;
-  - la principale nel titolo e nella descrizione.
+- **Punteggio**: scritto da zero, ispirato ai test di Rank Math (non quelli del prototipo). Controlli superati o no,
+  ognuno con un peso; il punteggio è la percentuale del peso superato. Più di 80 è buono, più di 50 da migliorare,
+  come in Rank Math. Sempre, anche nei termini:
+  - parola chiave principale impostata;
+  - la principale nel titolo SEO, e nella sua prima metà;
+  - titolo completo di al più 60 caratteri;
+  - la principale nella descrizione; descrizione di 120–160 caratteri;
+  - la principale nell'URL; percorso dell'URL di al più 75 caratteri;
+  - un'immagine di condivisione sua (non quella predefinita del sito).
 
-  Si mostra come elenco di controlli superati o no, come in Rank Math. Si calcola solo in JS (`score.js`), non si salva, e lo usano il pannello e la tabella; i test girano con `node --test`.
+  Solo dove c'è un contenuto:
+  - almeno 600 parole;
+  - la principale nel contenuto e nel primo 10%, con densità tra 0,5% e 2,5%;
+  - la principale in un sottotitolo (H2–H6) e nell'alt di un'immagine;
+  - link interni ed esterni;
+  - paragrafi di al più 120 parole;
+  - immagini o video.
+
+  Le parole chiave si confrontano come parole intere, senza accenti e maiuscole. Lasciati di Rank Math: parola
+  chiave già usata (servirebbe una query), sentiment, power word e numero nel titolo (dipendono dalla lingua),
+  indice dei contenuti. Si calcola solo in JS (`score.js`), non si salva, e lo usano il pannello e la tabella; i
+  test girano con `node --test`.
 - **Bacheca**: card SEO con contenuti indicizzati, contenuti senza descrizione e redirect, più i link a Contenuti e Impostazioni. La Bacheca si apre con `read` e ogni card controlla la sua capability.
 - **Messa online**: il passaggio `seo` è fatto con la descrizione e l'immagine predefinite e con nome e logo dell'organizzazione.
 
@@ -240,8 +260,8 @@ Menu Barrio: Bacheca, Form, SEO, Estensioni, Impostazioni. Un modulo spento non 
 
 Hook nuovi, solo quelli che un'estensione di questo piano usa (come dopo l'audit):
 - `barrio_seo_loaded` (su `init`, priorità 5);
-- `barrio_seo_changed` (`'settings'`, `'redirects'` o l'ID di un post o di un termine, quest'ultimo con il pannello
-  in S3): serve al ponte di revalidation e, più avanti, a un'estensione di revalidation per Next.js;
+- `barrio_seo_changed` (`'settings'`, `'redirects'`, o `'post'` e `'term'` con l'ID quando ne cambiano i meta SEO,
+  una volta per richiesta): serve al ponte di revalidation e, più avanti, a un'estensione di revalidation per Next.js;
 - `barrio_seo_url` (l'URL di una pagina, in ogni punto in cui il modulo lo scrive): serve all'estensione WPGraphQL;
 - in JS, `barrio.seo.generators` con `@wordpress/hooks`: un generatore registrato fa comparire "Genera".
 
@@ -310,4 +330,10 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
 - **Costo dei redirect**: una SELECT sulla UNIQUE a ogni richiesta del frontend. Va misurata; se serve, un flag "nessun redirect" in un'opzione autoload la evita.
 - **llms-full.txt**: misurare quanto ci mette a generarsi, a cache vuota, sul sito più grande (500 contenuti fino a 4000 caratteri).
 - **Altri plugin SEO**: con Yoast o Rank Math attivi, e il modulo acceso di default, i meta escono due volte finché non si spegne il modulo. La card Moduli e il readme lo dicono; il core non contiene codice per riconoscerli. Se servisse un avviso automatico, sarebbe un'estensione.
+- **Meta dall'editor a blocchi** (S3, fatto): quando cambia un meta qualsiasi (anche le note a piè di pagina)
+  l'editor rimanda tutti i meta del contenuto, con null o vuoti quelli assenti. Per il core null vuol dire
+  cancellare: chiede `barrio_edit_seo` (un autore non salverebbe più) e rifiuta un meta assente il cui valore vuoto
+  non rispetta lo schema (500 su `index`, `follow`, `image`, `collection`). Il filtro
+  `rest_request_before_callbacks` toglie i meta SEO assenti che restano assenti (`Module::changes()`, che usa anche
+  la metabox). Senza `custom-fields` la REST del core non scrive i meta: il modulo lo aggiunge ai tipi pubblici.
 - **Conflitti nei cherry-pick** (S0, fatto): i file diversi tra i due branch sono elencati in `docs/release.md` (pagina Estensioni, `Updates.js` e `dev/release.js` solo su `con-updater`, header `Update URI`, "External services" del readme) e le fasi successive non li toccano. Il resto, compresi `PLAN.md`, `docs/hooks.md`, la messa online e le Impostazioni, è uguale: le parti dell'updater arrivano da `Extensions.js` (`launchSteps`, `settingsSections`). `languages/` resta diverso per le stringhe dell'updater: dopo un cherry-pick si rigenera in ogni branch.
