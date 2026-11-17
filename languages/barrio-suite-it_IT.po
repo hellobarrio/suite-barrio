@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Barrio Suite 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite\n"
-"POT-Creation-Date: 2026-11-17T11:40:59+00:00\n"
+"POT-Creation-Date: 2026-11-17T12:09:23+00:00\n"
 "PO-Revision-Date: 2026-11-17 08:54+0000\n"
 "Last-Translator: Hellobarrio\n"
 "Language-Team: Italian\n"
@@ -983,6 +983,22 @@ msgstr ""
 "a>. Il testo viene salvato con ogni registrazione come prova del consenso."
 
 #: build/barrio-admin.js:12
+msgid "Empty option"
+msgstr "Opzione vuota"
+
+#: build/barrio-admin.js:12
+msgid "Placeholder"
+msgstr "Segnaposto"
+
+#: build/barrio-admin.js:12
+msgid "Required field"
+msgstr "Campo obbligatorio"
+
+#: build/barrio-admin.js:12
+msgid "Advanced"
+msgstr "Avanzate"
+
+#: build/barrio-admin.js:12
 msgid "Key"
 msgstr "Chiave"
 
@@ -995,18 +1011,6 @@ msgstr ""
 "Generata dall'etichetta finché non la modifichi o salvi il form. Si usa nei "
 "merge tag, come {{email}}, e nelle esportazioni: lettere minuscole, cifre e "
 "trattini bassi."
-
-#: build/barrio-admin.js:12
-msgid "Empty option"
-msgstr "Opzione vuota"
-
-#: build/barrio-admin.js:12
-msgid "Placeholder"
-msgstr "Segnaposto"
-
-#: build/barrio-admin.js:12
-msgid "Required field"
-msgstr "Campo obbligatorio"
 
 #: build/barrio-admin.js:12
 msgid "Error message"
@@ -2062,15 +2066,15 @@ msgid "Send test email"
 msgstr "Invia email di prova"
 
 #: build/barrio-admin.js:51
+msgid "Test email"
+msgstr "Email di prova"
+
+#: build/barrio-admin.js:51
 msgid ""
 "The emails of the site leave through an SMTP server, so they do not end up "
 "in spam."
 msgstr ""
 "Le email del sito partono da un server SMTP, così non finiscono nello spam."
-
-#: build/barrio-admin.js:51
-msgid "Test email"
-msgstr "Email di prova"
 
 #: build/barrio-admin.js:51
 msgid ""
@@ -2079,10 +2083,6 @@ msgid ""
 msgstr ""
 "Usato per tutte le email inviate dal sito, non solo per le notifiche dei "
 "form. Lascia vuoto l'host per inviare con la posta predefinita di WordPress."
-
-#: build/barrio-admin.js:51
-msgid "Sends an email with the saved settings."
-msgstr "Invia un'email con le impostazioni salvate."
 
 #: build/barrio-admin.js:51
 msgid "Time zone"

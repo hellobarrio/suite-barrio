@@ -22,11 +22,12 @@ import { __, sprintf } from '@wordpress/i18n';
 
 import {
 	Card,
-	Check,
+	Details,
 	Icon,
 	Menu,
 	SectionHead,
 	Text,
+	Toggle,
 	useScrollIntoView,
 } from '../../../../../assets/src/admin/ui.js';
 import { formsData } from '../ui.js';
@@ -49,6 +50,8 @@ const main = languages[ 0 ];
 // Tipi senza un controllo da compilare: niente obbligatorio, segnaposto o messaggio di errore.
 const NO_INPUT = [ 'hidden', 'page_break' ];
 const PLACEHOLDER = [ 'text', 'email', 'tel', 'number', 'textarea', 'select' ];
+// Le impostazioni dei tipi che stanno in Avanzate, con la chiave e il messaggio di errore.
+const ADVANCED = [ 'autocomplete', 'pattern' ];
 const ICONS = {
 	text: 'editor-textcolor',
 	email: 'email',
@@ -473,6 +476,25 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 		set( { config } );
 	};
 	const input = ! NO_INPUT.includes( field.type );
+	const setting = ( [ name, prop ] ) =>
+		'choices' === name ? (
+			<Choices
+				key={ name }
+				field={ field }
+				saved={ saved?.config.choices ?? [] }
+				lang={ lang }
+				onChange={ onChange }
+			/>
+		) : (
+			<Fixed key={ name } lang={ lang }>
+				<SettingControl
+					name={ name }
+					schema={ prop }
+					value={ field.config[ name ] }
+					onChange={ setConfig( name ) }
+				/>
+			</Fixed>
+		);
 
 	return (
 		<Card
@@ -511,16 +533,6 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 						: ( changed ) => setLabel( changed.i18n[ main ].label )
 				}
 			/>
-			<Text
-				label={ __( 'Key', 'barrio-suite' ) }
-				help={ __(
-					'Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores.',
-					'barrio-suite'
-				) }
-				disabled={ translating }
-				value={ field.key }
-				onChange={ ( key ) => set( { key } ) }
-			/>
 			{ PLACEHOLDER.includes( field.type ) && (
 				<TextIn
 					item={ field }
@@ -536,47 +548,45 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 				/>
 			) }
 			{ input && (
-				<Check
+				<Toggle
 					label={ __( 'Required field', 'barrio-suite' ) }
 					disabled={ translating }
 					checked={ field.required }
 					onChange={ ( required ) => set( { required } ) }
 				/>
 			) }
-			{ Object.entries( schema.properties ).map( ( [ name, prop ] ) =>
-				'choices' === name ? (
-					<Choices
-						key={ name }
-						field={ field }
-						saved={ saved?.config.choices ?? [] }
-						lang={ lang }
-						onChange={ onChange }
-					/>
-				) : (
-					<Fixed key={ name } lang={ lang }>
-						<SettingControl
-							name={ name }
-							schema={ prop }
-							value={ field.config[ name ] }
-							onChange={ setConfig( name ) }
-						/>
-					</Fixed>
-				)
-			) }
-			{ input && (
-				<TextIn
-					item={ field }
-					lang={ lang }
-					name="error_message"
-					optional
-					label={ __( 'Error message', 'barrio-suite' ) }
+			{ Object.entries( schema.properties )
+				.filter( ( [ name ] ) => ! ADVANCED.includes( name ) )
+				.map( setting ) }
+			<Details title={ __( 'Advanced', 'barrio-suite' ) }>
+				<Text
+					label={ __( 'Key', 'barrio-suite' ) }
 					help={ __(
-						'Shown when the value is missing or not valid. Leave empty for the standard messages.',
+						'Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores.',
 						'barrio-suite'
 					) }
-					onChange={ onChange }
+					disabled={ translating }
+					value={ field.key }
+					onChange={ ( key ) => set( { key } ) }
 				/>
-			) }
+				{ Object.entries( schema.properties )
+					.filter( ( [ name ] ) => ADVANCED.includes( name ) )
+					.map( setting ) }
+				{ input && (
+					<TextIn
+						item={ field }
+						lang={ lang }
+						name="error_message"
+						optional
+						label={ __( 'Error message', 'barrio-suite' ) }
+						help={ __(
+							'Shown when the value is missing or not valid. Leave empty for the standard messages.',
+							'barrio-suite'
+						) }
+						onChange={ onChange }
+					/>
+				) }
+			</Details>
 			{ 'page_break' !== field.type && (
 				<Fixed lang={ lang }>
 					<Conditions

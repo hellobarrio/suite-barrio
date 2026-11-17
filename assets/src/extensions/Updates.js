@@ -6,7 +6,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
-import { Card, Check, Icon, Notice, errorMessage } from '../admin/ui.js';
+import { Card, Icon, Notice, Toggle, errorMessage } from '../admin/ui.js';
 
 // Più recente di quella installata: le versioni sono x.y.z.
 export const newer = ( available, installed ) =>
@@ -25,7 +25,7 @@ const autoUpdate = {
 };
 
 const AutoUpdate = ( { draft, set, data, help } ) => (
-	<Check
+	<Toggle
 		label={ __( 'Update automatically every night', 'barrio-suite' ) }
 		help={
 			data.can_auto_update

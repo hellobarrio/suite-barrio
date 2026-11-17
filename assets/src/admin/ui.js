@@ -226,18 +226,12 @@ export function Select( { label, help, value, options, onChange, hideLabel } ) {
 	);
 }
 
-export function Check( { label, help, checked, onChange, disabled } ) {
+// Un interruttore, con il testo a sinistra: preferito alle caselle, che restano per scegliere da un
+// elenco (righe, colonne, opzioni).
+export function Toggle( { label, help, checked, onChange, disabled } ) {
 	const id = useId();
 	return (
-		<div className="barrio-check">
-			<input
-				type="checkbox"
-				id={ id }
-				aria-describedby={ help ? `${ id }-help` : undefined }
-				disabled={ disabled }
-				checked={ !! checked }
-				onChange={ ( event ) => onChange( event.target.checked ) }
-			/>
+		<div className="barrio-toggle">
 			<div>
 				<label htmlFor={ id }>{ label }</label>
 				{ help && (
@@ -246,39 +240,102 @@ export function Check( { label, help, checked, onChange, disabled } ) {
 					</p>
 				) }
 			</div>
+			<input
+				type="checkbox"
+				role="switch"
+				className="barrio-switch"
+				id={ id }
+				aria-describedby={ help ? `${ id }-help` : undefined }
+				disabled={ disabled }
+				checked={ !! checked }
+				onChange={ ( event ) => onChange( event.target.checked ) }
+			/>
 		</div>
 	);
 }
 
-export const Card = ( {
+/**
+ * Una card con intestazione (icona, titolo, azioni) e corpo. collapsible: il titolo apre e chiude il
+ * corpo, per gli elenchi di card lunghe (notifiche, integrazioni).
+ *
+ * @param {Object}  props
+ * @param {string}  props.icon
+ * @param {string}  props.title
+ * @param {string}  props.description
+ * @param {Object}  props.actions
+ * @param {Object}  props.children
+ * @param {string}  props.className
+ * @param {boolean} props.collapsible
+ * @param {boolean} props.defaultOpen Se collapsible, aperta all'inizio.
+ */
+export function Card( {
 	icon,
 	title,
 	description,
 	actions,
 	children,
 	className = '',
-} ) => (
-	<section className={ `barrio-card ${ className }` }>
-		{ title && (
-			<header className="barrio-card__header">
-				{ icon && (
-					<span className="barrio-card__icon">
-						<Icon name={ icon } />
-					</span>
-				) }
-				<h2 className="barrio-card__title">{ title }</h2>
-				{ actions && (
-					<div className="barrio-card__actions">{ actions }</div>
-				) }
-			</header>
-		) }
-		<div className="barrio-card__body">
-			{ description && (
-				<p className="barrio-card__description">{ description }</p>
+	collapsible,
+	defaultOpen = true,
+} ) {
+	const [ open, setOpen ] = useState( ! collapsible || defaultOpen );
+	const id = useId();
+	const heading = (
+		<>
+			{ icon && (
+				<span className="barrio-card__icon">
+					<Icon name={ icon } />
+				</span>
 			) }
-			{ children }
-		</div>
-	</section>
+			{ title }
+		</>
+	);
+	return (
+		<section
+			className={ `barrio-card ${ className }${ open ? '' : ' is-closed' }` }
+		>
+			{ title && (
+				<header className="barrio-card__header">
+					<h2 className="barrio-card__title">
+						{ collapsible ? (
+							<button
+								type="button"
+								className="barrio-card__toggle"
+								aria-expanded={ open }
+								aria-controls={ id }
+								onClick={ () => setOpen( ! open ) }
+							>
+								{ heading }
+								<Icon name="arrow-down-alt2" />
+							</button>
+						) : (
+							heading
+						) }
+					</h2>
+					{ actions && (
+						<div className="barrio-card__actions">{ actions }</div>
+					) }
+				</header>
+			) }
+			<div className="barrio-card__body" id={ id } hidden={ ! open }>
+				{ description && (
+					<p className="barrio-card__description">{ description }</p>
+				) }
+				{ children }
+			</div>
+		</section>
+	);
+}
+
+// Una sezione di una card chiusa all'inizio, per ciò che serve di rado (le impostazioni avanzate).
+export const Details = ( { title, children } ) => (
+	<details className="barrio-details">
+		<summary>
+			<h3>{ title }</h3>
+			<Icon name="arrow-down-alt2" />
+		</summary>
+		<div className="barrio-details__body">{ children }</div>
+	</details>
 );
 
 /**

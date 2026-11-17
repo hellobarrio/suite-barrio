@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-17T11:40:59+00:00\n"
+"POT-Creation-Date: 2026-11-17T12:09:23+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -977,14 +977,6 @@ msgid "Links are allowed, for example <a href=\"/privacy-policy/\">privacy polic
 msgstr ""
 
 #: build/barrio-admin.js:12
-msgid "Key"
-msgstr ""
-
-#: build/barrio-admin.js:12
-msgid "Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores."
-msgstr ""
-
-#: build/barrio-admin.js:12
 msgid "Empty option"
 msgstr ""
 
@@ -994,6 +986,18 @@ msgstr ""
 
 #: build/barrio-admin.js:12
 msgid "Required field"
+msgstr ""
+
+#: build/barrio-admin.js:12
+msgid "Advanced"
+msgstr ""
+
+#: build/barrio-admin.js:12
+msgid "Key"
+msgstr ""
+
+#: build/barrio-admin.js:12
+msgid "Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores."
 msgstr ""
 
 #: build/barrio-admin.js:12
@@ -2002,19 +2006,15 @@ msgid "Send test email"
 msgstr ""
 
 #: build/barrio-admin.js:51
-msgid "The emails of the site leave through an SMTP server, so they do not end up in spam."
-msgstr ""
-
-#: build/barrio-admin.js:51
 msgid "Test email"
 msgstr ""
 
 #: build/barrio-admin.js:51
-msgid "Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail."
+msgid "The emails of the site leave through an SMTP server, so they do not end up in spam."
 msgstr ""
 
 #: build/barrio-admin.js:51
-msgid "Sends an email with the saved settings."
+msgid "Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail."
 msgstr ""
 
 #: build/barrio-admin.js:51

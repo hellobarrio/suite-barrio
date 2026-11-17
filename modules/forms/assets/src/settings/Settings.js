@@ -9,11 +9,11 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 import {
 	Bar,
 	Card,
-	Check,
 	Group,
 	Loading,
 	Lucide,
 	Notice,
+	Toggle,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../../assets/src/admin/ui.js';
@@ -254,7 +254,7 @@ export function Settings() {
 							<div className="barrio-checks">
 								{ Object.entries( CAPS ).map(
 									( [ cap, label ] ) => (
-										<Check
+										<Toggle
 											key={ cap }
 											label={ label }
 											disabled={ ! roles[ role ] }

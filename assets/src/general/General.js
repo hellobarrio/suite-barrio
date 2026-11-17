@@ -10,10 +10,10 @@ import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import {
 	Bar,
 	Card,
-	Check,
 	Loading,
 	Lucide,
 	Notice,
+	Toggle,
 	errorMessage,
 	useUnsavedWarning,
 } from '../admin/ui.js';
@@ -43,7 +43,7 @@ const modulesSection = {
 			) }
 		>
 			{ Object.entries( draft ).map( ( [ module, on ] ) => (
-				<Check
+				<Toggle
 					key={ module }
 					label={ MODULES[ module ]?.title ?? module }
 					help={ MODULES[ module ]?.description }
@@ -78,7 +78,7 @@ const uninstallSection = {
 				'barrio-suite'
 			) }
 		>
-			<Check
+			<Toggle
 				label={ __(
 					'Delete all data when Barrio Suite is deleted',
 					'barrio-suite'

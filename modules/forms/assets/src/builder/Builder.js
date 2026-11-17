@@ -9,7 +9,6 @@ import { __, sprintf } from '@wordpress/i18n';
 import {
 	Bar,
 	Card,
-	Check,
 	Icon,
 	Loading,
 	Lucide,
@@ -18,6 +17,7 @@ import {
 	SectionHead,
 	Select,
 	Text,
+	Toggle,
 	errorMessage,
 	langOption,
 	useScrollIntoView,
@@ -549,6 +549,7 @@ function NotificationsTab( { form, lang, update, onPreview, busy } ) {
 					fields={ fields }
 					tags={ tags }
 					isNew={ i === added }
+					open={ i === added || 1 === form.notifications.length }
 					busy={ busy }
 					onChange={ ( notification ) => set( i, notification ) }
 					onPreview={ () => onPreview( i ) }
@@ -582,6 +583,7 @@ function NotificationCard( {
 	fields,
 	tags,
 	isNew,
+	open,
 	busy,
 	onChange,
 	onPreview,
@@ -597,11 +599,13 @@ function NotificationCard( {
 		<div ref={ ref } className="barrio-scroll-target">
 			<Card
 				className="barrio-wide"
+				collapsible
+				defaultOpen={ open }
 				icon="email"
 				title={ n.name || __( 'Notification', 'barrio-suite' ) }
 				actions={
 					<>
-						<Check
+						<Toggle
 							label={ __( 'Active', 'barrio-suite' ) }
 							disabled={ translating }
 							checked={ n.enabled }
@@ -694,7 +698,7 @@ function NotificationCard( {
 					</div>
 				</div>
 				<Fixed lang={ lang }>
-					<Check
+					<Toggle
 						label={ __(
 							'Attach the uploaded files',
 							'barrio-suite'

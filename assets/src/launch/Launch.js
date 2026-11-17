@@ -9,11 +9,11 @@ import { formsStep } from '../../../modules/forms/assets/src/settings/Sections.j
 import {
 	Bar,
 	Card,
-	Check,
 	Icon,
 	Loading,
 	Notice,
 	Select,
+	Toggle,
 	errorMessage,
 	useUnsavedWarning,
 } from '../admin/ui.js';
@@ -81,7 +81,7 @@ const searchStep = {
 			data: { search_engines: draft },
 		} ),
 	Fields: ( { draft, set } ) => (
-		<Check
+		<Toggle
 			label={ __( 'Let search engines index the site', 'barrio-suite' ) }
 			help={ __(
 				'The same setting as Search engine visibility in Settings → Reading.',
