@@ -16,6 +16,26 @@ final class Module {
 		// Dopo i post type e le tassonomie dei temi e degli altri plugin, che si registrano su init.
 		add_action( 'init', [ self::class, 'register_meta' ], 20 );
 		add_action( 'rest_api_init', [ RestSettings::class, 'register' ] );
+
+		add_filter( 'pre_get_document_title', [ Head::class, 'title' ] );
+		add_filter( 'wp_robots', [ Head::class, 'robots' ] );
+		add_action( 'wp_head', [ Head::class, 'print' ], 1 );
+
+		add_filter( 'wp_sitemaps_posts_query_args', [ Sitemaps::class, 'posts' ], 10, 2 );
+		add_filter( 'wp_sitemaps_taxonomies_query_args', [ Sitemaps::class, 'terms' ], 10, 2 );
+		add_filter( 'wp_sitemaps_add_provider', [ Sitemaps::class, 'provider' ], 10, 2 );
+
+		add_action( 'template_redirect', [ Redirects::class, 'run' ], 0 );
+		add_action( 'pre_post_update', [ Redirects::class, 'before_post' ] );
+		add_action( 'post_updated', [ Redirects::class, 'after_post' ] );
+		add_action( 'edit_terms', [ Redirects::class, 'before_term' ], 10, 2 );
+		add_action( 'edited_term', [ Redirects::class, 'after_term' ], 10, 3 );
+
+		add_action( 'parse_request', [ Llms::class, 'serve' ] );
+		// I menu sono termini e le loro voci sono post.
+		foreach ( [ 'clean_post_cache', 'clean_term_cache', 'add_option_barrio_seo', 'update_option_barrio_seo', 'update_option_blogname' ] as $hook ) {
+			add_action( $hook, [ Llms::class, 'flush' ] );
+		}
 	}
 
 	public static function deactivate(): void {}

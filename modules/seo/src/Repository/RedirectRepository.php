@@ -57,6 +57,12 @@ final class RedirectRepository {
 		);
 	}
 
+	// Chi portava a $from ora porta a $to: A→B→C diventa A→C.
+	public static function retarget( string $from, string $to ): void {
+		global $wpdb;
+		Db::query( $wpdb->prepare( 'UPDATE %i SET target = %s, updated_at = %s WHERE target = %s COLLATE utf8mb4_bin', Db::table( 'redirects' ), $to, gmdate( 'Y-m-d H:i:s' ), $from ) );
+	}
+
 	public static function delete( int ...$ids ): void {
 		global $wpdb;
 		Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE id IN (', Db::table( 'redirects' ) ) . ( implode( ',', $ids ) ?: '0' ) . ')' );
