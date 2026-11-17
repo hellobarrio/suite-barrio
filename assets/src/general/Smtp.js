@@ -5,7 +5,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
-import { Card, SectionHead, Select, Text, errorMessage } from '../admin/ui.js';
+import { Card, Details, Select, Text, errorMessage } from '../admin/ui.js';
 
 const PASSWORD_HELP = {
 	none: '',
@@ -21,7 +21,7 @@ const PASSWORD_HELP = {
 };
 
 // La password è a parte: non torna mai dal server, se ne conosce solo lo stato.
-export function SmtpFields( {
+function SmtpFields( {
 	smtp,
 	onChange,
 	password,
@@ -113,7 +113,7 @@ export function SmtpFields( {
  * @param {boolean}                  props.dirty    Ci sono modifiche non salvate.
  * @param {(notice: Object) => void} props.onNotice L'esito, come avviso della pagina.
  */
-export function TestEmail( { dirty, onNotice } ) {
+function TestEmail( { dirty, onNotice } ) {
 	const [ to, setTo ] = useState( '' );
 	const [ busy, setBusy ] = useState( false );
 	const send = () => {
@@ -133,39 +133,35 @@ export function TestEmail( { dirty, onNotice } ) {
 			.finally( () => setBusy( false ) );
 	};
 	return (
-		<>
-			<Text
-				label={ __( 'Send to', 'barrio-suite' ) }
-				help={
-					dirty
-						? __(
-								'Save your changes first: the test uses the saved settings.',
-								'barrio-suite'
-							)
-						: __(
-								'Leave empty to send it to your own address.',
-								'barrio-suite'
-							)
-				}
-				type="email"
-				value={ to }
-				onChange={ setTo }
-			/>
-			<div className="barrio-field">
-				<div className="barrio-field__control">
-					<button
-						type="button"
-						className="barrio-button"
-						disabled={ busy || dirty }
-						onClick={ send }
-					>
-						{ busy
-							? __( 'Sending…', 'barrio-suite' )
-							: __( 'Send test email', 'barrio-suite' ) }
-					</button>
-				</div>
-			</div>
-		</>
+		<Text
+			label={ __( 'Send to', 'barrio-suite' ) }
+			help={
+				dirty
+					? __(
+							'Save your changes first: the test uses the saved settings.',
+							'barrio-suite'
+						)
+					: __(
+							'Leave empty to send it to your own address.',
+							'barrio-suite'
+						)
+			}
+			type="email"
+			value={ to }
+			onChange={ setTo }
+			addon={
+				<button
+					type="button"
+					className="barrio-button"
+					disabled={ busy || dirty }
+					onClick={ send }
+				>
+					{ busy
+						? __( 'Sending…', 'barrio-suite' )
+						: __( 'Send test email', 'barrio-suite' ) }
+				</button>
+			}
+		/>
 	);
 }
 
@@ -184,14 +180,20 @@ const smtp = {
 		} ),
 };
 
-const Fields = ( { draft, set, data } ) => (
-	<SmtpFields
-		smtp={ draft.smtp }
-		onChange={ ( value ) => set( { ...draft, smtp: value } ) }
-		password={ draft.password }
-		onPassword={ ( password ) => set( { ...draft, password } ) }
-		passwordStatus={ data.password_status }
-	/>
+// I campi e, chiusa, l'email di prova.
+const Fields = ( { draft, set, data, dirty, onNotice } ) => (
+	<>
+		<SmtpFields
+			smtp={ draft.smtp }
+			onChange={ ( value ) => set( { ...draft, smtp: value } ) }
+			password={ draft.password }
+			onPassword={ ( password ) => set( { ...draft, password } ) }
+			passwordStatus={ data.password_status }
+		/>
+		<Details title={ __( 'Test email', 'barrio-suite' ) }>
+			<TestEmail dirty={ dirty } onNotice={ onNotice } />
+		</Details>
+	</>
 );
 
 // Nella guida alla messa online (assets/src/launch): fatto con host, mittente e, se il server la
@@ -204,45 +206,23 @@ export const smtpStep = {
 		'The emails of the site leave through an SMTP server, so they do not end up in spam.',
 		'barrio-suite'
 	),
-	Fields: ( props ) => (
-		<>
-			<Fields { ...props } />
-			<SectionHead
-				title={ __( 'Test email', 'barrio-suite' ) }
-				level={ 3 }
-			/>
-			<TestEmail dirty={ props.dirty } onNotice={ props.onNotice } />
-		</>
-	),
+	Fields,
 };
 
 // In Barrio → Impostazioni (assets/src/general).
 export const smtpSection = {
 	...smtp,
 	Cards: ( props ) => (
-		<>
-			<Card
-				className="barrio-wide"
-				icon="email-alt"
-				title="SMTP"
-				description={ __(
-					'Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail.',
-					'barrio-suite'
-				) }
-			>
-				<Fields { ...props } />
-			</Card>
-			<Card
-				className="barrio-wide"
-				icon="email"
-				title={ __( 'Test email', 'barrio-suite' ) }
-				description={ __(
-					'Sends an email with the saved settings.',
-					'barrio-suite'
-				) }
-			>
-				<TestEmail dirty={ props.dirty } onNotice={ props.onNotice } />
-			</Card>
-		</>
+		<Card
+			className="barrio-wide"
+			icon="email-alt"
+			title="SMTP"
+			description={ __(
+				'Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail.',
+				'barrio-suite'
+			) }
+		>
+			<Fields { ...props } />
+		</Card>
 	),
 };

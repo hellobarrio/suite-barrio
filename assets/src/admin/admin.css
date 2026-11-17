@@ -2,6 +2,11 @@
  * Pagine admin di Barrio Suite: card bianche, bottoni scuri, tabelle con
  * ricerca. Variabili su :root (il foglio c'è solo nelle pagine di Barrio):
  * arrivano anche a popover e modale, fuori da .barrio-admin.
+ *
+ * Spazi e misure sono multipli di 4. Lo spazio dentro un elemento non supera
+ * quello che lo separa dagli altri (20px tra le card, 20px dentro, 16px tra i
+ * campi), e un angolo dentro un altro ha il raggio di quello esterno meno la
+ * distanza dal bordo (bottoni da 8px a 8px dal bordo di una barra da 16px).
  */
 
 :root {
@@ -12,13 +17,18 @@
 	--barrio-soft: #f6f7f7;
 	--barrio-accent: #2271b1;
 	--barrio-danger: #d63638;
-	--barrio-radius: 12px;
-	--barrio-radius-small: 6px;
+	--barrio-radius: 16px;
+	--barrio-radius-small: 8px;
 	--barrio-control: 36px;
+	--barrio-gap: 20px;
 
-	/* Dove si ferma la barra sticky e, sotto di lei (58px + 16px), i pannelli. */
+	/*
+	 * Dove si ferma la barra sticky (16px sotto quella di WordPress) e, sotto di
+	 * lei, i pannelli. La barra è alta un controllo, 8px sopra e sotto e il bordo.
+	 */
 	--barrio-top: 48px;
-	--barrio-below-bar: calc(var(--barrio-top) + 74px);
+	--barrio-bar: calc(var(--barrio-control) + 18px);
+	--barrio-below-bar: calc(var(--barrio-top) + var(--barrio-bar) + var(--barrio-gap));
 
 	/* I componenti di WordPress (schede, modale) hanno il colore dei bottoni. */
 	--wp-admin-theme-color: #1d2327;
@@ -53,7 +63,7 @@
 	display: flex;
 	gap: 16px;
 	align-items: center;
-	padding: 12px 0 8px;
+	padding: 12px 0 var(--barrio-gap);
 }
 
 .barrio-header__logo {
@@ -77,14 +87,14 @@
 }
 
 .barrio-header h1 span {
-	margin-left: 6px;
+	margin-left: 8px;
 	color: var(--barrio-muted);
 	font-size: 16px;
 	font-weight: 400;
 }
 
 .barrio-header p {
-	margin: 2px 0 0;
+	margin: 4px 0 0;
 	color: var(--barrio-muted);
 	font-size: 14px;
 }
@@ -99,14 +109,13 @@
 
 .barrio-nav {
 	display: flex;
-	gap: 8px;
-	margin: 12px 0 20px;
+	margin: 0 0 var(--barrio-gap);
 	border-bottom: 1px solid var(--barrio-line);
 }
 
 .barrio-nav a {
 	margin-bottom: -1px;
-	padding: 10px 14px;
+	padding: 12px 16px;
 	border-bottom: 2px solid transparent;
 	color: var(--barrio-muted);
 	font-size: 14px;
@@ -132,7 +141,7 @@
 .barrio-stack {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 16px;
+	gap: var(--barrio-gap);
 }
 
 .barrio-row {
@@ -162,11 +171,11 @@
 .barrio-button {
 	display: inline-flex;
 	box-sizing: border-box;
-	gap: 6px;
+	gap: 8px;
 	align-items: center;
 	justify-content: center;
 	height: var(--barrio-control);
-	padding: 0 14px;
+	padding: 0 16px;
 
 	/* Lo stesso bordo dei campi: nella barra stanno accanto alla ricerca. */
 	border: 1px solid #c3c4c7;
@@ -261,6 +270,9 @@
 .barrio-admin .barrio-handle:focus-visible,
 .barrio-admin .barrio-chip:focus-visible,
 .barrio-admin .barrio-fieldcard__title:focus-visible,
+.barrio-admin .barrio-card__toggle:focus-visible,
+.barrio-admin .barrio-details summary:focus-visible,
+.barrio-admin .barrio-switch:focus-visible,
 .barrio-nav a:focus-visible,
 .barrio-table th button:focus-visible {
 	outline: 2px solid var(--barrio-accent);
@@ -272,7 +284,7 @@
 
 .barrio-field {
 	display: grid;
-	gap: 6px;
+	gap: 8px;
 }
 
 .barrio-field__label {
@@ -282,7 +294,7 @@
 
 .barrio-field__control {
 	display: grid;
-	gap: 6px;
+	gap: 8px;
 	min-width: 0;
 }
 
@@ -296,7 +308,7 @@
 /* Il codice di una lingua con la sua bandiera, se c'è (Lang in ui.js). */
 .barrio-lang {
 	display: inline-flex;
-	gap: 6px;
+	gap: 8px;
 	align-items: center;
 }
 
@@ -360,24 +372,75 @@
 	color: var(--barrio-muted);
 }
 
-.barrio-check {
+/* Toggle in ui.js: il testo a sinistra, l'interruttore a destra. */
+.barrio-toggle {
 	display: flex;
-	gap: 10px;
+	gap: 16px;
 	align-items: flex-start;
+	justify-content: space-between;
 }
 
-.barrio-admin .barrio-check input {
-	margin: 2px 0 0;
-}
-
-.barrio-check label {
+.barrio-toggle label {
 	color: var(--barrio-ink);
 	font-weight: 500;
 	cursor: pointer;
 }
 
-.barrio-check .barrio-field__help {
-	margin-top: 2px;
+.barrio-toggle .barrio-field__help {
+	margin-top: 4px;
+}
+
+/* Più interruttori uno sotto l'altro (i Moduli), divisi da una linea. */
+.barrio-card__body > .barrio-toggle + .barrio-toggle {
+	padding-top: 16px;
+	border-top: 1px solid var(--barrio-line);
+}
+
+/*
+ * 36 × 20px, il pallino da 16px a 2px dal bordo. Più specifico delle caselle
+ * di WordPress.
+ */
+.barrio-admin input[type="checkbox"].barrio-switch {
+	position: relative;
+	flex: none;
+	width: 36px;
+	height: 20px;
+	margin: 0;
+	border: 0;
+	border-radius: 10px;
+	background: #c3c4c7;
+	box-shadow: none;
+	appearance: none;
+	cursor: pointer;
+	transition: background-color 0.15s;
+}
+
+.barrio-admin input[type="checkbox"].barrio-switch::before,
+.barrio-admin input[type="checkbox"].barrio-switch:checked::before {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+	content: "";
+	transition: transform 0.15s;
+}
+
+.barrio-admin input[type="checkbox"].barrio-switch:checked {
+	background: var(--barrio-ink);
+}
+
+.barrio-admin input[type="checkbox"].barrio-switch:checked::before {
+	transform: translateX(16px);
+}
+
+.barrio-admin input[type="checkbox"].barrio-switch:disabled {
+	opacity: 0.5;
+	cursor: default;
 }
 
 /* Etichetta a sinistra e controllo a destra, nelle card delle impostazioni. */
@@ -390,12 +453,7 @@
 	padding-top: 8px;
 }
 
-/* Un'azione senza etichetta (invia l'email di prova) sta sotto i controlli. */
-.barrio-wide .barrio-field__control:only-child {
-	grid-column: 2;
-}
-
-/* Più caselle sulla stessa riga (i Permessi), all'altezza dell'etichetta. */
+/* Più interruttori in riga (i Permessi), all'altezza dell'etichetta. */
 .barrio-checks {
 	display: flex;
 	flex-wrap: wrap;
@@ -412,10 +470,6 @@
 		grid-template-columns: 1fr;
 	}
 
-	.barrio-wide .barrio-field__control:only-child {
-		grid-column: auto;
-	}
-
 	.barrio-wide .barrio-checks {
 		padding-top: 0;
 	}
@@ -426,7 +480,7 @@
 .barrio-modules {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-	gap: 16px;
+	gap: var(--barrio-gap);
 }
 
 .barrio-module {
@@ -437,9 +491,9 @@
 
 .barrio-module__head {
 	display: flex;
-	gap: 14px;
+	gap: 12px;
 	align-items: center;
-	padding: 18px 20px;
+	padding: 16px 20px;
 	color: #fff;
 }
 
@@ -447,9 +501,9 @@
 	display: grid;
 	flex: none;
 	place-items: center;
-	width: 42px;
-	height: 42px;
-	border-radius: 10px;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--barrio-radius-small);
 	background: rgb(255 255 255 / 18%);
 }
 
@@ -467,7 +521,7 @@
 }
 
 .barrio-module__head p {
-	margin: 2px 0 0;
+	margin: 4px 0 0;
 	color: rgb(255 255 255 / 90%);
 	font-size: 12px;
 }
@@ -519,7 +573,10 @@
 	box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
 }
 
-/* Se le azioni non ci stanno accanto al titolo, vanno sotto, a destra. */
+/*
+ * Se le azioni non ci stanno accanto al titolo, vanno sotto, a destra. Alta
+ * sempre un controllo più 12px sopra e sotto, con o senza bottoni.
+ */
 .barrio-card__header {
 	display: flex;
 	flex-wrap: wrap;
@@ -527,8 +584,13 @@
 	align-items: center;
 	padding: 12px 20px;
 	border-bottom: 1px solid var(--barrio-line);
-	border-radius: var(--barrio-radius) var(--barrio-radius) 0 0;
+	border-radius: calc(var(--barrio-radius) - 1px) calc(var(--barrio-radius) - 1px) 0 0;
 	background: var(--barrio-soft);
+}
+
+.barrio-card.is-closed .barrio-card__header {
+	border-bottom: 0;
+	border-radius: calc(var(--barrio-radius) - 1px);
 }
 
 .barrio-card__icon {
@@ -549,10 +611,44 @@
 }
 
 .barrio-admin .barrio-card__title {
+	display: flex;
+	flex: 1 1 auto;
+	gap: 12px;
+	align-items: center;
+	min-width: 0;
+	min-height: var(--barrio-control);
 	margin: 0;
 	color: var(--barrio-ink);
 	font-size: 15px;
 	font-weight: 600;
+}
+
+/* Una card che si apre e si chiude: tutto il titolo è il bottone. */
+.barrio-card__toggle {
+	display: flex;
+	flex: 1;
+	gap: 12px;
+	align-items: center;
+	align-self: stretch;
+	padding: 0;
+	border: 0;
+	border-radius: var(--barrio-radius-small);
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.barrio-card__toggle > .dashicons,
+.barrio-details summary > .dashicons {
+	color: var(--barrio-muted);
+	transition: transform 0.15s;
+}
+
+.barrio-card.is-closed .barrio-card__toggle > .dashicons,
+.barrio-details:not([open]) summary > .dashicons {
+	transform: rotate(-90deg);
 }
 
 .barrio-card__actions {
@@ -568,6 +664,10 @@
 	padding: 20px;
 }
 
+.barrio-card__body[hidden] {
+	display: none;
+}
+
 .barrio-card__description {
 	margin: 0;
 	color: var(--barrio-muted);
@@ -577,7 +677,7 @@
 	display: flex;
 	gap: 12px;
 	align-items: center;
-	padding: 10px 12px 10px 16px;
+	padding: 12px 16px;
 	border: 1px solid;
 	border-radius: var(--barrio-radius-small);
 }
@@ -587,10 +687,16 @@
 	margin: 0;
 }
 
+/* Il bottone per chiudere non allunga l'avviso. */
+.barrio-notice .barrio-icon-button {
+	margin: -8px -8px -8px 0;
+}
+
+/* 8px sotto la barra sticky. */
 .barrio-notice.is-sticky {
 	position: sticky;
 	z-index: 18;
-	top: calc(var(--barrio-top) + 66px);
+	top: calc(var(--barrio-top) + var(--barrio-bar) + 8px);
 }
 
 .barrio-notice.is-success {
@@ -614,6 +720,7 @@
 	color: var(--barrio-muted);
 	font-size: 12px;
 	font-weight: 500;
+	line-height: 16px;
 	white-space: nowrap;
 }
 
@@ -630,7 +737,7 @@
 .barrio-chip {
 	display: inline-flex;
 	box-sizing: border-box;
-	gap: 6px;
+	gap: 8px;
 	align-items: center;
 	height: var(--barrio-control);
 	padding: 0 12px;
@@ -668,10 +775,45 @@
 	text-transform: uppercase;
 }
 
-/* Dentro una card le sezioni sono separate da una linea. */
-.barrio-card__body .barrio-section-head {
-	padding-top: 12px;
+/* Dentro una card le sezioni sono separate da una linea a metà spazio. */
+.barrio-card__body .barrio-section-head,
+.barrio-details {
+	padding-top: 16px;
 	border-top: 1px solid var(--barrio-line);
+}
+
+/* Una sezione chiusa all'inizio (Details in ui.js): il titolo come le altre. */
+.barrio-details summary {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	min-height: var(--barrio-control);
+	border-radius: var(--barrio-radius-small);
+	list-style: none;
+	cursor: pointer;
+}
+
+.barrio-details summary::-webkit-details-marker {
+	display: none;
+}
+
+.barrio-admin .barrio-details h3 {
+	margin: 0;
+	color: var(--barrio-muted);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.barrio-details summary:hover h3 {
+	color: var(--barrio-ink);
+}
+
+.barrio-details__body {
+	display: grid;
+	gap: 16px;
+	margin-top: 16px;
 }
 
 /*
@@ -686,7 +828,7 @@
 	flex-wrap: wrap;
 	gap: 12px;
 	align-items: center;
-	padding: 10px 12px 10px 16px;
+	padding: 8px;
 	box-shadow: 0 4px 16px rgb(0 0 0 / 6%);
 }
 
@@ -741,6 +883,11 @@
 	white-space: nowrap;
 }
 
+/* Il titolo all'inizio si allinea al testo delle card, a 20px dal bordo. */
+.barrio-admin .barrio-bar__title:first-child {
+	padding-left: 12px;
+}
+
 /* is-stacked, l'ultima risorsa: il titolo da solo sopra, il resto sotto. */
 .barrio-bar.is-stacked .barrio-bar__end {
 	flex: 1 1 100%;
@@ -779,7 +926,7 @@
 }
 
 .barrio-bar.is-compact :is(.barrio-bar__end, .barrio-bar__tools) {
-	gap: 6px;
+	gap: 4px;
 }
 
 .barrio-bar.is-compact .barrio-bar__end .barrio-button__text {
@@ -824,10 +971,10 @@
 
 /*
  * Pagina a tutta altezza, come un'app: senza il footer di WordPress il pannello
- * del builder arriva a 16px dal fondo anche a fine pagina.
+ * del builder arriva a 20px dal fondo anche a fine pagina.
  */
 .wp-admin #wpbody-content {
-	padding-bottom: 16px;
+	padding-bottom: var(--barrio-gap);
 }
 
 #wpfooter {
@@ -844,7 +991,7 @@
 .barrio-search .dashicons {
 	position: absolute;
 	top: 50%;
-	left: 10px;
+	left: 12px;
 	width: 16px;
 	height: 16px;
 	color: var(--barrio-muted);
@@ -854,7 +1001,7 @@
 }
 
 .barrio-admin .barrio-search .barrio-input {
-	padding-left: 34px;
+	padding-left: 36px;
 }
 
 /*
@@ -904,7 +1051,7 @@
 }
 
 .barrio-table th {
-	padding: 10px 16px;
+	padding: 12px 16px;
 	border-bottom: 1px solid var(--barrio-line);
 	background: var(--barrio-soft);
 	color: var(--barrio-muted);
@@ -917,16 +1064,16 @@
 }
 
 .barrio-table th:first-child {
-	border-top-left-radius: var(--barrio-radius);
+	border-top-left-radius: calc(var(--barrio-radius) - 1px);
 }
 
 .barrio-table th:last-child {
-	border-top-right-radius: var(--barrio-radius);
+	border-top-right-radius: calc(var(--barrio-radius) - 1px);
 }
 
 .barrio-table th button {
 	display: inline-flex;
-	gap: 6px;
+	gap: 4px;
 	align-items: center;
 	padding: 0;
 	border: 0;
@@ -949,7 +1096,7 @@
 
 /* Le colonne non si stringono sui piccoli schermi: la tabella scorre. */
 .barrio-table td {
-	padding: 10px 16px;
+	padding: 12px 16px;
 	border-bottom: 1px solid var(--barrio-line);
 	vertical-align: middle;
 	white-space: nowrap;
@@ -1005,7 +1152,7 @@
 .barrio-builder {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 16px;
+	gap: var(--barrio-gap);
 }
 
 .barrio-admin .barrio-builder__name {
@@ -1022,7 +1169,7 @@
 
 /* Le schede che non stanno (sui telefoni) scorrono in orizzontale. */
 .barrio-admin .components-tab-panel__tabs {
-	margin-bottom: 16px;
+	margin-bottom: var(--barrio-gap);
 	border-bottom: 1px solid var(--barrio-line);
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -1039,7 +1186,7 @@
 .barrio-fields {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 380px;
-	gap: 20px;
+	gap: var(--barrio-gap);
 	align-items: start;
 }
 
@@ -1053,17 +1200,18 @@
 .barrio-fields > div {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 12px;
+	gap: 16px;
 	align-content: start;
 }
 
+/* Le card dei campi a 8px dal bordo (6px e il bordo da 2px): raggio 12 + 8. */
 .barrio-fields__list {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 10px;
-	padding: 12px;
+	gap: 8px;
+	padding: 6px;
 	border: 2px dashed var(--barrio-line);
-	border-radius: 14px;
+	border-radius: 20px;
 }
 
 .barrio-fields__empty {
@@ -1072,9 +1220,10 @@
 	text-align: center;
 }
 
+/* I bottoni dell'intestazione a 4px dal bordo: raggio 8 + 4. */
 .barrio-fieldcard {
 	border: 1px solid var(--barrio-line);
-	border-radius: var(--barrio-radius);
+	border-radius: 12px;
 	background: #fff;
 	cursor: pointer;
 }
@@ -1092,7 +1241,7 @@
 	display: flex;
 	gap: 8px;
 	align-items: center;
-	padding: 6px 6px 6px 4px;
+	padding: 4px;
 	border-bottom: 1px solid var(--barrio-line);
 }
 
@@ -1102,7 +1251,7 @@
 	min-width: 0;
 	padding: 4px;
 	border: 0;
-	border-radius: 4px;
+	border-radius: var(--barrio-radius-small);
 	background: none;
 	color: var(--barrio-ink);
 	font: inherit;
@@ -1115,12 +1264,12 @@
 }
 
 .barrio-required {
-	margin-left: 3px;
+	margin-left: 4px;
 	color: var(--barrio-danger);
 }
 
 .barrio-fieldcard__preview {
-	padding: 10px 14px 14px;
+	padding: 12px 16px 16px;
 	pointer-events: none;
 }
 
@@ -1157,7 +1306,7 @@
 
 .barrio-preview-choices {
 	display: grid;
-	gap: 6px;
+	gap: 8px;
 }
 
 .barrio-preview-choices > span {
@@ -1195,7 +1344,7 @@
 
 /*
  * La colonna destra (builder, registrazione) resta visibile mentre si scorre:
- * 16px sotto la barra e 16px sopra il fondo. Se è più lunga scorre dentro,
+ * 20px sotto la barra e 20px sopra il fondo. Se è più lunga scorre dentro,
  * senza barra di scorrimento e senza overscroll, ma solo se scorre davvero:
  * finché non c'è niente da scorrere la timeline è inattiva e la rotella
  * scorre la pagina.
@@ -1206,7 +1355,7 @@
 	top: var(--barrio-below-bar);
 	overflow-x: hidden;
 	overflow-y: auto;
-	max-height: calc(100vh - var(--barrio-below-bar) - 16px);
+	max-height: calc(100vh - var(--barrio-below-bar) - var(--barrio-gap));
 	animation: barrio-no-overscroll both;
 	animation-timeline: scroll(self);
 	scrollbar-width: none;
@@ -1235,12 +1384,12 @@
 
 .barrio-choices {
 	display: grid;
-	gap: 6px;
+	gap: 8px;
 }
 
 .barrio-choice {
 	display: flex;
-	gap: 6px;
+	gap: 8px;
 	align-items: center;
 }
 
@@ -1248,10 +1397,10 @@
 .barrio-rule {
 	display: grid;
 	grid-template-columns: 1fr 1fr var(--barrio-control);
-	gap: 6px;
+	gap: 8px;
 	align-items: center;
-	padding: 10px;
-	border-radius: var(--barrio-radius-small);
+	padding: 8px;
+	border-radius: var(--barrio-radius);
 	background: var(--barrio-soft);
 }
 
@@ -1262,11 +1411,11 @@
 .barrio-merge-tags {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
+	gap: 8px;
 }
 
 .barrio-merge-tags code {
-	padding: 2px 6px;
+	padding: 4px 8px;
 	border-radius: 4px;
 	background: var(--barrio-soft);
 	font-size: 12px;
@@ -1299,12 +1448,12 @@
 	box-sizing: content-box;
 	width: 100%;
 	border: 1px solid var(--barrio-line);
-	border-radius: 8px;
+	border-radius: var(--barrio-radius-small);
 }
 
 /* Ciò che si porta in vista non finisce sotto le barre sticky. */
 .barrio-scroll-target {
-	scroll-margin: var(--barrio-below-bar) 0 16px;
+	scroll-margin: var(--barrio-below-bar) 0 var(--barrio-gap);
 }
 
 /* Sotto la barra sticky (z-index 20): vedi inBar di Menu in ui.js. */
@@ -1324,7 +1473,7 @@
 .barrio-dl {
 	display: grid;
 	grid-template-columns: fit-content(40%) minmax(0, 1fr);
-	gap: 10px 16px;
+	gap: 12px 16px;
 	margin: 0;
 }
 
@@ -1381,9 +1530,6 @@
 }
 
 .barrio-answers__text {
-	padding: 10px 12px;
-	border-radius: var(--barrio-radius-small);
-	background: var(--barrio-soft);
 	white-space: pre-wrap;
 }
 
@@ -1423,7 +1569,7 @@
 /* Il form scelto, nel titolo: un po' più chiaro che al passaggio. */
 .barrio-admin .barrio-bar__select {
 	max-width: 100%;
-	padding: 0 10px;
+	padding: 0 12px;
 	background: #fafafa;
 	font-size: 16px;
 	font-weight: 600;
@@ -1474,7 +1620,7 @@ a.barrio-badge {
 	height: 32px;
 	min-height: 0;
 	margin: 0 0 4px;
-	padding: 0 10px;
+	padding: 0 12px;
 	border: 1px solid #c3c4c7;
 	border-radius: var(--barrio-radius-small);
 	box-shadow: none;
@@ -1505,7 +1651,7 @@ a.barrio-badge {
 	display: flex;
 	gap: 8px;
 	align-items: center;
-	padding: 6px 8px;
+	padding: 8px;
 	border-radius: 4px;
 	color: var(--barrio-ink);
 	cursor: pointer;
@@ -1578,27 +1724,32 @@ a.barrio-badge {
 
 .barrio-button__count {
 	box-sizing: border-box;
-	min-width: 18px;
-	height: 18px;
-	padding: 0 5px;
-	border-radius: 9px;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 4px;
+	border-radius: 10px;
 	background: var(--barrio-ink);
 	color: #fff;
 	font-size: 11px;
-	line-height: 18px;
+	line-height: 20px;
 	text-align: center;
 }
 
 .barrio-picker__empty {
 	margin: 0;
-	padding: 6px 8px;
+	padding: 8px;
 	color: var(--barrio-muted);
 }
 
 .barrio-notes {
 	display: grid;
-	gap: 14px;
+	gap: 16px;
 	margin: 0;
+}
+
+/* Senza note non aggiunge uno spazio nella card. */
+.barrio-notes:empty {
+	display: none;
 }
 
 /* Come una chat: tipo sopra, evento nel fumetto, data e autore sotto. */
@@ -1639,7 +1790,7 @@ a.barrio-badge {
 	flex-wrap: wrap;
 	gap: 16px;
 	align-items: center;
-	padding: 20px 24px;
+	padding: 20px;
 	border-radius: var(--barrio-radius);
 	background: linear-gradient(135deg, #1d2327, #2c3338);
 	color: #fff;
@@ -1655,9 +1806,9 @@ a.barrio-badge {
 	display: grid;
 	flex: none;
 	place-items: center;
-	width: 42px;
-	height: 42px;
-	border-radius: 10px;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--barrio-radius-small);
 	background: rgb(255 255 255 / 12%);
 }
 
@@ -1678,7 +1829,7 @@ a.barrio-badge {
 }
 
 .barrio-launch p {
-	margin: 2px 0 0;
+	margin: 4px 0 0;
 	opacity: 0.8;
 }
 
@@ -1701,7 +1852,9 @@ a.barrio-badge {
 	gap: 8px;
 	align-items: center;
 	height: var(--barrio-control);
-	padding: 0 14px 0 6px;
+
+	/* Il cerchio a 5px dal bordo (4px e il bordo), come sopra e sotto. */
+	padding: 0 16px 0 4px;
 	border: 1px solid var(--barrio-line);
 	border-radius: 999px;
 	background: #fff;

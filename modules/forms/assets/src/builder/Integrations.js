@@ -8,12 +8,12 @@ import { __ } from '@wordpress/i18n';
 
 import {
 	Card,
-	Check,
 	Icon,
 	Menu,
 	SectionHead,
 	Select,
 	Text,
+	Toggle,
 	useScrollIntoView,
 } from '../../../../../assets/src/admin/ui.js';
 import { formsData } from '../ui.js';
@@ -98,6 +98,7 @@ export function IntegrationsTab( { form, lang, update } ) {
 					lang={ lang }
 					fields={ fields }
 					isNew={ i === added }
+					open={ i === added || 1 === form.integrations.length }
 					onChange={ ( changed ) => set( i, changed ) }
 					onRemove={ () => {
 						setAdded( null );
@@ -127,6 +128,7 @@ function IntegrationCard( {
 	lang,
 	fields,
 	isNew,
+	open,
 	onChange,
 	onRemove,
 } ) {
@@ -146,6 +148,8 @@ function IntegrationCard( {
 		<div ref={ ref } className="barrio-scroll-target">
 			<Card
 				className="barrio-wide"
+				collapsible
+				defaultOpen={ open }
 				icon="admin-plugins"
 				title={ definition?.label ?? integration.slug }
 				description={
@@ -158,7 +162,7 @@ function IntegrationCard( {
 				}
 				actions={
 					<>
-						<Check
+						<Toggle
 							label={ __( 'Active', 'barrio-suite' ) }
 							disabled={ translating || ! definition }
 							checked={ integration.enabled }

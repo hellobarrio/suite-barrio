@@ -3,11 +3,11 @@
 import { __, sprintf } from '@wordpress/i18n';
 
 import {
-	Check,
 	Icon,
 	SectionHead,
 	Select,
 	Text,
+	Toggle,
 } from '../../../../../assets/src/admin/ui.js';
 
 const operators = () => [
@@ -51,7 +51,7 @@ export function Conditions( { value, fields, actions, empty, onChange } ) {
 					</button>
 				) }
 			</SectionHead>
-			<Check
+			<Toggle
 				label={ __( 'Enable conditional logic', 'barrio-suite' ) }
 				help={ ! value && ! fields.length ? empty : undefined }
 				disabled={ ! value && ! fields.length }
