@@ -24,7 +24,6 @@ final class Schema {
 		$settings = Settings::get();
 		$home     = Meta::url( home_url( '/' ) );
 		$lang     = str_replace( '_', '-', I18n::locale( I18n::current() ) );
-		$texts    = I18n::pick( $settings['texts'], I18n::current() );
 		$crumbs   = self::breadcrumb( $meta, $queried, $home );
 		$page     = [
 			'@type'              => $queried instanceof WP_Post ? 'WebPage' : 'CollectionPage',
@@ -53,7 +52,7 @@ final class Schema {
 			'@graph'   => array_values(
 				array_filter(
 					[
-						self::organization( $settings['organization'], $home, (string) ( $texts['organization_description'] ?? '' ) ),
+						self::organization( $settings['organization'], $home, Settings::text( 'organization_description', I18n::current() ) ),
 						self::clean(
 							[
 								'@type'       => 'WebSite',
@@ -196,7 +195,7 @@ final class Schema {
 	}
 
 	/**
-	 * I contenuti indicizzabili di un post type, per una CollectionPage.
+	 * I contenuti indicizzabili di un post type nella lingua della pagina, per una CollectionPage.
 	 * ponytail: al più 200 voci; oltre, un ItemList a pagine.
 	 *
 	 * @return array<string, mixed>|null
@@ -208,9 +207,11 @@ final class Schema {
 		/** @var list<WP_Post> $posts */
 		$posts = get_posts(
 			[
-				'post_type'   => $post_type,
-				'numberposts' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_numberposts -- il limite dell'ItemList.
-				'orderby'     => [
+				'post_type'        => $post_type,
+				'numberposts'      => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_numberposts -- il limite dell'ItemList.
+				// Con i filtri, perché il plugin multilingua tenga la lingua della pagina.
+				'suppress_filters' => false,
+				'orderby'          => [
 					'menu_order' => 'ASC',
 					'date'       => 'DESC',
 				],

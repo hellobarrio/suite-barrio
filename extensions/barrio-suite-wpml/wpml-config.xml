@@ -1,0 +1,26 @@
+<wpml-config>
+	<!-- I meta SEO di Barrio Suite: indicizzazione e pagina archivio sono le stesse in ogni lingua, i testi si
+	     traducono, l'immagine si copia nella traduzione e poi si può cambiare. -->
+	<custom-fields>
+		<custom-field action="translate">_barrio_seo_title</custom-field>
+		<custom-field action="translate">_barrio_seo_description</custom-field>
+		<custom-field action="translate">_barrio_seo_keywords</custom-field>
+		<custom-field action="copy-once">_barrio_seo_image</custom-field>
+		<custom-field action="copy">_barrio_seo_index</custom-field>
+		<custom-field action="copy">_barrio_seo_follow</custom-field>
+		<custom-field action="copy">_barrio_seo_collection</custom-field>
+	</custom-fields>
+	<custom-fields-texts>
+		<key name="_barrio_seo_keywords">
+			<key name="*" />
+		</key>
+	</custom-fields-texts>
+	<custom-term-fields>
+		<custom-term-field action="translate">_barrio_seo_title</custom-term-field>
+		<custom-term-field action="translate">_barrio_seo_description</custom-term-field>
+		<custom-term-field action="translate">_barrio_seo_keywords</custom-term-field>
+		<custom-term-field action="copy-once">_barrio_seo_image</custom-term-field>
+		<custom-term-field action="copy">_barrio_seo_index</custom-term-field>
+		<custom-term-field action="copy">_barrio_seo_follow</custom-term-field>
+	</custom-term-fields>
+</wpml-config>

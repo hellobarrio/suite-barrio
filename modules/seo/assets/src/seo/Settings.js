@@ -6,6 +6,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
 	Card,
+	Fixed,
 	Group,
 	Notice,
 	SectionHead,
@@ -15,7 +16,7 @@ import {
 	errorMessage,
 } from '../../../../../assets/src/admin/ui.js';
 import { documentTitle } from '../title.js';
-import { SettingsPage, editable, main } from './SettingsPage.js';
+import { SeoText, SettingsPage, editable, main } from './SettingsPage.js';
 import { MediaField, seoData } from './ui.js';
 
 const { types, llms, sitemap, robots } = seoData;
@@ -68,18 +69,13 @@ function Robots( { label, value, onChange, inSitemap } ) {
 	);
 }
 
-const DefaultDescription = ( { value, onChange } ) => (
-	<Text
-		multiline
-		label={ __( 'Default description', 'barrio-suite' ) }
-		help={ __(
-			'For the pages without a description, an excerpt or a text of their own. Search engines show about 160 characters.',
-			'barrio-suite'
-		) }
-		value={ value }
-		onChange={ onChange }
-	/>
-);
+const DESCRIPTION = {
+	label: __( 'Default description', 'barrio-suite' ),
+	help: __(
+		'For the pages without a description, an excerpt or a text of their own. Search engines show about 160 characters.',
+		'barrio-suite'
+	),
+};
 
 const DefaultImage = ( { value, onChange } ) => (
 	<MediaField
@@ -97,11 +93,13 @@ function SettingsCards( {
 	saved,
 	seo,
 	site,
+	lang,
 	texts,
 	setSeo,
 	setSite,
 	setText,
 } ) {
+	const form = { lang, seo, setText };
 	// I numeri della sitemap sono quelli salvati: si ricontano dopo ogni salvataggio.
 	const [ counts, setCounts ] = useState( null );
 	useEffect( () => {
@@ -185,53 +183,55 @@ function SettingsCards( {
 					'barrio-suite'
 				) }
 			>
-				<Text
-					label={ __( 'Site name', 'barrio-suite' ) }
-					value={ site.title }
-					onChange={ setSite( 'title' ) }
-				/>
-				<MediaField
-					label={ __( 'Site icon', 'barrio-suite' ) }
-					help={ __(
-						'In the browser tabs and next to the site in Google. Square, at least 512 pixels wide.',
-						'barrio-suite'
-					) }
-					value={ site.site_icon }
-					onChange={ setSite( 'site_icon' ) }
-				/>
-				<Select
-					label={ __( 'Title separator', 'barrio-suite' ) }
-					value={ seo.title.separator }
-					options={ Array.from(
-						new Set( [ seo.title.separator, ...SEPARATORS ] )
-					).map( ( value ) => ( { value, label: value } ) ) }
-					onChange={ ( separator ) =>
-						setSeo( 'title' )( { ...seo.title, separator } )
-					}
-				/>
-				<Select
-					label={ __( 'Title order', 'barrio-suite' ) }
-					value={ seo.title.order }
-					options={ [
-						{
-							value: 'page_site',
-							label: __(
-								'Page title, then site name',
-								'barrio-suite'
-							),
-						},
-						{
-							value: 'site_page',
-							label: __(
-								'Site name, then page title',
-								'barrio-suite'
-							),
-						},
-					] }
-					onChange={ ( order ) =>
-						setSeo( 'title' )( { ...seo.title, order } )
-					}
-				/>
+				<Fixed lang={ lang }>
+					<Text
+						label={ __( 'Site name', 'barrio-suite' ) }
+						value={ site.title }
+						onChange={ setSite( 'title' ) }
+					/>
+					<MediaField
+						label={ __( 'Site icon', 'barrio-suite' ) }
+						help={ __(
+							'In the browser tabs and next to the site in Google. Square, at least 512 pixels wide.',
+							'barrio-suite'
+						) }
+						value={ site.site_icon }
+						onChange={ setSite( 'site_icon' ) }
+					/>
+					<Select
+						label={ __( 'Title separator', 'barrio-suite' ) }
+						value={ seo.title.separator }
+						options={ Array.from(
+							new Set( [ seo.title.separator, ...SEPARATORS ] )
+						).map( ( value ) => ( { value, label: value } ) ) }
+						onChange={ ( separator ) =>
+							setSeo( 'title' )( { ...seo.title, separator } )
+						}
+					/>
+					<Select
+						label={ __( 'Title order', 'barrio-suite' ) }
+						value={ seo.title.order }
+						options={ [
+							{
+								value: 'page_site',
+								label: __(
+									'Page title, then site name',
+									'barrio-suite'
+								),
+							},
+							{
+								value: 'site_page',
+								label: __(
+									'Site name, then page title',
+									'barrio-suite'
+								),
+							},
+						] }
+						onChange={ ( order ) =>
+							setSeo( 'title' )( { ...seo.title, order } )
+						}
+					/>
+				</Fixed>
 				<Group label={ __( 'Preview', 'barrio-suite' ) }>
 					<div className="barrio-seo-google" aria-hidden="true">
 						<span className="barrio-seo-google__site">
@@ -243,7 +243,10 @@ function SettingsCards( {
 						<span className="barrio-seo-google__title">
 							{ documentTitle(
 								__( 'Page title', 'barrio-suite' ),
-								{ ...seo.title, name: site.title }
+								{
+									...seo.title,
+									name: site.title,
+								}
 							) }
 						</span>
 						<span className="barrio-seo-google__description">
@@ -251,14 +254,17 @@ function SettingsCards( {
 						</span>
 					</div>
 				</Group>
-				<DefaultDescription
-					value={ texts.default_description }
-					onChange={ setText( 'default_description' ) }
+				<SeoText
+					form={ form }
+					name="default_description"
+					{ ...DESCRIPTION }
 				/>
-				<DefaultImage
-					value={ seo.default_image }
-					onChange={ setSeo( 'default_image' ) }
-				/>
+				<Fixed lang={ lang }>
+					<DefaultImage
+						value={ seo.default_image }
+						onChange={ setSeo( 'default_image' ) }
+					/>
+				</Fixed>
 			</Card>
 
 			<Card
@@ -270,41 +276,49 @@ function SettingsCards( {
 					'barrio-suite'
 				) }
 			>
-				{ groups.map( ( [ group, title ] ) => (
-					<Fragment key={ group }>
-						<SectionHead title={ title } level={ 3 } />
-						{ types
-							.filter( ( type ) => type.group === group )
-							.map( ( type ) => (
-								<Robots
-									key={ type.name }
-									label={ type.label }
-									value={ robotsOf(
-										seo.index,
-										group,
-										type.name
-									) }
-									onChange={ setRobots( group, type.name ) }
-									inSitemap={ inSitemap( group, type.name ) }
-								/>
-							) ) }
-					</Fragment>
-				) ) }
-				<SectionHead
-					title={ __( 'Archives', 'barrio-suite' ) }
-					level={ 3 }
-				/>
-				<Robots
-					label={ __( 'Authors', 'barrio-suite' ) }
-					value={ seo.index.archives.author }
-					onChange={ setArchive( 'author' ) }
-					inSitemap={ inSitemap( 'archives', 'author' ) }
-				/>
-				<Robots
-					label={ __( 'Dates', 'barrio-suite' ) }
-					value={ seo.index.archives.date }
-					onChange={ setArchive( 'date' ) }
-				/>
+				<Fixed lang={ lang }>
+					{ groups.map( ( [ group, title ] ) => (
+						<Fragment key={ group }>
+							<SectionHead title={ title } level={ 3 } />
+							{ types
+								.filter( ( type ) => type.group === group )
+								.map( ( type ) => (
+									<Robots
+										key={ type.name }
+										label={ type.label }
+										value={ robotsOf(
+											seo.index,
+											group,
+											type.name
+										) }
+										onChange={ setRobots(
+											group,
+											type.name
+										) }
+										inSitemap={ inSitemap(
+											group,
+											type.name
+										) }
+									/>
+								) ) }
+						</Fragment>
+					) ) }
+					<SectionHead
+						title={ __( 'Archives', 'barrio-suite' ) }
+						level={ 3 }
+					/>
+					<Robots
+						label={ __( 'Authors', 'barrio-suite' ) }
+						value={ seo.index.archives.author }
+						onChange={ setArchive( 'author' ) }
+						inSitemap={ inSitemap( 'archives', 'author' ) }
+					/>
+					<Robots
+						label={ __( 'Dates', 'barrio-suite' ) }
+						value={ seo.index.archives.date }
+						onChange={ setArchive( 'date' ) }
+					/>
+				</Fixed>
 				<Group
 					label={ __( 'Sitemap', 'barrio-suite' ) }
 					help={ [
@@ -374,26 +388,27 @@ function SettingsCards( {
 					'barrio-suite'
 				) }
 			>
-				{ types.map( ( type ) => (
-					<Select
-						key={ `${ type.group }/${ type.name }` }
-						label={ type.label }
-						value={
-							seo.llms[ type.group ][ type.name ] ?? 'include'
-						}
-						options={ LLMS }
-						onChange={ setLlms( type.group, type.name ) }
-					/>
-				) ) }
-				<Text
-					multiline
+				<Fixed lang={ lang }>
+					{ types.map( ( type ) => (
+						<Select
+							key={ `${ type.group }/${ type.name }` }
+							label={ type.label }
+							value={
+								seo.llms[ type.group ][ type.name ] ?? 'include'
+							}
+							options={ LLMS }
+							onChange={ setLlms( type.group, type.name ) }
+						/>
+					) ) }
+				</Fixed>
+				<SeoText
+					form={ form }
+					name="llms_intro"
 					label={ __( 'Introduction', 'barrio-suite' ) }
 					help={ __(
 						'At the beginning of both files, after the name of the site.',
 						'barrio-suite'
 					) }
-					value={ texts.llms_intro }
-					onChange={ setText( 'llms_intro' ) }
 				/>
 				<Group label={ __( 'Files', 'barrio-suite' ) }>
 					<div className="barrio-row">
@@ -416,18 +431,20 @@ function SettingsCards( {
 				icon="randomize"
 				title={ __( 'Redirects', 'barrio-suite' ) }
 			>
-				<Toggle
-					label={ __(
-						'Create a redirect when an address changes',
-						'barrio-suite'
-					) }
-					help={ __(
-						'When the address of a published page or of a category changes, also by moving it under another one, the old address leads to the new one, with the pages below it. Useful above all with a headless frontend: WordPress alone already does it for posts.',
-						'barrio-suite'
-					) }
-					checked={ seo.auto_redirects }
-					onChange={ setSeo( 'auto_redirects' ) }
-				/>
+				<Fixed lang={ lang }>
+					<Toggle
+						label={ __(
+							'Create a redirect when an address changes',
+							'barrio-suite'
+						) }
+						help={ __(
+							'When the address of a published page or of a category changes, also by moving it under another one, the old address leads to the new one, with the pages below it. Useful above all with a headless frontend: WordPress alone already does it for posts.',
+							'barrio-suite'
+						) }
+						checked={ seo.auto_redirects }
+						onChange={ setSeo( 'auto_redirects' ) }
+					/>
+				</Fixed>
 			</Card>
 
 			<Card
@@ -440,30 +457,32 @@ function SettingsCards( {
 				) }
 			>
 				{ /* Gli amministratori non sono in roles: tutto spuntato e fisso. */ }
-				{ Object.entries( saved.seo.role_names ).map(
-					( [ role, name ] ) => (
-						<Group key={ role } label={ name }>
-							<div className="barrio-checks">
-								{ Object.entries( CAPS ).map(
-									( [ cap, label ] ) => (
-										<Toggle
-											key={ cap }
-											label={ label }
-											disabled={ ! seo.roles[ role ] }
-											checked={
-												! seo.roles[ role ] ||
-												seo.roles[ role ].includes(
-													cap
-												)
-											}
-											onChange={ setCap( role, cap ) }
-										/>
-									)
-								) }
-							</div>
-						</Group>
-					)
-				) }
+				<Fixed lang={ lang }>
+					{ Object.entries( saved.seo.role_names ).map(
+						( [ role, name ] ) => (
+							<Group key={ role } label={ name }>
+								<div className="barrio-checks">
+									{ Object.entries( CAPS ).map(
+										( [ cap, label ] ) => (
+											<Toggle
+												key={ cap }
+												label={ label }
+												disabled={ ! seo.roles[ role ] }
+												checked={
+													! seo.roles[ role ] ||
+													seo.roles[ role ].includes(
+														cap
+													)
+												}
+												onChange={ setCap( role, cap ) }
+											/>
+										)
+									) }
+								</div>
+							</Group>
+						)
+					) }
+				</Fixed>
 			</Card>
 		</>
 	);
@@ -509,7 +528,9 @@ export const seoStep = {
 			} );
 		return (
 			<>
-				<DefaultDescription
+				<Text
+					multiline
+					{ ...DESCRIPTION }
 					value={ draft.texts[ main ].default_description }
 					onChange={ ( value ) =>
 						set( {

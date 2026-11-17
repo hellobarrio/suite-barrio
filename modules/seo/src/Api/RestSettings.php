@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Seo\Api;
 
+use BarrioSuite\I18n;
 use BarrioSuite\Roles;
 use BarrioSuite\Seo\Meta;
 use BarrioSuite\Seo\Module;
@@ -65,7 +66,9 @@ final class RestSettings {
 	/**
 	 * Quanti indirizzi ha la sitemap per tipo, tassonomia e autori, contati dai provider del core con i filtri
 	 * del modulo: sono quelli che legge Google. Se il sito chiede ai motori di non indicizzarlo il core non
-	 * registra i provider: si registrano per questa richiesta, per mostrare cosa conterrà.
+	 * registra i provider: si registrano per questa richiesta, per mostrare cosa conterrà. Con più lingue
+	 * si sommano quelle di ogni lingua: il plugin multilingua filtra le query, e WPML dà a ogni lingua la sua
+	 * sitemap (/en/wp-sitemap.xml).
 	 * ponytail: legge tutti gli URL per contarli, una query per pagina della sitemap (2000 URL); su siti enormi
 	 * si contano con le query dei provider.
 	 */
@@ -81,19 +84,27 @@ final class RestSettings {
 		];
 		$counts = array_fill_keys( $groups, [] );
 		$total  = 0;
-		foreach ( $server->registry->get_providers() as $name => $provider ) {
-			// Gli autori non hanno sottotipi.
-			foreach ( array_keys( $provider->get_object_subtypes() ?: [ '' => null ] ) as $subtype ) {
-				$count = 0;
-				$pages = $provider->get_max_num_pages( (string) $subtype );
-				for ( $page = 1; $page <= $pages; $page++ ) {
-					$count += count( $provider->get_url_list( $page, (string) $subtype ) );
+		foreach ( I18n::languages() as $lang ) {
+			I18n::in(
+				$lang,
+				static function () use ( $server, $groups, &$counts, &$total ): void {
+					foreach ( $server->registry->get_providers() as $name => $provider ) {
+						// Gli autori non hanno sottotipi.
+						foreach ( array_keys( $provider->get_object_subtypes() ?: [ '' => null ] ) as $subtype ) {
+							$count = 0;
+							$pages = $provider->get_max_num_pages( (string) $subtype );
+							for ( $page = 1; $page <= $pages; $page++ ) {
+								$count += count( $provider->get_url_list( $page, (string) $subtype ) );
+							}
+							$total += $count;
+							if ( isset( $groups[ $name ] ) ) {
+								$key                                = 'users' === $name ? 'author' : $subtype;
+								$counts[ $groups[ $name ] ][ $key ] = ( $counts[ $groups[ $name ] ][ $key ] ?? 0 ) + $count;
+							}
+						}
+					}
 				}
-				$total += $count;
-				if ( isset( $groups[ $name ] ) ) {
-					$counts[ $groups[ $name ] ][ 'users' === $name ? 'author' : $subtype ] = $count;
-				}
-			}
+			);
 		}
 		return new WP_REST_Response(
 			[

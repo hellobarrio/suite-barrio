@@ -4,22 +4,23 @@
 import apiFetch from '@wordpress/api-fetch';
 import { Modal, TabPanel } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 
 import {
 	Bar,
 	Card,
+	Fixed,
 	Icon,
+	LangNotice,
+	LangPicker,
 	Loading,
 	Lucide,
 	Notice,
-	Picker,
 	SectionHead,
 	Select,
 	Text,
 	Toggle,
 	errorMessage,
-	langOption,
 	useScrollIntoView,
 	useUnsavedWarning,
 } from '../../../../../assets/src/admin/ui.js';
@@ -28,7 +29,7 @@ import { fillTranslations, trimTranslations, withTexts } from './model.js';
 import { Conditions } from './Conditions.js';
 import { FieldsTab, ruleFields } from './Fields.js';
 import { IntegrationsTab, formIntegrations } from './Integrations.js';
-import { Fixed, TextIn } from './Texts.js';
+import { TextIn } from './Texts.js';
 
 const { languages } = window.barrioAdmin;
 const main = languages[ 0 ];
@@ -183,32 +184,7 @@ export function Builder( { id } ) {
 						}
 					/>
 				) }
-				{ languages.length > 1 && (
-					<Picker
-						label={ __( 'Language', 'barrio-suite' ) }
-						text={ lang.toUpperCase() }
-						image={ langOption( lang ).image }
-						className="barrio-bar__lang"
-						active={ lang !== main }
-						options={ languages.map( ( code ) =>
-							langOption(
-								code,
-								code === main
-									? sprintf(
-											/* translators: %s: language code, like IT. */
-											__(
-												'%s (main language)',
-												'barrio-suite'
-											),
-											code.toUpperCase()
-										)
-									: undefined
-							)
-						) }
-						value={ lang }
-						onChange={ setLang }
-					/>
-				) }
+				<LangPicker value={ lang } onChange={ setLang } />
 				<button
 					type="button"
 					className="barrio-button"
@@ -273,22 +249,7 @@ export function Builder( { id } ) {
 				}
 				onClose={ () => setNotice( null ) }
 			/>
-			<Notice
-				notice={
-					lang !== main && {
-						status: 'info',
-						message: sprintf(
-							/* translators: 1: code of the language being translated, like EN; 2: code of the main language, like IT. */
-							__(
-								'You are editing the %1$s texts: an empty text shows the %2$s one. The settings in grey are the same in every language: change them in %2$s.',
-								'barrio-suite'
-							),
-							lang.toUpperCase(),
-							main.toUpperCase()
-						),
-					}
-				}
-			/>
+			<LangNotice lang={ lang } />
 
 			<TabPanel
 				tabs={ [

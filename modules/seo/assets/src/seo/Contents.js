@@ -1,5 +1,6 @@
 // SEO → Contenuti: i contenuti o i termini di un tipo, scelto nel titolo della barra, con titolo SEO,
-// descrizione, indicizzazione e punteggio. Filtri e ordinamento nel browser (GET /seo/contents); le modifiche
+// descrizione, indicizzazione, punteggio e, con più lingue, la lingua. Ogni riga si valuta con il contesto della
+// sua lingua (descrizione predefinita, nome del sito). Filtri e ordinamento nel browser (GET /seo/contents); le modifiche
 // passano dalla REST del core, una richiesta per contenuto, nella modale con lo stesso pannello dell'editor.
 import apiFetch from '@wordpress/api-fetch';
 import { Modal } from '@wordpress/components';
@@ -11,6 +12,7 @@ import {
 	localQuery,
 } from '../../../../../assets/src/admin/query.js';
 import {
+	Lang,
 	Loading,
 	Lucide,
 	Menu,
@@ -18,6 +20,7 @@ import {
 	Picker,
 	Table,
 	errorMessage,
+	langOption,
 } from '../../../../../assets/src/admin/ui.js';
 import { LEVELS, Panel, analyze } from '../editor/Panel.js';
 import '../editor/editor.css';
@@ -26,13 +29,15 @@ import { text } from '../title.js';
 import { pageUrl, seoData } from './ui.js';
 
 const { types, canEditSeo } = seoData;
+const { languages } = window.barrioAdmin;
 
-// index e score: il valore scelto; description 'missing': senza una descrizione loro.
+// index, score e lang: il valore scelto; description 'missing': senza una descrizione loro.
 const INITIAL = {
 	...initialQuery( 'title' ),
 	index: '',
 	description: '',
 	score: '',
+	lang: '',
 };
 
 const STATUS = {
@@ -166,7 +171,8 @@ export function Contents() {
 	const rows = useMemo(
 		() =>
 			data?.rows.map( ( row ) => {
-				const seo = analyze( row.meta, row.page, data.context );
+				const context = data.contexts[ row.lang ];
+				const seo = analyze( row.meta, row.page, context );
 				const own = row.meta._barrio_seo_index;
 				return {
 					...row,
@@ -175,7 +181,7 @@ export function Contents() {
 						__( '(no title)', 'barrio-suite' ),
 					seo_title: row.meta._barrio_seo_title || '',
 					description: row.meta._barrio_seo_description || '',
-					index: ( own ? 'index' === own : data.context.robots.index )
+					index: ( own ? 'index' === own : context.robots.index )
 						? 'index'
 						: 'noindex',
 					inherited: ! own,
@@ -238,7 +244,8 @@ export function Contents() {
 		( row ) =>
 			( ! query.index || row.index === query.index ) &&
 			( ! query.description || ! row.description ) &&
-			( ! query.score || row.level === query.score )
+			( ! query.score || row.level === query.score ) &&
+			( ! query.lang || row.lang === query.lang )
 	);
 	const page = localQuery( filtered, query, [
 		'title',
@@ -323,6 +330,17 @@ export function Contents() {
 					title={ LEVELS[ row.level ]() }
 				>
 					{ row.score }
+				</span>
+			),
+		},
+		languages.length > 1 && {
+			key: 'lang',
+			label: __( 'Language', 'barrio-suite' ),
+			sort: 'lang',
+			hideable: true,
+			render: ( row ) => (
+				<span className="barrio-badge">
+					<Lang code={ row.lang } />
 				</span>
 			),
 		},
@@ -457,6 +475,21 @@ export function Contents() {
 							),
 						],
 					},
+					languages.length > 1 && {
+						key: 'lang',
+						label: __( 'Language', 'barrio-suite' ),
+						options: [
+							{
+								value: '',
+								label: __( 'All languages', 'barrio-suite' ),
+								count: rows.length,
+							},
+							...languages.map( ( lang ) => ( {
+								...langOption( lang ),
+								count: count( 'lang', lang ),
+							} ) ),
+						],
+					},
 				] }
 				bulk={
 					editable
@@ -486,7 +519,7 @@ export function Contents() {
 			{ editing && (
 				<SeoModal
 					row={ editing }
-					context={ data.context }
+					context={ data.contexts[ editing.lang ] }
 					onSave={ ( meta ) => save( [ editing.id ], meta ) }
 					onClose={ () => setEditing( null ) }
 				/>

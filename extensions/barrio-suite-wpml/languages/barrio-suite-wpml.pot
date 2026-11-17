@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-17T08:48:34+00:00\n"
+"POT-Creation-Date: 2026-11-17T16:16:44+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite-wpml\n"
@@ -21,7 +21,7 @@ msgstr ""
 
 #. Description of the plugin
 #: barrio-suite-wpml.php
-msgid "Languages of Barrio Suite from WPML: translations in the builder, forms and emails in the visitor's language."
+msgid "Languages of Barrio Suite from WPML: translated forms, emails and SEO texts, and the SEO data of every language."
 msgstr ""
 
 #. Author of the plugin

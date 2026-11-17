@@ -5,8 +5,9 @@ namespace BarrioSuite;
 /**
  * Lingue di tutti i moduli. Il core conosce solo la lingua del sito: un plugin multilingua si collega con
  * un'estensione (extensions/barrio-suite-wpml) che usa i filtri barrio_languages,
- * barrio_current_language, barrio_locale e, per l'admin, barrio_language_flags.
- * Senza estensione le traduzioni salvate restano nel database e tornano attive con l'estensione.
+ * barrio_current_language, barrio_locale, l'azione barrio_switch_language e, per l'admin,
+ * barrio_language_flags. Senza estensione le traduzioni salvate restano nel database e tornano attive con
+ * l'estensione.
  */
 final class I18n {
 
@@ -44,8 +45,9 @@ final class I18n {
 	}
 
 	/**
-	 * $callback con WordPress e il plugin tradotti nella lingua $lang: messaggi standard, date, "Yes"
-	 * del consenso. Se la traduzione di WordPress per quella lingua non è installata, resta il locale attuale.
+	 * $callback con WordPress e il plugin tradotti nella lingua $lang (messaggi standard, date, "Yes" del
+	 * consenso) e con i contenuti di quella lingua, se il plugin multilingua li divide: query, permalink,
+	 * nome del sito. Se la traduzione di WordPress per quella lingua non è installata, resta il locale attuale.
 	 *
 	 * @template T
 	 * @param callable(): T $callback
@@ -54,9 +56,12 @@ final class I18n {
 	public static function in( string $lang, callable $callback ): mixed {
 		// false anche quando è già il locale attuale: allora non c'è niente da ripristinare.
 		$switched = switch_to_locale( self::locale( $lang ) );
+		do_action( 'barrio_switch_language', $lang );
 		try {
 			return $callback();
 		} finally {
+			// null torna alla lingua di prima.
+			do_action( 'barrio_switch_language', null );
 			if ( $switched ) {
 				restore_previous_locale();
 			}

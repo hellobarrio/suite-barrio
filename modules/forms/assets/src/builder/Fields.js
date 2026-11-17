@@ -23,6 +23,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import {
 	Card,
 	Details,
+	Fixed,
 	Icon,
 	Menu,
 	SectionHead,
@@ -41,7 +42,7 @@ import {
 } from './model.js';
 import { Conditions } from './Conditions.js';
 import { SettingControl } from './Integrations.js';
-import { Fixed, TextIn } from './Texts.js';
+import { TextIn } from './Texts.js';
 
 const { languages } = window.barrioAdmin;
 const { types, presets } = formsData;

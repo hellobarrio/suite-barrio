@@ -168,7 +168,7 @@ final class Meta {
 	}
 
 	public static function default_description(): string {
-		return (string) ( I18n::pick( Settings::get()['texts'], I18n::current() )['default_description'] ?? '' );
+		return Settings::text( 'default_description', I18n::current() );
 	}
 
 	// 160 caratteri al massimo, senza tagliare una parola.

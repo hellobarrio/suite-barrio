@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Seo\Api;
 
+use BarrioSuite\I18n;
 use BarrioSuite\Seo\Editor;
 use BarrioSuite\Seo\Meta;
 use BarrioSuite\Seo\Repository\RedirectRepository;
@@ -42,68 +43,92 @@ final class RestContents {
 	}
 
 	/**
-	 * Tutti i contenuti del tipo che chi guarda può modificare, tranne quelli nel cestino; tutti i termini.
+	 * Tutti i contenuti del tipo che chi guarda può modificare, tranne quelli nel cestino; tutti i termini. Con
+	 * più lingue ogni riga ha la sua, e ogni lingua il suo contesto (descrizione predefinita, nome del sito).
 	 * ponytail: tutto in una risposta, con filtri e ordinamento nel browser (localQuery); oltre ~2000 per tipo
 	 * si passa al server, come per le registrazioni.
 	 */
 	public static function list( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$group = (string) $request['group'];
 		$name  = (string) $request['name'];
-		$rows  = [];
-		if ( 'post_types' === $group && 'attachment' !== $name && in_array( $name, get_post_types( [ 'public' => true ] ), true ) ) {
-			$fields = new WP_REST_Post_Meta_Fields( $name );
-			$posts  = get_posts(
-				[
-					'post_type'      => $name,
-					'post_status'    => [ 'publish', 'future', 'draft', 'pending', 'private' ],
-					'posts_per_page' => -1,
-				]
-			);
-			foreach ( $posts as $post ) {
-				if ( current_user_can( 'edit_post', $post->ID ) ) {
-					$rows[] = [
-						'id'     => $post->ID,
-						'status' => $post->post_status,
-						'page'   => Editor::post_page( $post ),
-						'meta'   => Editor::meta( $fields, $post->ID ),
-						'view'   => 'publish' === $post->post_status ? get_permalink( $post ) : get_preview_post_link( $post ),
-						'edit'   => get_edit_post_link( $post, 'raw' ),
-					];
-				}
-			}
-		} elseif ( 'taxonomies' === $group && in_array( $name, get_taxonomies( [ 'public' => true ] ), true ) ) {
-			$fields = new WP_REST_Term_Meta_Fields( $name );
-			$terms  = get_terms(
-				[
-					'taxonomy'   => $name,
-					'hide_empty' => false,
-				]
-			);
-			foreach ( is_array( $terms ) ? $terms : [] as $term ) {
-				if ( current_user_can( 'edit_term', $term->term_id ) ) {
-					$page   = Editor::term_page( $term );
-					$rows[] = [
-						'id'     => $term->term_id,
-						'status' => 'publish',
-						'page'   => $page,
-						'meta'   => Editor::meta( $fields, $term->term_id ),
-						'view'   => $page['url'],
-						'edit'   => get_edit_term_link( $term ),
-					];
-				}
-			}
-		} else {
+		$posts = 'post_types' === $group && 'attachment' !== $name && in_array( $name, get_post_types( [ 'public' => true ] ), true );
+		if ( ! $posts && ! ( 'taxonomies' === $group && in_array( $name, get_taxonomies( [ 'public' => true ] ), true ) ) ) {
 			return new WP_Error( 'barrio_seo_unknown_type', __( 'This content type does not exist.', 'barrio-suite' ), [ 'status' => 404 ] );
+		}
+		$rows     = [];
+		$contexts = [];
+		// Una lingua alla volta, la principale per prima. Un contenuto che il plugin multilingua mostra in più
+		// lingue (un tipo che non traduce, o l'originale dove manca la traduzione) resta della prima.
+		foreach ( I18n::languages() as $lang ) {
+			[ $contexts[ $lang ], $in_lang ] = I18n::in( $lang, static fn(): array => [ Editor::context( $group, $name ), $posts ? self::posts( $name ) : self::terms( $name ) ] );
+			foreach ( $in_lang as $row ) {
+				$rows[ (int) $row['id'] ] ??= $row + [ 'lang' => $lang ];
+			}
 		}
 		return new WP_REST_Response(
 			[
-				'context' => Editor::context( $group, $name ),
-				'rows'    => $rows,
+				'contexts' => $contexts,
+				'rows'     => array_values( $rows ),
 			]
 		);
 	}
 
-	// Contenuti pubblicati indicizzabili, quanti di questi senza una descrizione loro, e i redirect.
+	/** @return list<array<string, mixed>> */
+	private static function posts( string $type ): array {
+		$fields = new WP_REST_Post_Meta_Fields( $type );
+		$rows   = [];
+		$posts  = get_posts(
+			[
+				'post_type'        => $type,
+				'post_status'      => [ 'publish', 'future', 'draft', 'pending', 'private' ],
+				'posts_per_page'   => -1,
+				// Con i filtri, perché il plugin multilingua tenga la lingua attuale.
+				'suppress_filters' => false,
+			]
+		);
+		foreach ( $posts as $post ) {
+			if ( current_user_can( 'edit_post', $post->ID ) ) {
+				$rows[] = [
+					'id'     => $post->ID,
+					'status' => $post->post_status,
+					'page'   => Editor::post_page( $post ),
+					'meta'   => Editor::meta( $fields, $post->ID ),
+					'view'   => 'publish' === $post->post_status ? get_permalink( $post ) : get_preview_post_link( $post ),
+					'edit'   => get_edit_post_link( $post, 'raw' ),
+				];
+			}
+		}
+		return $rows;
+	}
+
+	/** @return list<array<string, mixed>> */
+	private static function terms( string $taxonomy ): array {
+		$fields = new WP_REST_Term_Meta_Fields( $taxonomy );
+		$rows   = [];
+		$terms  = get_terms(
+			[
+				'taxonomy'   => $taxonomy,
+				'hide_empty' => false,
+			]
+		);
+		foreach ( is_array( $terms ) ? $terms : [] as $term ) {
+			if ( current_user_can( 'edit_term', $term->term_id ) ) {
+				$page   = Editor::term_page( $term );
+				$rows[] = [
+					'id'     => $term->term_id,
+					'status' => 'publish',
+					'page'   => $page,
+					'meta'   => Editor::meta( $fields, $term->term_id ),
+					'view'   => $page['url'],
+					'edit'   => get_edit_term_link( $term ),
+				];
+			}
+		}
+		return $rows;
+	}
+
+	// Contenuti pubblicati indicizzabili, quanti di questi senza una descrizione loro, e i redirect. In tutte le
+	// lingue: senza i filtri delle query il plugin multilingua non tiene solo quella della richiesta.
 	public static function stats(): WP_REST_Response {
 		$indexed = 0;
 		$missing = 0;
@@ -112,10 +137,11 @@ final class RestContents {
 				continue;
 			}
 			$args     = [
-				'post_type'      => $type,
-				'post_status'    => 'publish',
-				'posts_per_page' => 1,
-				'fields'         => 'ids',
+				'post_type'        => $type,
+				'post_status'      => 'publish',
+				'posts_per_page'   => 1,
+				'fields'           => 'ids',
+				'suppress_filters' => true,
 			] + Meta::indexable( 'post_types', $type );
 			$indexed += ( new WP_Query( $args ) )->found_posts;
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- la descrizione di un contenuto è il suo meta.
