@@ -133,32 +133,126 @@
 	-webkit-box-orient: vertical;
 }
 
-/* Punteggio: sull'icona della sidebar e nei controlli */
+/* Punteggio: sull'icona della sidebar, nel semicerchio e nei controlli */
 
-.barrio-seo-badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 24px;
-	height: 24px;
-	padding: 0 4px;
-	box-sizing: border-box;
-	border-radius: 12px;
-	color: #fff;
-	font-size: 11px;
+.barrio-seo-badge circle {
+	fill: var(--barrio-seo-bad, #d63638);
+}
+
+.barrio-seo-badge.is-good circle {
+	fill: var(--barrio-seo-good, #00a32a);
+}
+
+.barrio-seo-badge.is-ok circle {
+	fill: var(--barrio-seo-ok, #dba617);
+}
+
+.barrio-seo-badge text {
+	fill: #fff;
+	font-size: 10px;
 	font-weight: 600;
 }
 
-.barrio-seo-badge.is-good {
-	background: var(--barrio-seo-good, #00a32a);
+/* Il giallo con il testo bianco non si legge. */
+.barrio-seo-badge.is-ok text {
+	fill: #1e1e1e;
 }
 
-.barrio-seo-badge.is-ok {
-	background: var(--barrio-seo-ok, #dba617);
+/* Il valore del semicerchio, animabile perché registrato come numero. */
+@property --barrio-seo-value {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 0;
 }
 
-.barrio-seo-badge.is-bad {
-	background: var(--barrio-seo-bad, #d63638);
+.barrio-seo-gauge {
+	--barrio-seo-color: var(--barrio-seo-bad);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 16px;
+}
+
+.barrio-seo-gauge.is-good {
+	--barrio-seo-color: var(--barrio-seo-good);
+}
+
+.barrio-seo-gauge.is-ok {
+	--barrio-seo-color: var(--barrio-seo-ok);
+}
+
+.barrio-seo-gauge__dial {
+	position: relative;
+	display: grid;
+	place-items: end center;
+}
+
+/*
+ * Mezzo anello: un conic-gradient centrato in basso che parte da sinistra e
+ * riempie 1,8 gradi per punto, svuotato al centro dalla maschera.
+ */
+.barrio-seo-gauge__meter {
+	--size: 160px;
+	--thickness: 14px;
+	display: block;
+	width: var(--size);
+	height: calc(var(--size) / 2);
+	border: 0;
+	border-radius: var(--size) var(--size) 0 0;
+	background: conic-gradient(from 270deg at 50% 100%, var(--barrio-seo-color) calc(var(--barrio-seo-value) * 1.8deg), #f0f0f0 0);
+	mask-image: radial-gradient(circle at 50% 100%, transparent calc(var(--size) / 2 - var(--thickness)), #000 calc(var(--size) / 2 - var(--thickness) + 0.5px));
+	appearance: none;
+	transition: --barrio-seo-value 0s ease-in-out;
+
+	@media (prefers-reduced-motion: no-preference) {
+		transition-duration: 0.4s;
+	}
+
+	/* I colori forzati tolgono i gradienti: lo disegnano i colori di sistema. */
+	@media (forced-colors: active) {
+		forced-color-adjust: none;
+		--barrio-seo-color: canvastext;
+	}
+}
+
+/* Le barre native del meter. */
+.barrio-seo-gauge__meter::-webkit-meter-bar,
+.barrio-seo-gauge__meter::-webkit-meter-optimum-value,
+.barrio-seo-gauge__meter::-webkit-meter-suboptimum-value,
+.barrio-seo-gauge__meter::-webkit-meter-even-less-good-value {
+	display: none;
+	background: none;
+}
+
+.barrio-seo-gauge__meter::-moz-meter-bar {
+	background: none;
+}
+
+.barrio-seo-gauge__score {
+	position: absolute;
+	color: #1e1e1e;
+	font-size: 32px;
+	font-weight: 600;
+	line-height: 1;
+}
+
+.barrio-seo-gauge__score small {
+	color: #757575;
+	font-size: 13px;
+	font-weight: 400;
+}
+
+.barrio-seo-gauge__label {
+	font-size: 14px;
+}
+
+/*
+ * Il link del semicerchio porta qui: sotto l'intestazione sticky della
+ * sidebar o la barra di WordPress.
+ */
+.barrio-seo-panel__checks {
+	scroll-margin-top: 48px;
 }
 
 .barrio-seo-checks__title {
