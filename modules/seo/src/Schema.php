@@ -77,7 +77,7 @@ final class Schema {
 	 * @param array<string, mixed> $o L'organizzazione delle impostazioni SEO.
 	 * @return array<string, mixed>
 	 */
-	private static function organization( array $o, string $home, string $description ): array {
+	public static function organization( array $o, string $home, string $description ): array {
 		$address = self::clean(
 			[
 				'@type'           => 'PostalAddress',

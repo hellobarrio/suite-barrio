@@ -2,6 +2,9 @@
 
 namespace BarrioSuite\Seo;
 
+use BarrioSuite\I18n;
+use BarrioSuite\Seo\Api\RestContents;
+use BarrioSuite\Seo\Api\RestRedirects;
 use BarrioSuite\Seo\Api\RestSettings;
 use WP_REST_Posts_Controller;
 use WP_REST_Request;
@@ -19,6 +22,11 @@ final class Module {
 		// Dopo i post type e le tassonomie dei temi e degli altri plugin, che si registrano su init.
 		add_action( 'init', [ self::class, 'register_meta' ], 20 );
 		add_action( 'rest_api_init', [ RestSettings::class, 'register' ] );
+		add_action( 'rest_api_init', [ RestContents::class, 'register' ] );
+		add_action( 'rest_api_init', [ RestRedirects::class, 'register' ] );
+		add_action( 'admin_menu', [ Admin::class, 'menu' ] );
+		add_filter( 'barrio_admin_data', [ Admin::class, 'data' ] );
+		add_filter( 'barrio_launch_steps', [ self::class, 'launch_steps' ] );
 		add_filter( 'rest_request_before_callbacks', [ self::class, 'rest_meta' ], 10, 3 );
 
 		add_filter( 'pre_get_document_title', [ Head::class, 'title' ] );
@@ -64,6 +72,22 @@ final class Module {
 	}
 
 	public static function deactivate(): void {}
+
+	/**
+	 * Messa online (src/Launch.php): fatto quando le pagine senza testi e immagini loro hanno quelli
+	 * predefiniti, e lo schema ha il nome e il logo dell'organizzazione.
+	 *
+	 * @param array<string, bool> $steps
+	 * @return array<string, bool>
+	 */
+	public static function launch_steps( array $steps ): array {
+		$settings = Settings::get();
+		$texts    = I18n::pick( $settings['texts'], I18n::languages()[0] );
+		return $steps + [
+			'seo' => '' !== trim( (string) ( $texts['default_description'] ?? '' ) ) && $settings['default_image'] > 0
+				&& '' !== trim( $settings['organization']['name'] ) && $settings['organization']['logo'] > 0,
+		];
+	}
 
 	// Disinstallando, se il sito lo ha scelto: tabelle e opzioni le elimina il core (src/Uninstall.php).
 	public static function uninstall(): void {

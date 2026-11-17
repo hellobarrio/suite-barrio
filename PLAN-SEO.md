@@ -22,7 +22,9 @@ resta una sola differenza, l'updater da GitHub.
 | Prima WordPress | Per la sitemap si usa quella del core (`wp-sitemap.xml`, filtrata; `/sitemap.xml` lo redirige già il core). Poi `wp_robots`, `pre_get_document_title` e `get_canonical_url`, il redirect dei vecchi slug del core, le pagine degli allegati spente dal core (`wp_attachment_pages_enabled`). Nome e icona del sito restano le opzioni di WordPress (`blogname`, `site_icon`): niente copie |
 | Dati dell'azienda | Stanno nelle impostazioni SEO, card Organizzazione, come la "Local SEO" di Rank Math: servono allo schema. Il futuro modulo Dati aziendali (`info-azienda`, `hbCompanyInfo`) li leggerà da qui invece di tenerne una copia, come succede oggi nel prototipo |
 | AI | Titoli e descrizioni generati con Anthropic o Gemini, e l'introduzione di llms.txt: estensione `barrio-suite-ai`, perché è un servizio di terzi come Mailchimp. Il core non fa chiamate esterne |
-| Sitemap | Niente interruttore "in sitemap" separato: in sitemap c'è ciò che è indicizzabile, come in Yoast e Rank Math. Il prototipo aveva due fonti per la stessa scelta, e una non si poteva impostare |
+| Sitemap | Niente interruttore "in sitemap" separato: in sitemap c'è ciò che è indicizzabile, come in Yoast e Rank Math. Il prototipo aveva due fonti per la stessa scelta, e una non si poteva impostare. Niente scheda a sé: la sitemap non si modifica, è l'effetto dell'indicizzazione, quindi sta nella card Indicizzazione con i numeri per tipo. L'elenco degli URL è `wp-sitemap.xml`, leggibile nel browser |
+| robots.txt | Quello virtuale del core, che ha già la riga `Sitemap:`; con "Scoraggia i motori di ricerca" il core usa `noindex` e non `Disallow: /`, che nasconderebbe il `noindex`. Niente editor: robots.txt blocca la scansione ma non toglie le pagine da Google (lo fa `noindex`), una riga sbagliata toglie il sito dai risultati, e un file vero nella cartella del sito ha comunque la precedenza. La card Indicizzazione avvisa se quel file c'è. Il blocco dei crawler AI, se un sito lo chiede, è un interruttore sul filtro `robots_txt` |
+| Impostazioni | Un'opzione, `barrio_seo`, in autoload: è un solo record letto intero a ogni pagina, quindi arriva con le altre opzioni senza query in più. Una tabella avrebbe una riga sola, o diventerebbe una copia di `wp_options`. Come per i form: tabelle per le raccolte di record, opzioni per le impostazioni |
 | Lingue | `I18n` passa dal modulo Forms al core, perché SEO non può dipendere da un modulo che si spegne. I filtri si rinominano `barrio_languages`, `barrio_current_language`, `barrio_locale` e `barrio_language_flags`, e l'estensione WPML cambia nello stesso rilascio |
 | SMTP | La card SMTP esce da Form → Impostazioni e va in Barrio → Impostazioni, con l'email di prova: vale per tutte le email del sito e deve restare configurabile anche con Forms spento |
 
@@ -186,7 +188,8 @@ Ci sono tre build: `barrio-admin` (shell, Forms e SEO), `seo-sidebar` (il pannel
 
 ## 5. Admin
 
-Menu Barrio: Bacheca, Form, SEO, Estensioni, Impostazioni. Un modulo spento non ha la sua voce.
+Menu Barrio: Bacheca, Form, SEO, Estensioni, Impostazioni. Un modulo spento non ha la sua voce. La pagina SEO ha le
+schede Contenuti, Redirect, Organizzazione e Impostazioni.
 
 - **SEO → Contenuti** (`barrio_manage_seo`): la tabella del plugin, un tipo alla volta, scelto nel titolo della barra con il `Picker` (pagine, articoli, CPT, poi tassonomie).
   - **Colonne**: titolo, titolo SEO, descrizione, indicizzazione, punteggio; la lingua con più lingue.
@@ -199,10 +202,12 @@ Menu Barrio: Bacheca, Form, SEO, Estensioni, Impostazioni. Un modulo spento non 
 - **SEO → Redirect**: la tabella del plugin con ricerca, filtri (codice, automatici), ordinamento e pagine sul server.
   - **Menu ⋯**: modifica ed elimina; tra le azioni di massa, elimina.
   - **"Aggiungi redirect"** nell'intestazione: una modale con sorgente, codice, destinazione (disattivata con il 410) e nota.
-- **SEO → Impostazioni**, un solo Salva:
+- **SEO → Organizzazione** (`manage_options`), un solo Salva: i campi del §2.2 in card per argomento (azienda,
+  indirizzo, zone servite, competenze, profili, offerte), con l'anteprima del JSON-LD nella colonna destra, aggiornata
+  dal server mentre si scrive (`POST /seo/settings/schema`).
+- **SEO → Impostazioni** (`manage_options`), un solo Salva:
   - **Titoli e meta**: nome e icona del sito, separatore, ordine con l'anteprima, descrizione e immagine di condivisione predefinite;
-  - **Indicizzazione**: una riga per tipo e per tassonomia (Indicizza, Segui) con il robots risultante; archivi autore e data; il link a `wp-sitemap.xml`;
-  - **Organizzazione**: i campi del §2.2 (logo e immagine dalla libreria dei media, profili e offerte come liste), con l'anteprima del JSON-LD;
+  - **Indicizzazione**: una riga per tipo e per tassonomia (Indicizza, Segui) con il robots risultante e quanti indirizzi mette nella sitemap; archivi autore e data. I numeri sono contati dai provider della sitemap del core con i filtri del modulo (`GET /seo/settings/sitemap`), quindi sono quelli che legge Google; una riga che si spegne dice subito che esce dalla sitemap. In fondo il totale, i link a `wp-sitemap.xml` e robots.txt e, con il sito che chiede di non essere indicizzato, che WordPress non pubblica la sitemap. Un avviso se nella cartella del sito c'è un file robots.txt;
   - **llms.txt**: per tipo e per tassonomia Includi / Solo link / Escludi, l'introduzione e i link ai due file;
   - **Redirect**: la creazione automatica al cambio di URL;
   - **Permessi**: `barrio_manage_seo` e `barrio_edit_seo` per ruolo (`Roles.php`).
@@ -288,7 +293,7 @@ WooCommerce, monitor dei 404.
   - redirect con regex;
   - Analytics e Search Console;
   - breadcrumb come blocco, anche se lo schema BreadcrumbList c'è;
-  - editor di robots.txt;
+  - editor di robots.txt (vedi Decisioni);
   - codici di verifica, che Search Console fa con il DNS;
   - contatore dei link e SEO delle immagini.
 
@@ -366,7 +371,10 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
 - **Revalidation dei siti headless**: il ponte funziona finché il prototipo è attivo. Sui siti headless il prototipo si toglie solo dopo che Barrio Suite avrà un'estensione di revalidation, che userà `barrio_seo_changed` e l'indirizzo del frontend.
 - **Ordine degli aggiornamenti sui siti del prototipo**: il core con il modulo SEO e l'estensione di migrazione aggiornata vanno installati insieme. Sui siti dove la migrazione è già stata tolta dopo i form, va reinstallata prima di aggiornare il core.
 - **Impostazioni di WPGraphQL**: verificare che `register_graphql_settings_field` regga il campo dell'indirizzo del frontend; altrimenti, una costante in `wp-config.php`.
-- **`site_icon` in `/wp/v2/settings`**: verificare che la REST del core lo esponga; altrimenti lo scrive la rotta delle impostazioni SEO.
+- **`site_icon` in `/wp/v2/settings`** (S4, fatto): la REST del core lo espone, come `blogname` (`title`). SEO →
+  Impostazioni salva nome e icona del sito con `/wp/v2/settings`, con lo stesso Salva delle sezioni di `barrio_seo`.
+- **Lingua in SEO → Contenuti** (S5): colonna e filtro della lingua hanno bisogno della lingua di ogni contenuto,
+  che sa solo il plugin multilingua: arrivano con l'estensione WPML in S5.
 - **Temi senza `title-tag`**: stampano il loro `<title>`, e il modulo non può cambiarlo. Da controllare sui temi classici dei clienti.
 - **Costo dei redirect**: una SELECT sulla UNIQUE a ogni richiesta del frontend. Va misurata; se serve, un flag "nessun redirect" in un'opzione autoload la evita.
 - **llms-full.txt**: misurare quanto ci mette a generarsi, a cache vuota, sul sito più grande (500 contenuti fino a 4000 caratteri).

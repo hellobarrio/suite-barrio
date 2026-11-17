@@ -32,11 +32,13 @@ final class Admin {
 		self::add_page( 'barrio-settings', __( 'Settings', 'barrio-suite' ), 'manage_options' );
 	}
 
-	public static function add_page( string $slug, string $title, string $capability ): void {
+	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla.
+	public static function add_page( string $slug, string $title, string $capability ): string|false {
 		$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );
 		if ( $hook ) {
 			add_action( "load-{$hook}", [ self::class, 'enqueue' ] );
 		}
+		return $hook;
 	}
 
 	public static function enqueue(): void {

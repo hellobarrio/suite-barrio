@@ -183,7 +183,8 @@ Una sola tabella, `redirects` ([`modules/seo/migrations/0001_redirects.php`](../
 la `0002` assegna `barrio_manage_seo` agli amministratori e `barrio_edit_seo` anche agli editor), con le regole
 sopra. I suoi vincoli sono in `SchemaTest` come quelli dei form. Il resto dei dati SEO non ha tabelle: i meta
 `_barrio_seo_*` di contenuti e termini, registrati con `register_post_meta` e `register_term_meta` e validati dalla
-REST del core, e l'opzione `barrio_seo` (`modules/seo/src/Settings.php`).
+REST del core, e l'opzione `barrio_seo` (`modules/seo/src/Settings.php`). L'opzione è in autoload perché ogni pagina
+del sito la legge intera: arriva con le altre opzioni, senza query in più.
 
 - **`source`** è il percorso senza dominio, con la query string, in `utf8mb4_bin` perché gli URL distinguono le
   maiuscole: `/` all'inizio e nessuna `/` finale prima della query, tranne la radice (`br_source_chk`), così la
@@ -192,4 +193,6 @@ REST del core, e l'opzione `barrio_seo` (`modules/seo/src/Settings.php`).
   (`br_target_chk`), che è un percorso o un URL `http(s)` (`br_url_chk`).
 - **`is_auto`** segna i redirect creati dal cambio di URL di un contenuto o di un termine; resta anche se poi si
   modificano a mano.
-- Solo `RedirectRepository` legge e scrive la tabella; una sorgente già usata diventa un'eccezione di `Db`.
+- Solo `RedirectRepository` legge e scrive la tabella; una sorgente già usata diventa un'eccezione di `Db`. La
+  tabella di SEO → Redirect cerca anche nella sorgente senza distinguere le maiuscole
+  (`COLLATE utf8mb4_unicode_ci` nella query).
