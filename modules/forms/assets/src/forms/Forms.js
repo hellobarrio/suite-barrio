@@ -271,7 +271,7 @@ function FormList() {
 			render: ( form ) => (
 				<Menu
 					label={ sprintf(
-						/* translators: %s: form name. */
+						/* translators: %s: name of the row: a form, a page, a post or a term. */
 						__( 'Actions for "%s"', 'barrio-suite' ),
 						form.title
 					) }

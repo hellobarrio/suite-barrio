@@ -5,6 +5,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
+import { SeoCard } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import { LaunchBanner, launchUrl } from '../launch/Launch.js';
 
 const { canManageOptions } = window.barrioAdmin;
@@ -29,6 +30,7 @@ export function Dashboard() {
 			) }
 			<div className="barrio-modules">
 				<FormsCard />
+				<SeoCard />
 			</div>
 		</div>
 	);

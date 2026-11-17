@@ -24,7 +24,7 @@ final class Editor {
 	public static function block_editor(): void {
 		$post = get_post();
 		if ( 'post' === get_current_screen()?->base && $post && self::can_post( $post ) ) {
-			self::enqueue( 'seo-sidebar', self::post_data( $post ) );
+			self::enqueue( 'seo-sidebar', self::context( 'post_types', $post->post_type ) );
 		}
 	}
 
@@ -32,15 +32,7 @@ final class Editor {
 	public static function meta_box( string $post_type, mixed $post ): void {
 		if ( $post instanceof WP_Post && ! use_block_editor_for_post( $post ) && self::can_post( $post ) ) {
 			add_meta_box( 'barrio-seo', 'SEO', [ self::class, 'render_post' ], null, 'normal', 'high' );
-			$page = [
-				'title'    => $post->post_title,
-				'excerpt'  => $post->post_excerpt,
-				'content'  => $post->post_content,
-				'password' => $post->post_password,
-				'featured' => (int) get_post_thumbnail_id( $post ),
-				'url'      => (string) get_permalink( $post ),
-			];
-			self::form( self::post_data( $post ) + [ 'page' => $page ], new WP_REST_Post_Meta_Fields( $post->post_type ), $post->ID );
+			self::form( self::context( 'post_types', $post->post_type ) + [ 'page' => self::post_page( $post ) ], new WP_REST_Post_Meta_Fields( $post->post_type ), $post->ID );
 		}
 	}
 
@@ -63,15 +55,7 @@ final class Editor {
 		if ( ! in_array( $term->taxonomy, get_taxonomies( [ 'public' => true ] ), true ) || ! current_user_can( 'barrio_edit_seo' ) || ! current_user_can( 'edit_term', $term->term_id ) ) {
 			return;
 		}
-		$link = get_term_link( $term );
-		$data = self::data( 'taxonomies', $term->taxonomy ) + [
-			'page' => [
-				'title'       => $term->name,
-				'description' => $term->description,
-				'url'         => is_string( $link ) ? $link : '',
-			],
-		];
-		self::form( $data, new WP_REST_Term_Meta_Fields( $term->taxonomy ), $term->term_id );
+		self::form( self::context( 'taxonomies', $term->taxonomy ) + [ 'page' => self::term_page( $term ) ], new WP_REST_Term_Meta_Fields( $term->taxonomy ), $term->term_id );
 		echo '<h2>SEO</h2>';
 		self::mount( "term-{$term->term_id}" );
 	}
@@ -107,42 +91,67 @@ final class Editor {
 		return is_array( $meta ) ? array_intersect_key( $meta, array_flip( array_map( static fn( string $name ): string => "_barrio_seo_{$name}", Module::META ) ) ) : null;
 	}
 
-	/** @return array<string, mixed> Nell'editor a blocchi titolo, contenuto e URL vengono dal suo store. */
-	private static function post_data( WP_Post $post ): array {
-		$data = self::data( 'post_types', $post->post_type );
-		// Solo le pagine diventano l'archivio di un tipo (Schema::item_list).
-		if ( 'page' === $post->post_type ) {
-			foreach ( get_post_types( [ 'public' => true ], 'objects' ) as $type ) {
-				if ( 'attachment' !== $type->name ) {
-					$data['collections'][] = [
-						'value' => $type->name,
-						'label' => $type->labels->name,
-					];
-				}
-			}
-		}
-		return $data;
-	}
-
 	/**
 	 * Nei form i meta li porta la pagina, come li darebbe la REST del core.
 	 *
 	 * @param array<string, mixed> $data
 	 */
 	private static function form( array $data, WP_REST_Meta_Fields $fields, int $object_id ): void {
-		$meta         = $fields->get_value( $object_id, new WP_REST_Request() );
-		$data['meta'] = array_filter( $meta, static fn( string $key ): bool => str_starts_with( $key, '_barrio_seo_' ), ARRAY_FILTER_USE_KEY );
+		$data['meta'] = self::meta( $fields, $object_id );
 		self::enqueue( 'seo-form', $data );
 	}
 
 	/**
-	 * Ciò che il pannello eredita dal sito e dal tipo o dalla tassonomia.
+	 * Ciò che il pannello legge di un contenuto. L'URL di una bozza è quello che avrà, come nell'editor a blocchi.
+	 *
+	 * @return array{title: string, excerpt: string, content: string, password: string, featured: int, url: string}
+	 */
+	public static function post_page( WP_Post $post ): array {
+		$url = (string) get_permalink( $post );
+		if ( 'publish' !== $post->post_status ) {
+			require_once ABSPATH . 'wp-admin/includes/post.php';
+			[ $template, $name ] = get_sample_permalink( $post );
+			$url                 = str_replace( [ '%pagename%', '%postname%' ], $name, $template );
+		}
+		return [
+			'title'    => $post->post_title,
+			'excerpt'  => $post->post_excerpt,
+			'content'  => $post->post_content,
+			'password' => $post->post_password,
+			'featured' => (int) get_post_thumbnail_id( $post ),
+			'url'      => $url,
+		];
+	}
+
+	/**
+	 * Di un termine: content null vuol dire niente controlli sul contenuto.
+	 *
+	 * @return array{title: string, description: string, url: string, content: null}
+	 */
+	public static function term_page( WP_Term $term ): array {
+		$link = get_term_link( $term );
+		return [
+			'title'       => $term->name,
+			'description' => $term->description,
+			'url'         => is_string( $link ) ? $link : '',
+			'content'     => null,
+		];
+	}
+
+	/** @return array<string, mixed> I meta SEO come li dà la REST del core: '' o null quando sono assenti. */
+	public static function meta( WP_REST_Meta_Fields $fields, int $object_id ): array {
+		return array_filter( $fields->get_value( $object_id, new WP_REST_Request() ), static fn( string $key ): bool => str_starts_with( $key, '_barrio_seo_' ), ARRAY_FILTER_USE_KEY );
+	}
+
+	/**
+	 * Ciò che il pannello eredita dal sito e dal tipo ('post_types') o dalla tassonomia ('taxonomies'). Nell'editor
+	 * a blocchi titolo, contenuto e URL vengono dal suo store.
 	 *
 	 * @return array<string, mixed>
 	 */
-	private static function data( string $group, string $name ): array {
+	public static function context( string $group, string $name ): array {
 		$settings = Settings::get();
-		return [
+		$context  = [
 			'site'        => [
 				'name'      => Meta::text( get_bloginfo( 'name' ) ),
 				'separator' => $settings['title']['separator'],
@@ -153,6 +162,18 @@ final class Editor {
 			'image'       => (int) $settings['default_image'],
 			'robots'      => Meta::robots( $group, $name ),
 		];
+		// Solo le pagine diventano l'archivio di un tipo (Schema::item_list).
+		if ( 'post_types' === $group && 'page' === $name ) {
+			foreach ( get_post_types( [ 'public' => true ], 'objects' ) as $type ) {
+				if ( 'attachment' !== $type->name ) {
+					$context['collections'][] = [
+						'value' => $type->name,
+						'label' => $type->labels->name,
+					];
+				}
+			}
+		}
+		return $context;
 	}
 
 	/**

@@ -70,7 +70,8 @@ export const Badge = ( { value } ) => (
 	</svg>
 );
 
-const LEVELS = {
+// Anche nei filtri della tabella dei contenuti.
+export const LEVELS = {
 	good: () => __( 'Good', 'barrio-suite' ),
 	ok: () => __( 'Needs improvement', 'barrio-suite' ),
 	bad: () => __( 'Poor', 'barrio-suite' ),

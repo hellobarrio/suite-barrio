@@ -7,6 +7,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
+import { SEO } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import {
 	Bar,
 	Card,
@@ -24,7 +25,7 @@ import { smtpSection } from './Smtp.js';
 const MODULES = {
 	forms: FORMS,
 	seo: {
-		title: __( 'SEO', 'barrio-suite' ),
+		title: SEO.title,
 		description: __(
 			'Titles, descriptions, sitemap and redirects. Turn it off if the site uses another SEO plugin, such as Yoast or Rank Math.',
 			'barrio-suite'

@@ -6,6 +6,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import { formsStep } from '../../../modules/forms/assets/src/settings/Sections.js';
+import { seoStep } from '../../../modules/seo/assets/src/seo/Settings.js';
 import {
 	Bar,
 	Card,
@@ -96,7 +97,14 @@ const searchStep = {
 // L'ordine della guida: le email, un passaggio per modulo, poi il sito. Quelli che il server non
 // restituisce (di un modulo spento) non compaiono. launchSteps dipende dal branch
 // (extensions/Extensions.js).
-const STEPS = [ smtpStep, formsStep, timezoneStep, searchStep, ...launchSteps ];
+const STEPS = [
+	smtpStep,
+	formsStep,
+	seoStep,
+	timezoneStep,
+	searchStep,
+	...launchSteps,
+];
 
 // I passaggi ancora da configurare: né fatti né saltati.
 export const pending = ( launch ) =>

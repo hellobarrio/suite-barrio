@@ -5,6 +5,7 @@ import { createRoot } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
+import { seoPage } from '../../../modules/seo/assets/src/seo/Seo.js';
 import { Dashboard } from '../dashboard/Dashboard.js';
 import { Extensions } from '../extensions/Extensions.js';
 import { General } from '../general/General.js';
@@ -24,6 +25,7 @@ const PAGES = {
 		page: <Dashboard />,
 	},
 	'barrio-forms': formsPage,
+	'barrio-seo': seoPage,
 	'barrio-extensions': {
 		title: __( 'Extensions', 'barrio-suite' ),
 		description: __(
