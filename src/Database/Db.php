@@ -29,6 +29,15 @@ final class Db {
 		return (int) $wpdb->insert_id;
 	}
 
+	/**
+	 * @param array<string, scalar|null> $row
+	 * @param array<string, scalar>      $where
+	 */
+	public static function update( string $table, array $row, array $where ): int {
+		global $wpdb;
+		return (int) self::checked( $wpdb->update( $table, $row, $where ) );
+	}
+
 	public static function var( string $sql ): ?string {
 		global $wpdb;
 		$value = self::checked( $wpdb->get_var( $sql ) );

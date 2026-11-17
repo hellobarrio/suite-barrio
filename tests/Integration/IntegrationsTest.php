@@ -136,7 +136,8 @@ final class IntegrationsTest extends WP_UnitTestCase {
 		$this->submit( $form, 'it' );
 
 		$this->assertCount( 2, self::$calls );
-		$this->assertSame(
+		// assertEquals: MySQL 8 riordina le chiavi degli oggetti JSON.
+		$this->assertEquals(
 			[
 				'list'  => 'Newsletter EN',
 				'email' => 'email',

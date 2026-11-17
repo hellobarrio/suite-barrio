@@ -34,6 +34,8 @@
 			<property name="custom_capabilities" type="array">
 				<element value="barrio_manage_forms"/>
 				<element value="barrio_manage_entries"/>
+				<element value="barrio_manage_seo"/>
+				<element value="barrio_edit_seo"/>
 			</property>
 		</properties>
 	</rule>

@@ -82,7 +82,7 @@ final class RenderTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="_barrio_lang" value="en"', $html );
 		$this->assertStringContainsString( 'name="_barrio_hp"', $html );
 		$this->assertSame( [ 'name', 'request', 'budget', 'topics', 'cv', 'privacy', 'campaign', 'source' ], self::captures( '/data-barrio-field="([a-z_]+)"/', $html ) );
-		$this->assertMatchesRegularExpression( '/data-barrio-field="budget" data-conditions="\{&quot;action&quot;:&quot;show&quot;/', $html );
+		$this->assertMatchesRegularExpression( '/data-barrio-field="budget" data-conditions="\{[^"]*&quot;action&quot;:&quot;show&quot;/', $html );
 		$this->assertStringContainsString( 'pattern="[A-Za-z ]+"', $html );
 		$this->assertStringContainsString( 'autocomplete="name"', $html );
 		// Senza JavaScript l'invio non passerebbe l'antispam: lo si dice.

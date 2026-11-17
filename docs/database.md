@@ -176,3 +176,20 @@ valori dentro il JSON esiste solo su MySQL (indici multi-valore), non su MariaDB
   volta sola su ogni sito, anche sui siti di un multisite con il plugin attivato in rete, dove l'hook di
   attivazione parte una volta sola.
 - **Utenti cancellati**: `deleted_user` azzera `entry_notes.user_id`.
+
+## Modulo SEO
+
+Una sola tabella, `redirects` ([`modules/seo/migrations/0001_redirects.php`](../modules/seo/migrations/0001_redirects.php);
+la `0002` assegna `barrio_manage_seo` agli amministratori e `barrio_edit_seo` anche agli editor), con le regole
+sopra. I suoi vincoli sono in `SchemaTest` come quelli dei form. Il resto dei dati SEO non ha tabelle: i meta
+`_barrio_seo_*` di contenuti e termini, registrati con `register_post_meta` e `register_term_meta` e validati dalla
+REST del core, e l'opzione `barrio_seo` (`modules/seo/src/Settings.php`).
+
+- **`source`** è il percorso senza dominio, con la query string, in `utf8mb4_bin` perché gli URL distinguono le
+  maiuscole: `/` all'inizio e nessuna `/` finale prima della query, tranne la radice (`br_source_chk`), così la
+  UNIQUE non lascia passare `/a` e `/a/`. `VARCHAR(768)` sono i 3072 byte massimi di una chiave InnoDB.
+- **`code`** è uno dei codici dell'enum `RedirectCode` (`br_code_chk`); un 410 e solo lui non ha `target`
+  (`br_target_chk`), che è un percorso o un URL `http(s)` (`br_url_chk`).
+- **`is_auto`** segna i redirect creati dal cambio di URL di un contenuto o di un termine; resta anche se poi si
+  modificano a mano.
+- Solo `RedirectRepository` legge e scrive la tabella; una sorgente già usata diventa un'eccezione di `Db`.

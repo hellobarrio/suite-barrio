@@ -88,7 +88,8 @@ final class MigrationTest extends WP_UnitTestCase {
 		$this->assertSame( 'Service', $service->i18n['en']['label'] );
 		// Il placeholder non tradotto è quello della lingua principale.
 		$this->assertSame( 'Il tuo nome', $form->current->fields[0]->i18n['en']['placeholder'] );
-		$this->assertSame(
+		// assertEquals: MySQL 8 riordina le chiavi degli oggetti JSON.
+		$this->assertEquals(
 			[
 				'action' => 'show',
 				'logic'  => 'all',
@@ -125,7 +126,7 @@ final class MigrationTest extends WP_UnitTestCase {
 		$this->assertSame( "{{all_fields}}\n\n{{source_url}}", $notification->i18n['en']['body'] );
 
 		[ $mailchimp, $mailup ] = $form->integrations;
-		$this->assertSame(
+		$this->assertEquals(
 			[
 				'email_field'   => 'email',
 				'merge_fields'  => [ [ 'FNAME', 'nome' ] ],

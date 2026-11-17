@@ -5,6 +5,7 @@ namespace BarrioSuite\Tests\Integration;
 use BarrioSuite\Database\Db;
 use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Model\NoteLevel;
+use BarrioSuite\Seo\RedirectCode;
 use WP_UnitTestCase;
 
 // Ogni vincolo dello schema ha qui almeno una scrittura che il database deve rifiutare.
@@ -12,7 +13,7 @@ use WP_UnitTestCase;
 // Nel SQL {tabella} diventa il nome completo, {nome} l'id creato in set_up, {p} il prefisso.
 final class SchemaTest extends WP_UnitTestCase {
 
-	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_integrations', 'form_integrations_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes' ];
+	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_integrations', 'form_integrations_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes', 'redirects' ];
 
 	/** @var array<string, int> */
 	private array $id = [];
@@ -46,6 +47,14 @@ final class SchemaTest extends WP_UnitTestCase {
 				'original_name' => 'cv.pdf',
 				'mime_type'     => 'application/pdf',
 				'size_bytes'    => 1024,
+			]
+		);
+		$this->id['redirect'] = $this->insert(
+			'redirects',
+			[
+				'source' => '/old',
+				'target' => '/new',
+				'code'   => 301,
 			]
 		);
 	}
@@ -96,6 +105,15 @@ final class SchemaTest extends WP_UnitTestCase {
 			'source url with a fragment'             => [ "UPDATE {entries} SET source_url = 'https://example.com/#form' WHERE id = {entry}", '{p}be_url_chk' ],
 			'empty file'                             => [ 'UPDATE {entry_files} SET size_bytes = 0 WHERE entry_id = {entry}', '{p}befi_size_chk' ],
 			'note level outside the enum'            => [ "UPDATE {entry_notes} SET level = 'warning' WHERE entry_id = {entry}", '{p}ben_level_chk' ],
+			'redirect source without a slash'        => [ "UPDATE {redirects} SET source = 'old' WHERE id = {redirect}", '{p}br_source_chk' ],
+			'redirect source with the domain'        => [ "UPDATE {redirects} SET source = 'https://example.com/old' WHERE id = {redirect}", '{p}br_source_chk' ],
+			'redirect source with a final slash'     => [ "UPDATE {redirects} SET source = '/old/' WHERE id = {redirect}", '{p}br_source_chk' ],
+			'final slash before the query string'    => [ "UPDATE {redirects} SET source = '/old/?page=2' WHERE id = {redirect}", '{p}br_source_chk' ],
+			'redirect code outside the enum'         => [ 'UPDATE {redirects} SET code = 303 WHERE id = {redirect}', '{p}br_code_chk' ],
+			'410 with a target'                      => [ 'UPDATE {redirects} SET code = 410 WHERE id = {redirect}', '{p}br_target_chk' ],
+			'301 without a target'                   => [ 'UPDATE {redirects} SET target = NULL WHERE id = {redirect}', '{p}br_target_chk' ],
+			'redirect target with javascript'        => [ "UPDATE {redirects} SET target = 'javascript:alert(1)' WHERE id = {redirect}", '{p}br_url_chk' ],
+			'redirect is_auto not 0 or 1'            => [ 'UPDATE {redirects} SET is_auto = 2 WHERE id = {redirect}', '{p}br_auto_chk' ],
 
 			// FOREIGN KEY: righe figlie senza padre.
 			'texts of a missing form'                => [ "INSERT INTO {form_i18n} (form_id, lang, submit_label) VALUES (999999, 'it', 'Invia')", '{p}bfi_form_fk' ],
@@ -132,6 +150,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'two field texts, same lang'             => [ "INSERT INTO {form_fields_i18n} (field_id, lang, label) VALUES ({email}, 'pt-br', 'X')", 'PRIMARY' ],
 			'two values in the same position'        => [ "INSERT INTO {entry_values} (entry_id, field_id, position, value) VALUES ({entry}, {email}, 0, 'b')", 'PRIMARY' ],
 			'two files with the same path'           => [ sprintf( $file, '{entry}', '{cv}', 'a1b2c3' ), 'stored_path' ],
+			'two redirects from the same source'     => [ "INSERT INTO {redirects} (source, target, code, created_at, updated_at) VALUES ('/old', '/other', 302, '2026-01-01', '2026-01-01')", "source'" ],
 		];
 	}
 
@@ -162,6 +181,11 @@ final class SchemaTest extends WP_UnitTestCase {
 			'lang with script subtag'    => [ "UPDATE {form_fields_i18n} SET lang = 'zh-hans' WHERE field_id = {email}" ],
 			'three-letter lang'          => [ "UPDATE {entries} SET lang = 'fur' WHERE id = {entry}" ],
 			'source url without a query' => [ "UPDATE {entries} SET source_url = 'https://example.com/contatti/' WHERE id = {entry}" ],
+			'redirect from the home'     => [ "UPDATE {redirects} SET source = '/' WHERE id = {redirect}" ],
+			'source with a query string' => [ "UPDATE {redirects} SET source = '/old?next=/a/' WHERE id = {redirect}" ],
+			'sources differ by case'     => [ "INSERT INTO {redirects} (source, target, code, created_at, updated_at) VALUES ('/Old', '/new', 301, '2026-01-01', '2026-01-01')" ],
+			'410 without a target'       => [ 'UPDATE {redirects} SET code = 410, target = NULL WHERE id = {redirect}' ],
+			'absolute redirect target'   => [ "UPDATE {redirects} SET code = 308, target = 'https://example.com/new?a=1' WHERE id = {redirect}" ],
 		];
 	}
 
@@ -199,8 +223,9 @@ final class SchemaTest extends WP_UnitTestCase {
 	/** @return array<string, array{string, list<string>}> */
 	public static function enums(): array {
 		return [
-			'FormStatus' => [ 'bf_status_chk', array_column( FormStatus::cases(), 'value' ) ],
-			'NoteLevel'  => [ 'ben_level_chk', array_column( NoteLevel::cases(), 'value' ) ],
+			'FormStatus'   => [ 'bf_status_chk', array_column( FormStatus::cases(), 'value' ) ],
+			'NoteLevel'    => [ 'ben_level_chk', array_column( NoteLevel::cases(), 'value' ) ],
+			'RedirectCode' => [ 'br_code_chk', array_map( 'strval', array_column( RedirectCode::cases(), 'value' ) ) ],
 		];
 	}
 
@@ -216,10 +241,11 @@ final class SchemaTest extends WP_UnitTestCase {
 				$wpdb->prefix . $constraint
 			)
 		);
-		// MariaDB: `status` in ('active',…); MySQL: (`status` in (_utf8mb4\'active\',…)).
+		// MariaDB: `status` in ('active',…); MySQL: (`status` in (_utf8mb4\'active\',…)). I numeri senza apici.
 		preg_match_all( "/'([^']*)'/", stripslashes( (string) $clause ), $quoted );
+		preg_match_all( '/\b\d+\b/', (string) $clause, $numbers );
 
-		$this->assertEqualsCanonicalizing( $values, $quoted[1], (string) $clause );
+		$this->assertEqualsCanonicalizing( $values, $quoted[1] ?: $numbers[0], (string) $clause );
 	}
 
 	private function sql( string $template ): string {
@@ -253,6 +279,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'entries'       => [ 'created_at' ],
 			'entry_files'   => [ 'created_at' ],
 			'entry_notes'   => [ 'created_at' ],
+			'redirects'     => [ 'created_at', 'updated_at' ],
 		];
 		foreach ( $dates[ $table ] ?? [] as $column ) {
 			$row[ $column ] = '2026-01-01 00:00:00';

@@ -73,9 +73,10 @@ Ha un JSON Schema e la scrive solo la rotta `PUT /barrio/v1/seo/settings` (come 
 - `title`: `separator` (default `—`), `order` (`page_site` \| `site_page`);
 - `default_image` (ID);
 - `index`: `post_types` e `taxonomies` (`{slug: {index, follow}}`; una chiave assente vale indicizzato),
-  `archives` (`author`, `date`). Ricerca ed embed restano noindex come già fa il core;
+  `archives` (`author` indicizzato, `date` noindex di default, perché ripete gli articoli). Ricerca ed embed restano noindex come già fa il core;
 - `organization`: tipo (le 16 voci del prototipo), nome, logo e immagine (ID, non URL), telefono, email,
-  P.IVA, indirizzo, coordinate, zone servite (`[{type, name}]`), competenze (lista), profili
+  P.IVA, indirizzo, coordinate, zone servite (`[{type, name}]`, con `type` tra `Place`, `AdministrativeArea`, `City`,
+  `State` e `Country`: `Text` e `GeoShape` del prototipo non sono luoghi con un nome), competenze (lista), profili
   (`same_as`, una lista di URL al posto dei cinque social fissi), catalogo delle offerte (nome, valuta, voci
   come nel prototipo);
 - `llms`: `post_types` e `taxonomies` (`include` \| `links` \| `exclude`);
@@ -89,9 +90,9 @@ l'icona si leggono e si scrivono come opzioni di WordPress con `/wp/v2/settings`
 ### 2.3 Redirect: tabella (migrazione `0001`)
 
 ```
-redirects   id, source VARCHAR(768) utf8mb4_bin UNIQUE, CHECK (source LIKE '/%')
+redirects   id, source VARCHAR(768) utf8mb4_bin UNIQUE, CHECK (source LIKE '/%' e senza / finale)
               percorso senza dominio e senza / finale, query string ammessa
-            target VARCHAR(2048) NULL (percorso o URL assoluto)
+            target VARCHAR(2048) NULL (percorso o URL assoluto), CHECK (target REGEXP '^(/|https?://)')
             code SMALLINT, CHECK (code IN (301, 302, 307, 308, 410))
             CHECK ((code = 410) = (target IS NULL))
             note VARCHAR(255) NULL, is_auto (creato dal cambio di URL), created_at, updated_at (UTC)

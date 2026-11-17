@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Barrio Suite 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite\n"
-"POT-Creation-Date: 2026-11-17T12:09:23+00:00\n"
+"POT-Creation-Date: 2026-11-17T13:11:52+00:00\n"
 "PO-Revision-Date: 2026-11-17 08:54+0000\n"
 "Last-Translator: Hellobarrio\n"
 "Language-Team: Italian\n"
@@ -2173,6 +2173,18 @@ msgid "Continue"
 msgstr "Continua"
 
 #: build/barrio-admin.js:53
+msgid "SEO"
+msgstr "SEO"
+
+#: build/barrio-admin.js:53
+msgid ""
+"Titles, descriptions, sitemap and redirects. Turn it off if the site uses "
+"another SEO plugin, such as Yoast or Rank Math."
+msgstr ""
+"Titoli, descrizioni, sitemap e redirect. Spegnilo se il sito usa un altro "
+"plugin SEO, come Yoast o Rank Math."
+
+#: build/barrio-admin.js:53
 msgid "Modules"
 msgstr "Moduli"
 
@@ -2202,12 +2214,13 @@ msgstr "Elimina tutti i dati quando Barrio Suite viene eliminato"
 
 #: build/barrio-admin.js:53
 msgid ""
-"Forms, entries with their files, settings and permissions of this site. It "
-"cannot be undone: export the entries you need first."
+"Forms, entries with their files, redirects, the SEO data of the contents, "
+"settings and permissions of this site. It cannot be undone: export the "
+"entries you need first."
 msgstr ""
-"Form, registrazioni con i loro file, impostazioni e permessi di questo sito. "
-"L'operazione non può essere annullata: prima esporta le registrazioni che ti "
-"servono."
+"Form, registrazioni con i loro file, redirect, dati SEO dei contenuti, "
+"impostazioni e permessi di questo sito. L'operazione non può essere "
+"annullata: prima esporta le registrazioni che ti servono."
 
 #: build/barrio-admin.js:53
 msgid "Plugins that connect Barrio Suite to other services."

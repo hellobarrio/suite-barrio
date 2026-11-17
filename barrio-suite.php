@@ -23,6 +23,7 @@ spl_autoload_register(
 		// Ogni modulo ha il suo namespace; il core condiviso è BarrioSuite\ in src/.
 		$roots = [
 			'BarrioSuite\\Forms\\' => '/modules/forms/src/',
+			'BarrioSuite\\Seo\\'   => '/modules/seo/src/',
 			'BarrioSuite\\'        => '/src/',
 		];
 		foreach ( $roots as $prefix => $dir ) {
