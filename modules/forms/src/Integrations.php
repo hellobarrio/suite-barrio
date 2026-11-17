@@ -237,9 +237,9 @@ final class Integrations {
 				$slug,
 				null === $error ? NoteLevel::Success : NoteLevel::Error,
 				null === $error
-					/* translators: %s: nome dell'integrazione, per esempio Mailchimp. */
+					/* translators: %s: integration name, for example Mailchimp. */
 					? sprintf( __( 'Sent to %s.', 'barrio-suite' ), $label )
-					/* translators: 1: nome dell'integrazione, per esempio Mailchimp; 2: messaggio di errore. */
+					/* translators: 1: integration name, for example Mailchimp; 2: error message. */
 					: sprintf( __( 'Could not send to %1$s: %2$s', 'barrio-suite' ), $label, $error->get_error_message() )
 			)
 		);

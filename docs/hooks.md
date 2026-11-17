@@ -20,7 +20,8 @@ WPGraphQL, come nella riga WPGraphQL della CI: in locale si installa una volta n
 
 Ogni estensione è un plugin a sé, in `extensions/<slug>/<slug>.php`, con l'header
 `Update URI: https://github.com/hellobarrio/suite-barrio`, lo stesso di Barrio Suite (`Extensions::REPO`;
-`ExtensionsTest` controlla che coincidano). Una cartella nuova con quell'header entra da sola nella
+`ExtensionsTest` controlla che coincidano), e `Requires Plugins: barrio-suite`: WordPress non la attiva senza
+Barrio Suite. Il suo text domain è lo slug, anche per le stringhe uguali a quelle del core. Una cartella nuova con quell'header entra da sola nella
 release successiva.
 
 1. `npm run release` prepara gli zip di Barrio Suite e delle estensioni e `catalog.json`, con nome,
@@ -131,27 +132,6 @@ le aspetta.
 - Con l'estensione disattivata le impostazioni restano: il builder le mostra in una card che lo dice,
   e tornano attive con l'estensione.
 
-## Tipi di campo
-
-```php
-barrio_forms_register_field_type( 'tax_code', [
-	'label'     => __( 'Tax code', 'my-extension' ),
-	'schema'    => [ 'type' => 'object', 'properties' => [], 'additionalProperties' => false ],
-	'render'    => fn ( Field $field, array $text, string $id ): string => /* etichetta e controllo */,
-	'normalize' => fn ( Field $field, mixed $raw ): array => [ strtoupper( trim( (string) $raw ) ) ],
-	'validate'  => fn ( Field $field, string $value ): ?string => /* messaggio di errore o null */,
-] );
-```
-
-Solo `label` è obbligatoria. Lo slug è `^[a-z][a-z0-9_]*$`, al massimo 32 caratteri, e non può essere un
-tipo core. `schema` è il JSON Schema della config del campo (default: nessuna proprietà): il builder ne
-ricava il pannello (testi e numeri) e il server lo valida a ogni salvataggio. Senza `render` il campo è
-un testo su una riga; `render` riceve i testi nella lingua della pagina e l'`id` da usare nell'etichetta
-(`for`) e per l'errore (`aria-describedby="{$id}-error"`); il controllo deve avere `name` uguale alla
-chiave del campo. Senza `normalize` il valore è una riga di testo; `validate` riceve ogni valore non
-vuoto (oltre 255 caratteri il valore è già rifiutato). Un form che usa un tipo di un'estensione
-disattivata mostra un campo di testo e non si salva finché il campo non si toglie.
-
 ## Hook
 
 | Hook | Tipo | Argomenti | |
@@ -159,12 +139,11 @@ disattivata mostra un campo di testo e non si salva finché il campo non si togl
 | `barrio_forms_loaded` | azione | — | Su `init`: il momento per registrarsi |
 | `barrio_forms_render` | azione | `Form` | Un form sta per comparire nella pagina (blocco o shortcode): per gli script di un captcha |
 | `barrio_forms_spam_check` | filtro | `?WP_Error`, `array $input`, `Form` | Dopo honeypot e limite per IP. Restituire un `WP_Error` (con `status`) rifiuta l'invio; se arriva già un errore, va restituito così com'è |
-| `barrio_forms_validate` | filtro | `array $errors`, `array $values`, `Form` | Errori per chiave del campo, dopo quelli dei tipi; `$values` sono i valori accettati (`list<string>` per chiave) |
+| `barrio_forms_rate_limit` | filtro | `int $limit`, `string $ip` | Invii per IP ogni 10 minuti (10), compresi quelli respinti dall'antispam; 0 toglie il limite, per esempio dietro un proxy che non ripristina l'IP del visitatore |
 | `barrio_forms_entry_data` | filtro | `Entry`, `Form` | La registrazione prima del salvataggio (senza `id`) |
 | `barrio_forms_after_submission` | azione | `Entry`, `Form` | Dopo il salvataggio: notifiche (10) e integrazioni (20). Un'eccezione finisce nelle note |
 | `barrio_forms_notification` | filtro | `array $email`, `Notification`, `Entry` | `to`, `subject`, `heading`, `body` (HTML), `reply_to`, `attachments` prima dell'invio |
-| `barrio_forms_rest_response` | filtro | `array $response`, `Entry`, `Form` | La risposta dell'invio: `message` e `redirect` |
-| `barrio_forms_presets` | filtro | `array $presets` | Scelte pronte del builder: `'id' => [ 'label' => …, 'choices' => [ [ 'valore', 'Etichetta' ], … ] ]` |
+| `barrio_forms_presets` | filtro | `array $presets` | Scelte pronte del builder: `'id' => [ 'label' => …, 'choices' => [ [ 'valore', 'Etichetta' ], … ] ]`; con `'intl' => 'region'` (o `language`, `weekday`, `month`) le etichette vuote le scrive il builder con `Intl`, nella lingua principale del form |
 | `barrio_forms_languages` | filtro | `list<string>` | Codici delle lingue attive, la principale per prima |
 | `barrio_forms_current_language` | filtro | `?string` | La lingua della pagina |
 | `barrio_forms_locale` | filtro | `string $locale`, `string $lang` | Il locale di WordPress di una lingua |

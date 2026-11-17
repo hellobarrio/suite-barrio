@@ -26,7 +26,7 @@ use WP_Error;
  */
 final class Submission {
 
-	// ponytail: limite fisso per IP; se un ufficio dietro un solo IP lo raggiunge, va reso configurabile.
+	// Tentativi per IP; barrio_forms_rate_limit lo cambia (0 lo spegne), per esempio dietro un proxy.
 	private const RATE_LIMIT  = 10;
 	private const RATE_WINDOW = 10 * MINUTE_IN_SECONDS;
 
@@ -35,7 +35,7 @@ final class Submission {
 	 * @param array<string, mixed> $files Elementi di $_FILES per field_key (vedi FileStore::check()).
 	 * @param string|null          $ip    Solo per il limite di invii: non si salva.
 	 */
-	public static function process( Form $form, array $input, array $files = [], ?string $ip = null, ?int $user_id = null ): Entry|WP_Error {
+	public static function process( Form $form, array $input, array $files = [], ?string $ip = null ): Entry|WP_Error {
 		if ( FormStatus::Active !== $form->status ) {
 			return new WP_Error( 'barrio_form_closed', __( 'This form is no longer accepting submissions.', 'barrio-suite' ), [ 'status' => 403 ] );
 		}
@@ -43,13 +43,17 @@ final class Submission {
 		$lang    = I18n::resolve( $input['_barrio_lang'] ?? null );
 		$version = $form->current;
 		$shown   = (int) self::scalar( $input['_barrio_version'] ?? null );
-		// La versione che il visitatore ha letto, se esiste ancora: è quella che la registrazione deve provare.
-		if ( $shown && $shown !== $version->id ) {
+		// La versione che il visitatore ha letto, se esiste ancora: è quella che la registrazione deve
+		// provare. Solo per la settimana di una cache di pagina, così una regola nuova non si aggira.
+		// ponytail: la finestra parte dall'ultimo salvataggio, non da quando quella versione è stata sostituita.
+		if ( $shown && $shown !== $version->id && strtotime( $version->created_at . ' UTC' ) > time() - WEEK_IN_SECONDS ) {
 			$version = FormRepository::version( $shown, $form->id ) ?? $version;
 		}
 
 		$spam = apply_filters( 'barrio_forms_spam_check', self::spam( $input, $ip ), $input, $form );
 		if ( $spam instanceof WP_Error ) {
+			// Anche i respinti: ogni token finto di un captcha costa una chiamata al servizio.
+			self::count( $ip );
 			return $spam;
 		}
 
@@ -82,7 +86,6 @@ final class Submission {
 				$accepted[ $field->key ] = $values[ $field->key ];
 			}
 		}
-		$errors = (array) apply_filters( 'barrio_forms_validate', $errors, $accepted, $form );
 		if ( $errors ) {
 			return new WP_Error(
 				'barrio_invalid',
@@ -115,7 +118,7 @@ final class Submission {
 					'size_bytes'    => $upload['size_bytes'],
 				];
 			}
-			$entry    = new Entry( $form->id, (int) $version->id, $lang, $entry_values, $stored, $user_id, '' === $url ? null : $url );
+			$entry    = new Entry( $form->id, (int) $version->id, $lang, $entry_values, $stored, '' === $url ? null : $url );
 			$filtered = apply_filters( 'barrio_forms_entry_data', $entry, $form );
 			$entry    = $filtered instanceof Entry ? $filtered : $entry;
 			$entry    = EntryRepository::create( $entry );
@@ -126,9 +129,7 @@ final class Submission {
 			throw $e;
 		}
 
-		if ( $ip ) {
-			set_transient( self::rate_key( $ip ), self::submissions( $ip ) + 1, self::RATE_WINDOW );
-		}
+		self::count( $ip );
 
 		// Notifiche e integrazioni: un loro errore resta nelle note e non fa ripetere l'invio.
 		try {
@@ -144,7 +145,8 @@ final class Submission {
 		if ( '' !== self::scalar( $input['_barrio_hp'] ?? null ) || '1' !== self::scalar( $input['_barrio_js'] ?? null ) ) {
 			return new WP_Error( 'barrio_spam', __( 'Your submission could not be accepted.', 'barrio-suite' ), [ 'status' => 400 ] );
 		}
-		if ( $ip && self::submissions( $ip ) >= self::RATE_LIMIT ) {
+		$limit = (int) apply_filters( 'barrio_forms_rate_limit', self::RATE_LIMIT, $ip );
+		if ( $ip && $limit > 0 && self::submissions( $ip ) >= $limit ) {
 			return new WP_Error( 'barrio_rate_limited', __( 'Too many submissions. Please try again in a few minutes.', 'barrio-suite' ), [ 'status' => 429 ] );
 		}
 		return null;
@@ -152,6 +154,12 @@ final class Submission {
 
 	private static function submissions( string $ip ): int {
 		return (int) get_transient( self::rate_key( $ip ) );
+	}
+
+	private static function count( ?string $ip ): void {
+		if ( $ip ) {
+			set_transient( self::rate_key( $ip ), self::submissions( $ip ) + 1, self::RATE_WINDOW );
+		}
 	}
 
 	// Privacy by default: nel transient c'è solo un hash dell'IP, che scade dopo pochi minuti.

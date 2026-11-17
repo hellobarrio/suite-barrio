@@ -84,7 +84,7 @@ function FormList() {
 		const toTrash = form.entries > 0 && 'trash' !== form.status;
 		const question = toTrash
 			? sprintf(
-					/* translators: 1: nome del form; 2: numero di registrazioni. */
+					/* translators: 1: form name; 2: number of entries. */
 					__(
 						'"%1$s" has %2$d entries, so it cannot be deleted: move it to the trash? The entries are kept.',
 						'barrio-suite'
@@ -93,7 +93,7 @@ function FormList() {
 					form.entries
 				)
 			: sprintf(
-					/* translators: %s: nome del form. */
+					/* translators: %s: form name. */
 					__( 'Delete "%s" permanently?', 'barrio-suite' ),
 					form.title
 				);
@@ -120,7 +120,7 @@ function FormList() {
 			// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
 			window.confirm(
 				sprintf(
-					/* translators: %d: form da eliminare. */
+					/* translators: %d: number of forms to delete. */
 					_n(
 						'Delete %d form permanently?',
 						'Delete %d forms permanently?',
@@ -135,7 +135,7 @@ function FormList() {
 				ids,
 				{ method: 'DELETE' },
 				sprintf(
-					/* translators: %d: form eliminati. */
+					/* translators: %d: number of forms deleted. */
 					_n(
 						'%d form deleted.',
 						'%d forms deleted.',
@@ -211,7 +211,7 @@ function FormList() {
 						}
 					>
 						{ sprintf(
-							/* translators: %d: numero di registrazioni. */
+							/* translators: %d: number of entries. */
 							_n(
 								'%d entry',
 								'%d entries',
@@ -275,7 +275,7 @@ function FormList() {
 			render: ( form ) => (
 				<Menu
 					label={ sprintf(
-						/* translators: %s: nome del form. */
+						/* translators: %s: form name. */
 						__( 'Actions for "%s"', 'barrio-suite' ),
 						form.title
 					) }
@@ -452,7 +452,7 @@ function FormList() {
 											ids,
 											'active',
 											sprintf(
-												/* translators: %d: form ripristinati. */
+												/* translators: %d: number of forms restored. */
 												_n(
 													'%d form restored.',
 													'%d forms restored.',
@@ -482,7 +482,7 @@ function FormList() {
 											ids,
 											'active',
 											sprintf(
-												/* translators: %d: form riaperti. */
+												/* translators: %d: number of forms reopened. */
 												_n(
 													'%d form reopened.',
 													'%d forms reopened.',
@@ -504,7 +504,7 @@ function FormList() {
 											ids,
 											'closed',
 											sprintf(
-												/* translators: %d: form chiusi. */
+												/* translators: %d: number of forms closed. */
 												_n(
 													'%d form closed.',
 													'%d forms closed.',
@@ -527,7 +527,7 @@ function FormList() {
 											ids,
 											'trash',
 											sprintf(
-												/* translators: %d: form spostati nel cestino. */
+												/* translators: %d: number of forms moved to the trash. */
 												_n(
 													'%d form moved to the trash.',
 													'%d forms moved to the trash.',

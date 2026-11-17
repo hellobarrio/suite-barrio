@@ -113,7 +113,7 @@ final class Privacy {
 			return [
 				'items_removed'  => false,
 				'items_retained' => true,
-				/* translators: %s: errore, per esempio un file che non si è potuto eliminare. */
+				/* translators: %s: error, for example a file that could not be deleted. */
 				'messages'       => [ sprintf( __( 'Some form entries could not be erased: %s', 'barrio-suite' ), $e->getMessage() ) ],
 				// Altrimenti WordPress chiederebbe di nuovo la stessa pagina, all'infinito.
 				'done'           => true,

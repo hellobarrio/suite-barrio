@@ -22,7 +22,16 @@ final class RenderTest extends WP_UnitTestCase {
 			[],
 			new FormVersion(
 				[
-					new Field( 'name', 'text', [ 'en' => [ 'label' => 'Name' ] ], true, [ 'pattern' => '[A-Za-z ]+' ] ),
+					new Field(
+						'name',
+						'text',
+						[ 'en' => [ 'label' => 'Name' ] ],
+						true,
+						[
+							'pattern'      => '[A-Za-z ]+',
+							'autocomplete' => 'name',
+						]
+					),
 					new Field(
 						'request',
 						'radio',
@@ -75,6 +84,9 @@ final class RenderTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'name', 'request', 'budget', 'topics', 'cv', 'privacy', 'campaign', 'source' ], self::captures( '/data-barrio-field="([a-z_]+)"/', $html ) );
 		$this->assertMatchesRegularExpression( '/data-barrio-field="budget" data-conditions="\{&quot;action&quot;:&quot;show&quot;/', $html );
 		$this->assertStringContainsString( 'pattern="[A-Za-z ]+"', $html );
+		$this->assertStringContainsString( 'autocomplete="name"', $html );
+		// Senza JavaScript l'invio non passerebbe l'antispam: lo si dice.
+		$this->assertStringContainsString( '<noscript>', $html );
 		$this->assertStringContainsString( 'min="500"', $html );
 		// Etichette con HTML limitato; le scelte sono testo.
 		$this->assertStringContainsString( 'I agree to the <a href="/privacy">policy</a>alert(1)', $html );
@@ -104,7 +116,7 @@ final class RenderTest extends WP_UnitTestCase {
 		$status = function ( string $status ): string {
 			global $wpdb;
 			$wpdb->update( Db::table( 'forms' ), [ 'status' => $status ], [ 'id' => $this->form->id ] );
-			wp_cache_delete( $this->form->id, 'barrio_forms' );
+			wp_cache_delete( $this->form->id, FormRepository::CACHE_GROUP );
 			return do_shortcode( "[barrio_form id=\"{$this->form->id}\"]" );
 		};
 

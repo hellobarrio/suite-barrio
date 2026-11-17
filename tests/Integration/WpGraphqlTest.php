@@ -132,6 +132,8 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			]
 		)['data']['hbForm'];
 
+		// Il titolo è interno: non agli anonimi.
+		$this->assertNull( $form['title'] );
 		$this->assertSame( [ [ 'name', 'email', 'topics' ], [ 'date', 'cv' ] ], array_map( static fn( array $step ): array => array_column( $step['fields'], 'name' ), $form['steps'] ) );
 		[ $name, $email, $topics ] = $form['steps'][0]['fields'];
 		[ $date, $cv ]             = $form['steps'][1]['fields'];
@@ -236,7 +238,6 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( [], $payload['errors'] );
 		$entry = EntryRepository::get( $payload['submissionId'] );
 		$this->assertSame( 'https://example.org/contatti/', $entry->source_url );
-		$this->assertNull( $entry->user_id );
 		$values = [];
 		foreach ( $this->form->current->fields as $field ) {
 			$values[ $field->key ] = $entry->values[ (int) $field->id ] ?? null;
@@ -341,6 +342,34 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( $entries, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Db::table( 'entries' ) ) ) );
 		$this->assertSame( $temp, glob( get_temp_dir() . '*' ) );
 		$this->assertSame( [], glob( wp_upload_dir()['basedir'] . '/*shell*' ) );
+	}
+
+	public function test_a_repeated_file_field_leaves_no_temporary_files(): void {
+		$temp = glob( get_temp_dir() . '*' );
+		$cv   = (string) wp_json_encode(
+			[
+				'content'  => base64_encode( 'Hello' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+				'filename' => 'cv.txt',
+			]
+		);
+
+		barrio_wpgraphql_submit(
+			[
+				'formId' => $this->form->id,
+				'fields' => [
+					[
+						'name'  => 'cv',
+						'value' => $cv,
+					],
+					[
+						'name'  => 'cv',
+						'value' => $cv,
+					],
+				],
+			]
+		);
+
+		$this->assertSame( $temp, glob( get_temp_dir() . '*' ) );
 	}
 
 	public function test_a_closed_form_is_rejected_in_the_payload(): void {

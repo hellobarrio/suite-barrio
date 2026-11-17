@@ -213,9 +213,9 @@ final class Notifications {
 				'notification',
 				null === $error ? NoteLevel::Success : NoteLevel::Error,
 				null === $error
-					/* translators: 1: nome della notifica; 2: destinatari. */
+					/* translators: 1: notification name; 2: recipients. */
 					? sprintf( __( 'Notification "%1$s" sent to %2$s.', 'barrio-suite' ), $notification->name, implode( ', ', $to ) )
-					/* translators: 1: nome della notifica; 2: messaggio di errore. */
+					/* translators: 1: notification name; 2: error message. */
 					: sprintf( __( 'Notification "%1$s" could not be sent: %2$s', 'barrio-suite' ), $notification->name, $error->get_error_message() ),
 				$user_id
 			)
@@ -247,7 +247,13 @@ final class Notifications {
 	/** @return array<string, string> Nome del file nell'email => percorso nella cartella protetta. */
 	private static function attachments( Entry $entry ): array {
 		$files = [];
+		$total = 0;
 		foreach ( $entry->files as $i => $file ) {
+			// Oltre 10 MB restano solo nella registrazione: PHPMailer tiene l'email in memoria.
+			$total += $file['size_bytes'];
+			if ( $total > 10 * MB_IN_BYTES ) {
+				break;
+			}
 			// Due file con lo stesso nome: il secondo non deve sostituire il primo.
 			$name           = isset( $files[ $file['original_name'] ] ) ? ( $i + 1 ) . '-' . $file['original_name'] : $file['original_name'];
 			$files[ $name ] = FileStore::dir() . '/' . $file['stored_path'];

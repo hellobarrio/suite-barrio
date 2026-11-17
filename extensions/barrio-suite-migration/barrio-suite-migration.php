@@ -3,12 +3,14 @@
  * Plugin Name:       Barrio Suite Migration
  * Description:       Moves forms, entries, files, settings and shortcodes from Suite Barrio, the previous plugin, with the WP-CLI command wp barrio forms migrate. Once done, it can be removed.
  * Version:           0.1.0
- * Requires at least: 6.6
+ * Requires at least: 6.9
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Update URI:        https://github.com/hellobarrio/suite-barrio
  * Text Domain:       barrio-suite-migration
+ * Domain Path:       /languages
+ * Requires Plugins:  barrio-suite
  */
 
 // Il passaggio dal modulo Forms del prototipo: legge le sue tabelle wpb_* e le sue opzioni e scrive
@@ -37,6 +39,8 @@ use BarrioSuite\Forms\Submission\FileStore;
 use BarrioSuite\Mail\Smtp;
 
 defined( 'ABSPATH' ) || exit;
+
+load_plugin_textdomain( 'barrio-suite-migration', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 const BARRIO_MIGRATION_TYPES   = [ 'text', 'email', 'textarea', 'tel', 'number', 'datepicker', 'select', 'radio', 'checkbox', 'file', 'page_break' ];
 const BARRIO_MIGRATION_CHOICES = [ 'select', 'radio', 'checkbox' ];
@@ -277,7 +281,7 @@ function barrio_migration_form( array $row, array $tables, string $main, bool $d
 			FileStore::delete( $path );
 		}
 		// La cache di FormRepository ha ancora il form che il rollback ha tolto.
-		wp_cache_delete( $id, 'barrio_forms' );
+		wp_cache_delete( $id, FormRepository::CACHE_GROUP );
 		if ( ! $dry_done ) {
 			$stats['result'] = 'error: ' . $e->getMessage();
 			return $stats;
@@ -362,7 +366,7 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 		$i18n = [];
 		foreach ( $texts as $lang => [ $lang_fields ] ) {
 			if ( 'page_break' === $type ) {
-				$i18n[ $lang ] = [ 'label' => I18n::in( $lang, static fn(): string => __( 'Next', 'barrio-suite' ) ) ];
+				$i18n[ $lang ] = [ 'label' => I18n::in( $lang, static fn(): string => __( 'Next', 'barrio-suite-migration' ) ) ];
 				continue;
 			}
 			$text = (array) ( array_values( $lang_fields )[ $i ] ?? $field );
@@ -474,6 +478,7 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 	// Conservate anche senza l'estensione attiva: si usano quando la si attiva.
 	$integrations = [];
 	if ( ! empty( $settings['mailchimp_enabled'] ) ) {
+		$consent        = $key_of( $settings['mailchimp_optin_field'] ?? '' );
 		$integrations[] = new Integration(
 			'mailchimp',
 			array_filter(
@@ -481,15 +486,25 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 					'email_field'   => $key_of( ( $settings['mailchimp_email_field'] ?? '' ) ?: 'email' ),
 					'merge_fields'  => $map( $settings['mailchimp_field_map'] ?? [], 'mailchimp_field_name' ),
 					// Come nel prototipo: il consenso decide i tag di consenso, non l'iscrizione.
-					'consent_field' => $key_of( $settings['mailchimp_optin_field'] ?? '' ),
+					'status'        => 'subscribed',
+					'consent_field' => $consent,
 				]
 			),
 			array_map(
-				static fn( array $text ): array => [
-					'list_id'      => trim( (string) ( $text[1]['mailchimp_list_id'] ?? '' ) ),
-					'tags'         => trim( (string) ( $text[1]['mailchimp_tags'] ?? '' ) ),
-					'consent_tags' => trim( (string) ( $text[1]['mailchimp_consent_tags'] ?? '' ) ),
-				],
+				static function ( array $text ) use ( $consent ): array {
+					$tags         = trim( (string) ( $text[1]['mailchimp_tags'] ?? '' ) );
+					$consent_tags = trim( (string) ( $text[1]['mailchimp_consent_tags'] ?? '' ) );
+					// Senza un campo di consenso il prototipo aggiungeva sempre i tag di consenso: diventano tag.
+					if ( '' === $consent ) {
+						$tags         = implode( ', ', array_filter( [ $tags, $consent_tags ] ) );
+						$consent_tags = '';
+					}
+					return [
+						'list_id'      => trim( (string) ( $text[1]['mailchimp_list_id'] ?? '' ) ),
+						'tags'         => $tags,
+						'consent_tags' => $consent_tags,
+					];
+				},
 				$texts
 			)
 		);

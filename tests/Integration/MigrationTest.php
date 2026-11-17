@@ -129,6 +129,7 @@ final class MigrationTest extends WP_UnitTestCase {
 			[
 				'email_field'   => 'email',
 				'merge_fields'  => [ [ 'FNAME', 'nome' ] ],
+				'status'        => 'subscribed',
 				'consent_field' => 'interessi',
 			],
 			$mailchimp->settings

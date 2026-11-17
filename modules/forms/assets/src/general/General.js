@@ -77,13 +77,13 @@ export function General() {
 	const { version, installed } = data.suite;
 	const available = version && newer( version, installed );
 	let status = sprintf(
-		/* translators: %s: versione installata. */
+		/* translators: %s: installed version. */
 		__( 'Barrio Suite %s is installed.', 'barrio-suite' ),
 		installed
 	);
 	if ( available ) {
 		status = sprintf(
-			/* translators: 1: versione installata; 2: versione disponibile. */
+			/* translators: 1: installed version; 2: available version. */
 			__(
 				'Barrio Suite %1$s is installed. Version %2$s is available.',
 				'barrio-suite'
@@ -93,7 +93,7 @@ export function General() {
 		);
 	} else if ( version ) {
 		status = sprintf(
-			/* translators: %s: versione installata. */
+			/* translators: %s: installed version. */
 			__(
 				'Barrio Suite %s is installed, the latest version.',
 				'barrio-suite'
@@ -216,7 +216,7 @@ export function General() {
 							{ 'update' === busy
 								? __( 'Updating…', 'barrio-suite' )
 								: sprintf(
-										/* translators: %s: versione disponibile. */
+										/* translators: %s: available version. */
 										__( 'Update to %s', 'barrio-suite' ),
 										version
 									) }

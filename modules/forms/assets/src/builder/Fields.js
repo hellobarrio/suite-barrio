@@ -30,6 +30,7 @@ import {
 	useScrollIntoView,
 } from '../admin/ui.js';
 import { Conditions } from './Conditions.js';
+import { SettingControl } from './Integrations.js';
 import {
 	choiceRows,
 	renameChoice,
@@ -101,6 +102,35 @@ function newField( type, keys ) {
 		: field;
 }
 
+// Con intl i nomi li dà il browser, nella lingua principale del form.
+function presetRows( { choices, intl } ) {
+	const date = ( options, time ) =>
+		new Intl.DateTimeFormat( main, { ...options, timeZone: 'UTC' } ).format(
+			time
+		);
+	const name = {
+		region: ( value ) =>
+			new Intl.DisplayNames( main, { type: 'region' } ).of( value ),
+		language: ( value ) =>
+			new Intl.DisplayNames( main, { type: 'language' } ).of( value ),
+		// Il 1° gennaio 2024 era un lunedì.
+		weekday: ( value, i ) =>
+			date( { weekday: 'long' }, Date.UTC( 2024, 0, 1 + i ) ),
+		month: ( value, i ) =>
+			date( { month: 'long' }, Date.UTC( 2024, i, 1 ) ),
+	}[ intl ];
+	const rows = choices.map( ( [ value, label ], i ) => {
+		const text = label || name?.( value, i ) || value;
+		return {
+			value,
+			label: text.charAt( 0 ).toLocaleUpperCase( main ) + text.slice( 1 ),
+		};
+	} );
+	return [ 'region', 'language' ].includes( intl )
+		? rows.sort( ( x, y ) => x.label.localeCompare( y.label, main ) )
+		: rows;
+}
+
 // I campi che una regola può usare: per un campo quelli che lo precedono, per una notifica o
 // un'integrazione tutti.
 export const ruleFields = ( fields ) =>
@@ -113,7 +143,7 @@ export const ruleFields = ( fields ) =>
 			choices: f.config.choices ? choiceRows( f, main ) : null,
 		} ) );
 
-export function FieldsTab( { fields, lang, onChange } ) {
+export function FieldsTab( { fields, saved, lang, onChange } ) {
 	const translating = lang !== main;
 	const [ selected, setSelected ] = useState( fields.length ? 0 : null );
 	const [ added, setAdded ] = useState( null );
@@ -162,6 +192,7 @@ export function FieldsTab( { fields, lang, onChange } ) {
 				// Un pannello nuovo per ogni campo: nessuno stato passa da un campo all'altro.
 				key={ ids[ selected ] }
 				field={ field }
+				saved={ saved.find( ( f ) => f.key === field.key ) }
 				lang={ lang }
 				previous={ fields.slice( 0, selected ) }
 				keys={ fields
@@ -196,6 +227,7 @@ export function FieldsTab( { fields, lang, onChange } ) {
 						<Sortable
 							ids={ ids }
 							items={ fields }
+							label={ ( f ) => fieldTitle( f, lang ) }
 							onMove={ ( from, to ) => {
 								moveIds( from, to );
 								onChange( arrayMove( fields, from, to ) );
@@ -354,7 +386,7 @@ function Preview( { field, lang } ) {
 					) ) }
 					{ choices.length > 5 &&
 						sprintf(
-							/* translators: %d: altre scelte non mostrate. */
+							/* translators: %d: number of choices not shown. */
 							__( '+ %d more', 'barrio-suite' ),
 							choices.length - 5
 						) }
@@ -373,7 +405,7 @@ function Preview( { field, lang } ) {
 			return (
 				<div className="barrio-preview-note">
 					{ sprintf(
-						/* translators: %s: estensioni ammesse. */
+						/* translators: %s: allowed file extensions. */
 						__( 'File upload: %s', 'barrio-suite' ),
 						( field.config.extensions ?? [] ).join( ', ' )
 					) }
@@ -384,7 +416,7 @@ function Preview( { field, lang } ) {
 				<div className="barrio-preview-note">
 					{ field.config.param
 						? sprintf(
-								/* translators: %s: parametro dell'URL. */
+								/* translators: %s: URL parameter. */
 								__(
 									'Hidden, from the URL parameter %s',
 									'barrio-suite'
@@ -398,7 +430,7 @@ function Preview( { field, lang } ) {
 			return (
 				<div className="barrio-preview-break">
 					{ sprintf(
-						/* translators: %s: testo del pulsante. */
+						/* translators: %s: button text. */
 						__( 'Next page · button "%s"', 'barrio-suite' ),
 						text.label
 					) }
@@ -416,16 +448,17 @@ function Preview( { field, lang } ) {
 	}
 }
 
-function FieldPanel( { field, lang, previous, keys, onChange } ) {
+function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 	const translating = lang !== main;
 	const text = field.i18n[ main ];
 	const schema = types[ field.type ]?.schema ?? { properties: {} };
 	const set = ( changes ) => onChange( { ...field, ...changes } );
-	// La chiave segue l'etichetta finché nessuno l'ha cambiata a mano.
+	// La chiave segue l'etichetta finché nessuno l'ha cambiata a mano e il campo non è salvato:
+	// merge tag, condizioni ed export usano quella salvata.
 	const setLabel = ( label ) =>
 		set( {
 			key:
-				field.key === uniqueKey( text.label, keys )
+				! saved && field.key === uniqueKey( text.label, keys )
 					? uniqueKey( label, keys )
 					: field.key,
 			i18n: { ...field.i18n, [ main ]: { ...text, label } },
@@ -479,7 +512,7 @@ function FieldPanel( { field, lang, previous, keys, onChange } ) {
 			<Text
 				label={ __( 'Key', 'barrio-suite' ) }
 				help={ __(
-					'Generated from the label until you change it. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores.',
+					'Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores.',
 					'barrio-suite'
 				) }
 				disabled={ translating }
@@ -513,13 +546,15 @@ function FieldPanel( { field, lang, previous, keys, onChange } ) {
 					<Choices
 						key={ name }
 						field={ field }
+						saved={ saved?.config.choices ?? [] }
 						lang={ lang }
 						onChange={ onChange }
 					/>
 				) : (
 					<Fixed key={ name } lang={ lang }>
-						<ConfigControl
-							prop={ prop }
+						<SettingControl
+							name={ name }
+							schema={ prop }
 							value={ field.config[ name ] }
 							onChange={ setConfig( name ) }
 						/>
@@ -567,58 +602,8 @@ function FieldPanel( { field, lang, previous, keys, onChange } ) {
 	);
 }
 
-// Un controllo per proprietà dello schema: testo, numero o lista.
-function ConfigControl( { prop, value, onChange } ) {
-	if ( 'array' === prop.type ) {
-		return (
-			<ListInput prop={ prop } value={ value } onChange={ onChange } />
-		);
-	}
-	const number = 'number' === prop.type;
-	return (
-		<Text
-			label={ prop.title }
-			help={ prop.description }
-			type={ number ? 'number' : 'text' }
-			value={ value }
-			onChange={ ( v ) =>
-				onChange( number && v !== '' ? Number( v ) : v )
-			}
-		/>
-	);
-}
-
-// L'unica lista della config sono le estensioni dei file: minuscole e senza punto, come vuole lo
-// schema. Il testo resta com'è mentre si scrive, altrimenti la virgola appena digitata sparirebbe.
-function ListInput( { prop, value, onChange } ) {
-	const [ text, setText ] = useState( ( value ?? [] ).join( ', ' ) );
-	return (
-		<Text
-			label={ prop.title }
-			help={ __(
-				'Separated by commas, for example pdf, jpg, png.',
-				'barrio-suite'
-			) }
-			value={ text }
-			onChange={ ( v ) => {
-				setText( v );
-				onChange( [
-					...new Set(
-						v
-							.split( ',' )
-							.map( ( item ) =>
-								item.trim().toLowerCase().replace( /^\./, '' )
-							)
-							.filter( Boolean )
-					),
-				] );
-			} }
-		/>
-	);
-}
-
 // In un'altra lingua si traducono solo le etichette: l'originale è il segnaposto, e vuota vale quella.
-function Choices( { field, lang, onChange } ) {
+function Choices( { field, saved, lang, onChange } ) {
 	const translating = lang !== main;
 	const own = field.i18n[ lang ]?.options ?? {};
 	const rows = choiceRows( field, main );
@@ -638,20 +623,10 @@ function Choices( { field, lang, onChange } ) {
 						) }
 						text={ __( 'Presets', 'barrio-suite' ) }
 						icon="list-view"
-						items={ Object.entries( presets ).map(
-							( [ id, preset ] ) => ( {
-								label: `${ preset.label } (${ preset.choices.length })`,
-								onClick: () =>
-									set(
-										presets[ id ].choices.map(
-											( [ value, label ] ) => ( {
-												value,
-												label,
-											} )
-										)
-									),
-							} )
-						) }
+						items={ Object.values( presets ).map( ( preset ) => ( {
+							label: `${ preset.label } (${ preset.choices.length })`,
+							onClick: () => set( presetRows( preset ) ),
+						} ) ) }
 					/>
 					<button
 						type="button"
@@ -669,6 +644,7 @@ function Choices( { field, lang, onChange } ) {
 				<Sortable
 					ids={ ids }
 					items={ rows }
+					label={ ( row ) => row.label || row.value }
 					onMove={ ( from, to ) => {
 						moveIds( from, to );
 						set( arrayMove( rows, from, to ) );
@@ -683,7 +659,7 @@ function Choices( { field, lang, onChange } ) {
 							/>
 							<Text
 								label={ sprintf(
-									/* translators: %d: numero della scelta. */
+									/* translators: %d: number of the choice. */
 									__( 'Label of choice %d', 'barrio-suite' ),
 									i + 1
 								) }
@@ -709,12 +685,19 @@ function Choices( { field, lang, onChange } ) {
 													}
 												)
 											)
-										: edit( i, renameChoice( row, label ) )
+										: edit(
+												i,
+												renameChoice(
+													row,
+													label,
+													saved
+												)
+											)
 								}
 							/>
 							<Text
 								label={ sprintf(
-									/* translators: %d: numero della scelta. */
+									/* translators: %d: number of the choice. */
 									__( 'Value of choice %d', 'barrio-suite' ),
 									i + 1
 								) }
@@ -795,16 +778,61 @@ function useStableIds( length ) {
 }
 
 // Drag & drop accessibile: si trascina dalla maniglia, o la si attiva con spazio e si sposta con
-// le frecce. children( item, indice, props della maniglia ).
-function Sortable( { ids, items, onMove, children } ) {
+// le frecce. children( item, indice, props della maniglia ); label( item ) è il nome negli annunci.
+function Sortable( { ids, items, label, onMove, children } ) {
 	const sensors = useSensors(
 		useSensor( PointerSensor ),
 		useSensor( KeyboardSensor, {
 			coordinateGetter: sortableKeyboardCoordinates,
 		} )
 	);
+	const name = ( { id } ) => label( items[ ids.indexOf( id ) ] );
+	const moved = ( text, { active, over } ) =>
+		over
+			? sprintf(
+					text,
+					name( active ),
+					ids.indexOf( over.id ) + 1,
+					ids.length
+				)
+			: null;
+	const announcements = {
+		onDragStart: ( { active } ) =>
+			sprintf(
+				/* translators: %s: name of the item. */
+				__( 'Picked up %s.', 'barrio-suite' ),
+				name( active )
+			),
+		onDragOver: ( event ) =>
+			moved(
+				/* translators: 1: name of the item; 2: new position; 3: number of items. */
+				__( '%1$s moved to position %2$d of %3$d.', 'barrio-suite' ),
+				event
+			),
+		onDragEnd: ( event ) =>
+			moved(
+				/* translators: 1: name of the item; 2: new position; 3: number of items. */
+				__( '%1$s dropped at position %2$d of %3$d.', 'barrio-suite' ),
+				event
+			),
+		onDragCancel: ( { active } ) =>
+			sprintf(
+				/* translators: %s: name of the item. */
+				__( 'Moving %s was cancelled.', 'barrio-suite' ),
+				name( active )
+			),
+	};
 	return (
 		<DndContext
+			accessibility={ {
+				announcements,
+				screenReaderInstructions: {
+					draggable: __(
+						'To move an item, press space or enter, use the arrow keys, then press space or enter again to drop it, or escape to cancel.',
+						'barrio-suite'
+					),
+				},
+			} }
 			sensors={ sensors }
 			collisionDetection={ closestCenter }
 			onDragEnd={ ( { active, over } ) =>

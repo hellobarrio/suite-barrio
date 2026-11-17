@@ -1,10 +1,10 @@
 /*
  * Pagine admin di Barrio Suite: card bianche, bottoni scuri, tabelle con
- * ricerca. I popover finiscono in fondo al body, fuori da .barrio-admin: lì
- * niente variabili.
+ * ricerca. Variabili su :root (il foglio c'è solo nelle pagine di Barrio):
+ * arrivano anche a popover e modale, fuori da .barrio-admin.
  */
 
-.barrio-admin {
+:root {
 	--barrio-ink: #1d2327;
 	--barrio-text: #3c434a;
 	--barrio-muted: #646970;
@@ -16,11 +16,32 @@
 	--barrio-radius-small: 6px;
 	--barrio-control: 36px;
 
+	/* Dove si ferma la barra sticky e, sotto di lei (58px + 16px), i pannelli. */
+	--barrio-top: 48px;
+	--barrio-below-bar: calc(var(--barrio-top) + 74px);
+
 	/* I componenti di WordPress (schede, modale) hanno il colore dei bottoni. */
 	--wp-admin-theme-color: #1d2327;
 	--wp-admin-theme-color-darker-10: #000;
 	--wp-admin-theme-color-darker-20: #000;
+}
 
+@media (max-width: 782px) {
+
+	:root {
+		--barrio-top: 62px;
+	}
+}
+
+/* Qui la barra di WordPress scorre via con la pagina. */
+@media (max-width: 600px) {
+
+	:root {
+		--barrio-top: 16px;
+	}
+}
+
+.barrio-admin {
 	max-width: 1280px;
 	color: var(--barrio-text);
 	font-size: 14px;
@@ -447,7 +468,7 @@
 
 .barrio-module__head p {
 	margin: 2px 0 0;
-	color: rgb(255 255 255 / 80%);
+	color: rgb(255 255 255 / 90%);
 	font-size: 12px;
 }
 
@@ -566,6 +587,12 @@
 	margin: 0;
 }
 
+.barrio-notice.is-sticky {
+	position: sticky;
+	z-index: 18;
+	top: calc(var(--barrio-top) + 66px);
+}
+
 .barrio-notice.is-success {
 	border-color: #b8e6bf;
 	background: #edfaef;
@@ -655,7 +682,7 @@
 	display: flex;
 	position: sticky;
 	z-index: 20;
-	top: 48px;
+	top: var(--barrio-top);
 	flex-wrap: wrap;
 	gap: 12px;
 	align-items: center;
@@ -795,21 +822,6 @@
 	display: block;
 }
 
-@media (max-width: 782px) {
-
-	.barrio-bar {
-		top: 62px;
-	}
-}
-
-/* Qui la barra di WordPress scorre via con la pagina. */
-@media (max-width: 600px) {
-
-	.barrio-bar {
-		top: 16px;
-	}
-}
-
 /*
  * Pagina a tutta altezza, come un'app: senza il footer di WordPress il pannello
  * del builder arriva a 16px dal fondo anche a fine pagina.
@@ -846,7 +858,9 @@
 }
 
 /*
- * Chi scorre lo fa su un asse solo, senza overscroll su nessuno dei due.
+ * Chi scorre lo fa su un asse solo, senza overscroll su quell'asse: Chrome
+ * 144 e Firefox 150 lo applicano anche all'altro, e la rotella non
+ * scorrerebbe più la pagina.
  * position: il riferimento dei testi per screen reader (assoluti) sta dentro
  * lo scroll, altrimenti quello in fondo all'intestazione allarga la pagina.
  */
@@ -854,7 +868,7 @@
 	position: relative;
 	overflow-x: auto;
 	overflow-y: hidden;
-	overscroll-behavior: none;
+	overscroll-behavior-x: none;
 }
 
 /*
@@ -1012,7 +1026,7 @@
 	border-bottom: 1px solid var(--barrio-line);
 	overflow-x: auto;
 	overflow-y: hidden;
-	overscroll-behavior: none;
+	overscroll-behavior-x: none;
 	scrollbar-width: none;
 }
 
@@ -1181,18 +1195,29 @@
 
 /*
  * La colonna destra (builder, registrazione) resta visibile mentre si scorre:
- * 16px sotto la barra (48px + 58px) e 16px sopra il fondo. Se è più lunga
- * scorre dentro, senza barra di scorrimento e senza overscroll.
+ * 16px sotto la barra e 16px sopra il fondo. Se è più lunga scorre dentro,
+ * senza barra di scorrimento e senza overscroll, ma solo se scorre davvero:
+ * finché non c'è niente da scorrere la timeline è inattiva e la rotella
+ * scorre la pagina.
  */
 .barrio-panel {
 	box-sizing: border-box;
 	position: sticky;
-	top: 122px;
+	top: var(--barrio-below-bar);
 	overflow-x: hidden;
 	overflow-y: auto;
-	max-height: calc(100vh - 138px);
-	overscroll-behavior: none;
+	max-height: calc(100vh - var(--barrio-below-bar) - 16px);
+	animation: barrio-no-overscroll both;
+	animation-timeline: scroll(self);
 	scrollbar-width: none;
+}
+
+@keyframes barrio-no-overscroll {
+
+	from,
+	to {
+		overscroll-behavior: none;
+	}
 }
 
 /*
@@ -1252,8 +1277,8 @@
 }
 
 /*
- * Nel modale, fuori da .barrio-admin: niente variabili. WordPress mostra la
- * linea sotto l'intestazione solo dopo aver scorso; qui c'è sempre.
+ * WordPress mostra la linea sotto l'intestazione del modale solo dopo aver
+ * scorso; qui c'è sempre.
  */
 .barrio-preview-modal .components-modal__header {
 	border-bottom-color: #dbdbdb;
@@ -1273,13 +1298,13 @@
 	display: block;
 	box-sizing: content-box;
 	width: 100%;
-	border: 1px solid #e2e4e7;
+	border: 1px solid var(--barrio-line);
 	border-radius: 8px;
 }
 
 /* Ciò che si porta in vista non finisce sotto le barre sticky. */
 .barrio-scroll-target {
-	scroll-margin: 122px 0 16px;
+	scroll-margin: var(--barrio-below-bar) 0 16px;
 }
 
 /* Sotto la barra sticky (z-index 20): vedi inBar di Menu in ui.js. */
@@ -1304,7 +1329,7 @@
 }
 
 .barrio-dl dt {
-	color: #646970;
+	color: var(--barrio-muted);
 	font-weight: 600;
 }
 
@@ -1435,8 +1460,7 @@ a.barrio-badge {
 
 /*
  * Le scelte di Picker (form, filtri, colonne). Il popover sta fuori da
- * .barrio-admin: niente variabili, e i margini di WordPress sulle caselle
- * vanno azzerati.
+ * .barrio-admin: i margini di WordPress sulle caselle vanno azzerati.
  */
 .barrio-picker {
 	min-width: 220px;
@@ -1452,7 +1476,7 @@ a.barrio-badge {
 	margin: 0 0 4px;
 	padding: 0 10px;
 	border: 1px solid #c3c4c7;
-	border-radius: 6px;
+	border-radius: var(--barrio-radius-small);
 	box-shadow: none;
 	font-size: 14px;
 }
@@ -1460,9 +1484,9 @@ a.barrio-badge {
 /* Il fuoco come nei campi, non quello blu di WordPress. */
 .barrio-picker .barrio-picker__search:focus,
 .barrio-menu .barrio-picker__search:focus {
-	border-color: #1d2327;
+	border-color: var(--barrio-ink);
 	outline: none;
-	box-shadow: 0 0 0 1px #1d2327;
+	box-shadow: 0 0 0 1px var(--barrio-ink);
 }
 
 /* Con tante colonne scorre l'elenco, la ricerca resta in alto. */
@@ -1483,12 +1507,12 @@ a.barrio-badge {
 	align-items: center;
 	padding: 6px 8px;
 	border-radius: 4px;
-	color: #1d2327;
+	color: var(--barrio-ink);
 	cursor: pointer;
 }
 
 .barrio-picker__option:hover {
-	background: #f6f7f7;
+	background: var(--barrio-soft);
 }
 
 .barrio-picker__option input[type] {
@@ -1499,7 +1523,7 @@ a.barrio-badge {
 .barrio-picker__count {
 	margin-left: auto;
 	padding-left: 16px;
-	color: #646970;
+	color: var(--barrio-muted);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -1522,7 +1546,7 @@ a.barrio-badge {
 
 .barrio-filters .barrio-picker + .barrio-picker {
 	padding-top: 4px;
-	border-top: 1px solid #e2e4e7;
+	border-top: 1px solid var(--barrio-line);
 }
 
 .barrio-filters .barrio-picker__list {
@@ -1532,24 +1556,24 @@ a.barrio-badge {
 
 .barrio-picker__heading {
 	padding: 8px 8px 4px;
-	color: #646970;
+	color: var(--barrio-muted);
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 }
 
-/* Un .barrio-button, ma qui le variabili non arrivano. */
+/* Un .barrio-button fuori da .barrio-admin. */
 .barrio-filters__clear {
 	justify-content: center;
-	height: 36px;
+	height: var(--barrio-control);
 	margin-top: 4px;
 	border-color: transparent;
-	border-radius: 6px;
+	border-radius: var(--barrio-radius-small);
 }
 
 .barrio-filters__clear:hover {
-	background: #f6f7f7;
+	background: var(--barrio-soft);
 }
 
 .barrio-button__count {
@@ -1568,7 +1592,7 @@ a.barrio-badge {
 .barrio-picker__empty {
 	margin: 0;
 	padding: 6px 8px;
-	color: #646970;
+	color: var(--barrio-muted);
 }
 
 .barrio-notes {

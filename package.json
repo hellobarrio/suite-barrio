@@ -3,6 +3,9 @@
 	"files": [
 		"barrio-suite.php",
 		"uninstall.php",
+		"readme.txt",
+		"package.json",
+		"languages",
 		"src",
 		"build",
 		"modules/*/src",
@@ -11,6 +14,7 @@
 		"modules/*/templates",
 		"modules/*/assets/frontend",
 		"modules/*/assets/block",
+		"modules/*/assets/src",
 		"modules/*/presets.json"
 	],
 	"private": true,

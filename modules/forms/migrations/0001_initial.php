@@ -2,6 +2,8 @@
 
 use BarrioSuite\Database\Db;
 
+defined( 'ABSPATH' ) || exit;
+
 // Schema iniziale del modulo Forms. Regole, vincoli e catena delle cancellazioni: docs/database.md.
 // Le tabelle si creano nell'ordine in cui compaiono: ogni foreign key punta a una tabella già creata.
 return static function ( wpdb $wpdb ): void {

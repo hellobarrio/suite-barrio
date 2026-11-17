@@ -3,12 +3,14 @@
  * Plugin Name:       Barrio Suite Mailchimp
  * Description:       Adds who fills in a Barrio Suite form to a Mailchimp audience.
  * Version:           0.1.0
- * Requires at least: 6.6
+ * Requires at least: 6.9
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Update URI:        https://github.com/hellobarrio/suite-barrio
  * Text Domain:       barrio-suite-mailchimp
+ * Domain Path:       /languages
+ * Requires Plugins:  barrio-suite
  */
 
 // Le impostazioni del prototipo: audience (anche per lingua), campo email, merge field, tag e tag di
@@ -19,6 +21,8 @@ use BarrioSuite\Forms\Model\Entry;
 use BarrioSuite\Forms\Model\Form;
 
 defined( 'ABSPATH' ) || exit;
+
+load_plugin_textdomain( 'barrio-suite-mailchimp', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 add_action(
 	'barrio_forms_loaded',
@@ -46,6 +50,16 @@ add_action(
 						'format' => 'field:email',
 						'title'  => __( 'Email field', 'barrio-suite-mailchimp' ),
 					],
+					'status'        => [
+						'type'        => 'string',
+						'enum'        => [ 'pending', 'subscribed' ],
+						'labels'      => [
+							'pending'    => __( 'Ask to confirm by email (double opt-in)', 'barrio-suite-mailchimp' ),
+							'subscribed' => __( 'Subscribe without confirmation', 'barrio-suite-mailchimp' ),
+						],
+						'title'       => __( 'New contacts', 'barrio-suite-mailchimp' ),
+						'description' => __( 'Without a choice, Mailchimp emails new contacts a link to confirm. Subscribe without confirmation only if the form collects an explicit consent.', 'barrio-suite-mailchimp' ),
+					],
 					'merge_fields'  => [
 						'format'      => 'field_map',
 						'title'       => __( 'Merge fields', 'barrio-suite-mailchimp' ),
@@ -60,13 +74,13 @@ add_action(
 					'consent_field' => [
 						'format'      => 'field:consent,checkbox',
 						'title'       => __( 'Marketing consent field', 'barrio-suite-mailchimp' ),
-						'description' => __( 'Optional. The contact is added anyway; the consent tags only when this field is checked. To add only who consents, use the conditional logic.', 'barrio-suite-mailchimp' ),
+						'description' => __( 'The contact is added anyway; the consent tags only when this field is checked. To add only who consents, use the conditional logic.', 'barrio-suite-mailchimp' ),
 					],
 					'consent_tags'  => [
 						'type'         => 'string',
 						'translatable' => true,
 						'title'        => __( 'Consent tags', 'barrio-suite-mailchimp' ),
-						'description'  => __( 'Added only with the marketing consent, or always without a consent field; separated by commas.', 'barrio-suite-mailchimp' ),
+						'description'  => __( 'Added only when the marketing consent field is checked; separated by commas.', 'barrio-suite-mailchimp' ),
 					],
 				],
 				'process'         => 'barrio_mailchimp_subscribe',
@@ -107,8 +121,7 @@ function barrio_mailchimp_subscribe( Entry $entry, Form $form, array $settings, 
 	}
 	$labels  = barrio_mailchimp_tags( $settings['tags'] ?? '' );
 	$consent = (string) ( $settings['consent_field'] ?? '' );
-	// Senza un campo di consenso i tag di consenso valgono sempre: è un form di sola iscrizione.
-	if ( '' === $consent || ! empty( $tags->values[ $consent ] ) ) {
+	if ( '' !== $consent && ! empty( $tags->values[ $consent ] ) ) {
 		$labels = [ ...$labels, ...barrio_mailchimp_tags( $settings['consent_tags'] ?? '' ) ];
 	}
 
@@ -116,7 +129,7 @@ function barrio_mailchimp_subscribe( Entry $entry, Form $form, array $settings, 
 	$member = [
 		'email_address' => $email,
 		// Solo per i contatti nuovi: chi si era disiscritto non torna iscritto.
-		'status_if_new' => 'subscribed',
+		'status_if_new' => 'subscribed' === ( $settings['status'] ?? '' ) ? 'subscribed' : 'pending',
 	];
 	$error  = barrio_mailchimp_request( 'PUT', $url, $key, $merge ? $member + [ 'merge_fields' => $merge ] : $member );
 	if ( null !== $error ) {
@@ -138,7 +151,7 @@ function barrio_mailchimp_subscribe( Entry $entry, Form $form, array $settings, 
 			]
 		);
 		if ( null !== $error ) {
-			/* translators: %s: errore di Mailchimp. */
+			/* translators: %s: error from Mailchimp. */
 			return new WP_Error( 'barrio_mailchimp_tags', sprintf( __( 'the contact was added, but not the tags: %s', 'barrio-suite-mailchimp' ), $error->get_error_message() ) );
 		}
 	}

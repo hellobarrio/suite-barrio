@@ -270,7 +270,6 @@ final class RestEntries {
 				'date'          => self::date( (string) $entry->created_at ),
 				'lang'          => $entry->lang,
 				'source_url'    => $entry->source_url,
-				'user'          => self::user( $entry->user_id ),
 				'form'          => [
 					'id'      => $form->id,
 					'title'   => $form->title,

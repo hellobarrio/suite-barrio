@@ -2,6 +2,7 @@
 
 Lo schema è in [`modules/forms/migrations/0001_initial.php`](../modules/forms/migrations/0001_initial.php), più le
 impostazioni per form delle integrazioni in [`0003_integrations.php`](../modules/forms/migrations/0003_integrations.php)
+(la `0004` toglie `form_versions.created_by` ed `entries.user_id`, che nessuno leggeva)
 (la `0002` assegna le capability): quella è la fonte di verità, qui ci sono le ragioni e le regole per usarlo.
 I test che dimostrano ogni vincolo sono in [`tests/Integration/SchemaTest.php`](../tests/Integration/SchemaTest.php)
 e girano in CI su MySQL 8.0 e MariaDB 10.5.
@@ -47,7 +48,7 @@ erDiagram
   `source_url` è senza query string e frammento, che possono contenere dati personali o identificativi di
   tracciamento (`be_url_chk`). Una raccolta in più, se servirà, arriverà come opzione disattivata di default.
 - **Foreign key sempre**: `CASCADE` verso i figli puri, `RESTRICT` dove c'è un file su disco o un dato storico.
-  Nessuna FK verso le tabelle di WordPress: `user_id` e `created_by` si azzerano sull'hook `deleted_user`.
+  Nessuna FK verso le tabelle di WordPress: `entry_notes.user_id` si azzera sull'hook `deleted_user`.
 - **Insiemi chiusi due volte**: CHECK nel database ed `enum` PHP (`FormStatus`, `NoteLevel`); un test verifica che coincidano.
 - **Nomi dei vincoli con il prefisso delle tabelle** (`wp_bf_status_chk`), perché in MySQL sono unici per database.
   MySQL accetta nomi fino a 64 caratteri, e il più lungo è quello della tabella `{prefisso}barrio_form_notifications_i18n`:
@@ -56,7 +57,7 @@ erDiagram
   trasforma ogni errore del database in un'eccezione.
 - **Ogni scrittura su più tabelle è in `Db::transaction()`**. Dentro un'altra transazione, o con autocommit spento
   come nei test di WordPress, usa un savepoint: `START TRANSACTION` confermerebbe la transazione già aperta.
-- **Registrazioni immutabili**: dopo l'invio cambiano solo `is_read`, le note e l'azzeramento di `user_id`.
+- **Registrazioni immutabili**: dopo l'invio cambiano solo `is_read` e le note.
 
 ## Cosa si versiona
 
@@ -88,7 +89,8 @@ registrazioni) viene rifiutato dalla FK: nessun dato incoerente, l'utente ricari
 `field_key` identifica lo stesso campo tra le versioni (HTML, GraphQL, merge tag, export); l'`id` cambia a ogni versione.
 
 Form, testi, notifiche, integrazioni e versione corrente si leggono con 9 query e restano nella object cache
-(gruppo `barrio_forms`) fino al salvataggio successivo.
+(gruppo `barrio_forms_{versione del plugin}`, così dopo un aggiornamento non torna un oggetto vecchio) fino al
+salvataggio successivo, al massimo per un giorno.
 
 ## Catena delle cancellazioni
 
@@ -173,4 +175,4 @@ valori dentro il JSON esiste solo su MySQL (indici multi-valore), non su MariaDB
   sito, nell'opzione `{prefisso}user_roles`). Passa dal Migrator per lo stesso motivo delle tabelle: arriva una
   volta sola su ogni sito, anche sui siti di un multisite con il plugin attivato in rete, dove l'hook di
   attivazione parte una volta sola.
-- **Utenti cancellati**: `deleted_user` azzera `form_versions.created_by`, `entries.user_id` ed `entry_notes.user_id`.
+- **Utenti cancellati**: `deleted_user` azzera `entry_notes.user_id`.

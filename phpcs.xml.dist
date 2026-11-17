@@ -10,7 +10,7 @@
 	<arg name="extensions" value="php"/>
 	<arg name="colors"/>
 
-	<config name="minimum_wp_version" value="6.6"/>
+	<config name="minimum_wp_version" value="6.9"/>
 
 	<!-- WordPress-Extra senza WordPress-Docs: niente docblock obbligatori. -->
 	<rule ref="WordPress-Extra">

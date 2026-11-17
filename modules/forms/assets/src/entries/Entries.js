@@ -41,16 +41,32 @@ const pick = ( forms ) =>
 const formLabel = ( form ) =>
 	'trash' === form.status
 		? sprintf(
-				/* translators: %s: nome del form. */
+				/* translators: %s: form name. */
 				__( '%s (trash)', 'barrio-suite' ),
 				form.title
 			)
 		: form.title;
 
+// La vista dell'elenco resta per la sessione: tornando dal dettaglio di una registrazione si ritrova.
+const VIEW = 'barrio-entries-view';
+function storedView( form ) {
+	try {
+		const view = JSON.parse( window.sessionStorage.getItem( VIEW ) );
+		if ( form && view?.form === form ) {
+			return {
+				query: { ...INITIAL, ...view.query },
+				shown: view.shown ?? {},
+			};
+		}
+	} catch {}
+	return { query: INITIAL, shown: {} };
+}
+
 export function Entries( { form: requested } ) {
 	const [ forms, setForms ] = useState( null );
 	const [ formId, setFormId ] = useState( requested );
-	const [ query, setQuery ] = useState( INITIAL );
+	const [ query, setQuery ] = useState( () => storedView( requested ).query );
+	const [ shown, setShown ] = useState( () => storedView( requested ).shown );
 	const [ data, setData ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 	// Cambia dopo ogni azione: ricarica l'elenco e i conteggi dei form.
@@ -67,6 +83,23 @@ export function Entries( { form: requested } ) {
 			} )
 			.catch( fail );
 	}, [ reload ] );
+
+	useEffect( () => {
+		if ( formId ) {
+			// Nell'URL, così Indietro torna a questo form.
+			window.history.replaceState(
+				null,
+				'',
+				entriesUrl( { form: formId } )
+			);
+			try {
+				window.sessionStorage.setItem(
+					VIEW,
+					JSON.stringify( { form: formId, query, shown } )
+				);
+			} catch {}
+		}
+	}, [ formId, query, shown ] );
 
 	useEffect( () => {
 		let current = true;
@@ -111,8 +144,8 @@ export function Entries( { form: requested } ) {
 	const switchForm = ( id ) => {
 		setFormId( id );
 		setQuery( INITIAL );
+		setShown( {} );
 		setData( null );
-		window.history.replaceState( null, '', entriesUrl( { form: id } ) );
 	};
 
 	const bulk = ( action, ids, message ) => {
@@ -136,7 +169,7 @@ export function Entries( { form: requested } ) {
 		);
 	const remove = ( entries ) => {
 		const question = sprintf(
-			/* translators: %d: registrazioni da eliminare. */
+			/* translators: %d: number of entries to delete. */
 			_n(
 				'Delete %d entry permanently, with its files?',
 				'Delete %d entries permanently, with their files?',
@@ -149,7 +182,7 @@ export function Entries( { form: requested } ) {
 		if ( window.confirm( question ) ) {
 			bulk( 'delete', entries, ( result ) =>
 				sprintf(
-					/* translators: %d: registrazioni eliminate. */
+					/* translators: %d: number of entries deleted. */
 					_n(
 						'%d entry deleted.',
 						'%d entries deleted.',
@@ -223,7 +256,7 @@ export function Entries( { form: requested } ) {
 			render: ( row ) => (
 				<Menu
 					label={ sprintf(
-						/* translators: %d: numero della registrazione. */
+						/* translators: %d: entry number. */
 						__( 'Actions for entry #%d', 'barrio-suite' ),
 						row.id
 					) }
@@ -269,6 +302,8 @@ export function Entries( { form: requested } ) {
 				query={ query }
 				initial={ INITIAL }
 				onQuery={ setQuery }
+				shown={ shown }
+				onShown={ setShown }
 				title={
 					<Picker
 						className="barrio-bar__select"

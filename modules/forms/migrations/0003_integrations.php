@@ -2,6 +2,8 @@
 
 use BarrioSuite\Database\Db;
 
+defined( 'ABSPATH' ) || exit;
+
 // Impostazioni per form delle integrazioni delle estensioni (Mailchimp…), il "feed" di Gravity Forms:
 // configurazione corrente come le notifiche, quindi non versionata, e si sostituisce a ogni salvataggio.
 // Stesse regole dello schema iniziale (docs/database.md).

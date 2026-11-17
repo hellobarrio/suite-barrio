@@ -9,10 +9,12 @@ final class Requirements {
 	/** @return list<string> */
 	public static function errors(): array {
 		global $wpdb;
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- la versione del server, una volta all'attivazione.
 		return self::database_errors(
 			(string) $wpdb->get_var( 'SELECT VERSION()' ),
 			$wpdb->get_var( "SELECT SUPPORT FROM information_schema.ENGINES WHERE ENGINE = 'InnoDB'" )
 		);
+		// phpcs:enable
 	}
 
 	/**
@@ -25,7 +27,7 @@ final class Requirements {
 
 		if ( version_compare( (string) strtok( $version, '-' ), $minimum, '<' ) ) {
 			$errors[] = sprintf(
-				/* translators: %s: versione del server di database, per esempio "5.7.44". */
+				/* translators: %s: database server version, for example "5.7.44". */
 				__( 'Barrio Suite requires MySQL 8.0.16 or later, or MariaDB 10.5 or later. This site uses %s.', 'barrio-suite' ),
 				$version
 			);

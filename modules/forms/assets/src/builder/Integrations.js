@@ -1,8 +1,8 @@
 // Integrazioni delle estensioni (Integrations.php): la scheda del builder con le impostazioni per
-// form, e SettingControl, che le Impostazioni usano anche per quelle globali. Ogni controllo viene
-// dallo schema dell'impostazione: title, description e i formati del plugin field, field:tipi e
-// field_map; il resto è un testo (le password le gestisce Settings.js). In un'altra lingua si
-// cambiano solo le impostazioni translatable.
+// form, e SettingControl, usato anche per le impostazioni globali e per la config dei campi. Ogni
+// controllo viene dallo schema: title, description, enum (etichette in labels), array, number e i
+// formati del plugin field, field:tipi e field_map; il resto è un testo (le password le gestisce
+// Settings.js). In un'altra lingua si cambiano solo le impostazioni translatable.
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
@@ -272,12 +272,67 @@ export function SettingControl( {
 			/>
 		);
 	}
+	if ( schema.enum ) {
+		return (
+			<Select
+				label={ label }
+				help={ help }
+				value={ value }
+				options={ [
+					{ value: '', label: '—' },
+					...schema.enum.map( ( v ) => ( {
+						value: v,
+						label: schema.labels?.[ v ] ?? v,
+					} ) ),
+				] }
+				onChange={ onChange }
+			/>
+		);
+	}
+	if ( 'array' === schema.type ) {
+		return (
+			<ListInput label={ label } value={ value } onChange={ onChange } />
+		);
+	}
+	const number = 'number' === schema.type;
 	return (
 		<Text
 			label={ label }
 			help={ help }
+			type={ number ? 'number' : 'text' }
 			value={ value }
-			onChange={ onChange }
+			onChange={ ( v ) =>
+				onChange( number && v !== '' ? Number( v ) : v )
+			}
+		/>
+	);
+}
+
+// L'unica lista della config sono le estensioni dei file: minuscole e senza punto, come vuole lo
+// schema. Il testo resta com'è mentre si scrive, altrimenti la virgola appena digitata sparirebbe.
+function ListInput( { label, value, onChange } ) {
+	const [ text, setText ] = useState( ( value ?? [] ).join( ', ' ) );
+	return (
+		<Text
+			label={ label }
+			help={ __(
+				'Separated by commas, for example pdf, jpg, png.',
+				'barrio-suite'
+			) }
+			value={ text }
+			onChange={ ( v ) => {
+				setText( v );
+				onChange( [
+					...new Set(
+						v
+							.split( ',' )
+							.map( ( item ) =>
+								item.trim().toLowerCase().replace( /^\./, '' )
+							)
+							.filter( Boolean )
+					),
+				] );
+			} }
 		/>
 	);
 }

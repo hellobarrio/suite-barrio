@@ -7,6 +7,7 @@ use BarrioSuite\Forms\Model\Entry;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormVersion;
+use BarrioSuite\Forms\Model\NoteLevel;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\FileStore;
@@ -138,20 +139,15 @@ final class EntryRepositoryTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_deleting_a_user_forgets_them(): void {
-		global $wpdb;
+	public function test_deleting_a_user_forgets_their_notes(): void {
 		require_once ABSPATH . 'wp-admin/includes/user.php';
-		$user = self::factory()->user->create();
-		wp_set_current_user( $user );
-		$form = FormRepository::save( $this->form->id, 1, 'Contact', [], [], new FormVersion( [ new Field( 'email', 'email', [ 'it' => [ 'label' => 'Email' ] ] ) ] ) );
-		$this->assertInstanceOf( Form::class, $form );
-		$this->assertSame( $user, $form->current->created_by );
-		$entry = EntryRepository::create( new Entry( $form->id, (int) $form->current->id, 'it', [], user_id: $user ) )->id;
+		$user  = self::factory()->user->create();
+		$entry = (int) EntryRepository::create( $this->entry( [] ) )->id;
+		EntryRepository::add_note( $entry, 'admin', NoteLevel::Info, 'Called back.', $user );
 
 		wp_delete_user( $user );
 
-		$this->assertNull( FormRepository::version( (int) $form->current->id )?->created_by );
-		$this->assertNull( $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM %i WHERE id = %d', Db::table( 'entries' ), $entry ) ) );
+		$this->assertNull( EntryRepository::notes( $entry )[0]['user_id'] );
 	}
 
 	/**

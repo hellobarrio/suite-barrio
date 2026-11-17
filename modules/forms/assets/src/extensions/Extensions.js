@@ -23,19 +23,19 @@ import { errorMessage } from '../builder/model.js';
 
 const DONE = {
 	install: ( name ) =>
-		/* translators: %s: nome dell'estensione. */
+		/* translators: %s: extension name. */
 		sprintf( __( '%s installed and activated.', 'barrio-suite' ), name ),
 	update: ( name ) =>
-		/* translators: %s: nome dell'estensione. */
+		/* translators: %s: extension name. */
 		sprintf( __( '%s updated.', 'barrio-suite' ), name ),
 	activate: ( name ) =>
-		/* translators: %s: nome dell'estensione. */
+		/* translators: %s: extension name. */
 		sprintf( __( '%s activated.', 'barrio-suite' ), name ),
 	deactivate: ( name ) =>
-		/* translators: %s: nome dell'estensione. */
+		/* translators: %s: extension name. */
 		sprintf( __( '%s deactivated.', 'barrio-suite' ), name ),
 	delete: ( name ) =>
-		/* translators: %s: nome dell'estensione. */
+		/* translators: %s: extension name. */
 		sprintf( __( '%s deleted.', 'barrio-suite' ), name ),
 };
 
@@ -92,7 +92,7 @@ export function Extensions() {
 		// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
 		window.confirm(
 			sprintf(
-				/* translators: %s: nome dell'estensione. */
+				/* translators: %s: extension name. */
 				__(
 					'Delete %s? Its files are removed from the site; you can install it again from this page.',
 					'barrio-suite'
@@ -179,14 +179,14 @@ export function Extensions() {
 					extension.version &&
 					newer( extension.version, extension.installed );
 				let status = sprintf(
-					/* translators: %s: versione, per esempio 0.2.0. */
+					/* translators: %s: version number, for example 0.2.0. */
 					__( 'Not installed. Latest version: %s.', 'barrio-suite' ),
 					extension.version
 				);
 				if ( extension.installed ) {
 					status = update
 						? sprintf(
-								/* translators: 1: versione installata; 2: versione disponibile. */
+								/* translators: 1: installed version; 2: available version. */
 								__(
 									'Version %1$s installed. Version %2$s is available.',
 									'barrio-suite'
@@ -195,7 +195,7 @@ export function Extensions() {
 								extension.version
 							)
 						: sprintf(
-								/* translators: %s: versione installata. */
+								/* translators: %s: installed version. */
 								__( 'Version %s installed.', 'barrio-suite' ),
 								extension.installed
 							);

@@ -7,6 +7,7 @@ use Throwable;
 
 // Le query dei Repository passano da qui: un errore del database diventa un'eccezione,
 // così una scrittura fallita non passa inosservata come un `false` ignorato.
+// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- le query arrivano già preparate dai Repository.
 final class Db {
 
 	private static int $depth = 0;

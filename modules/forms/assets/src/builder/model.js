@@ -43,10 +43,14 @@ export const withChoices = ( field, lang, rows ) => ( {
 	},
 } );
 
-// Finché il valore è quello ricavato dall'etichetta, la segue.
-export const renameChoice = ( row, label ) => ( {
+// Finché il valore è quello ricavato dall'etichetta, la segue; non dopo il salvataggio (saved),
+// perché registrazioni e condizioni usano il vecchio.
+export const renameChoice = ( row, label, saved = [] ) => ( {
 	label,
-	value: row.value === toValue( row.label ) ? toValue( label ) : row.value,
+	value:
+		row.value === toValue( row.label ) && ! saved.includes( row.value )
+			? toValue( label )
+			: row.value,
 } );
 
 // Ogni elemento con i testi per lingua: il form (testi dell'invio), le notifiche, i campi e le

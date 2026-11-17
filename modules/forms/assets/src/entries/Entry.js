@@ -158,7 +158,7 @@ export function Entry( { id } ) {
 				setNotice( {
 					status: 'success',
 					message: sprintf(
-						/* translators: %s: nome della notifica. */
+						/* translators: %s: notification name. */
 						__( 'Notification "%s" sent.', 'barrio-suite' ),
 						notification.name
 					),
@@ -192,7 +192,7 @@ export function Entry( { id } ) {
 						</a>
 						<h2 className="barrio-bar__title">
 							{ sprintf(
-								/* translators: %d: numero della registrazione. */
+								/* translators: %d: entry number. */
 								__( 'Entry #%d', 'barrio-suite' ),
 								entry.id
 							) }
@@ -271,7 +271,6 @@ export function Entry( { id } ) {
 										</a>
 									),
 								],
-								[ __( 'User', 'barrio-suite' ), entry.user ],
 								[
 									__( 'Form version', 'barrio-suite' ),
 									String( entry.form.version ),

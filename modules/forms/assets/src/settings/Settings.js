@@ -36,15 +36,19 @@ const CAPS = {
 	barrio_manage_entries: __( 'See and manage entries', 'barrio-suite' ),
 };
 
+// integrations: le impostazioni globali per slug (i segreti solo se appena scritti); roles: per
+// ruolo le capability (gli amministratori hanno sempre tutto).
+const editable = ( { smtp, email, privacy, integrations, roles } ) => ( {
+	smtp,
+	email,
+	privacy,
+	integrations,
+	roles,
+} );
+
 export function Settings() {
 	const [ saved, setSaved ] = useState( null );
-	const [ smtp, setSmtp ] = useState( null );
-	const [ email, setEmail ] = useState( null );
-	const [ privacy, setPrivacy ] = useState( null );
-	// Le impostazioni globali delle integrazioni, per slug. I segreti ci sono solo se appena scritti.
-	const [ integrations, setIntegrations ] = useState( null );
-	// Per ruolo le capability che ha; gli amministratori non ci sono, hanno sempre tutto.
-	const [ roles, setRoles ] = useState( null );
+	const [ draft, setDraft ] = useState( null );
 	const [ password, setPassword ] = useState( '' );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( null );
@@ -53,11 +57,7 @@ export function Settings() {
 		apiFetch( { path: '/barrio/v1/settings' } )
 			.then( ( data ) => {
 				setSaved( data );
-				setSmtp( data.smtp );
-				setEmail( data.email );
-				setPrivacy( data.privacy );
-				setIntegrations( data.integrations );
-				setRoles( data.roles );
+				setDraft( editable( data ) );
 			} )
 			.catch( ( error ) =>
 				setNotice( { status: 'error', message: errorMessage( error ) } )
@@ -65,24 +65,21 @@ export function Settings() {
 	}, [] );
 
 	const dirty =
-		'' !== password ||
-		JSON.stringify( { smtp, email, privacy, integrations, roles } ) !==
-			JSON.stringify( {
-				smtp: saved?.smtp,
-				email: saved?.email,
-				privacy: saved?.privacy,
-				integrations: saved?.integrations,
-				roles: saved?.roles,
-			} );
+		!! saved &&
+		( '' !== password ||
+			JSON.stringify( draft ) !== JSON.stringify( editable( saved ) ) );
 	useUnsavedWarning( dirty );
 
 	if ( ! saved ) {
 		return notice ? <Notice notice={ notice } /> : <Loading />;
 	}
 
+	const { roles, integrations } = draft;
+	const set = ( key ) => ( value ) =>
+		setDraft( { ...draft, [ key ]: value } );
 	// Nell'ordine di CAPS, così il confronto con quelle salvate non dipende dall'ordine dei clic.
 	const setCap = ( role, cap ) => ( on ) =>
-		setRoles( {
+		set( 'roles' )( {
 			...roles,
 			[ role ]: Object.keys( CAPS ).filter( ( key ) =>
 				key === cap ? on : roles[ role ].includes( key )
@@ -118,7 +115,7 @@ export function Settings() {
 					// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
 					! window.confirm(
 						sprintf(
-							/* translators: %d: registrazioni di tutti i form. */
+							/* translators: %d: number of entries of every form. */
 							_n(
 								'Delete %d entry permanently, with its files? This cannot be undone.',
 								'Delete all %d entries of every form permanently, with their files? This cannot be undone.',
@@ -145,7 +142,7 @@ export function Settings() {
 						0
 					);
 					return sprintf(
-						/* translators: %d: registrazioni eliminate. */
+						/* translators: %d: number of entries deleted. */
 						_n(
 							'%d entry deleted.',
 							'%d entries deleted.',
@@ -165,29 +162,21 @@ export function Settings() {
 			)
 			.finally( () => setBusy( null ) );
 	};
+	// Ciò che si scrive durante il salvataggio resta, da salvare.
 	const save = () =>
 		request(
 			'save',
 			{
 				path: '/barrio/v1/settings',
 				method: 'PUT',
-				data: {
-					smtp,
-					email,
-					privacy,
-					integrations,
-					roles,
-					...( password && { password } ),
-				},
+				data: { ...draft, ...( password && { password } ) },
 			},
 			( response ) => {
 				setSaved( response );
-				setSmtp( response.smtp );
-				setEmail( response.email );
-				setPrivacy( response.privacy );
-				setIntegrations( response.integrations );
-				setRoles( response.roles );
-				setPassword( '' );
+				setDraft( ( now ) =>
+					now === draft ? editable( response ) : now
+				);
+				setPassword( ( now ) => ( now === password ? '' : now ) );
 				return __( 'Settings saved.', 'barrio-suite' );
 			}
 		);
@@ -220,8 +209,8 @@ export function Settings() {
 				) }
 			>
 				<SmtpFields
-					smtp={ smtp }
-					onChange={ setSmtp }
+					smtp={ draft.smtp }
+					onChange={ set( 'smtp' ) }
 					password={ password }
 					onPassword={ setPassword }
 					passwordStatus={ saved.password_status }
@@ -237,7 +226,10 @@ export function Settings() {
 					'barrio-suite'
 				) }
 			>
-				<TemplateFields email={ email } onChange={ setEmail } />
+				<TemplateFields
+					email={ draft.email }
+					onChange={ set( 'email' ) }
+				/>
 			</Card>
 
 			<Card
@@ -261,7 +253,10 @@ export function Settings() {
 					'barrio-suite'
 				) }
 			>
-				<RetentionField privacy={ privacy } onChange={ setPrivacy } />
+				<RetentionField
+					privacy={ draft.privacy }
+					onChange={ set( 'privacy' ) }
+				/>
 				<Group
 					label={ __( 'All entries', 'barrio-suite' ) }
 					help={ __(
@@ -329,7 +324,7 @@ export function Settings() {
 						values={ integrations[ slug ] }
 						secrets={ saved.secrets[ slug ] }
 						onChange={ ( values ) =>
-							setIntegrations( {
+							set( 'integrations' )( {
 								...integrations,
 								[ slug ]: values,
 							} )

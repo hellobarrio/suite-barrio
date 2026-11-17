@@ -7,6 +7,7 @@ export default [
 	{
 		settings: {
 			'import/core-modules': [
+				'@wordpress/a11y',
 				'@wordpress/api-fetch',
 				'@wordpress/components',
 				'@wordpress/element',

@@ -18,7 +18,6 @@ final readonly class Entry {
 		public string $lang,
 		public array $values,
 		public array $files = [],
-		public ?int $user_id = null,
 		public ?string $source_url = null,
 		public ?string $created_at = null,
 		public ?int $id = null,

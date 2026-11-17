@@ -56,7 +56,7 @@ final class Plugin {
 								'<div class="notice notice-error"><p>%s</p></div>',
 								esc_html(
 									sprintf(
-										/* translators: %s: messaggio di errore del database. */
+										/* translators: %s: database error message. */
 										__( 'Barrio Suite could not update its database tables: %s. It will try again on the next page load.', 'barrio-suite' ),
 										$error->get_error_message()
 									)

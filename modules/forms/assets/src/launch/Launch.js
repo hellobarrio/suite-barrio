@@ -178,7 +178,7 @@ export function LaunchBanner( { launch, href } ) {
 				<h2>{ __( 'Site launch', 'barrio-suite' ) }</h2>
 				<p>
 					{ sprintf(
-						/* translators: %d: passaggi da configurare. */
+						/* translators: %d: number of steps left to set up. */
 						__(
 							'Follow the step-by-step guide to configure and publish the site: %d steps to go.',
 							'barrio-suite'
@@ -395,7 +395,7 @@ export function Launch() {
 						<h2 className="barrio-bar__title">
 							{ step
 								? sprintf(
-										/* translators: 1: numero del passaggio; 2: passaggi. */
+										/* translators: 1: current step number; 2: total number of steps. */
 										__(
 											'Step %1$d of %2$d',
 											'barrio-suite'

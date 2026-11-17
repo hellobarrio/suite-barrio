@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 // Template delle email dei form. Tabelle e stili in linea: sono gli unici che tutti i client di
 // posta rispettano. Si usa con Notifications::render().
 return static function ( string $heading, string $content, string $lang, array $settings, string $site_name ): void {

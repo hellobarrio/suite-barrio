@@ -311,7 +311,7 @@ final class Extensions {
 			return new WP_Error(
 				'barrio_catalog_unavailable',
 				sprintf(
-					/* translators: %s: errore, per esempio "HTTP 404". */
+					/* translators: %s: error, for example "HTTP 404". */
 					__( 'The list of extensions could not be loaded from GitHub (%s). Try again later, or upload the zip of an extension.', 'barrio-suite' ),
 					is_wp_error( $response ) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code( $response )
 				)

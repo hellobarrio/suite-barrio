@@ -53,7 +53,7 @@ export function TextIn( {
 				<span className="barrio-original">
 					{ untranslatable
 						? sprintf(
-								/* translators: %s: lingua principale (IT). */
+								/* translators: %s: code of the main language, like IT. */
 								__(
 									'Empty in %s, so there is nothing to translate.',
 									'barrio-suite'

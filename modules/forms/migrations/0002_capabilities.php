@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 // Capability del modulo: barrio_manage_forms agli amministratori, barrio_manage_entries anche agli
 // editor. In una migrazione e non all'attivazione: così arrivano anche agli altri siti di un multisite
 // e alle installazioni già attive. add_cap() non fa nulla se la capability c'è già.

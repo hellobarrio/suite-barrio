@@ -21,7 +21,8 @@ use WP_Error;
  */
 final class FormRepository {
 
-	private const CACHE_GROUP = 'barrio_forms';
+	// Con la versione: dopo un aggiornamento un object cache persistente darebbe un Form con le proprietà di prima.
+	public const CACHE_GROUP = 'barrio_forms_' . BARRIO_SUITE_VERSION;
 
 	/**
 	 * @param FormTexts          $i18n
@@ -264,26 +265,42 @@ final class FormRepository {
 			(string) $row['updated_at'],
 			$integrations
 		);
-		wp_cache_set( $id, $form, self::CACHE_GROUP );
+		wp_cache_set( $id, $form, self::CACHE_GROUP, DAY_IN_SECONDS );
 		return $form;
 	}
 
 	// Con $form_id, null anche se la versione è di un altro form.
 	public static function version( int $id, ?int $form_id = null ): ?FormVersion {
 		global $wpdb;
-		$version = Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Db::table( 'form_versions' ), $id ) )[0] ?? null;
-		if ( null === $version || ( null !== $form_id && (int) $version['form_id'] !== $form_id ) ) {
-			return null;
+		$where = null === $form_id ? $wpdb->prepare( 'id = %d', $id ) : $wpdb->prepare( 'id = %d AND form_id = %d', $id, $form_id );
+		return self::load_versions( $where )[0] ?? null;
+	}
+
+	/** @return list<FormVersion> Dalla più recente: la corrente e quelle che le registrazioni usano ancora. */
+	public static function versions( int $form_id ): array {
+		global $wpdb;
+		return self::load_versions( $wpdb->prepare( 'form_id = %d', $form_id ) );
+	}
+
+	/**
+	 * @param string $where Condizione già preparata su form_versions.
+	 * @return list<FormVersion>
+	 */
+	private static function load_versions( string $where ): array {
+		global $wpdb;
+		$versions = Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE ', Db::table( 'form_versions' ) ) . $where . ' ORDER BY version DESC' );
+		if ( ! $versions ) {
+			return [];
 		}
+		$in = ' IN (' . implode( ',', array_map( 'intval', array_column( $versions, 'id' ) ) ) . ')';
 
 		$field_i18n = [];
 		$rows       = Db::rows(
 			$wpdb->prepare(
-				'SELECT i.* FROM %i i JOIN %i f ON f.id = i.field_id WHERE f.version_id = %d',
+				'SELECT i.* FROM %i i JOIN %i f ON f.id = i.field_id WHERE f.version_id',
 				Db::table( 'form_fields_i18n' ),
-				Db::table( 'form_fields' ),
-				$id
-			)
+				Db::table( 'form_fields' )
+			) . $in
 		);
 		foreach ( $rows as $text ) {
 			$field_i18n[ (int) $text['field_id'] ][ (string) $text['lang'] ] = [
@@ -295,8 +312,8 @@ final class FormRepository {
 		}
 
 		$fields = [];
-		foreach ( Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id = %d ORDER BY position', Db::table( 'form_fields' ), $id ) ) as $row ) {
-			$fields[] = new Field(
+		foreach ( Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id', Db::table( 'form_fields' ) ) . $in . ' ORDER BY position' ) as $row ) {
+			$fields[ (int) $row['version_id'] ][] = new Field(
 				(string) $row['field_key'],
 				(string) $row['type'],
 				$field_i18n[ (int) $row['id'] ] ?? [],
@@ -307,25 +324,15 @@ final class FormRepository {
 			);
 		}
 
-		return new FormVersion(
-			$fields,
-			$id,
-			(int) $version['version'],
-			(string) $version['created_at'],
-			null === $version['created_by'] ? null : (int) $version['created_by']
+		return array_map(
+			static fn( array $version ): FormVersion => new FormVersion(
+				$fields[ (int) $version['id'] ] ?? [],
+				(int) $version['id'],
+				(int) $version['version'],
+				(string) $version['created_at']
+			),
+			$versions
 		);
-	}
-
-	/** @return list<FormVersion> Dalla più recente: la corrente e quelle che le registrazioni usano ancora. */
-	public static function versions( int $form_id ): array {
-		global $wpdb;
-		$ids = Db::col( $wpdb->prepare( 'SELECT id FROM %i WHERE form_id = %d ORDER BY version DESC', Db::table( 'form_versions' ), $form_id ) );
-		return array_values( array_filter( array_map( static fn( string $id ): ?FormVersion => self::version( (int) $id ), $ids ) ) );
-	}
-
-	public static function forget_user( int $user_id ): void {
-		global $wpdb;
-		Db::query( $wpdb->prepare( 'UPDATE %i SET created_by = NULL WHERE created_by = %d', Db::table( 'form_versions' ), $user_id ) );
 	}
 
 	/**
@@ -424,7 +431,6 @@ final class FormRepository {
 				'form_id'    => $form_id,
 				'version'    => $number,
 				'created_at' => $now,
-				'created_by' => get_current_user_id() ?: null,
 			]
 		);
 		$keys       = [];

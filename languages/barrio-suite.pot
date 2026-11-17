@@ -1,0 +1,2160 @@
+# Copyright (C) 2026 Hellobarrio
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Barrio Suite 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-17T08:48:25+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: barrio-suite\n"
+
+#. Plugin Name of the plugin
+#: barrio-suite.php
+msgid "Barrio Suite"
+msgstr ""
+
+#. Description of the plugin
+#: barrio-suite.php
+#: build/forms-admin.js:53
+msgid "Forms and site tools by Hellobarrio."
+msgstr ""
+
+#. Author of the plugin
+#: barrio-suite.php
+msgid "Hellobarrio"
+msgstr ""
+
+#: modules/forms/src/Admin.php:29
+#: build/forms-admin.js:21
+msgid "Dashboard"
+msgstr ""
+
+#: modules/forms/src/Admin.php:30
+#: build/forms-admin.js:20
+#: build/forms-admin.js:22
+#: build/forms-admin.js:47
+#: build/forms-admin.js:53
+msgid "Forms"
+msgstr ""
+
+#: modules/forms/src/Admin.php:32
+#: build/forms-admin.js:34
+#: build/forms-admin.js:53
+msgid "Extensions"
+msgstr ""
+
+#: modules/forms/src/Admin.php:34
+#: build/forms-admin.js:40
+#: build/forms-admin.js:41
+#: build/forms-admin.js:53
+msgid "Settings"
+msgstr ""
+
+#: modules/forms/src/Admin.php:70
+msgid "This page has not been built: run npm run build."
+msgstr ""
+
+#: modules/forms/src/Admin.php:91
+msgid "Countries"
+msgstr ""
+
+#: modules/forms/src/Admin.php:96
+msgid "Italian regions"
+msgstr ""
+
+#: modules/forms/src/Admin.php:100
+msgid "Italian provinces"
+msgstr ""
+
+#: modules/forms/src/Admin.php:104
+msgid "US states"
+msgstr ""
+
+#: modules/forms/src/Admin.php:108
+msgid "Continents"
+msgstr ""
+
+#: modules/forms/src/Admin.php:111
+msgid "Africa"
+msgstr ""
+
+#: modules/forms/src/Admin.php:112
+msgid "Antarctica"
+msgstr ""
+
+#: modules/forms/src/Admin.php:113
+msgid "Asia"
+msgstr ""
+
+#: modules/forms/src/Admin.php:114
+msgid "Europe"
+msgstr ""
+
+#: modules/forms/src/Admin.php:115
+msgid "North America"
+msgstr ""
+
+#: modules/forms/src/Admin.php:116
+msgid "Oceania"
+msgstr ""
+
+#: modules/forms/src/Admin.php:117
+msgid "South America"
+msgstr ""
+
+#: modules/forms/src/Admin.php:122
+msgid "Days of the week"
+msgstr ""
+
+#: modules/forms/src/Admin.php:127
+msgid "Months"
+msgstr ""
+
+#: modules/forms/src/Admin.php:132
+msgid "Languages"
+msgstr ""
+
+#: modules/forms/src/Admin.php:138
+msgid "Education"
+msgstr ""
+
+#: modules/forms/src/Admin.php:141
+msgid "Primary school certificate"
+msgstr ""
+
+#: modules/forms/src/Admin.php:142
+msgid "Lower secondary school certificate"
+msgstr ""
+
+#: modules/forms/src/Admin.php:143
+msgid "Upper secondary school diploma"
+msgstr ""
+
+#: modules/forms/src/Admin.php:144
+msgid "Bachelor's degree"
+msgstr ""
+
+#: modules/forms/src/Admin.php:145
+msgid "Master's degree"
+msgstr ""
+
+#: modules/forms/src/Admin.php:146
+msgid "First-level master"
+msgstr ""
+
+#: modules/forms/src/Admin.php:147
+msgid "Second-level master"
+msgstr ""
+
+#: modules/forms/src/Admin.php:148
+msgid "PhD"
+msgstr ""
+
+#: modules/forms/src/Admin.php:153
+msgid "Marital status"
+msgstr ""
+
+#: modules/forms/src/Admin.php:156
+msgid "Single"
+msgstr ""
+
+#: modules/forms/src/Admin.php:157
+msgid "Married"
+msgstr ""
+
+#: modules/forms/src/Admin.php:158
+msgid "Separated"
+msgstr ""
+
+#: modules/forms/src/Admin.php:159
+msgid "Divorced"
+msgstr ""
+
+#: modules/forms/src/Admin.php:160
+msgid "Widowed"
+msgstr ""
+
+#: modules/forms/src/Admin.php:161
+msgid "Cohabiting"
+msgstr ""
+
+#: modules/forms/src/Admin.php:166
+msgid "Gender"
+msgstr ""
+
+#: modules/forms/src/Admin.php:169
+msgid "Man"
+msgstr ""
+
+#: modules/forms/src/Admin.php:170
+msgid "Woman"
+msgstr ""
+
+#: modules/forms/src/Admin.php:171
+msgid "Other"
+msgstr ""
+
+#: modules/forms/src/Admin.php:172
+msgid "Prefer not to say"
+msgstr ""
+
+#. translators: %s: site name.
+#: modules/forms/src/Api/RestAdmin.php:113
+#, php-format
+msgid "Test email from %s"
+msgstr ""
+
+#: modules/forms/src/Api/RestAdmin.php:115
+#: build/forms-admin.js:21
+#: build/forms-admin.js:41
+msgid "Test email"
+msgstr ""
+
+#: modules/forms/src/Api/RestAdmin.php:116
+msgid "If you are reading this, the site can send email. Form notifications look like this message."
+msgstr ""
+
+#. translators: %s: email address.
+#: modules/forms/src/Api/RestAdmin.php:124
+#, php-format
+msgid "Test email sent to %s."
+msgstr ""
+
+#: modules/forms/src/Api/RestEntries.php:219
+msgid "No entries selected."
+msgstr ""
+
+#: modules/forms/src/Api/RestEntries.php:305
+msgid "File not found."
+msgstr ""
+
+#: modules/forms/src/Api/RestEntries.php:351
+#: modules/forms/src/FieldTypes.php:45
+#: modules/forms/src/Privacy.php:71
+#: build/forms-admin.js:25
+#: build/forms-admin.js:27
+msgid "Date"
+msgstr ""
+
+#: modules/forms/src/Api/RestEntries.php:351
+#: build/forms-admin.js:18
+#: build/forms-admin.js:25
+#: build/forms-admin.js:26
+#: build/forms-admin.js:27
+#: build/forms-admin.js:47
+msgid "Language"
+msgstr ""
+
+#: modules/forms/src/Api/RestEntries.php:351
+#: modules/forms/src/Privacy.php:75
+#: build/forms-admin.js:27
+msgid "Page"
+msgstr ""
+
+#: modules/forms/src/Api/RestEntries.php:469
+#: modules/forms/src/Api/RestForms.php:407
+#: modules/forms/src/Api/RestPublic.php:133
+#: modules/forms/src/Repository/FormRepository.php:71
+msgid "Form not found."
+msgstr ""
+
+#: modules/forms/src/Api/RestEntries.php:473
+msgid "Entry not found."
+msgstr ""
+
+#. translators: %s: title of the copied form.
+#: modules/forms/src/Api/RestForms.php:153
+#, php-format
+msgid "%s (copy)"
+msgstr ""
+
+#: modules/forms/src/Api/RestForms.php:176
+msgid "Notification not found."
+msgstr ""
+
+#: modules/forms/src/Api/RestPublic.php:74
+#: modules/forms/src/Frontend/Render.php:76
+#: build/forms-admin.js:18
+msgid "Submit"
+msgstr ""
+
+#: modules/forms/src/Api/RestPublic.php:101
+msgid "Thank you, your submission has been received."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:40
+msgid "Text"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:41
+msgid "Email"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:42
+msgid "Phone"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:43
+msgid "Number"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:44
+msgid "Paragraph"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:46
+msgid "Dropdown"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:47
+msgid "Radio buttons"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:48
+msgid "Checkboxes"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:49
+msgid "File upload"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:50
+msgid "Consent"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:51
+msgid "Hidden"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:52
+msgid "Page break"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:79
+msgid "Pattern"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:80
+msgid "A regular expression the whole value must match, for example [0-9]{5}."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:85
+msgid "Full name"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:86
+msgid "First name"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:87
+msgid "Last name"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:88
+msgid "Company"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:89
+msgid "Job title"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:90
+msgid "Street address"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:91
+msgid "Postal code"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:92
+msgid "City"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:93
+msgid "State or province"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:94
+msgid "Country"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:103
+msgid "Autofill"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:104
+msgid "What this field asks for, so that browsers can fill it in."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:113
+msgid "Minimum"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:117
+msgid "Maximum"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:129
+#: build/forms-admin.js:12
+msgid "Choices"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:136
+msgid "Allowed extensions"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:141
+msgid "Maximum size (MB)"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:142
+msgid "Leave empty to use the server limit."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:152
+#: build/forms-admin.js:7
+#: build/forms-admin.js:14
+msgid "Value"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:157
+msgid "URL parameter"
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:158
+msgid "Takes the value from this parameter of the page URL, for example utm_campaign, instead of the fixed value."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:212
+#: modules/forms/src/Frontend/Render.php:98
+msgid "This field is required."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:270
+#: build/forms-admin.js:8
+msgid "(required)"
+msgstr ""
+
+#. translators: 1: allowed file extensions, for example "PDF, DOCX"; 2: maximum size, for example "5 MB".
+#: modules/forms/src/FieldTypes.php:313
+#, php-format
+msgid "Accepted formats: %1$s. Maximum size: %2$s."
+msgstr ""
+
+#. translators: %d: maximum number of characters.
+#: modules/forms/src/FieldTypes.php:371
+#, php-format
+msgid "Please use at most %d characters."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:375
+msgid "Please enter a valid email address."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:379
+msgid "Please enter a number."
+msgstr ""
+
+#. translators: %s: minimum value.
+#: modules/forms/src/FieldTypes.php:383
+#, php-format
+msgid "Please enter a number greater than or equal to %s."
+msgstr ""
+
+#. translators: %s: maximum value.
+#: modules/forms/src/FieldTypes.php:387
+#, php-format
+msgid "Please enter a number less than or equal to %s."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:394
+msgid "Please enter a valid date."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:399
+msgid "Please choose one of the available options."
+msgstr ""
+
+#: modules/forms/src/FieldTypes.php:404
+msgid "Please match the requested format."
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:34
+#: modules/forms/src/Submission/Submission.php:40
+msgid "This form is no longer accepting submissions."
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:69
+#: build/forms-admin.js:8
+msgid "Next"
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:79
+msgid "Back"
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:93
+msgid "Leave this field empty"
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:97
+msgid "The form could not be sent. Please try again."
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:99
+msgid "The file is too large."
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:100
+msgid "Preview: the form is valid, but nothing has been sent."
+msgstr ""
+
+#: modules/forms/src/Frontend/Render.php:109
+msgid "To send this form, please enable JavaScript in your browser."
+msgstr ""
+
+#. translators: %s: integration name, for example Mailchimp.
+#: modules/forms/src/Integrations.php:241
+#, php-format
+msgid "Sent to %s."
+msgstr ""
+
+#. translators: 1: integration name, for example Mailchimp; 2: error message.
+#: modules/forms/src/Integrations.php:243
+#, php-format
+msgid "Could not send to %1$s: %2$s"
+msgstr ""
+
+#: modules/forms/src/MergeTags.php:112
+msgid "Yes"
+msgstr ""
+
+#: modules/forms/src/Notifications.php:63
+msgid "Entry or notification not found."
+msgstr ""
+
+#: modules/forms/src/Notifications.php:202
+msgid "no valid recipient."
+msgstr ""
+
+#. translators: 1: notification name; 2: recipients.
+#: modules/forms/src/Notifications.php:217
+#, php-format
+msgid "Notification \"%1$s\" sent to %2$s."
+msgstr ""
+
+#. translators: 1: notification name; 2: error message.
+#: modules/forms/src/Notifications.php:219
+#, php-format
+msgid "Notification \"%1$s\" could not be sent: %2$s"
+msgstr ""
+
+#: modules/forms/src/Privacy.php:31
+#: modules/forms/src/Privacy.php:43
+#: modules/forms/src/Privacy.php:88
+msgid "Form entries"
+msgstr ""
+
+#: modules/forms/src/Privacy.php:67
+#: build/forms-admin.js:26
+#: build/forms-admin.js:27
+#: modules/forms/assets/block/index.js:31
+#: modules/forms/assets/block/index.js:55
+#: modules/forms/assets/block/index.js:72
+msgid "Form"
+msgstr ""
+
+#: modules/forms/src/Privacy.php:89
+msgid "What you sent with the forms of this site."
+msgstr ""
+
+#. translators: %s: error, for example a file that could not be deleted.
+#: modules/forms/src/Privacy.php:117
+#, php-format
+msgid "Some form entries could not be erased: %s"
+msgstr ""
+
+#: modules/forms/src/Repository/FormRepository.php:77
+msgid "Someone else saved this form in the meantime. Reload it to see their changes."
+msgstr ""
+
+#: modules/forms/src/Repository/FormRepository.php:167
+msgid "Delete the entries of this form first."
+msgstr ""
+
+#: modules/forms/src/Submission/FileStore.php:31
+msgid "The file could not be uploaded. Please try again."
+msgstr ""
+
+#: modules/forms/src/Submission/FileStore.php:36
+msgid "The file is empty."
+msgstr ""
+
+#. translators: %s: allowed file extensions, for example "PDF, DOCX".
+#: modules/forms/src/Submission/FileStore.php:48
+#, php-format
+msgid "This file type is not allowed. Accepted formats: %s."
+msgstr ""
+
+#. translators: %s: maximum size, for example "5 MB".
+#: modules/forms/src/Submission/FileStore.php:95
+#, php-format
+msgid "The file is too large. Maximum size: %s."
+msgstr ""
+
+#: modules/forms/src/Submission/Submission.php:92
+msgid "Please correct the highlighted fields."
+msgstr ""
+
+#: modules/forms/src/Submission/Submission.php:146
+msgid "Your submission could not be accepted."
+msgstr ""
+
+#: modules/forms/src/Submission/Submission.php:150
+msgid "Too many submissions. Please try again in a few minutes."
+msgstr ""
+
+#: src/Extensions.php:250
+msgid "This is a development copy with git: update it with git."
+msgstr ""
+
+#: src/Extensions.php:261
+msgid "This extension cannot do that now: reload the page."
+msgstr ""
+
+#. translators: %s: error, for example "HTTP 404".
+#: src/Extensions.php:315
+#, php-format
+msgid "The list of extensions could not be loaded from GitHub (%s). Try again later, or upload the zip of an extension."
+msgstr ""
+
+#: src/Extensions.php:355
+msgid "WordPress cannot delete plugin files on this server: delete the extension from Plugins."
+msgstr ""
+
+#: src/Extensions.php:376
+msgid "WordPress cannot write plugin files on this server. Download the zip of the extension and upload it from Plugins → Add New Plugin → Upload Plugin."
+msgstr ""
+
+#: src/Mail/Smtp.php:162
+msgid "The email could not be sent."
+msgstr ""
+
+#: src/Plugin.php:17
+msgid "Barrio Suite cannot be activated"
+msgstr ""
+
+#. translators: %s: database error message.
+#: src/Plugin.php:60
+#, php-format
+msgid "Barrio Suite could not update its database tables: %s. It will try again on the next page load."
+msgstr ""
+
+#. translators: %s: database server version, for example "5.7.44".
+#: src/Requirements.php:29
+#, php-format
+msgid "Barrio Suite requires MySQL 8.0.16 or later, or MariaDB 10.5 or later. This site uses %s."
+msgstr ""
+
+#: src/Requirements.php:34
+msgid "Barrio Suite requires the InnoDB storage engine, which is not available on this database server."
+msgstr ""
+
+#. translators: %s: form shortcode.
+#: build/forms-admin.js:2
+#, js-format
+msgid "Copy %s"
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "Search"
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "No results."
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "Dismiss"
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "Filters"
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "Active filters:"
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "Columns"
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "Clear filters"
+msgstr ""
+
+#: build/forms-admin.js:2
+msgid "Select all on this page"
+msgstr ""
+
+#. translators: %d: row number (the # column).
+#: build/forms-admin.js:3
+#, js-format
+msgid "Select #%d"
+msgstr ""
+
+#. translators: %d: number of selected rows.
+#: build/forms-admin.js:4
+#, js-format
+msgid "%d selected"
+msgstr ""
+
+#: build/forms-admin.js:4
+msgid "Actions for the selected rows"
+msgstr ""
+
+#. translators: 1: first row shown; 2: last row shown; 3: number of rows found.
+#: build/forms-admin.js:5
+#, js-format
+msgid "%1$d–%2$d of %3$d"
+msgstr ""
+
+#: build/forms-admin.js:5
+msgid "Previous page"
+msgstr ""
+
+#. translators: 1: current page; 2: number of pages.
+#: build/forms-admin.js:6
+#, js-format
+msgid "Page %1$d of %2$d"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "Next page"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "Conditional logic"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "Add rule"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "Enable conditional logic"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "Action"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "Logic"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "if all rules match"
+msgstr ""
+
+#: build/forms-admin.js:6
+msgid "if any rule matches"
+msgstr ""
+
+#. translators: %s: field key.
+#: build/forms-admin.js:7
+#, js-format
+msgid "%s (missing field)"
+msgstr ""
+
+#: build/forms-admin.js:7
+#: build/forms-admin.js:8
+msgid "Field"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "Remove rule"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "Operator"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "is"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "is not"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "is greater than"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "is less than"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "contains"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "starts with"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "ends with"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "is empty"
+msgstr ""
+
+#: build/forms-admin.js:7
+msgid "is not empty"
+msgstr ""
+
+#. translators: %s: code of the main language, like IT.
+#: build/forms-admin.js:8
+#, js-format
+msgid "Empty in %s, so there is nothing to translate."
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Services that receive each entry"
+msgstr ""
+
+#: build/forms-admin.js:8
+#: build/forms-admin.js:20
+msgid "Integrations"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Add integration"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Entries are not sent to other services. Integrations come with the Barrio Suite extensions, like Mailchimp."
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "The extension of this integration is not active: its settings are kept, but entries are not sent. Activate it again to change them."
+msgstr ""
+
+#: build/forms-admin.js:8
+#: build/forms-admin.js:20
+#: build/forms-admin.js:37
+#: build/forms-admin.js:43
+msgid "Active"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Remove integration"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Send the entry"
+msgstr ""
+
+#: build/forms-admin.js:8
+#: build/forms-admin.js:20
+msgid "Do not send it"
+msgstr ""
+
+#: build/forms-admin.js:8
+#: build/forms-admin.js:20
+msgid "Add some fields first."
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Separated by commas, for example pdf, jpg, png."
+msgstr ""
+
+#: build/forms-admin.js:8
+#: build/forms-admin.js:12
+msgid "Add"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Name in the service"
+msgstr ""
+
+#: build/forms-admin.js:8
+#: build/forms-admin.js:20
+msgid "Remove"
+msgstr ""
+
+#: build/forms-admin.js:8
+#: build/forms-admin.js:12
+msgid "Field properties"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Select a field to edit its properties."
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Form structure · drag to reorder"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Option 1"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Option 2"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "No fields yet: add the first one."
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Field types"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Add field"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Conditional"
+msgstr ""
+
+#: build/forms-admin.js:8
+msgid "Remove field"
+msgstr ""
+
+#. translators: %d: number of choices not shown.
+#: build/forms-admin.js:9
+#, js-format
+msgid "+ %d more"
+msgstr ""
+
+#. translators: %s: allowed file extensions.
+#: build/forms-admin.js:10
+#, js-format
+msgid "File upload: %s"
+msgstr ""
+
+#. translators: %s: URL parameter.
+#: build/forms-admin.js:11
+#, js-format
+msgid "Hidden, from the URL parameter %s"
+msgstr ""
+
+#: build/forms-admin.js:11
+msgid "Hidden, with a fixed value"
+msgstr ""
+
+#. translators: %s: button text.
+#: build/forms-admin.js:12
+#, js-format
+msgid "Next page · button \"%s\""
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Consent text"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Next button"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Name in the entries"
+msgstr ""
+
+#: build/forms-admin.js:12
+#: build/forms-admin.js:13
+msgid "Label"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Links are allowed, for example <a href=\"/privacy-policy/\">privacy policy</a>. The text is kept with every entry as proof of consent."
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Key"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores."
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Empty option"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Placeholder"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Required field"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Error message"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Shown when the value is missing or not valid. Leave empty for the standard messages."
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Show this field"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Hide this field"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Rules can use only the fields above this one."
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Replace the choices with a preset"
+msgstr ""
+
+#: build/forms-admin.js:12
+msgid "Presets"
+msgstr ""
+
+#. translators: %d: number of the choice.
+#: build/forms-admin.js:13
+#, js-format
+msgid "Label of choice %d"
+msgstr ""
+
+#. translators: %d: number of the choice.
+#: build/forms-admin.js:14
+#, js-format
+msgid "Value of choice %d"
+msgstr ""
+
+#: build/forms-admin.js:14
+msgid "Remove choice"
+msgstr ""
+
+#: build/forms-admin.js:14
+msgid "The value is what entries and exports save: it stays the same in every language."
+msgstr ""
+
+#: build/forms-admin.js:14
+msgid "Move"
+msgstr ""
+
+#. translators: %s: name of the item.
+#: build/forms-admin.js:15
+#, js-format
+msgid "Picked up %s."
+msgstr ""
+
+#. translators: 1: name of the item; 2: new position; 3: number of items.
+#: build/forms-admin.js:16
+#, js-format
+msgid "%1$s moved to position %2$d of %3$d."
+msgstr ""
+
+#. translators: 1: name of the item; 2: new position; 3: number of items.
+#: build/forms-admin.js:17
+#, js-format
+msgid "%1$s dropped at position %2$d of %3$d."
+msgstr ""
+
+#. translators: %s: name of the item.
+#: build/forms-admin.js:18
+#, js-format
+msgid "Moving %s was cancelled."
+msgstr ""
+
+#: build/forms-admin.js:18
+msgid "To move an item, press space or enter, use the arrow keys, then press space or enter again to drop it, or escape to cancel."
+msgstr ""
+
+#: build/forms-admin.js:18
+msgid "Form saved."
+msgstr ""
+
+#: build/forms-admin.js:18
+#: build/forms-admin.js:47
+msgid "All forms"
+msgstr ""
+
+#: build/forms-admin.js:18
+msgid "Form name"
+msgstr ""
+
+#: build/forms-admin.js:18
+msgid "Form name (only for the admin)"
+msgstr ""
+
+#: build/forms-admin.js:18
+#: build/forms-admin.js:43
+msgid "Shortcode copied."
+msgstr ""
+
+#. translators: %s: language code, like IT.
+#: build/forms-admin.js:19
+#, js-format
+msgid "%s (main language)"
+msgstr ""
+
+#: build/forms-admin.js:19
+#: build/forms-admin.js:20
+msgid "Preview"
+msgstr ""
+
+#: build/forms-admin.js:19
+#: build/forms-admin.js:40
+#: build/forms-admin.js:41
+msgid "Saving…"
+msgstr ""
+
+#: build/forms-admin.js:19
+#: build/forms-admin.js:40
+#: build/forms-admin.js:41
+msgid "Save"
+msgstr ""
+
+#: build/forms-admin.js:19
+msgid "Reload the form"
+msgstr ""
+
+#: build/forms-admin.js:19
+msgid "Save my version anyway"
+msgstr ""
+
+#. translators: 1: code of the language being translated, like EN; 2: code of the main language, like IT.
+#: build/forms-admin.js:20
+#, js-format
+msgid "You are editing the %1$s texts: an empty text shows the %2$s one. The settings in grey are the same in every language: change them in %2$s."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Fields"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Options"
+msgstr ""
+
+#: build/forms-admin.js:20
+#: build/forms-admin.js:27
+msgid "Notifications"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Email preview"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "To"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Reply to"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Subject"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Conditional logic and steps work as on the site; the form is not sent. The styles of the theme are not loaded."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "With sample values: the field label in square brackets, or a realistic value for emails, dates and choices."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Submission"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Submit button"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "After sending"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Show a message"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Open another page"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Page to open"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Like /thank-you/ or https://example.com/thank-you/."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Success message"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Leave empty for the standard message."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Emails sent after each entry"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Admin notification"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "New entry: {{form_title}}"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Add notification"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "No email is sent after a submission: entries are saved anyway."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Notification"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Remove notification"
+msgstr ""
+
+#: build/forms-admin.js:20
+#: build/forms-admin.js:45
+msgid "Name"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Only for the admin, for example in the notes of the entries."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Send to"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Addresses separated by commas; merge tags are allowed, like {{admin_email}} or {{email}}."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Optional, for example {{email}}."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Heading"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Shown at the top of the email. Leave empty to use the subject."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Message"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "HTML is allowed."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Merge tags"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Attach the uploaded files"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Send it"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Leave empty to keep the saved password."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Defined in wp-config.php with the BARRIO_SMTP_PASSWORD constant."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "The saved password can no longer be read, probably because the WordPress security keys have changed. Enter it again."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Saved: leave empty to keep it."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "The saved value can no longer be read, probably because the WordPress security keys have changed. Enter it again."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Host"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Port"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Encryption"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "None"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Username"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Leave empty if the server does not require authentication."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Password"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Hide"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Show"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "From email"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "The sender of every email the site sends. SMTP servers usually accept only the addresses of their own domain."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "From name"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Save your changes first: the test uses the saved settings."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Leave empty to send it to your own address."
+msgstr ""
+
+#: build/forms-admin.js:20
+#: build/forms-admin.js:28
+msgid "Sending…"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Send test email"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Logo"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Shown at the top of form emails, 48 pixels high. Without a logo the site name is shown."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Replace logo"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Choose logo"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Accent color"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Background color"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Footer"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Shown at the bottom of form emails; links are allowed. Leave empty to show the site name."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Delete entries after (days)"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Entries older than this are deleted every day, with their files. Leave 0 to keep them until you delete them."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "The emails leave through an SMTP server, so they do not end up in spam, and carry the logo of the site; the entries are kept only as long as needed, as the GDPR asks."
+msgstr ""
+
+#: build/forms-admin.js:20
+#: build/forms-admin.js:21
+msgid "Time zone"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "For the dates of entries and emails, and for the time of the nightly updates."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Search engines"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "While the site was being built WordPress may have asked search engines not to index it."
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Automatic updates"
+msgstr ""
+
+#: build/forms-admin.js:20
+msgid "Barrio Suite and its extensions get fixes and new features by themselves."
+msgstr ""
+
+#: build/forms-admin.js:20
+#: build/forms-admin.js:22
+#: build/forms-admin.js:53
+msgid "Site launch"
+msgstr ""
+
+#. translators: %d: number of steps left to set up.
+#: build/forms-admin.js:21
+#, js-format
+msgid "Follow the step-by-step guide to configure and publish the site: %d steps to go."
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Start the launch"
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "The site is ready to go online"
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Everything in the launch guide is configured."
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Review the guide"
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Back to the dashboard"
+msgstr ""
+
+#: build/forms-admin.js:21
+#: build/forms-admin.js:41
+msgid "Email template"
+msgstr ""
+
+#: build/forms-admin.js:21
+#: build/forms-admin.js:41
+msgid "Privacy"
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Let search engines index the site"
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "The same setting as Search engine visibility in Settings → Reading."
+msgstr ""
+
+#: build/forms-admin.js:21
+#: build/forms-admin.js:41
+msgid "Update automatically every night"
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Every night after midnight (site time) Barrio Suite and every installed extension are updated to the latest version."
+msgstr ""
+
+#: build/forms-admin.js:21
+#: build/forms-admin.js:41
+msgid "Automatic updates of plugins are not available on this site."
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Configured"
+msgstr ""
+
+#: build/forms-admin.js:21
+msgid "Skipped"
+msgstr ""
+
+#. translators: 1: current step number; 2: total number of steps.
+#: build/forms-admin.js:22
+#, js-format
+msgid "Step %1$d of %2$d"
+msgstr ""
+
+#: build/forms-admin.js:22
+msgid "Skip"
+msgstr ""
+
+#: build/forms-admin.js:22
+msgid "Save and continue"
+msgstr ""
+
+#: build/forms-admin.js:22
+msgid "Continue"
+msgstr ""
+
+#: build/forms-admin.js:22
+msgid "Contact forms with a drag & drop builder"
+msgstr ""
+
+#: build/forms-admin.js:22
+msgid "Active forms"
+msgstr ""
+
+#: build/forms-admin.js:22
+#: build/forms-admin.js:45
+#: build/forms-admin.js:53
+msgid "Entries"
+msgstr ""
+
+#: build/forms-admin.js:22
+msgid "Unread entries"
+msgstr ""
+
+#: build/forms-admin.js:22
+msgid "Manage forms"
+msgstr ""
+
+#. translators: %s: form name.
+#: build/forms-admin.js:23
+#, js-format
+msgid "%s (trash)"
+msgstr ""
+
+#: build/forms-admin.js:23
+msgid "There are no forms yet."
+msgstr ""
+
+#: build/forms-admin.js:23
+msgid "Marked as read."
+msgstr ""
+
+#: build/forms-admin.js:23
+msgid "Marked as unread."
+msgstr ""
+
+#. translators: %d: number of entries to delete.
+#: build/forms-admin.js:24
+#, js-format
+msgid "Delete %d entry permanently, with its files?"
+msgid_plural "Delete %d entries permanently, with their files?"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of entries deleted.
+#: build/forms-admin.js:25
+#: build/forms-admin.js:43
+#, js-format
+msgid "%d entry deleted."
+msgid_plural "%d entries deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/forms-admin.js:25
+msgid "New"
+msgstr ""
+
+#: build/forms-admin.js:25
+#: build/forms-admin.js:46
+msgid "Actions"
+msgstr ""
+
+#. translators: %d: entry number.
+#: build/forms-admin.js:26
+#, js-format
+msgid "Actions for entry #%d"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "View"
+msgstr ""
+
+#: build/forms-admin.js:26
+#: build/forms-admin.js:27
+msgid "Mark as unread"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Mark as read"
+msgstr ""
+
+#: build/forms-admin.js:26
+#: build/forms-admin.js:27
+#: build/forms-admin.js:37
+#: build/forms-admin.js:47
+msgid "Delete"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Search entries"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "No entries found."
+msgstr ""
+
+#: build/forms-admin.js:26
+#: build/forms-admin.js:46
+#: build/forms-admin.js:47
+msgid "Status"
+msgstr ""
+
+#: build/forms-admin.js:26
+#: build/forms-admin.js:41
+msgid "All entries"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Unread"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Read"
+msgstr ""
+
+#: build/forms-admin.js:26
+#: build/forms-admin.js:47
+msgid "All languages"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Export CSV"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Note"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Sent"
+msgstr ""
+
+#: build/forms-admin.js:26
+msgid "Error"
+msgstr ""
+
+#. translators: %d: entry number.
+#: build/forms-admin.js:27
+#, js-format
+msgid "Entry #%d"
+msgstr ""
+
+#: build/forms-admin.js:27
+msgid "Delete this entry permanently, with its files?"
+msgstr ""
+
+#: build/forms-admin.js:27
+msgid "Answers"
+msgstr ""
+
+#: build/forms-admin.js:27
+msgid "Details"
+msgstr ""
+
+#: build/forms-admin.js:27
+msgid "Form version"
+msgstr ""
+
+#: build/forms-admin.js:27
+msgid "Resend with the current settings of the notification."
+msgstr ""
+
+#. translators: %s: notification name.
+#: build/forms-admin.js:28
+#, js-format
+msgid "Notification \"%s\" sent."
+msgstr ""
+
+#: build/forms-admin.js:28
+msgid "Resend"
+msgstr ""
+
+#: build/forms-admin.js:28
+msgid "History"
+msgstr ""
+
+#: build/forms-admin.js:28
+msgid "Add a note"
+msgstr ""
+
+#: build/forms-admin.js:28
+msgid "Add note"
+msgstr ""
+
+#. translators: %s: extension name.
+#: build/forms-admin.js:29
+#, js-format
+msgid "%s installed and activated."
+msgstr ""
+
+#. translators: %s: extension name.
+#: build/forms-admin.js:30
+#, js-format
+msgid "%s updated."
+msgstr ""
+
+#. translators: %s: extension name.
+#: build/forms-admin.js:31
+#, js-format
+msgid "%s activated."
+msgstr ""
+
+#. translators: %s: extension name.
+#: build/forms-admin.js:32
+#, js-format
+msgid "%s deactivated."
+msgstr ""
+
+#. translators: %s: extension name.
+#: build/forms-admin.js:33
+#, js-format
+msgid "%s deleted."
+msgstr ""
+
+#. translators: %s: extension name.
+#: build/forms-admin.js:34
+#, js-format
+msgid "Delete %s? Its files are removed from the site; you can install it again from this page."
+msgstr ""
+
+#: build/forms-admin.js:34
+msgid "Please wait…"
+msgstr ""
+
+#: build/forms-admin.js:34
+msgid "Search extensions"
+msgstr ""
+
+#: build/forms-admin.js:34
+msgid "Upload a zip"
+msgstr ""
+
+#: build/forms-admin.js:34
+#: build/forms-admin.js:40
+msgid "Checking…"
+msgstr ""
+
+#: build/forms-admin.js:34
+#: build/forms-admin.js:40
+msgid "Check for updates"
+msgstr ""
+
+#: build/forms-admin.js:34
+msgid "Every extension is a separate plugin: it can also be deactivated or deleted from Plugins. Account settings, like API keys, are in <a>Forms → Settings</a>; each form chooses in its Integrations tab whether to use an extension and how."
+msgstr ""
+
+#. translators: %s: version number, for example 0.2.0.
+#: build/forms-admin.js:35
+#, js-format
+msgid "Not installed. Latest version: %s."
+msgstr ""
+
+#. translators: 1: installed version; 2: available version.
+#: build/forms-admin.js:36
+#, js-format
+msgid "Version %1$s installed. Version %2$s is available."
+msgstr ""
+
+#. translators: %s: installed version.
+#: build/forms-admin.js:37
+#, js-format
+msgid "Version %s installed."
+msgstr ""
+
+#: build/forms-admin.js:37
+msgid "Install"
+msgstr ""
+
+#: build/forms-admin.js:37
+msgid "Deactivate"
+msgstr ""
+
+#: build/forms-admin.js:37
+msgid "Activate"
+msgstr ""
+
+#: build/forms-admin.js:37
+msgid "Update"
+msgstr ""
+
+#: build/forms-admin.js:37
+msgid "No extensions found."
+msgstr ""
+
+#: build/forms-admin.js:37
+msgid "No extensions are available yet."
+msgstr ""
+
+#. translators: %s: installed version.
+#: build/forms-admin.js:38
+#, js-format
+msgid "Barrio Suite %s is installed."
+msgstr ""
+
+#. translators: 1: installed version; 2: available version.
+#: build/forms-admin.js:39
+#, js-format
+msgid "Barrio Suite %1$s is installed. Version %2$s is available."
+msgstr ""
+
+#. translators: %s: installed version.
+#: build/forms-admin.js:40
+#, js-format
+msgid "Barrio Suite %s is installed, the latest version."
+msgstr ""
+
+#: build/forms-admin.js:40
+#: build/forms-admin.js:41
+msgid "Settings saved."
+msgstr ""
+
+#: build/forms-admin.js:40
+msgid "Updates"
+msgstr ""
+
+#: build/forms-admin.js:40
+msgid "New versions of Barrio Suite and of its extensions are published on GitHub. They also appear in Dashboard → Updates, like those of the other plugins."
+msgstr ""
+
+#: build/forms-admin.js:40
+msgid "Updating…"
+msgstr ""
+
+#. translators: %s: available version.
+#: build/forms-admin.js:41
+#, js-format
+msgid "Update to %s"
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Every night after midnight (site time) Barrio Suite and every installed extension are updated to the latest version. Each one can also be turned on or off in Plugins."
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Uninstall"
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Deactivating Barrio Suite never deletes anything. Deleting it from Plugins keeps the data too, unless you choose otherwise here."
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Delete all data when Barrio Suite is deleted"
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Forms, entries with their files, settings and permissions of this site. It cannot be undone: export the entries you need first."
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Create and edit forms"
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "See and manage entries"
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail."
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Logo, colors and footer of the form notifications and of the test email."
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Sends an email with the saved settings and the template of the notifications."
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Requests to export or erase personal data, from Tools in WordPress, include the form entries that contain the email address in an email field."
+msgstr ""
+
+#: build/forms-admin.js:41
+msgid "Deletes the entries of every form, with their files, right away. It cannot be undone. To delete only some, select them in Entries."
+msgstr ""
+
+#. translators: %d: number of entries of every form.
+#: build/forms-admin.js:42
+#, js-format
+msgid "Delete %d entry permanently, with its files? This cannot be undone."
+msgid_plural "Delete all %d entries of every form permanently, with their files? This cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/forms-admin.js:43
+msgid "There are no entries to delete."
+msgstr ""
+
+#: build/forms-admin.js:43
+msgid "Deleting…"
+msgstr ""
+
+#: build/forms-admin.js:43
+msgid "Delete all entries"
+msgstr ""
+
+#: build/forms-admin.js:43
+msgid "Permissions"
+msgstr ""
+
+#: build/forms-admin.js:43
+msgid "What each role can do in Forms. Administrators can always do everything; only administrators change these settings."
+msgstr ""
+
+#: build/forms-admin.js:43
+msgctxt "form status"
+msgid "Closed"
+msgstr ""
+
+#: build/forms-admin.js:43
+msgid "Trash"
+msgstr ""
+
+#. translators: 1: form name; 2: number of entries.
+#: build/forms-admin.js:44
+#, js-format
+msgid "\"%1$s\" has %2$d entries, so it cannot be deleted: move it to the trash? The entries are kept."
+msgstr ""
+
+#. translators: %s: form name.
+#: build/forms-admin.js:45
+#, js-format
+msgid "Delete \"%s\" permanently?"
+msgstr ""
+
+#: build/forms-admin.js:45
+msgid "Form moved to the trash."
+msgstr ""
+
+#: build/forms-admin.js:45
+msgid "Form deleted."
+msgstr ""
+
+#. translators: %d: number of entries.
+#: build/forms-admin.js:46
+#, js-format
+msgid "%d entry"
+msgid_plural "%d entries"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/forms-admin.js:46
+msgid "Translations"
+msgstr ""
+
+#: build/forms-admin.js:46
+msgid "Last modified"
+msgstr ""
+
+#. translators: %s: form name.
+#: build/forms-admin.js:47
+#, js-format
+msgid "Actions for \"%s\""
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Restore"
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Form restored."
+msgstr ""
+
+#: build/forms-admin.js:47
+#: build/forms-admin.js:48
+msgid "Delete permanently"
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Edit"
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Duplicate"
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Form duplicated."
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Copy shortcode"
+msgstr ""
+
+#: build/forms-admin.js:47
+#: build/forms-admin.js:51
+msgid "Close to new entries"
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Form closed."
+msgstr ""
+
+#: build/forms-admin.js:47
+#: build/forms-admin.js:50
+msgid "Reopen"
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Form reopened."
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "Search forms"
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "The trash is empty."
+msgstr ""
+
+#: build/forms-admin.js:47
+msgid "No forms found."
+msgstr ""
+
+#. translators: %d: number of forms restored.
+#: build/forms-admin.js:48
+#, js-format
+msgid "%d form restored."
+msgid_plural "%d forms restored."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of forms to delete.
+#: build/forms-admin.js:49
+#, js-format
+msgid "Delete %d form permanently?"
+msgid_plural "Delete %d forms permanently?"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of forms deleted.
+#: build/forms-admin.js:50
+#, js-format
+msgid "%d form deleted."
+msgid_plural "%d forms deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of forms reopened.
+#: build/forms-admin.js:51
+#, js-format
+msgid "%d form reopened."
+msgid_plural "%d forms reopened."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of forms closed.
+#: build/forms-admin.js:52
+#, js-format
+msgid "%d form closed."
+msgid_plural "%d forms closed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/forms-admin.js:52
+msgid "Move to trash"
+msgstr ""
+
+#. translators: %d: number of forms moved to the trash.
+#: build/forms-admin.js:53
+#, js-format
+msgid "%d form moved to the trash."
+msgid_plural "%d forms moved to the trash."
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/forms-admin.js:53
+msgid "New form"
+msgstr ""
+
+#: build/forms-admin.js:53
+msgid "Sections"
+msgstr ""
+
+#: build/forms-admin.js:53
+msgid "Plugins that connect Barrio Suite to other services."
+msgstr ""
+
+#: build/forms-admin.js:53
+msgid "Settings of the whole plugin, like updates."
+msgstr ""
+
+#: build/forms-admin.js:53
+msgid "Check that the site is ready to go online and configure what is missing."
+msgstr ""
+
+#: build/forms-admin.js:53
+msgid "Contact forms, their notifications and the email of the site."
+msgstr ""
+
+#: modules/forms/assets/block/index.js:36
+msgid "Choose a form"
+msgstr ""
+
+#: modules/forms/assets/block/index.js:37
+msgid "Loading…"
+msgstr ""
+
+#: modules/forms/assets/block/block.json
+msgctxt "block title"
+msgid "Form"
+msgstr ""
+
+#: modules/forms/assets/block/block.json
+msgctxt "block description"
+msgid "Shows a Barrio Suite form."
+msgstr ""
+
+#: modules/forms/assets/block/block.json
+msgctxt "block keyword"
+msgid "contact"
+msgstr ""
+
+#: modules/forms/assets/block/block.json
+msgctxt "block keyword"
+msgid "barrio"
+msgstr ""

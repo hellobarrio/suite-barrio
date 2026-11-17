@@ -51,10 +51,17 @@ final class Admin {
 		$asset = require $asset_file;
 		wp_enqueue_script( 'barrio-forms-admin', plugins_url( 'build/forms-admin.js', $root ), $asset['dependencies'], $asset['version'], true );
 		wp_add_inline_script( 'barrio-forms-admin', 'window.barrioAdmin = ' . wp_json_encode( self::data() ) . ';', 'before' );
-		wp_set_script_translations( 'barrio-forms-admin', 'barrio-suite' );
+		wp_set_script_translations( 'barrio-forms-admin', 'barrio-suite', dirname( $root ) . '/languages' );
 		wp_enqueue_style( 'barrio-forms-admin', plugins_url( 'build/forms-admin.css', $root ), [ 'wp-components' ], $asset['version'] );
-		// Per scegliere il logo delle email dalla libreria dei media.
-		wp_enqueue_media();
+		wp_style_add_data( 'barrio-forms-admin', 'rtl', 'replace' );
+		// Il logo delle email, in Form → Impostazioni e nella Messa online.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- solo quale pagina caricare.
+		$page = sanitize_key( wp_unslash( $_GET['page'] ?? '' ) );
+		$tab  = sanitize_key( wp_unslash( $_GET['tab'] ?? '' ) );
+		if ( ( 'barrio-forms' === $page && 'settings' === $tab ) || ( self::PAGE === $page && isset( $_GET['launch'] ) ) ) {
+			// phpcs:enable
+			wp_enqueue_media();
+		}
 	}
 
 	// L'intestazione, compreso il titolo, la mostra React. wp-header-end tiene gli avvisi di
@@ -72,34 +79,105 @@ final class Admin {
 	 * Scelte pronte per select, radio e checkbox. Un'estensione ne aggiunge con il filtro
 	 * barrio_forms_presets: 'id' => [ 'label' => 'Nome', 'choices' => [ [ 'valore', 'Etichetta' ], … ] ].
 	 * Coppie e non { valore: etichetta }: in JavaScript le chiavi numeriche cambierebbero ordine.
-	 * ponytail: etichette in italiano, come nel prototipo; per un sito con un'altra lingua principale
-	 * le nazioni si possono generare nel browser con Intl.DisplayNames (i valori sono codici ISO).
+	 * Con intl (region, language, weekday, month) l'etichetta è vuota: la scrive il builder con Intl.
 	 *
-	 * @return array<string, array{label: string, choices: list<array{string, string}>}>
+	 * @return array<string, array{label: string, choices: list<array{string, string}>, intl?: string}>
 	 */
 	public static function presets(): array {
-		$choices = json_decode( (string) file_get_contents( dirname( __DIR__ ) . '/presets.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- file del plugin.
-		$labels  = [
-			'countries'      => __( 'Countries', 'barrio-suite' ),
-			'regions_it'     => __( 'Italian regions', 'barrio-suite' ),
-			'provinces_it'   => __( 'Italian provinces', 'barrio-suite' ),
-			'us_states'      => __( 'US states', 'barrio-suite' ),
-			'continents'     => __( 'Continents', 'barrio-suite' ),
-			'days'           => __( 'Days of the week', 'barrio-suite' ),
-			'months'         => __( 'Months', 'barrio-suite' ),
-			'languages'      => __( 'Languages', 'barrio-suite' ),
-			'education'      => __( 'Education', 'barrio-suite' ),
-			'marital_status' => __( 'Marital status', 'barrio-suite' ),
-			'gender'         => __( 'Gender', 'barrio-suite' ),
-		];
-		$presets = [];
-		foreach ( $labels as $id => $label ) {
-			$presets[ $id ] = [
-				'label'   => $label,
-				'choices' => $choices[ $id ],
-			];
-		}
-		return apply_filters( 'barrio_forms_presets', $presets );
+		$data  = json_decode( (string) file_get_contents( dirname( __DIR__ ) . '/presets.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- file del plugin.
+		$pairs = static fn( array $labels ): array => array_map( null, array_keys( $labels ), array_values( $labels ) );
+		$intl  = static fn( array $values ): array => array_map( static fn( string $value ): array => [ $value, '' ], $values );
+		return apply_filters(
+			'barrio_forms_presets',
+			[
+				'countries'      => [
+					'label'   => __( 'Countries', 'barrio-suite' ),
+					'intl'    => 'region',
+					'choices' => $intl( $data['countries'] ),
+				],
+				'regions_it'     => [
+					'label'   => __( 'Italian regions', 'barrio-suite' ),
+					'choices' => $data['regions_it'],
+				],
+				'provinces_it'   => [
+					'label'   => __( 'Italian provinces', 'barrio-suite' ),
+					'choices' => $data['provinces_it'],
+				],
+				'us_states'      => [
+					'label'   => __( 'US states', 'barrio-suite' ),
+					'choices' => $data['us_states'],
+				],
+				'continents'     => [
+					'label'   => __( 'Continents', 'barrio-suite' ),
+					'choices' => $pairs(
+						[
+							'africa'        => __( 'Africa', 'barrio-suite' ),
+							'antarctica'    => __( 'Antarctica', 'barrio-suite' ),
+							'asia'          => __( 'Asia', 'barrio-suite' ),
+							'europe'        => __( 'Europe', 'barrio-suite' ),
+							'north_america' => __( 'North America', 'barrio-suite' ),
+							'oceania'       => __( 'Oceania', 'barrio-suite' ),
+							'south_america' => __( 'South America', 'barrio-suite' ),
+						]
+					),
+				],
+				'days'           => [
+					'label'   => __( 'Days of the week', 'barrio-suite' ),
+					'intl'    => 'weekday',
+					'choices' => $intl( [ 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday' ] ),
+				],
+				'months'         => [
+					'label'   => __( 'Months', 'barrio-suite' ),
+					'intl'    => 'month',
+					'choices' => $intl( [ 'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december' ] ),
+				],
+				'languages'      => [
+					'label'   => __( 'Languages', 'barrio-suite' ),
+					'intl'    => 'language',
+					'choices' => $intl( $data['languages'] ),
+				],
+				// I titoli di studio italiani.
+				'education'      => [
+					'label'   => __( 'Education', 'barrio-suite' ),
+					'choices' => $pairs(
+						[
+							'primary'             => __( 'Primary school certificate', 'barrio-suite' ),
+							'lower_secondary'     => __( 'Lower secondary school certificate', 'barrio-suite' ),
+							'upper_secondary'     => __( 'Upper secondary school diploma', 'barrio-suite' ),
+							'bachelor'            => __( 'Bachelor\'s degree', 'barrio-suite' ),
+							'master'              => __( 'Master\'s degree', 'barrio-suite' ),
+							'first_level_master'  => __( 'First-level master', 'barrio-suite' ),
+							'second_level_master' => __( 'Second-level master', 'barrio-suite' ),
+							'phd'                 => __( 'PhD', 'barrio-suite' ),
+						]
+					),
+				],
+				'marital_status' => [
+					'label'   => __( 'Marital status', 'barrio-suite' ),
+					'choices' => $pairs(
+						[
+							'single'     => __( 'Single', 'barrio-suite' ),
+							'married'    => __( 'Married', 'barrio-suite' ),
+							'separated'  => __( 'Separated', 'barrio-suite' ),
+							'divorced'   => __( 'Divorced', 'barrio-suite' ),
+							'widowed'    => __( 'Widowed', 'barrio-suite' ),
+							'cohabiting' => __( 'Cohabiting', 'barrio-suite' ),
+						]
+					),
+				],
+				'gender'         => [
+					'label'   => __( 'Gender', 'barrio-suite' ),
+					'choices' => $pairs(
+						[
+							'man'               => __( 'Man', 'barrio-suite' ),
+							'woman'             => __( 'Woman', 'barrio-suite' ),
+							'other'             => __( 'Other', 'barrio-suite' ),
+							'prefer_not_to_say' => __( 'Prefer not to say', 'barrio-suite' ),
+						]
+					),
+				],
+			]
+		);
 	}
 
 	/** @return array<string, mixed> */

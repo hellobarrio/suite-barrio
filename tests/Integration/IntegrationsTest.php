@@ -3,11 +3,8 @@
 namespace BarrioSuite\Tests\Integration;
 
 use BarrioSuite\Database\Db;
-use BarrioSuite\Forms\FieldTypes;
 use BarrioSuite\Forms\Model\Entry;
-use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
-use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Repository\FormRepository;
 use RuntimeException;
 use WP_Error;
@@ -255,35 +252,6 @@ final class IntegrationsTest extends WP_UnitTestCase {
 
 		$this->assertSame( [ 'endpoint' => 'https://crm.example.com' ], $view['crm'] );
 		$this->assertSame( 200, $this->request( 'PUT', '/settings', [ 'integrations' => $view ] )->get_status() );
-	}
-
-	public function test_an_extension_registers_a_field_type(): void {
-		FieldTypes::register(
-			'tax_code',
-			[
-				'label'     => 'Tax code',
-				'normalize' => static fn( Field $field, mixed $raw ): array => [ strtoupper( trim( (string) $raw ) ) ],
-				'validate'  => static fn( Field $field, string $value ): ?string => preg_match( '/^[A-Z0-9]{16}$/', $value ) ? null : 'Not a tax code.',
-			]
-		);
-		$this->assertSame( 'Tax code', FieldTypes::labels()['tax_code'] );
-		$this->assertSame( 'page_break', array_key_last( FieldTypes::labels() ), 'The page break stays last in the builder.' );
-
-		$form = FormRepository::create( 'Tax', [ 'it' => [ 'submit_label' => 'Invia' ] ], [], new FormVersion( [ new Field( 'cf', 'tax_code', [ 'it' => [ 'label' => 'Codice fiscale' ] ], true ) ] ) );
-		// Senza render è un campo di testo.
-		$this->assertMatchesRegularExpression( '/<input type="text"[^>]* name="cf" required/', do_shortcode( "[barrio_form id=\"{$form->id}\"]" ) );
-
-		$this->assertSame( [ 'cf' => 'Not a tax code.' ], $this->submit( $form, 'it', [ 'cf' => 'abc' ] )->get_data()['data']['fields'] );
-		$this->assertSame( 201, $this->submit( $form, 'it', [ 'cf' => ' rssmra80a01l219x ' ] )->get_status() );
-		global $wpdb;
-		$this->assertSame( 'RSSMRA80A01L219X', $wpdb->get_var( $wpdb->prepare( 'SELECT value FROM %i ORDER BY entry_id DESC LIMIT 1', Db::table( 'entry_values' ) ) ) );
-	}
-
-	public function test_core_field_types_cannot_be_replaced(): void {
-		$this->setExpectedIncorrectUsage( 'BarrioSuite\Forms\FieldTypes::register' );
-		FieldTypes::register( 'email', [ 'label' => 'Fake email' ] );
-
-		$this->assertSame( 'Email', FieldTypes::labels()['email'] );
 	}
 
 	public function test_extensions_know_when_a_form_is_rendered(): void {

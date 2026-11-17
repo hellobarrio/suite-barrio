@@ -65,24 +65,23 @@ export function Builder( { id } ) {
 	// La lingua dei testi che si modificano (e delle anteprime).
 	const [ lang, setLang ] = useState( main );
 
-	const load = ( data ) => {
+	// Ciò che si è scritto durante il salvataggio (sent) resta, da salvare.
+	const load = ( data, sent ) => {
 		const loaded = trimTranslations( withTexts( data, main ), languages );
-		setForm( loaded );
 		setSaved( loaded );
+		setForm( ( now ) =>
+			sent && now !== sent
+				? { ...now, id: loaded.id, version: loaded.version }
+				: loaded
+		);
 	};
 	const fail = ( error ) =>
 		setNotice( {
 			status: 'error',
 			message: errorMessage( error ),
-			action: 'barrio_version_conflict' === error.code && (
-				<button
-					type="button"
-					className="barrio-button"
-					onClick={ () => window.location.reload() }
-				>
-					{ __( 'Reload the form', 'barrio-suite' ) }
-				</button>
-			),
+			conflict:
+				'barrio_version_conflict' === error.code &&
+				error.data.current_version,
 		} );
 
 	useEffect( () => {
@@ -111,18 +110,18 @@ export function Builder( { id } ) {
 			.catch( fail )
 			.finally( () => setBusy( null ) );
 	};
-	const save = () =>
+	const save = ( base = form.version ) =>
 		request(
 			'save',
 			form.id
 				? {
 						path: `/barrio/v1/forms/${ form.id }`,
 						method: 'PUT',
-						data: { ...payload, base_version: form.version },
+						data: { ...payload, base_version: base },
 					}
 				: { path: '/barrio/v1/forms', method: 'POST', data: payload },
 			( data ) => {
-				load( data );
+				load( data, form );
 				if ( ! form.id ) {
 					window.history.replaceState(
 						null,
@@ -201,7 +200,7 @@ export function Builder( { id } ) {
 								code,
 								code === main
 									? sprintf(
-											/* translators: %s: codice della lingua (IT). */
+											/* translators: %s: language code, like IT. */
 											__(
 												'%s (main language)',
 												'barrio-suite'
@@ -230,7 +229,7 @@ export function Builder( { id } ) {
 					type="button"
 					className="barrio-button is-primary"
 					disabled={ !! busy || ( form.id && ! dirty ) }
-					onClick={ save }
+					onClick={ () => save() }
 				>
 					<Lucide name="save" />
 					<span className="barrio-button__text">
@@ -240,13 +239,51 @@ export function Builder( { id } ) {
 					</span>
 				</button>
 			</Bar>
-			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
+			<Notice
+				notice={
+					notice?.conflict
+						? {
+								...notice,
+								action: (
+									<>
+										<button
+											type="button"
+											className="barrio-button"
+											onClick={ () =>
+												window.location.reload()
+											}
+										>
+											{ __(
+												'Reload the form',
+												'barrio-suite'
+											) }
+										</button>
+										<button
+											type="button"
+											className="barrio-button"
+											disabled={ !! busy }
+											onClick={ () =>
+												save( notice.conflict )
+											}
+										>
+											{ __(
+												'Save my version anyway',
+												'barrio-suite'
+											) }
+										</button>
+									</>
+								),
+							}
+						: notice
+				}
+				onClose={ () => setNotice( null ) }
+			/>
 			<Notice
 				notice={
 					lang !== main && {
 						status: 'info',
 						message: sprintf(
-							/* translators: 1: lingua che si traduce (EN); 2: lingua principale (IT). */
+							/* translators: 1: code of the language being translated, like EN; 2: code of the main language, like IT. */
 							__(
 								'You are editing the %1$s texts: an empty text shows the %2$s one. The settings in grey are the same in every language: change them in %2$s.',
 								'barrio-suite'
@@ -279,6 +316,7 @@ export function Builder( { id } ) {
 						{ 'fields' === tab.name && (
 							<FieldsTab
 								fields={ form.fields }
+								saved={ saved.fields }
 								lang={ lang }
 								onChange={ ( fields ) => update( { fields } ) }
 							/>
@@ -339,9 +377,11 @@ export function Builder( { id } ) {
 								) }
 							</p>
 						) }
+						{ /* allow-same-origin: con l'origine opaca gli script module del form non si caricherebbero. */ }
 						<iframe
 							className="barrio-preview-frame"
 							title={ __( 'Preview', 'barrio-suite' ) }
+							sandbox="allow-scripts allow-same-origin allow-forms"
 							srcDoc={ preview.html }
 							onLoad={ fitContent }
 						/>

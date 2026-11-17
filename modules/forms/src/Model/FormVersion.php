@@ -12,6 +12,5 @@ final readonly class FormVersion {
 		public ?int $id = null,
 		public int $version = 0,
 		public ?string $created_at = null,
-		public ?int $created_by = null,
 	) {}
 }

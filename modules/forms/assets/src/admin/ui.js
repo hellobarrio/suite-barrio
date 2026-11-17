@@ -1,5 +1,6 @@
 // Componenti di base delle pagine admin: HTML nativo con lo stile di admin.css. Da
 // @wordpress/components si usa solo ciò che l'HTML non ha (modale, popover e menu, schede).
+import { speak } from '@wordpress/a11y';
 import {
 	Dropdown,
 	MenuItem,
@@ -295,7 +296,7 @@ export function Shortcode( { id, onCopy } ) {
 			type="button"
 			className="barrio-chip"
 			aria-label={ sprintf(
-				/* translators: %s: shortcode del form. */
+				/* translators: %s: form shortcode. */
 				__( 'Copy %s', 'barrio-suite' ),
 				code
 			) }
@@ -435,15 +436,24 @@ function MenuItems( { label, items, onClose } ) {
 	);
 }
 
-// notice: { status: success|error, message, action? }.
+// notice: { status: success|error|info, message, action? }. Lo annuncia speak(): un role="status"
+// che compare, invece di cambiare, non viene letto in modo affidabile.
 export function Notice( { notice, onClose } ) {
+	const message = notice?.message;
+	const assertive = 'error' === notice?.status;
+	useEffect( () => {
+		if ( 'string' === typeof message ) {
+			speak( message, assertive ? 'assertive' : 'polite' );
+		}
+	}, [ message, assertive ] );
 	if ( ! notice ) {
 		return null;
 	}
 	return (
 		<div
-			className={ `barrio-notice is-${ notice.status }` }
-			role={ 'error' === notice.status ? 'alert' : 'status' }
+			className={ `barrio-notice is-${ notice.status }${
+				onClose ? ' is-sticky' : ''
+			}` }
 		>
 			<p>{ notice.message }</p>
 			{ notice.action }
@@ -811,6 +821,8 @@ function Filters( {
  * @param {(ids: number[]) => Array} props.bulk    Le voci del menu per le righe selezionate.
  * @param {string}                   props.empty   Il testo senza righe.
  * @param {Object}                   props.toolbar In fondo alla barra.
+ * @param {Object}                   props.shown   Facoltativo: { chiave: mostrata }, le colonne scelte a mano.
+ * @param {(shown: Object) => void}  props.onShown
  */
 export function Table( {
 	columns,
@@ -825,12 +837,16 @@ export function Table( {
 	bulk,
 	empty,
 	toolbar,
+	shown: controlled,
+	onShown,
 } ) {
 	// La selezione vale nella query in cui è nata e solo per le righe ancora mostrate: cambiando
 	// pagina, filtro o ordine si azzera, e le righe eliminate ne escono da sole.
 	const [ selection, setSelection ] = useState( { query, ids: [] } );
 	// Le colonne mostrate o nascoste a mano; le altre seguono hidden.
-	const [ shown, setShown ] = useState( {} );
+	const [ own, setOwn ] = useState( {} );
+	const shown = controlled ?? own;
+	const setShown = onShown ?? setOwn;
 
 	const last = pages( total );
 	const page = Math.min( query.page, last );
@@ -890,7 +906,7 @@ export function Table( {
 				<input
 					type="checkbox"
 					aria-label={ sprintf(
-						/* translators: %d: numero della riga (la colonna #). */
+						/* translators: %d: row number (the # column). */
 						__( 'Select #%d', 'barrio-suite' ),
 						row.id
 					) }
@@ -951,7 +967,7 @@ export function Table( {
 						<Menu
 							inBar
 							text={ sprintf(
-								/* translators: %d: righe selezionate. */
+								/* translators: %d: number of selected rows. */
 								__( '%d selected', 'barrio-suite' ),
 								selected.length
 							) }
@@ -1053,7 +1069,7 @@ export function Table( {
 				<div className="barrio-table__footer">
 					<span>
 						{ sprintf(
-							/* translators: 1: prima riga mostrata; 2: ultima riga mostrata; 3: righe trovate. */
+							/* translators: 1: first row shown; 2: last row shown; 3: number of rows found. */
 							__( '%1$d–%2$d of %3$d', 'barrio-suite' ),
 							first,
 							first + rows.length - ( total ? 1 : 0 ),
@@ -1071,7 +1087,7 @@ export function Table( {
 					</button>
 					<span>
 						{ sprintf(
-							/* translators: 1: pagina corrente; 2: numero di pagine. */
+							/* translators: 1: current page; 2: number of pages. */
 							__( 'Page %1$d of %2$d', 'barrio-suite' ),
 							page,
 							last

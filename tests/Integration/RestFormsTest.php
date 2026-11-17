@@ -243,6 +243,11 @@ final class RestFormsTest extends WP_UnitTestCase {
 			$this->assertSame( 403, $this->request( $method, $route, $body, $query )->get_status(), "{$method} {$route}" );
 		}
 
+		// Un autore sceglie il form del blocco, ma non vede quante registrazioni ha.
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'author' ] ) );
+		$this->assertSame( [ [ $id, 'Contatti' ] ], array_map( static fn( array $f ): array => [ $f['id'], $f['title'] ], $this->request( 'GET', '/forms' )->get_data() ) );
+		$this->assertArrayNotHasKey( 'entries', $this->request( 'GET', '/forms' )->get_data()[0] );
+
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
 		$this->assertSame( 403, $this->request( 'GET', '/forms' )->get_status() );
 	}

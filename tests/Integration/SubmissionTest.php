@@ -142,6 +142,31 @@ final class SubmissionTest extends WP_UnitTestCase {
 		$this->assertNull( $this->last_entry() );
 	}
 
+	public function test_a_json_body_that_is_not_an_object_is_rejected(): void {
+		foreach ( [ '"x"', '1', '[]' ] as $body ) {
+			$request = new WP_REST_Request( 'POST', "/barrio/v1/forms/{$this->form->id}/entries" );
+			$request->set_header( 'Content-Type', 'application/json' );
+			$request->set_body( $body );
+			$this->assertSame( 400, rest_do_request( $request )->get_status(), $body );
+		}
+	}
+
+	public function test_rejected_attempts_count_and_the_limit_can_change(): void {
+		$remote_addr = $_SERVER['REMOTE_ADDR'] ?? null;
+		try {
+			$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+			add_filter( 'barrio_forms_rate_limit', static fn(): int => 2 );
+			$this->post( [ '_barrio_hp' => 'spam' ] + self::VALID );
+			$this->assertSame( 201, $this->post( self::VALID )->get_status() );
+			$this->assertSame( 429, $this->post( self::VALID )->get_status() );
+
+			add_filter( 'barrio_forms_rate_limit', '__return_zero', 11 );
+			$this->assertSame( 201, $this->post( self::VALID )->get_status() );
+		} finally {
+			$_SERVER['REMOTE_ADDR'] = $remote_addr;
+		}
+	}
+
 	public function test_submissions_are_limited_per_ip(): void {
 		$remote_addr = $_SERVER['REMOTE_ADDR'] ?? null;
 		try {
@@ -231,6 +256,12 @@ final class SubmissionTest extends WP_UnitTestCase {
 		foreach ( [ $form->current->id, 999999, $other->current->id ] as $version ) {
 			$this->assertSame( [ 'phone' => 'This field is required.' ], $this->errors( $this->post( [ '_barrio_version' => $version ] + self::VALID ) ), (string) $version );
 		}
+
+		// Una settimana dopo l'ultimo salvataggio nessuna cache di pagina mostra più la versione 1.
+		global $wpdb;
+		$wpdb->update( Db::table( 'form_versions' ), [ 'created_at' => gmdate( 'Y-m-d H:i:s', time() - WEEK_IN_SECONDS - 60 ) ], [ 'id' => $form->current->id ] );
+		wp_cache_delete( $this->form->id, FormRepository::CACHE_GROUP );
+		$this->assertSame( [ 'phone' => 'This field is required.' ], $this->errors( $this->post( [ '_barrio_version' => $seen ] + self::VALID ) ) );
 	}
 
 	public function test_the_language_is_the_submitted_one_when_active(): void {
@@ -393,7 +424,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 	private function set_status( string $status ): void {
 		global $wpdb;
 		$wpdb->update( Db::table( 'forms' ), [ 'status' => $status ], [ 'id' => $this->form->id ] );
-		wp_cache_delete( $this->form->id, 'barrio_forms' );
+		wp_cache_delete( $this->form->id, FormRepository::CACHE_GROUP );
 	}
 
 	/** @return array{name: string, type: string, tmp_name: string, error: int, size: int} */

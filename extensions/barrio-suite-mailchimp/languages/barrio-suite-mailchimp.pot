@@ -1,0 +1,120 @@
+# Copyright (C) 2026 Hellobarrio
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Barrio Suite Mailchimp 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite-mailchimp\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-17T08:48:28+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: barrio-suite-mailchimp\n"
+
+#. Plugin Name of the plugin
+#: barrio-suite-mailchimp.php
+msgid "Barrio Suite Mailchimp"
+msgstr ""
+
+#. Description of the plugin
+#: barrio-suite-mailchimp.php
+msgid "Adds who fills in a Barrio Suite form to a Mailchimp audience."
+msgstr ""
+
+#. Author of the plugin
+#: barrio-suite-mailchimp.php
+msgid "Hellobarrio"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:31
+msgid "Adds who fills in the form to a Mailchimp audience, or updates the contact if it is already there."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:35
+msgid "API key"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:36
+msgid "From Profile → Extras → API keys in Mailchimp. It ends with the data center, like -us21."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:43
+msgid "Audience ID"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:44
+msgid "From Audience → Settings → Audience name and defaults. It can be different in every language."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:48
+msgid "Email field"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:54
+msgid "Ask to confirm by email (double opt-in)"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:55
+msgid "Subscribe without confirmation"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:57
+msgid "New contacts"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:58
+msgid "Without a choice, Mailchimp emails new contacts a link to confirm. Subscribe without confirmation only if the form collects an explicit consent."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:62
+msgid "Merge fields"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:63
+msgid "The Mailchimp merge tag, like FNAME or PHONE, and the field that fills it. Choices are sent with their label."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:68
+msgid "Tags"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:69
+msgid "Added to every contact; separated by commas."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:73
+msgid "Marketing consent field"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:74
+msgid "The contact is added anyway; the consent tags only when this field is checked. To add only who consents, use the conditional logic."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:79
+msgid "Consent tags"
+msgstr ""
+
+#: barrio-suite-mailchimp.php:80
+msgid "Added only when the marketing consent field is checked; separated by commas."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:101
+msgid "the API key is missing or not valid (Settings)."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:104
+msgid "the audience ID is missing."
+msgstr ""
+
+#: barrio-suite-mailchimp.php:109
+msgid "no email address: the email field is empty or not chosen."
+msgstr ""
+
+#. translators: %s: error from Mailchimp.
+#: barrio-suite-mailchimp.php:152
+#, php-format
+msgid "the contact was added, but not the tags: %s"
+msgstr ""

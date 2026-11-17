@@ -57,10 +57,14 @@
 					)
 				),
 				attributes.id
-					? el( serverSideRender, {
-							block: 'barrio/form',
-							attributes,
-						} )
+					? el(
+							components.Disabled,
+							null,
+							el( serverSideRender, {
+								block: 'barrio/form',
+								attributes,
+							} )
+						)
 					: el(
 							components.Placeholder,
 							{

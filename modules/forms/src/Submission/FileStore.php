@@ -44,7 +44,7 @@ final class FileStore {
 		$checked = wp_check_filetype_and_ext( $upload['tmp_name'], $name );
 		if ( ! $checked['type'] || ! in_array( strtolower( pathinfo( $name, PATHINFO_EXTENSION ) ), self::extensions( $field ), true ) ) {
 			return sprintf(
-				/* translators: %s: estensioni ammesse, per esempio "PDF, DOCX". */
+				/* translators: %s: allowed file extensions, for example "PDF, DOCX". */
 				__( 'This file type is not allowed. Accepted formats: %s.', 'barrio-suite' ),
 				strtoupper( implode( ', ', self::extensions( $field ) ) )
 			);
@@ -91,7 +91,7 @@ final class FileStore {
 	}
 
 	private static function too_large( Field $field ): string {
-		/* translators: %s: dimensione massima, per esempio "5 MB". */
+		/* translators: %s: maximum size, for example "5 MB". */
 		return sprintf( __( 'The file is too large. Maximum size: %s.', 'barrio-suite' ), size_format( self::max_size( $field ) ) );
 	}
 

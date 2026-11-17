@@ -109,7 +109,7 @@ final class RestAdmin {
 		$to    = is_string( $request['to'] ) ? $request['to'] : wp_get_current_user()->user_email;
 		$error = Smtp::send(
 			$to,
-			/* translators: %s: nome del sito. */
+			/* translators: %s: site name. */
 			sprintf( __( 'Test email from %s', 'barrio-suite' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			Notifications::render(
 				__( 'Test email', 'barrio-suite' ),
@@ -120,7 +120,7 @@ final class RestAdmin {
 		if ( null !== $error ) {
 			return new WP_Error( 'barrio_mail_failed', $error->get_error_message(), [ 'status' => 502 ] );
 		}
-		/* translators: %s: indirizzo email. */
+		/* translators: %s: email address. */
 		return new WP_REST_Response( [ 'message' => sprintf( __( 'Test email sent to %s.', 'barrio-suite' ), $to ) ] );
 	}
 }

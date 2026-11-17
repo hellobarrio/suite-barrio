@@ -19,10 +19,13 @@ final class Render {
 		wp_register_script_module( '@barrio/forms', "{$assets}frontend/form.js", [ '@barrio/forms-conditions' ], BARRIO_SUITE_VERSION );
 
 		add_shortcode( 'barrio_form', static fn( mixed $atts ): string => self::form( (int) ( ( (array) $atts )['id'] ?? 0 ) ) );
-		register_block_type(
+		$block = register_block_type(
 			dirname( __DIR__, 2 ) . '/assets/block',
 			[ 'render_callback' => static fn( array $attributes ): string => self::form( (int) ( $attributes['id'] ?? 0 ) ) ]
 		);
+		foreach ( $block ? $block->editor_script_handles : [] as $handle ) {
+			wp_set_script_translations( $handle, 'barrio-suite', dirname( __DIR__, 4 ) . '/languages' );
+		}
 	}
 
 	public static function form( int $id ): string {
@@ -101,11 +104,12 @@ final class Render {
 		];
 
 		return sprintf(
-			'<form id="%s" class="barrio-form" action="%s" method="post" enctype="multipart/form-data" data-barrio-form%s data-messages="%s">%s%s<div class="barrio-form__message" role="status"></div></form>',
+			'<form id="%s" class="barrio-form" action="%s" method="post" enctype="multipart/form-data" data-barrio-form%s data-messages="%s"><noscript><p class="barrio-form__message">%s</p></noscript>%s%s<div class="barrio-form__message" role="status"></div></form>',
 			esc_attr( $prefix ),
 			esc_url( rest_url( "barrio/v1/forms/{$form->id}/entries" ) ),
 			$preview ? ' data-barrio-preview' : '',
 			esc_attr( (string) wp_json_encode( $messages ) ),
+			esc_html__( 'To send this form, please enable JavaScript in your browser.', 'barrio-suite' ),
 			$service,
 			$html
 		);

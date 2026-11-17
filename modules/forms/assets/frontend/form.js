@@ -30,7 +30,7 @@ function init( form ) {
 	const params = new URLSearchParams( window.location.search );
 	let current = 0;
 
-	// Senza JS valida il browser; con il JS i messaggi compaiono nel form, accanto ai campi.
+	// I messaggi compaiono nel form, accanto ai campi.
 	form.noValidate = true;
 	form.querySelector( '[name="_barrio_js"]' ).value = '1';
 	// Senza query string né frammento: possono contenere dati personali.
@@ -143,6 +143,12 @@ function init( form ) {
 		}
 	}
 
+	function next() {
+		if ( validate( steps[ current ] ) ) {
+			go( current + 1 );
+		}
+	}
+
 	// Gli errori per campo arrivano con le chiavi dei campi: si torna allo step del primo.
 	function failure( body ) {
 		const errors = body.data?.fields ?? {};
@@ -152,8 +158,9 @@ function init( form ) {
 			? steps.findIndex( ( s ) => s.contains( failed[ 0 ].el ) )
 			: current;
 		if ( step !== current ) {
-			go( step );
+			go( step, false );
 		}
+		failed[ 0 ]?.el.querySelector( CONTROLS )?.focus();
 		status.textContent = body.message ?? messages.error;
 		form.dispatchEvent(
 			new CustomEvent( 'barrio:error', { bubbles: true, detail: body } )
@@ -179,7 +186,8 @@ function init( form ) {
 			for ( const fn of beforeSubmit ) {
 				await fn( form, data );
 			}
-			const response = await fetch( form.action, {
+			// Non form.action: un campo con chiave "action" lo sostituirebbe.
+			const response = await fetch( form.getAttribute( 'action' ), {
 				method: 'POST',
 				body: data,
 			} );
@@ -202,6 +210,9 @@ function init( form ) {
 				step.hidden = true;
 			} );
 			status.textContent = body.message;
+			// Il campo che aveva il focus è nascosto.
+			status.tabIndex = -1;
+			status.focus();
 		} catch {
 			// Rete assente, risposta non JSON, un beforeSubmit fallito.
 			failure( { message: messages.error } );
@@ -220,19 +231,21 @@ function init( form ) {
 		}
 	} );
 	form.addEventListener( 'click', ( event ) => {
-		if (
-			event.target.closest( '[data-barrio-next]' ) &&
-			validate( steps[ current ] )
-		) {
-			go( current + 1 );
+		if ( event.target.closest( '[data-barrio-next]' ) ) {
+			next();
 		}
 		if ( event.target.closest( '[data-barrio-back]' ) ) {
 			go( current - 1 );
 		}
 	} );
+	// Invio in un campo prima dell'ultimo passaggio: come "Avanti", non come l'invio.
 	form.addEventListener( 'submit', ( event ) => {
 		event.preventDefault();
-		submit();
+		if ( current < steps.length - 1 ) {
+			next();
+		} else {
+			submit();
+		}
 	} );
 
 	refresh();

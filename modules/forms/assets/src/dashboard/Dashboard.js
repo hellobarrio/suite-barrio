@@ -88,7 +88,7 @@ export function Dashboard() {
 						'Contact forms with a drag & drop builder',
 						'barrio-suite'
 					) }
-					color="linear-gradient(135deg, #059669, #10b981)"
+					color="linear-gradient(135deg, #065f46, #047857)"
 					stats={ [
 						[
 							__( 'Active forms', 'barrio-suite' ),

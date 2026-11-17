@@ -3,17 +3,20 @@
  * Plugin Name:       Barrio Suite
  * Description:       Forms and site tools by Hellobarrio.
  * Version:           0.1.0
- * Requires at least: 6.6
+ * Requires at least: 6.9
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Update URI:        https://github.com/hellobarrio/suite-barrio
  * Text Domain:       barrio-suite
+ * Domain Path:       /languages
  */
 
 defined( 'ABSPATH' ) || exit;
 
 define( 'BARRIO_SUITE_VERSION', '0.1.0' );
+
+load_plugin_textdomain( 'barrio-suite', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 spl_autoload_register(
 	static function ( string $class_name ): void {

@@ -3,12 +3,14 @@
  * Plugin Name:       Barrio Suite WPGraphQL
  * Description:       The Barrio Suite forms in WPGraphQL, with the names of the previous plugin (hbForm, hbForms, hbSubmitForm), so headless frontends keep working unchanged.
  * Version:           0.1.0
- * Requires at least: 6.6
+ * Requires at least: 6.9
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Update URI:        https://github.com/hellobarrio/suite-barrio
  * Text Domain:       barrio-suite-wpgraphql
+ * Domain Path:       /languages
+ * Requires Plugins:  barrio-suite
  */
 
 // L'unico codice che conosce WPGraphQL: lo schema hb* del prototipo con gli stessi nomi e tipi
@@ -25,6 +27,8 @@ use BarrioSuite\Forms\Submission\Submission;
 use GraphQL\Error\UserError;
 
 defined( 'ABSPATH' ) || exit;
+
+load_plugin_textdomain( 'barrio-suite-wpgraphql', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 // Il pattern che i frontend del prototipo usano per controllare le email nel browser, vicino a is_email().
 const BARRIO_WPGRAPHQL_EMAIL = "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$";
@@ -247,7 +251,8 @@ function barrio_wpgraphql_form( int $id, mixed $lang ): ?array {
 	}
 	return [
 		'id'        => $form->id,
-		'title'     => $form->title,
+		// Il titolo è interno, come in hbForms.
+		'title'     => current_user_can( 'edit_posts' ) || current_user_can( 'barrio_manage_entries' ) ? $form->title : null,
 		'createdAt' => get_date_from_gmt( $form->created_at ),
 		'updatedAt' => get_date_from_gmt( $form->updated_at ),
 		'fields'    => array_merge( ...array_column( $steps, 'fields' ) ),
@@ -320,7 +325,7 @@ function barrio_wpgraphql_forms(): array {
 			$forms[] = [
 				'id'          => $form['id'],
 				'title'       => $form['title'],
-				'submissions' => $form['entries'],
+				'submissions' => current_user_can( 'barrio_manage_forms' ) || current_user_can( 'barrio_manage_entries' ) ? $form['entries'] : null,
 				'createdAt'   => get_date_from_gmt( $form['created_at'] ),
 			];
 		}
@@ -339,7 +344,7 @@ function barrio_wpgraphql_submit( array $input ): array {
 	$form = FormRepository::get( $input['formId'] );
 	$lang = I18n::resolve( $input['lang'] ?? null );
 	if ( null === $form || FormStatus::Trash === $form->status ) {
-		return barrio_wpgraphql_failure( I18n::in( $lang, static fn(): string => __( 'Form not found.', 'barrio-suite' ) ) );
+		return barrio_wpgraphql_failure( I18n::in( $lang, static fn(): string => __( 'Form not found.', 'barrio-suite-wpgraphql' ) ) );
 	}
 
 	$fields = [];
@@ -353,7 +358,8 @@ function barrio_wpgraphql_submit( array $input ): array {
 		$value = (string) ( $item['value'] ?? '' );
 		$type  = isset( $fields[ $key ] ) ? $fields[ $key ]->type : null;
 		if ( 'file' === $type ) {
-			$files[ $key ] = barrio_wpgraphql_file( $value );
+			// Con il campo ripetuto, il file temporaneo di una seconda copia non verrebbe mai cancellato.
+			$files[ $key ] ??= barrio_wpgraphql_file( $value );
 		} elseif ( 'checkbox' === $type ) {
 			$values[ $key ] = barrio_wpgraphql_checked( $fields[ $key ], $value, $lang );
 		} elseif ( 'consent' === $type ) {
@@ -395,7 +401,7 @@ function barrio_wpgraphql_submit( array $input ): array {
 	}
 	return [
 		'success'      => true,
-		'message'      => I18n::pick( $form->i18n, $lang )['success_message'] ?? I18n::in( $lang, static fn(): string => __( 'Thank you, your submission has been received.', 'barrio-suite' ) ),
+		'message'      => I18n::pick( $form->i18n, $lang )['success_message'] ?? I18n::in( $lang, static fn(): string => __( 'Thank you, your submission has been received.', 'barrio-suite-wpgraphql' ) ),
 		'submissionId' => $entry->id,
 		'errors'       => [],
 		'debug'        => null,
@@ -428,7 +434,15 @@ function barrio_wpgraphql_file( string $value ): ?array {
 	}
 	$data    = json_decode( $value, true );
 	$name    = is_array( $data ) && is_string( $data['filename'] ?? null ) && '' !== $data['filename'] ? $data['filename'] : 'file';
-	$content = is_array( $data ) && is_string( $data['content'] ?? null ) ? base64_decode( $data['content'], true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- il file inviato in base64.
+	$encoded = is_array( $data ) && is_string( $data['content'] ?? null ) ? $data['content'] : null;
+	// Prima di decodificare, che raddoppia la memoria.
+	if ( strlen( (string) $encoded ) > wp_max_upload_size() * 4 / 3 + 4 ) {
+		return [
+			'name'  => $name,
+			'error' => UPLOAD_ERR_INI_SIZE,
+		];
+	}
+	$content = null === $encoded ? false : base64_decode( $encoded, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- il file inviato in base64.
 	// tempnam() e non wp_tempnam(), che sta nei file dell'admin e in una richiesta GraphQL non c'è.
 	$tmp = false === $content ? false : tempnam( get_temp_dir(), 'barrio' );
 	if ( false === $tmp || false === file_put_contents( $tmp, $content ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents

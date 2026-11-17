@@ -111,8 +111,13 @@ final class RestForms {
 
 	public static function list(): WP_REST_Response {
 		$format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+		// Chi ha solo edit_posts sceglie il form del blocco, senza vederne le registrazioni.
+		$counts = current_user_can( 'barrio_manage_forms' ) || current_user_can( 'barrio_manage_entries' );
 		$forms  = [];
 		foreach ( FormRepository::all() as $form ) {
+			if ( ! $counts ) {
+				unset( $form['entries'], $form['unread'] );
+			}
 			// updated_at per ordinare, modified per leggere.
 			$forms[] = $form + [ 'modified' => wp_date( $format, (int) strtotime( "{$form['updated_at']} UTC" ) ) ];
 		}
@@ -144,7 +149,7 @@ final class RestForms {
 		if ( null === $form ) {
 			return self::not_found();
 		}
-		/* translators: %s: titolo del form copiato. */
+		/* translators: %s: title of the copied form. */
 		$title = mb_substr( sprintf( __( '%s (copy)', 'barrio-suite' ), $form->title ), 0, 191 );
 		// create() ignora gli id: campi, notifiche e integrazioni diventano righe nuove.
 		return new WP_REST_Response( self::view( FormRepository::create( $title, $form->i18n, $form->notifications, $form->current, $form->integrations ) ), 201 );
@@ -224,6 +229,10 @@ final class RestForms {
 	 * @return array<string, array<string, mixed>>
 	 */
 	private static function schema(): array {
+		static $schema = null;
+		if ( null !== $schema ) {
+			return $schema;
+		}
 		// I TEXT di MySQL contengono 65535 byte: 16000 caratteri anche di 4 byte.
 		$text       = 16000;
 		$string     = static fn( int $max, int $min = 0 ): array => [
@@ -262,7 +271,7 @@ final class RestForms {
 		];
 		$conditions = [ 'type' => [ 'object', 'null' ] ] + Conditions::schema();
 
-		return [
+		$schema = [
 			'title'         => [ 'required' => true ] + $string( 191, 1 ),
 			'i18n'          => $i18n(
 				[
@@ -343,6 +352,7 @@ final class RestForms {
 				[ 'slug' ]
 			),
 		];
+		return $schema;
 	}
 
 	// I dati arrivano già validati e ripuliti dallo schema degli argomenti.

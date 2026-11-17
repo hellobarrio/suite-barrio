@@ -82,8 +82,8 @@ final class NotificationsTest extends WP_UnitTestCase {
 		$GLOBALS['wp_locale_switcher'] = new WP_Locale_Switcher(); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- globale di WordPress.
 		$GLOBALS['wp_locale_switcher']->init();
 		add_filter( 'barrio_forms_locale', static fn( string $locale, string $lang ): string => 'it' === $lang ? 'it_IT' : 'en_US', 10, 2 );
-		// Senza file di traduzione: ogni stringa del plugin dice in quale locale è nata.
-		add_filter( 'gettext_barrio-suite', static fn( string $translation ): string => get_locale() . ":{$translation}" );
+		// Ogni stringa del plugin dice in quale locale è nata, con il testo originale (non la traduzione italiana).
+		add_filter( 'gettext_barrio-suite', static fn( string $translation, string $text ): string => get_locale() . ":{$text}", 10, 2 );
 		$yes = static fn(): string => self::body( tests_retrieve_phpmailer_instance()->get_sent() );
 		try {
 			// La richiesta REST è in inglese: la nota passa all'italiano, la lingua principale.

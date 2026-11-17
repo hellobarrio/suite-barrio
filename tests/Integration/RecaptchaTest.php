@@ -67,6 +67,9 @@ final class RecaptchaTest extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( 'barrio-recaptcha' ) );
 		$this->assertSame( 201, $this->post() );
 		$this->assertSame( [], $this->requests );
+		// Il controllo è spento: gli amministratori lo sanno (anche con la chiave API illeggibile dopo un clone).
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$this->assertStringContainsString( 'reCAPTCHA is off', $this->notice() );
 	}
 
 	public function test_the_google_script_is_loaded_only_with_a_form(): void {

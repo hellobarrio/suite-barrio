@@ -73,7 +73,8 @@ final class MailchimpTest extends WP_UnitTestCase {
 					'auth'   => 'Basic ' . base64_encode( 'barrio:abc123-us21' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 					'body'   => [
 						'email_address' => 'Ada@Example.com',
-						'status_if_new' => 'subscribed',
+						// Senza una scelta, il double opt-in: privacy by default.
+						'status_if_new' => 'pending',
 						// Le scelte con l'etichetta, nella lingua di chi ha compilato.
 						'merge_fields'  => [
 							'FNAME' => 'Ada',
@@ -113,12 +114,18 @@ final class MailchimpTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'Website', 'Sito' ], array_column( $this->requests[1]['body']['tags'], 'name' ) );
 	}
 
-	public function test_without_a_consent_field_the_consent_tags_are_always_added(): void {
-		$form = $this->form( [ 'consent_field' => '' ] );
+	public function test_without_a_consent_field_the_consent_tags_are_never_added(): void {
+		$form = $this->form(
+			[
+				'consent_field' => '',
+				'status'        => 'subscribed',
+			]
+		);
 
-		$this->post( $form, 'it', [ 'newsletter' => '' ] );
+		$this->post( $form, 'it', [ 'newsletter' => '1' ] );
 
-		$this->assertSame( [ 'Website', 'Sito', 'Newsletter IT' ], array_column( $this->requests[1]['body']['tags'], 'name' ) );
+		$this->assertSame( 'subscribed', $this->requests[0]['body']['status_if_new'] );
+		$this->assertSame( [ 'Website', 'Sito' ], array_column( $this->requests[1]['body']['tags'], 'name' ) );
 	}
 
 	public function test_errors_end_up_in_the_notes(): void {

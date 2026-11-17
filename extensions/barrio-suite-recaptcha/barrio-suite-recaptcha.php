@@ -3,12 +3,14 @@
  * Plugin Name:       Barrio Suite reCAPTCHA
  * Description:       Invisible reCAPTCHA Enterprise check on the Barrio Suite forms, against spam bots.
  * Version:           0.1.0
- * Requires at least: 6.6
+ * Requires at least: 6.9
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Update URI:        https://github.com/hellobarrio/suite-barrio
  * Text Domain:       barrio-suite-recaptcha
+ * Domain Path:       /languages
+ * Requires Plugins:  barrio-suite
  */
 
 // reCAPTCHA Enterprise v3 come nel prototipo, con le stesse credenziali: prima di ogni invio il form
@@ -18,6 +20,8 @@
 // (docs/hooks.md). Un frontend headless deve inviare il token come _barrio_recaptcha.
 
 defined( 'ABSPATH' ) || exit;
+
+load_plugin_textdomain( 'barrio-suite-recaptcha', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 const BARRIO_RECAPTCHA_ACTION = 'barrio_form';
 // L'ultimo errore di Google, finché un invio non viene verificato di nuovo.
@@ -140,15 +144,25 @@ function barrio_recaptcha_check( mixed $spam, array $input ): mixed {
 
 // In tutte le pagine admin: finché Google non risponde ogni invio dei form è rifiutato.
 function barrio_recaptcha_notice(): void {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	// Anche con la chiave illeggibile (salt diversi dopo un clone): il controllo è spento senza errori.
+	if ( array_filter( barrio_forms_integration_settings( 'recaptcha' ) ) && null === barrio_recaptcha_settings() ) {
+		printf(
+			'<div class="notice notice-warning"><p>%s</p></div>',
+			esc_html__( 'reCAPTCHA is off: its settings are incomplete, or the API key can no longer be read (for example after the site was moved). Enter them again in Barrio → Forms → Settings.', 'barrio-suite-recaptcha' )
+		);
+	}
 	$error = get_transient( BARRIO_RECAPTCHA_ERROR );
-	if ( false === $error || ! current_user_can( 'manage_options' ) ) {
+	if ( false === $error ) {
 		return;
 	}
 	printf(
 		'<div class="notice notice-error"><p>%s</p></div>',
 		esc_html(
 			sprintf(
-				/* translators: %s: errore di Google, per esempio "HTTP 400 API key not valid". */
+				/* translators: %s: error from Google, for example "HTTP 400 API key not valid". */
 				__( 'reCAPTCHA could not check the last form submission, so the form was not sent: %s. Check the reCAPTCHA settings in Barrio → Forms → Settings.', 'barrio-suite-recaptcha' ),
 				(string) $error
 			)

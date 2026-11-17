@@ -3,18 +3,22 @@
  * Plugin Name:       Barrio Suite WPML
  * Description:       Languages of the Barrio Suite forms from WPML: translations in the builder, forms and emails in the visitor's language.
  * Version:           0.1.0
- * Requires at least: 6.6
+ * Requires at least: 6.9
  * Requires PHP:      8.2
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Update URI:        https://github.com/hellobarrio/suite-barrio
  * Text Domain:       barrio-suite-wpml
+ * Domain Path:       /languages
+ * Requires Plugins:  barrio-suite
  */
 
 // L'unico codice che conosce WPML. Legge i suoi filtri e risponde a quelli di Barrio Suite
 // (BarrioSuite\Forms\I18n); senza WPML attivo i filtri di WPML restituiscono null e non cambia niente.
 
 defined( 'ABSPATH' ) || exit;
+
+load_plugin_textdomain( 'barrio-suite-wpml', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 /** @return array<string, array<string, mixed>> Le lingue attive per codice (it, en-us, pt-br). */
 function barrio_wpml_languages(): array {

@@ -62,6 +62,11 @@ test( 'choices are values in config and labels in the texts', () => {
 		value: 'yes',
 		label: 'Certo',
 	} );
+	// Né dopo il salvataggio.
+	assert.deepEqual(
+		renameChoice( { value: 'si', label: 'Sì' }, 'Sì, certo', [ 'si' ] ),
+		{ value: 'si', label: 'Sì, certo' }
+	);
 } );
 
 test( 'missing texts of the main language start from another language', () => {

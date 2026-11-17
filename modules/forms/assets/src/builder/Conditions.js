@@ -133,7 +133,7 @@ function Rule( { rule, fields, onChange, onRemove } ) {
 		options.push( {
 			value: rule.field,
 			label: sprintf(
-				/* translators: %s: chiave del campo. */
+				/* translators: %s: field key. */
 				__( '%s (missing field)', 'barrio-suite' ),
 				rule.field
 			),
