@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Barrio Suite 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite\n"
-"POT-Creation-Date: 2026-11-17T13:50:19+00:00\n"
+"POT-Creation-Date: 2026-11-17T14:17:37+00:00\n"
 "PO-Revision-Date: 2026-11-17 08:54+0000\n"
 "Last-Translator: Hellobarrio\n"
 "Language-Team: Italian\n"
@@ -481,7 +481,8 @@ msgstr "Inviata a %s."
 msgid "Could not send to %1$s: %2$s"
 msgstr "Invio a %1$s non riuscito: %2$s"
 
-#: modules/forms/src/MergeTags.php:113
+#: modules/forms/src/MergeTags.php:113 build/seo-form.js:4
+#: build/seo-sidebar.js:3
 msgid "Yes"
 msgstr "Sì"
 
@@ -585,7 +586,7 @@ msgid "Search results for “%s”"
 msgstr "Risultati della ricerca per “%s”"
 
 #. translators: %d: page number.
-#: modules/seo/src/Meta.php:116
+#: modules/seo/src/Meta.php:116 build/seo-form.js:2 build/seo-sidebar.js:10
 #, php-format
 msgid "Page %d"
 msgstr "Pagina %d"
@@ -911,7 +912,8 @@ msgstr "Aggiungi"
 msgid "Name in the service"
 msgstr "Nome nel servizio"
 
-#: build/barrio-admin.js:8 build/barrio-admin.js:26
+#: build/barrio-admin.js:8 build/barrio-admin.js:26 build/seo-form.js:9
+#: build/seo-sidebar.js:8
 msgid "Remove"
 msgstr "Rimuovi"
 
@@ -2034,7 +2036,7 @@ msgstr "Porta"
 msgid "Encryption"
 msgstr "Crittografia"
 
-#: build/barrio-admin.js:51
+#: build/barrio-admin.js:51 build/seo-form.js:9 build/seo-sidebar.js:8
 msgid "None"
 msgstr "Nessuna"
 
@@ -2257,6 +2259,177 @@ msgid ""
 msgstr ""
 "Verifica che il sito sia pronto per andare online e configura quello che "
 "manca."
+
+#. translators: 1: characters used, 2: maximum.
+#: build/seo-form.js:3 build/seo-sidebar.js:2
+msgid "%1$d of %2$d characters"
+msgstr "%1$d di %2$d caratteri"
+
+#. translators: %s: Yes or No, the value of the content type or taxonomy.
+#: build/seo-form.js:4 build/seo-sidebar.js:3
+msgid "Default (%s)"
+msgstr "Predefinito (%s)"
+
+#: build/seo-form.js:4 build/seo-sidebar.js:3
+msgid "No"
+msgstr "No"
+
+#: build/seo-form.js:4 build/seo-sidebar.js:3
+msgid "Focus keyword set"
+msgstr "Parola chiave principale impostata"
+
+#: build/seo-form.js:4 build/seo-sidebar.js:3
+msgid "Focus keyword in the SEO title"
+msgstr "Parola chiave principale nel titolo SEO"
+
+#: build/seo-form.js:4 build/seo-sidebar.js:3
+msgid "Focus keyword in the first half of the SEO title"
+msgstr "Parola chiave principale nella prima metà del titolo SEO"
+
+#. translators: %d: characters.
+#: build/seo-form.js:5 build/seo-sidebar.js:4
+msgid "Title up to 60 characters (%d)"
+msgstr "Titolo fino a 60 caratteri (%d)"
+
+#: build/seo-form.js:5 build/seo-sidebar.js:4
+msgid "Focus keyword in the meta description"
+msgstr "Parola chiave principale nella meta description"
+
+#. translators: %d: characters.
+#: build/seo-form.js:6 build/seo-sidebar.js:5
+msgid "Description of 120 to 160 characters (%d)"
+msgstr "Descrizione da 120 a 160 caratteri (%d)"
+
+#: build/seo-form.js:6 build/seo-sidebar.js:5
+msgid "Focus keyword in the URL"
+msgstr "Parola chiave principale nell'URL"
+
+#. translators: %d: characters.
+#: build/seo-form.js:7 build/seo-sidebar.js:6
+msgid "URL up to 75 characters (%d)"
+msgstr "URL fino a 75 caratteri (%d)"
+
+#: build/seo-form.js:7 build/seo-sidebar.js:6
+msgid "An image for sharing"
+msgstr "Un'immagine per la condivisione"
+
+#. translators: %d: words.
+#: build/seo-form.js:8 build/seo-sidebar.js:7
+msgid "At least 600 words (%d)"
+msgstr "Almeno 600 parole (%d)"
+
+#: build/seo-form.js:8 build/seo-sidebar.js:7
+msgid "Focus keyword in the content"
+msgstr "Parola chiave principale nel contenuto"
+
+#: build/seo-form.js:8 build/seo-sidebar.js:7
+msgid "Focus keyword at the beginning of the content (first 10%)"
+msgstr "Parola chiave principale all'inizio del contenuto (primo 10%)"
+
+#. translators: %s: percentage.
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Focus keyword density from 0.5%% to 2.5%% (%s%%)"
+msgstr "Densità della parola chiave principale tra 0,5%% e 2,5%% (%s%%)"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Focus keyword in a subheading"
+msgstr "Parola chiave principale in un sottotitolo"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Focus keyword in the alt text of an image"
+msgstr "Parola chiave principale nel testo alternativo di un'immagine"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Links to other pages of the site"
+msgstr "Link ad altre pagine del sito"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Links to other sites"
+msgstr "Link ad altri siti"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Paragraphs of 120 words at most"
+msgstr "Paragrafi di al massimo 120 parole"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Images or videos in the content"
+msgstr "Immagini o video nel contenuto"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Search result"
+msgstr "Risultato di ricerca"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Content"
+msgstr "Contenuto"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Passed:"
+msgstr "Superato:"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Failed:"
+msgstr "Non superato:"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "SEO title"
+msgstr "Titolo SEO"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Meta description"
+msgstr "Meta description"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Focus keywords"
+msgstr "Parole chiave"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid ""
+"Press Enter after each one. The first is the main one, used by the checks."
+msgstr "Premi Invio dopo ognuna. La prima è la principale, quella dei controlli."
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Social"
+msgstr "Social"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Replace image"
+msgstr "Sostituisci immagine"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Choose image"
+msgstr "Scegli immagine"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid ""
+"For Facebook, LinkedIn, WhatsApp and X. Without an image, the featured image "
+"or the default one of the site is used."
+msgstr "Per Facebook, LinkedIn, WhatsApp e X. Senza un'immagine si usa quella in evidenza o quella predefinita del sito."
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Indexing"
+msgstr "Indicizzazione"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Show in search results"
+msgstr "Mostra nei risultati di ricerca"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Follow the links"
+msgstr "Segui i link"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "Archive page of"
+msgstr "Pagina archivio di"
+
+#: build/seo-form.js:9 build/seo-sidebar.js:8
+msgid "The structured data of the page list the contents of this type."
+msgstr "I dati strutturati della pagina elencano i contenuti di questo tipo."
+
+#. translators: %d: SEO score from 0 to 100.
+#: build/seo-form.js:10 build/seo-sidebar.js:9
+msgid "Checks: %d/100"
+msgstr "Controlli: %d/100"
 
 #: modules/forms/assets/block/index.js:36
 msgid "Choose a form"

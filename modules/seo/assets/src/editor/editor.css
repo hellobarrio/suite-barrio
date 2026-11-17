@@ -1,0 +1,191 @@
+/*
+ * Il pannello SEO: componenti di WordPress, più le anteprime e i controlli.
+ * Nella metabox e nei termini il pannello sta su uno sfondo bianco.
+ */
+
+.barrio-seo-panel {
+	--barrio-seo-good: #00a32a;
+	--barrio-seo-ok: #dba617;
+	--barrio-seo-bad: #d63638;
+}
+
+#barrio-seo-panel {
+	max-width: 800px;
+	margin: 0 0 20px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+}
+
+.postbox #barrio-seo-panel {
+	margin: -6px -12px -12px;
+	max-width: none;
+	border: 0;
+}
+
+.barrio-seo-panel .components-base-control + .components-base-control,
+.barrio-seo-panel .components-base-control + .components-form-token-field,
+.barrio-seo-panel .barrio-seo-row + .components-base-control__help {
+	margin-top: 16px;
+}
+
+.barrio-seo-panel .components-form-token-field {
+	margin-top: 16px;
+}
+
+/* La prima parola chiave è la principale. */
+.barrio-seo-panel .components-form-token-field__token:first-of-type .components-form-token-field__token-text {
+	font-weight: 600;
+}
+
+.barrio-seo-counter.is-off {
+	color: var(--barrio-seo-bad);
+}
+
+.barrio-seo-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Anteprime */
+
+.barrio-seo-google,
+.barrio-seo-social {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-bottom: 16px;
+	overflow-wrap: anywhere;
+	font-family: Arial, sans-serif;
+}
+
+.barrio-seo-google {
+	padding: 12px;
+	border: 1px solid #e2e4e7;
+	border-radius: 8px;
+}
+
+.barrio-seo-google__site {
+	color: #202124;
+	font-size: 14px;
+}
+
+.barrio-seo-google__url {
+	color: #4d5156;
+	font-size: 12px;
+}
+
+.barrio-seo-google__title {
+	margin-top: 4px;
+	color: #1a0dab;
+	font-size: 18px;
+	line-height: 1.3;
+}
+
+.barrio-seo-google__description {
+	color: #4d5156;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.barrio-seo-social {
+	overflow: hidden;
+	border: 1px solid #dadde1;
+	border-radius: 8px;
+	background: #f0f2f5;
+}
+
+.barrio-seo-social img,
+.barrio-seo-social__empty {
+	display: block;
+	width: 100%;
+	aspect-ratio: 1.91;
+	object-fit: cover;
+	background: #dcdcde;
+}
+
+.barrio-seo-social__host,
+.barrio-seo-social__title,
+.barrio-seo-social__description {
+	padding: 0 12px;
+}
+
+.barrio-seo-social__host {
+	padding-top: 8px;
+	color: #606770;
+	font-size: 12px;
+	text-transform: uppercase;
+}
+
+.barrio-seo-social__title {
+	color: #1d2129;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.barrio-seo-social__description {
+	display: -webkit-box;
+	overflow: hidden;
+	padding-bottom: 10px;
+	color: #606770;
+	font-size: 14px;
+	-webkit-line-clamp: 1;
+	-webkit-box-orient: vertical;
+}
+
+/* Punteggio: sull'icona della sidebar e nei controlli */
+
+.barrio-seo-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	padding: 0 4px;
+	box-sizing: border-box;
+	border-radius: 12px;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.barrio-seo-badge.is-good {
+	background: var(--barrio-seo-good, #00a32a);
+}
+
+.barrio-seo-badge.is-ok {
+	background: var(--barrio-seo-ok, #dba617);
+}
+
+.barrio-seo-badge.is-bad {
+	background: var(--barrio-seo-bad, #d63638);
+}
+
+.barrio-seo-checks__title {
+	margin: 0 0 8px;
+	font-size: 11px;
+	font-weight: 500;
+	text-transform: uppercase;
+}
+
+.barrio-seo-checks {
+	margin: 0 0 16px;
+}
+
+.barrio-seo-checks li {
+	display: flex;
+	gap: 8px;
+	margin: 0 0 6px;
+}
+
+.barrio-seo-checks .dashicons {
+	flex: none;
+}
+
+.barrio-seo-checks .is-pass .dashicons {
+	color: var(--barrio-seo-good);
+}
+
+.barrio-seo-checks .is-fail .dashicons {
+	color: var(--barrio-seo-bad);
+}
