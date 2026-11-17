@@ -131,9 +131,11 @@ le aspetta.
 | `barrio_languages` | filtro | `list<string>` | Codici delle lingue attive, la principale per prima. Valgono per tutti i moduli (`src/I18n.php`) |
 | `barrio_current_language` | filtro | `?string` | La lingua della pagina |
 | `barrio_locale` | filtro | `string $locale`, `string $lang` | Il locale di WordPress di una lingua |
+| `barrio_switch_language` | azione | `?string $lang` | Per il codice che segue, i contenuti della lingua (query, permalink, nome del sito); `null` torna alla lingua di prima. La chiama `I18n::in()`, che cambia anche il locale: llms.txt, la tabella SEO → Contenuti e i conteggi della sitemap la usano una lingua alla volta |
 | `barrio_language_flags` | filtro | `array $flags` | URL della bandiera per codice, per l'admin |
 | `barrio_launch_steps` | filtro | `array<string, bool> $steps` | Messa online (`src/Launch.php`): per passaggio, se è configurato secondo le impostazioni vere. Un passaggio per modulo (Forms: `forms`) più quelli del sito (`smtp`, `timezone`, `search`); un passaggio nuovo compare nella guida solo se `assets/src/launch/Launch.js` sa come configurarlo |
 | `barrio_admin_data` | filtro | `array $data` | Per i moduli: i dati delle pagine Barrio, in `window.barrioAdmin` (`src/Admin.php`). Forms aggiunge `forms`; senza, il JavaScript sa che il modulo è spento |
+| `barrio_seo_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo SEO acceso: il momento per collegarsi al SEO, come `barrio_forms_loaded`. L'estensione WPML vi aggiunge a robots.txt le sitemap delle altre lingue |
 | `barrio_seo_url` | filtro | `string $url` | L'URL di una pagina in ogni punto in cui il modulo SEO lo scrive (`Seo\Meta::url()`: canonical, `og:url`, JSON-LD, llms.txt); le immagini restano su WordPress. Serve a portare gli URL su un frontend headless. La canonical dei singoli nell'head la stampa il core e non passa da qui |
 | `barrio_seo_changed` | azione | `string $what`, `int $id = 0` | Sono cambiati le impostazioni SEO (`'settings'`), i redirect (`'redirects'`, anche quelli automatici) o i meta SEO di un contenuto (`'post'`) o di un termine (`'term'`) con il suo ID, una volta per richiesta: per svuotare la cache di un frontend |
 

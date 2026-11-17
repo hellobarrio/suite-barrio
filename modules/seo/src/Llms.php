@@ -45,28 +45,44 @@ final class Llms {
 		delete_transient( 'barrio_seo_llms_full' );
 	}
 
+	// Con più lingue un blocco per lingua, la principale per prima, come nel prototipo.
+	public static function build( bool $full ): string {
+		$languages = I18n::languages();
+		return implode(
+			"---\n\n",
+			array_map( static fn( string $lang ): string => I18n::in( $lang, static fn(): string => self::language( $full, count( $languages ) > 1 ? $lang : '' ) ), $languages )
+		);
+	}
+
 	/**
 	 * Intestazione e introduzione, una sezione per tipo e per tassonomia secondo le impostazioni (Includi,
-	 * Solo link, Escludi), poi i menu. llms.txt ha 10 voci per sezione e i riassunti, llms-full.txt 500 voci
-	 * e i contenuti.
+	 * Solo link, Escludi), poi i menu, nella lingua attuale. llms.txt ha 10 voci per sezione e i riassunti,
+	 * llms-full.txt 500 voci e i contenuti.
+	 *
+	 * @param string $lang Il codice nel titolo, con più lingue.
 	 */
-	public static function build( bool $full ): string {
+	private static function language( bool $full, string $lang ): string {
 		$settings = Settings::get()['llms'];
 		$limit    = $full ? 500 : 10;
-		$intro    = (string) ( I18n::pick( Settings::get()['texts'], I18n::current() )['llms_intro'] ?? '' );
-		$md       = '# ' . Meta::text( get_bloginfo( 'name' ) ) . "\n\n> " . Meta::url( home_url( '/' ) ) . "\n\n" . ( '' === $intro ? '' : "{$intro}\n\n" );
+		$intro    = Settings::text( 'llms_intro', I18n::current() );
+		// ponytail: con WPML la riga > è l'indirizzo del sito in ogni lingua, perché WPML converte home_url
+		// con la lingua della richiesta; i link dei contenuti sono quelli della lingua.
+		$md = '# ' . Meta::text( get_bloginfo( 'name' ) ) . ( '' === $lang ? '' : ' (' . strtoupper( $lang ) . ')' )
+			. "\n\n> " . Meta::url( home_url( '/' ) ) . "\n\n" . ( '' === $intro ? '' : "{$intro}\n\n" );
 
 		foreach ( get_post_types( [ 'public' => true ], 'objects' ) as $type ) {
 			$mode = $settings['post_types'][ $type->name ] ?? 'include';
 			/** @var list<WP_Post> $posts */
 			$posts = 'attachment' === $type->name || 'exclude' === $mode ? [] : get_posts(
 				[
-					'post_type'   => $type->name,
-					'numberposts' => $limit,
-					'orderby'     => $type->hierarchical ? [
+					'post_type'        => $type->name,
+					'numberposts'      => $limit,
+					'orderby'          => $type->hierarchical ? [
 						'menu_order' => 'ASC',
 						'title'      => 'ASC',
 					] : [ 'date' => 'DESC' ],
+					// Con i filtri, perché il plugin multilingua tenga la lingua del blocco.
+					'suppress_filters' => false,
 				] + Meta::indexable( 'post_types', $type->name )
 			);
 			if ( $posts ) {

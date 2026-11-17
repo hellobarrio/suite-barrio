@@ -1,16 +1,19 @@
 // Le schede delle impostazioni SEO (Organizzazione e Impostazioni, manage_options): leggono e salvano le
 // sezioni di barrio_seo con GET/PUT /seo/settings, e nome e icona del sito, opzioni di WordPress, con
-// /wp/v2/settings. Un solo Salva nella barra, che manda solo ciò che è cambiato. I testi sono quelli della
-// lingua principale.
+// /wp/v2/settings. Un solo Salva nella barra, che manda solo ciò che è cambiato. Con più lingue la barra
+// sceglie quella dei testi (SeoText): nelle altre il resto è disattivato (Fixed), come nel builder dei form.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import {
 	Bar,
+	LangNotice,
+	LangPicker,
 	Loading,
 	Lucide,
 	Notice,
+	Text,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../../assets/src/admin/ui.js';
@@ -64,15 +67,48 @@ const site = ( data ) => ( { title: data.title, site_icon: data.site_icon } );
 const same = ( a, b ) => JSON.stringify( a ) === JSON.stringify( b );
 
 /**
+ * Un testo di barrio_seo (texts) nella lingua scelta nella barra. Nelle altre lingue con l'originale sotto:
+ * vuoto vale quello della lingua principale (Seo\Settings::text()).
+ *
+ * @param {Object} props
+ * @param {Object} props.form Da SettingsPage.
+ * @param {string} props.name La chiave in texts.
+ * @param {string} props.help Nella lingua principale.
+ */
+export function SeoText( { form, name, help, ...props } ) {
+	const { lang, seo, setText } = form;
+	const original = seo.texts[ main ][ name ];
+	return (
+		<Text
+			multiline
+			{ ...props }
+			help={
+				lang === main ? (
+					help
+				) : (
+					<span className="barrio-original">
+						{ `${ main.toUpperCase() }: ${ original || '—' }` }
+					</span>
+				)
+			}
+			value={ seo.texts[ lang ]?.[ name ] ?? '' }
+			onChange={ setText( name ) }
+		/>
+	);
+}
+
+/**
  * @param {Object}                   props
  * @param {string}                   props.title  Della barra.
- * @param {(form: Object) => Object} props.render Le card, con saved, seo, site, texts, setSeo, setSite e setText.
+ * @param {(form: Object) => Object} props.render Le card, con saved, seo, site, lang, texts (nella lingua, per le
+ *                                                anteprime), setSeo, setSite e setText.
  */
 export function SettingsPage( { title, render } ) {
 	const [ saved, setSaved ] = useState( null );
 	const [ draft, setDraft ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
+	const [ lang, setLang ] = useState( main );
 
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
@@ -97,7 +133,12 @@ export function SettingsPage( { title, render } ) {
 	}
 
 	const { seo } = draft;
-	const texts = seo.texts[ main ];
+	const texts = Object.fromEntries(
+		Object.keys( TEXTS ).map( ( name ) => [
+			name,
+			seo.texts[ lang ]?.[ name ] || seo.texts[ main ][ name ],
+		] )
+	);
 	const setSeo = ( name ) => ( value ) =>
 		setDraft( ( now ) => ( {
 			...now,
@@ -108,11 +149,20 @@ export function SettingsPage( { title, render } ) {
 			...now,
 			site: { ...now.site, [ name ]: value },
 		} ) );
-	const setText = ( name ) => ( value ) =>
-		setSeo( 'texts' )( {
+	// Una traduzione tutta vuota non si salva: vale la lingua principale.
+	const setText = ( name ) => ( value ) => {
+		const next = {
 			...seo.texts,
-			[ main ]: { ...texts, [ name ]: value },
-		} );
+			[ lang ]: { ...TEXTS, ...seo.texts[ lang ], [ name ]: value },
+		};
+		if (
+			lang !== main &&
+			! Object.values( next[ lang ] ).some( Boolean )
+		) {
+			delete next[ lang ];
+		}
+		setSeo( 'texts' )( next );
+	};
 
 	// Ciò che si scrive durante il salvataggio resta, da salvare.
 	const save = () => {
@@ -156,6 +206,7 @@ export function SettingsPage( { title, render } ) {
 	return (
 		<div className="barrio-stack">
 			<Bar title={ title }>
+				<LangPicker value={ lang } onChange={ setLang } />
 				<button
 					type="button"
 					className="barrio-button is-primary"
@@ -171,10 +222,12 @@ export function SettingsPage( { title, render } ) {
 				</button>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
+			<LangNotice lang={ lang } />
 			{ render( {
 				saved,
 				seo,
 				site: draft.site,
+				lang,
 				texts,
 				setSeo,
 				setSite,

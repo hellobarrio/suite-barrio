@@ -8,6 +8,7 @@ import { __ } from '@wordpress/i18n';
 
 import {
 	Card,
+	Fixed,
 	Icon,
 	Menu,
 	SectionHead,
@@ -19,7 +20,7 @@ import {
 import { formsData } from '../ui.js';
 import { Conditions } from './Conditions.js';
 import { ruleFields } from './Fields.js';
-import { Fixed, TextIn } from './Texts.js';
+import { TextIn } from './Texts.js';
 
 const { languages } = window.barrioAdmin;
 const { integrations } = formsData;

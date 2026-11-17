@@ -70,10 +70,3 @@ export function TextIn( {
 		/>
 	);
 }
-
-// Impostazioni uguali in tutte le lingue: nelle altre lingue il fieldset le disattiva tutte.
-export const Fixed = ( { lang, children } ) => (
-	<fieldset className="barrio-fixed" disabled={ lang !== main }>
-		{ children }
-	</fieldset>
-);

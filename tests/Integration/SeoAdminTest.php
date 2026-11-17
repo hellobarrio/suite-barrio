@@ -53,8 +53,10 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'Chi siamo', 'noindex', '' ], [ $rows[ $page ]['page']['title'], $rows[ $page ]['meta']['_barrio_seo_index'], $rows[ $page ]['meta']['_barrio_seo_title'] ] );
 		$this->assertStringContainsString( 'nuova-pagina', $rows[ $draft ]['page']['url'], 'A draft has the address it will have, for the score.' );
 		$this->assertSame( 'draft', $rows[ $draft ]['status'] );
-		$this->assertTrue( $data['context']['robots']['index'] );
-		$this->assertContains( 'post', array_column( $data['context']['collections'], 'value' ), 'Pages can be the archive of a type.' );
+		$this->assertSame( [ 'en', 'en' ], array_column( $rows, 'lang' ), 'Without a multilingual plugin, the language of the site.' );
+		$this->assertSame( [ 'en' ], array_keys( $data['contexts'] ) );
+		$this->assertTrue( $data['contexts']['en']['robots']['index'] );
+		$this->assertContains( 'post', array_column( $data['contexts']['en']['collections'], 'value' ), 'Pages can be the archive of a type.' );
 
 		$term = self::factory()->category->create( [ 'name' => 'Pizze' ] );
 		$rows = $this->rest( 'GET', '/barrio/v1/seo/contents/taxonomies/category' )->get_data()['rows'];

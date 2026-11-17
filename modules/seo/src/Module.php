@@ -69,6 +69,9 @@ final class Module {
 		foreach ( [ 'clean_post_cache', 'clean_term_cache', 'add_option_barrio_seo', 'update_option_barrio_seo', 'update_option_blogname' ] as $hook ) {
 			add_action( $hook, [ Llms::class, 'flush' ] );
 		}
+
+		// Le estensioni del modulo si collegano qui, come a barrio_forms_loaded.
+		add_action( 'init', static fn() => do_action( 'barrio_seo_loaded' ), 5 );
 	}
 
 	public static function deactivate(): void {}
@@ -82,9 +85,8 @@ final class Module {
 	 */
 	public static function launch_steps( array $steps ): array {
 		$settings = Settings::get();
-		$texts    = I18n::pick( $settings['texts'], I18n::languages()[0] );
 		return $steps + [
-			'seo' => '' !== trim( (string) ( $texts['default_description'] ?? '' ) ) && $settings['default_image'] > 0
+			'seo' => '' !== trim( Settings::text( 'default_description', I18n::languages()[0] ) ) && $settings['default_image'] > 0
 				&& '' !== trim( $settings['organization']['name'] ) && $settings['organization']['logo'] > 0,
 		];
 	}

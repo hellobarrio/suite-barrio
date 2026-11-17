@@ -54,12 +54,16 @@ final class WpmlTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_wpml_language_switcher_is_hidden_only_on_the_barrio_pages(): void {
-		$show         = static fn(): mixed => apply_filters( 'wpml_show_admin_language_switcher', true );
+		$show = static fn(): mixed => apply_filters( 'wpml_show_admin_language_switcher', true );
 		$this->assertTrue( $show() );
-		$_GET['page'] = 'barrio-forms';
-		$this->assertFalse( $show() );
-		$_GET['page'] = 'wc-orders';
-		$this->assertTrue( $show() );
+		foreach ( [ 'barrio', 'barrio-forms' ] as $page ) {
+			$_GET['page'] = $page;
+			$this->assertFalse( $show(), $page );
+		}
+		foreach ( [ 'wc-orders', 'barrios' ] as $page ) {
+			$_GET['page'] = $page;
+			$this->assertTrue( $show(), $page );
+		}
 		unset( $_GET['page'] );
 	}
 }

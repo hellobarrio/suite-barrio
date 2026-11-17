@@ -264,7 +264,7 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
 | Estensione | Nel modulo SEO |
 |---|---|
 | `barrio-suite-wpgraphql` | Solo con il modulo acceso, e con i dati di `Seo\Meta`:<br>• `seo` (`HBSeoPost`) sui post type pubblici;<br>• `hbSeoSite`, `hbSchemaRaw(uri)`, `hbSitemap`, `hbRedirects`, `hbLlms` e `hbLlmsFull`.<br>Nomi e forme sono quelli del prototipo (`loc` relativo, `title` senza il nome del sito). Registra con priorità 9, come per i form.<br>L'**indirizzo del frontend** è un'impostazione dell'estensione, in GraphQL → Settings con l'API delle impostazioni di WPGraphQL (prima lo faceva, senza dirlo, l'URL dello schema del prototipo). Nelle risposte GraphQL l'estensione porta su quell'indirizzo gli URL delle pagine (canonical, schema, llms) con il filtro `barrio_seo_url`; le immagini restano su WordPress |
-| `barrio-suite-wpml` | I filtri delle lingue del core. Un `wpml-config.xml` per i meta: index, follow e collection si copiano, titolo, descrizione e parole chiave si traducono; sostituisce il codice di copia del prototipo. Sitemap con tutte le lingue, se serve (§8) |
+| `barrio-suite-wpml` | I filtri delle lingue del core e `barrio_switch_language` (`wpml_switch_language`). Un `wpml-config.xml` per i meta: index, follow e collection si copiano, titolo, descrizione e parole chiave si traducono, l'immagine si copia una volta; sostituisce il codice di copia del prototipo. Le sitemap delle altre lingue in robots.txt (§8) |
 | `barrio-suite-migration` | `wp barrio seo migrate [--dry-run]` (fase S7). Tiene spento il modulo SEO di Barrio Suite finché il SEO del prototipo è acceso e non migrato. Finché il prototipo resta attivo, fa anche da ponte verso la sua revalidation di Next.js |
 | `barrio-suite-ai` (nuova) | Anthropic o Gemini, chiave cifrata, modello scelto dalla lista dell'API. Aggiunge "Genera con AI" al pannello SEO, alla modale e alle azioni di massa di Contenuti, e all'introduzione di llms.txt. Il servizio esterno va dichiarato nel readme (regola di WordPress.org) |
 
@@ -366,15 +366,25 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
 
 ## 8. Da verificare durante lo sviluppo
 
-- **Sitemap del core con WPML**: bisogna verificare se include tutte le lingue o solo quella corrente (i filtri di WPML sulle query). Da questo dipende il codice dell'estensione WPML.
+- **Sitemap del core con WPML** (S5, fatto): WPML filtra le query sulla lingua della richiesta, quindi ogni lingua ha la sua
+  sitemap, con i suoi URL (`/en/wp-sitemap.xml`), e quella del core ha solo la principale. WPML non accetta `all` nel
+  frontend, e una sitemap indice non può contenerne altre: l'estensione WPML aggiunge a robots.txt una riga `Sitemap:`
+  per ogni altra lingua (`wpml_permalink`). I conteggi di SEO → Impostazioni sommano le sitemap delle lingue.
+- **Lingua dei contenuti** (S5, fatto): `I18n::in()` cambia anche la lingua dei contenuti, con l'azione
+  `barrio_switch_language`. llms.txt (un blocco per lingua), la tabella dei contenuti e i conteggi della sitemap girano
+  una lingua alla volta; le loro `get_posts()` hanno `suppress_filters => false`, senza il quale WPML non filtra. La
+  card della Bacheca conta tutte le lingue con `suppress_filters => true`. Con WPML la riga `>` di llms.txt resta
+  l'indirizzo del sito: WPML converte `home_url` con la lingua della richiesta, non con quella attiva.
 - **Campo `seo` in GraphQL**: il `graphql.php` del prototipo lo registra sempre, anche con il suo modulo SEO spento. Per i tipi vince la prima registrazione (fase 9 dei form); per un campo sullo stesso tipo va provato su wp-env con il prototipo attivo.
 - **Revalidation dei siti headless**: il ponte funziona finché il prototipo è attivo. Sui siti headless il prototipo si toglie solo dopo che Barrio Suite avrà un'estensione di revalidation, che userà `barrio_seo_changed` e l'indirizzo del frontend.
 - **Ordine degli aggiornamenti sui siti del prototipo**: il core con il modulo SEO e l'estensione di migrazione aggiornata vanno installati insieme. Sui siti dove la migrazione è già stata tolta dopo i form, va reinstallata prima di aggiornare il core.
 - **Impostazioni di WPGraphQL**: verificare che `register_graphql_settings_field` regga il campo dell'indirizzo del frontend; altrimenti, una costante in `wp-config.php`.
 - **`site_icon` in `/wp/v2/settings`** (S4, fatto): la REST del core lo espone, come `blogname` (`title`). SEO →
   Impostazioni salva nome e icona del sito con `/wp/v2/settings`, con lo stesso Salva delle sezioni di `barrio_seo`.
-- **Lingua in SEO → Contenuti** (S5): colonna e filtro della lingua hanno bisogno della lingua di ogni contenuto,
-  che sa solo il plugin multilingua: arrivano con l'estensione WPML in S5.
+- **Lingua in SEO → Contenuti** (S5, fatto): la tabella chiede i contenuti una lingua alla volta, la principale per
+  prima, e ognuno prende la prima in cui compare: anche un tipo che WPML non traduce, o l'originale mostrato dove manca
+  la traduzione ("display as translated" di WooCommerce Multilingual), resta della lingua principale e non si ripete.
+  Ogni lingua ha il suo contesto per il pannello e il punteggio (descrizione predefinita, nome del sito).
 - **Temi senza `title-tag`**: stampano il loro `<title>`, e il modulo non può cambiarlo. Da controllare sui temi classici dei clienti.
 - **Costo dei redirect**: una SELECT sulla UNIQUE a ogni richiesta del frontend. Va misurata; se serve, un flag "nessun redirect" in un'opzione autoload la evita.
 - **llms-full.txt**: misurare quanto ci mette a generarsi, a cache vuota, sul sito più grande (500 contenuti fino a 4000 caratteri).

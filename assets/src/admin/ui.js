@@ -130,6 +130,75 @@ export const langOption = ( code, label = code.toUpperCase() ) => ( {
 	image: window.barrioAdmin.flags[ code ],
 } );
 
+/**
+ * Nella barra delle pagine con testi tradotti (builder, impostazioni SEO): la lingua dei testi da modificare.
+ * Niente con una lingua sola.
+ *
+ * @param {Object}                 props
+ * @param {string}                 props.value
+ * @param {(lang: string) => void} props.onChange
+ */
+export function LangPicker( { value, onChange } ) {
+	const [ main, ...others ] = window.barrioAdmin.languages;
+	return (
+		others.length > 0 && (
+			<Picker
+				label={ __( 'Language', 'barrio-suite' ) }
+				text={ value.toUpperCase() }
+				image={ langOption( value ).image }
+				className="barrio-bar__lang"
+				active={ value !== main }
+				options={ [
+					langOption(
+						main,
+						sprintf(
+							/* translators: %s: language code, like IT. */
+							__( '%s (main language)', 'barrio-suite' ),
+							main.toUpperCase()
+						)
+					),
+					...others.map( ( code ) => langOption( code ) ),
+				] }
+				value={ value }
+				onChange={ onChange }
+			/>
+		)
+	);
+}
+
+// Sotto la barra, quando si traducono i testi in un'altra lingua.
+export function LangNotice( { lang } ) {
+	const main = window.barrioAdmin.languages[ 0 ];
+	return (
+		<Notice
+			notice={
+				lang !== main && {
+					status: 'info',
+					message: sprintf(
+						/* translators: 1: code of the language being translated, like EN; 2: code of the main language, like IT. */
+						__(
+							'You are editing the %1$s texts: an empty text shows the %2$s one. The settings in grey are the same in every language: change them in %2$s.',
+							'barrio-suite'
+						),
+						lang.toUpperCase(),
+						main.toUpperCase()
+					),
+				}
+			}
+		/>
+	);
+}
+
+// Impostazioni uguali in tutte le lingue: nelle altre lingue il fieldset le disattiva tutte.
+export const Fixed = ( { lang, children } ) => (
+	<fieldset
+		className="barrio-fixed"
+		disabled={ lang !== window.barrioAdmin.languages[ 0 ] }
+	>
+		{ children }
+	</fieldset>
+);
+
 // addon: un bottone accanto al controllo (per esempio "Mostra" della password).
 export function Field( { label, help, addon, children } ) {
 	const id = useId();
@@ -379,9 +448,7 @@ export const ModuleCard = ( { module, stats, actions, notice } ) => (
 				{ actions.map( ( [ text, href ], index ) => (
 					<a
 						key={ href }
-						className={ `barrio-button${
-							index ? '' : ' is-primary'
-						}` }
+						className={ `barrio-button${ index ? '' : ' is-primary' }` }
 						href={ href }
 					>
 						{ text }
@@ -701,9 +768,7 @@ export function Picker( {
 			renderToggle={ ( { isOpen, onToggle } ) => (
 				<button
 					type="button"
-					className={ `barrio-button ${ className }${
-						active ? ' is-active' : ''
-					}` }
+					className={ `barrio-button ${ className }${ active ? ' is-active' : '' }` }
 					aria-expanded={ isOpen }
 					onClick={ onToggle }
 				>
@@ -815,9 +880,7 @@ function Filters( {
 			renderToggle={ ( { isOpen, onToggle } ) => (
 				<button
 					type="button"
-					className={ `barrio-button${
-						active.length ? ' is-active' : ''
-					}` }
+					className={ `barrio-button${ active.length ? ' is-active' : '' }` }
 					aria-expanded={ isOpen }
 					onClick={ onToggle }
 				>

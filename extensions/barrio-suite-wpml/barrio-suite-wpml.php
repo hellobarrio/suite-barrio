@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Barrio Suite WPML
- * Description:       Languages of Barrio Suite from WPML: translations in the builder, forms and emails in the visitor's language.
+ * Description:       Languages of Barrio Suite from WPML: translated forms, emails and SEO texts, and the SEO data of every language.
  * Version:           0.1.0
  * Requires at least: 6.9
  * Requires PHP:      8.2
@@ -47,15 +47,46 @@ add_filter(
 	2
 );
 
+// WPML tiene una pila: null torna alla lingua di prima.
+add_action(
+	'barrio_switch_language',
+	static function ( ?string $lang ): void {
+		do_action( 'wpml_switch_language', $lang ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- azione di WPML.
+	}
+);
+
+// Con WPML ogni lingua ha la sua sitemap del core (/en/wp-sitemap.xml) con i suoi contenuti: robots.txt le
+// elenca tutte, dopo quella della lingua principale che aggiunge WordPress.
+add_action(
+	'barrio_seo_loaded',
+	static function (): void {
+		add_filter(
+			'robots_txt',
+			static function ( string $output ): string {
+				if ( ! wp_sitemaps_get_server()->sitemaps_enabled() ) {
+					return $output;
+				}
+				$default = apply_filters( 'wpml_default_language', null ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WPML.
+				foreach ( array_keys( barrio_wpml_languages() ) as $code ) {
+					if ( $code !== $default ) {
+						$output .= 'Sitemap: ' . esc_url( (string) apply_filters( 'wpml_permalink', get_sitemap_url( 'index' ), $code ) ) . "\n"; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WPML.
+					}
+				}
+				return $output;
+			}
+		);
+	}
+);
+
 add_filter(
 	'barrio_language_flags',
 	static fn( array $flags ): array => array_filter( array_map( static fn( array $language ): string => (string) ( $language['country_flag_url'] ?? '' ), barrio_wpml_languages() ) ) + $flags
 );
 
-// Nelle pagine di Barrio Suite la lingua si sceglie nel builder: il selettore di WPML nella barra di
-// WordPress sceglierebbe solo i contenuti mostrati in admin, e confonderebbe. WPML lo decide in init,
-// prima che la schermata sia nota: si guarda la pagina richiesta.
+// Nelle pagine di Barrio Suite (la Bacheca è barrio, le altre barrio-…) la lingua si sceglie nella barra
+// della pagina: il selettore di WPML nella barra di WordPress sceglierebbe solo i contenuti mostrati in
+// admin, e confonderebbe. WPML lo decide in init, prima che la schermata sia nota: si guarda la pagina richiesta.
 add_filter(
 	'wpml_show_admin_language_switcher', // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WPML.
-	static fn( mixed $show ): mixed => str_starts_with( sanitize_key( wp_unslash( $_GET['page'] ?? '' ) ), 'barrio-' ) ? false : $show // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- serve solo a sapere quale pagina è.
+	static fn( mixed $show ): mixed => preg_match( '/^barrio(-|$)/', sanitize_key( wp_unslash( $_GET['page'] ?? '' ) ) ) ? false : $show // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- serve solo a sapere quale pagina è.
 );

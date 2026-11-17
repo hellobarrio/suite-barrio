@@ -2,6 +2,8 @@
 
 namespace BarrioSuite\Seo;
 
+use BarrioSuite\I18n;
+
 /**
  * Le impostazioni SEO del sito, nell'opzione barrio_seo: le scrive solo PUT /barrio/v1/seo/settings
  * (Api/RestSettings.php), una sezione alla volta, dopo averla validata con schema(). Nome e icona del
@@ -77,6 +79,12 @@ final class Settings {
 	/** @return array<string, mixed> */
 	public static function get(): array {
 		return array_replace_recursive( self::DEFAULTS, (array) get_option( self::OPTION, [] ) );
+	}
+
+	// Un testo di texts nella lingua $lang; vuoto, quello della lingua principale.
+	public static function text( string $name, string $lang ): string {
+		$texts = self::get()['texts'];
+		return (string) ( ( $texts[ $lang ][ $name ] ?? '' ) ?: ( $texts[ I18n::languages()[0] ][ $name ] ?? '' ) );
 	}
 
 	/** @param array<string, mixed> $sections Già validate con schema(); quelle assenti restano come sono. */
