@@ -11,7 +11,8 @@ import {
 } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
-import { __, sprintf } from '@wordpress/i18n';
+import { useRef, useState } from '@wordpress/element';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { MediaUpload } from '@wordpress/media-utils';
 
 import { level, score } from '../score.js';
@@ -53,11 +54,74 @@ export function analyze( meta, page, context ) {
 	};
 }
 
+// Il punteggio sull'icona della sidebar: un SVG come le altre icone, con il numero centrato nel cerchio.
 export const Badge = ( { value } ) => (
-	<span className={ `barrio-seo-badge is-${ level( value ) }` }>
-		{ value }
-	</span>
+	<svg
+		className={ `barrio-seo-badge is-${ level( value ) }` }
+		width="24"
+		height="24"
+		viewBox="0 0 24 24"
+		aria-hidden="true"
+	>
+		<circle cx="12" cy="12" r="12" />
+		<text x="12" y="12" dy=".35em" textAnchor="middle">
+			{ value }
+		</text>
+	</svg>
 );
+
+const LEVELS = {
+	good: () => __( 'Good', 'barrio-suite' ),
+	ok: () => __( 'Needs improvement', 'barrio-suite' ),
+	bad: () => __( 'Poor', 'barrio-suite' ),
+};
+
+// Il punteggio a semicerchio, come in Rank Math: un <meter> disegnato con il CSS (editor.css).
+function Gauge( { result, onShowChecks } ) {
+	const name = level( result.score );
+	const failed = result.checks.filter( ( check ) => ! check.pass ).length;
+	return (
+		<div className={ `barrio-seo-gauge is-${ name }` }>
+			<div className="barrio-seo-gauge__dial">
+				<meter
+					className="barrio-seo-gauge__meter"
+					min="0"
+					max="100"
+					value={ result.score }
+					aria-label={ __( 'SEO score', 'barrio-suite' ) }
+					aria-valuetext={ sprintf(
+						/* translators: 1: score from 0 to 100, 2: Good, Needs improvement or Poor. */
+						__( '%1$d out of 100, %2$s', 'barrio-suite' ),
+						result.score,
+						LEVELS[ name ]()
+					) }
+					style={ { '--barrio-seo-value': result.score } }
+				/>
+				<span className="barrio-seo-gauge__score" aria-hidden="true">
+					{ result.score }
+					<small>/100</small>
+				</span>
+			</div>
+			<strong className="barrio-seo-gauge__label">
+				{ LEVELS[ name ]() }
+			</strong>
+			<Button variant="link" onClick={ onShowChecks }>
+				{ failed
+					? sprintf(
+							/* translators: %d: number of failed checks. */
+							_n(
+								'%d check to improve',
+								'%d checks to improve',
+								failed,
+								'barrio-suite'
+							),
+							failed
+						)
+					: __( 'All checks passed', 'barrio-suite' ) }
+			</Button>
+		</div>
+	);
+}
 
 // "esempio.it › blog › articolo", come lo mostra Google.
 function breadcrumb( url ) {
@@ -237,6 +301,8 @@ export function Panel( { meta, page, context, seo, onChange } ) {
 		( select ) => seo.image && select( coreStore ).getMedia( seo.image ),
 		[ seo.image ]
 	);
+	const [ checksOpen, setChecksOpen ] = useState( true );
+	const checks = useRef();
 	let host = '';
 	try {
 		host = new URL( page.url || context.site.home ).host;
@@ -244,6 +310,13 @@ export function Panel( { meta, page, context, seo, onChange } ) {
 
 	return (
 		<div className="barrio-seo-panel">
+			<Gauge
+				result={ seo.result }
+				onShowChecks={ () => {
+					setChecksOpen( true );
+					checks.current.scrollIntoView( { block: 'start' } );
+				} }
+			/>
 			<PanelBody title={ __( 'Search result', 'barrio-suite' ) }>
 				<div className="barrio-seo-google" aria-hidden="true">
 					<span className="barrio-seo-google__site">
@@ -390,11 +463,11 @@ export function Panel( { meta, page, context, seo, onChange } ) {
 			</PanelBody>
 
 			<PanelBody
-				title={ sprintf(
-					/* translators: %d: SEO score from 0 to 100. */
-					__( 'Checks: %d/100', 'barrio-suite' ),
-					seo.result.score
-				) }
+				ref={ checks }
+				className="barrio-seo-panel__checks"
+				title={ __( 'Checks', 'barrio-suite' ) }
+				opened={ checksOpen }
+				onToggle={ () => setChecksOpen( ! checksOpen ) }
 			>
 				<Checks checks={ seo.result.checks } />
 			</PanelBody>

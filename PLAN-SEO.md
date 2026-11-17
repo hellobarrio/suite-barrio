@@ -246,6 +246,11 @@ Menu Barrio: Bacheca, Form, SEO, Estensioni, Impostazioni. Un modulo spento non 
   chiave già usata (servirebbe una query), sentiment, power word e numero nel titolo (dipendono dalla lingua),
   indice dei contenuti. Si calcola solo in JS (`score.js`), non si salva, e lo usano il pannello e la tabella; i
   test girano con `node --test`.
+
+  In cima al pannello un semicerchio, come in Rank Math, mostra il punteggio, il livello e quanti controlli
+  mancano; il link porta ai controlli. È un `<meter>` disegnato con `conic-gradient` e una maschera, e l'arco si
+  anima con una custom property registrata (`@property`), senza animazione con `prefers-reduced-motion`.
+  Sull'icona della sidebar c'è il numero, nel colore del livello.
 - **Bacheca**: card SEO con contenuti indicizzati, contenuti senza descrizione e redirect, più i link a Contenuti e Impostazioni. La Bacheca si apre con `read` e ogni card controlla la sua capability.
 - **Messa online**: il passaggio `seo` è fatto con la descrizione e l'immagine predefinite e con nome e logo dell'organizzazione.
 
@@ -287,6 +292,41 @@ WooCommerce, monitor dei 404.
   - codici di verifica, che Search Console fa con il DNS;
   - contatore dei link e SEO delle immagini.
 
+### Da Jetpack (fase S9)
+
+Jetpack Boost e gli strumenti SEO di Jetpack. Quelli SEO ci sono già: titoli, descrizioni, Open Graph e sitemap.
+I codici di verifica sono già tra i lasciati. Delle prestazioni conviene prendere solo ciò che il core sa già fare
+e che non chiama servizi esterni. Va in un modulo a sé, `modules/performance/` (card Moduli), non nel SEO: serve
+anche ai siti che usano Yoast o Rank Math e tengono spento il modulo SEO. Il modulo è acceso come gli altri, ma al
+suo interno sono accese solo le funzioni che non cambiano file né comportamento.
+
+- **Presi**:
+  - **immagini WebP o AVIF**: le dimensioni create al caricamento escono in WebP, o in AVIF se l'editor di
+    immagini del server lo supporta (`wp_image_editor_supports()`). Si usa il filtro del core
+    `image_editor_output_format`, e l'originale resta com'è. Vale per i nuovi caricamenti; per quelli già fatti
+    c'è `wp media regenerate`. Spenta di default, perché cambia i file. È l'alternativa all'Image CDN di Jetpack,
+    senza servizi di terzi;
+  - **caricamento speculativo**: il core (dalla 6.8) fa già il prefetch `conservative` dei link per i visitatori.
+    Si sceglie tra prefetch e prerender e tra `conservative`, `moderate` ed `eager`
+    (`wp_speculation_rules_configuration`). Gli URL che cambiano stato (logout, carrello, `add-to-cart`) restano
+    esclusi (`wp_speculation_rules_href_exclude_paths`). Il prerender esegue il JavaScript della pagina: va provato
+    con i form. Di default resta la scelta del core;
+  - **head più leggero**: un interruttore per ciascuno tra script e stili delle emoji, meta generator, link RSD e
+    shortlink (accesi), e Dashicons nel sito per chi non vede la barra di amministrazione (spento). Ognuno è un
+    `remove_action` o un `wp_dequeue_style`.
+- **Già nel core, quindi niente codice**: lazy loading di immagini e iframe, `fetchpriority="high"` sull'immagine
+  LCP, `width` e `height` delle immagini del contenuto, `decoding="async"`, e nei temi a blocchi il CSS caricato
+  solo per i blocchi usati.
+- **Lasciati**:
+  - Critical CSS: serve il servizio cloud di Jetpack o un browser headless sul server;
+  - rinvio di tutti gli script: rompe form e slider, tanto che Jetpack stesso chiede di escluderli. Gli script del
+    plugin sono già module o `defer`;
+  - Image CDN: un servizio di terzi, quindi semmai un'estensione;
+  - cache delle pagine: è dell'hosting o di un plugin di cache, con il drop-in `advanced-cache.php`;
+  - concatenazione di JS e CSS: con HTTP/2 guadagna poco e rende la cache meno efficace;
+  - Image Guide: misura le immagini nel browser di chi visita il sito;
+  - sitemap di Google News: serve solo ai siti di notizie, quindi un'estensione se un sito la chiede.
+
 ## 7. Fasi
 
 Ogni fase si chiude con test verdi (PHPUnit su MariaDB 10.5 e MySQL 8.0, PHPStan, PHPCS, ESLint, `node --test`),
@@ -303,6 +343,7 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
 | S6 | **GraphQL** nell'estensione `barrio-suite-wpgraphql` | Lo snapshot dello schema SEO coincide con quello del prototipo. `hello_standard` funziona senza modifiche contro wp-env (`getSeo`, `SeoFragment`, `getSchema`, `getSitemap`, `getRedirects`, `getLLMS`). Senza il modulo acceso non registra niente |
 | S7 | **Migrazione dal prototipo** (dettagli sotto) | Un sito headless reale migrato:<br>• conteggi uguali prima e dopo (prova a vuoto, poi migrazione);<br>• `<head>` e GraphQL di cinque pagine uguali prima e dopo, tranne i bug corretti |
 | S8 | **Estensione AI** (`barrio-suite-ai`) | Titolo, descrizione e parole chiave generati per un contenuto e in massa, senza modificare il core; errori e chiave mancante mostrati nel pannello |
+| S9 | **Prestazioni** (modulo `performance`, §6 "Da Jetpack"): immagini WebP o AVIF, caricamento speculativo, head più leggero, card in Impostazioni | Su un sito di prova:<br>• una JPEG caricata ha le dimensioni in WebP (o AVIF) e l'originale intatto;<br>• le regole di speculazione hanno la modalità scelta ed escludono admin e logout;<br>• l'head non ha emoji, generator, RSD e shortlink;<br>• PageSpeed Insights su mobile non peggiora in nessuna metrica;<br>• i form si inviano anche con il prerender acceso.<br>Con il modulo spento tutto torna come nel core |
 
 **Migrazione (S7)**: legge le opzioni e i meta del prototipo e scrive con le API del modulo.
 - **Prima della migrazione**: finché il SEO del prototipo è acceso (`suite_barrio_tools_modules['seo']`, assente = acceso), l'estensione mette `seo` tra i moduli spenti di Barrio Suite, una volta sola, e mostra un avviso agli amministratori. Altrimenti, aggiornando un sito del prototipo, i meta uscirebbero due volte e in GraphQL vincerebbero le impostazioni SEO di Barrio Suite, ancora vuote.
