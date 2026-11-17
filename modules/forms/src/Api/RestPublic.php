@@ -3,12 +3,12 @@
 namespace BarrioSuite\Forms\Api;
 
 use BarrioSuite\Forms\FieldTypes;
-use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\Submission;
+use BarrioSuite\I18n;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;

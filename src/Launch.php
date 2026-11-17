@@ -2,6 +2,7 @@
 
 namespace BarrioSuite;
 
+use BarrioSuite\Mail\Smtp;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -60,6 +61,7 @@ final class Launch {
 		return apply_filters(
 			'barrio_launch_steps',
 			[
+				'smtp'     => Smtp::is_configured(),
 				'timezone' => '' !== get_option( 'timezone_string' ),
 				'search'   => '1' === (string) get_option( 'blog_public' ),
 			]

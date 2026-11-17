@@ -2,7 +2,13 @@
 // { action: show|hide, logic: all|any, rules: [ { field, operator, value } ] }; null = nessuna regola.
 import { __, sprintf } from '@wordpress/i18n';
 
-import { Check, Icon, SectionHead, Select, Text } from '../admin/ui.js';
+import {
+	Check,
+	Icon,
+	SectionHead,
+	Select,
+	Text,
+} from '../../../../../assets/src/admin/ui.js';
 
 const operators = () => [
 	{ value: '=', label: __( 'is', 'barrio-suite' ) },

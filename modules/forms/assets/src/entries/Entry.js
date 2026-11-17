@@ -12,11 +12,11 @@ import {
 	Loading,
 	Notice,
 	Text,
-	entriesUrl,
+	errorMessage,
 	restLink,
 	useUnsavedWarning,
-} from '../admin/ui.js';
-import { errorMessage } from '../builder/model.js';
+} from '../../../../../assets/src/admin/ui.js';
+import { entriesUrl } from '../ui.js';
 
 const { languages } = window.barrioAdmin;
 

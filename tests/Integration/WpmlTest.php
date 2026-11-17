@@ -2,7 +2,7 @@
 
 namespace BarrioSuite\Tests\Integration;
 
-use BarrioSuite\Forms\I18n;
+use BarrioSuite\I18n;
 use WP_UnitTestCase;
 
 // L'estensione barrio-suite-wpml (caricata da tests/bootstrap.php). WPML non si installa in CI:
@@ -56,7 +56,7 @@ final class WpmlTest extends WP_UnitTestCase {
 	public function test_the_wpml_language_switcher_is_hidden_only_on_the_barrio_pages(): void {
 		$show         = static fn(): mixed => apply_filters( 'wpml_show_admin_language_switcher', true );
 		$this->assertTrue( $show() );
-		$_GET['page'] = 'barrio-settings';
+		$_GET['page'] = 'barrio-forms';
 		$this->assertFalse( $show() );
 		$_GET['page'] = 'wc-orders';
 		$this->assertTrue( $show() );

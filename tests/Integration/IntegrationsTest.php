@@ -26,7 +26,7 @@ final class IntegrationsTest extends WP_UnitTestCase {
 		parent::set_up();
 		self::$calls  = [];
 		self::$result = true;
-		add_filter( 'barrio_forms_languages', static fn(): array => [ 'it', 'en' ] );
+		add_filter( 'barrio_languages', static fn(): array => [ 'it', 'en' ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 		barrio_forms_register_integration(
 			'crm',

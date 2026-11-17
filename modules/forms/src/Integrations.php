@@ -8,6 +8,7 @@ use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\Integration;
 use BarrioSuite\Forms\Model\NoteLevel;
 use BarrioSuite\Forms\Repository\EntryRepository;
+use BarrioSuite\I18n;
 use Throwable;
 use WP_Error;
 

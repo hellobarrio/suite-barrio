@@ -265,7 +265,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_language_is_the_submitted_one_when_active(): void {
-		add_filter( 'barrio_forms_languages', static fn(): array => [ 'it', 'en' ] );
+		add_filter( 'barrio_languages', static fn(): array => [ 'it', 'en' ] );
 
 		$this->assertSame( 'Thanks!', $this->post( [ '_barrio_lang' => 'en' ] + self::VALID )->get_data()['message'] );
 		$this->assertSame( 'en', $this->last_entry()['lang'] );

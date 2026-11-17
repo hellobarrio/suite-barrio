@@ -5,6 +5,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
+import { formsStep } from '../../../modules/forms/assets/src/settings/Sections.js';
 import {
 	Bar,
 	Card,
@@ -12,17 +13,12 @@ import {
 	Icon,
 	Loading,
 	Notice,
-	SectionHead,
 	Select,
+	errorMessage,
 	useUnsavedWarning,
 } from '../admin/ui.js';
-import { errorMessage } from '../builder/model.js';
-import {
-	RetentionField,
-	SmtpFields,
-	TemplateFields,
-	TestEmail,
-} from '../settings/Sections.js';
+import { launchSteps } from '../extensions/Extensions.js';
+import { smtpStep } from '../general/Smtp.js';
 
 export const launchUrl = ( step ) =>
 	'?' +
@@ -32,80 +28,75 @@ export const launchUrl = ( step ) =>
 		...( step && { step } ),
 	} );
 
-// L'ordine della guida, un passaggio per modulo più quelli del sito. Quelli che il server non
-// restituisce (di un modulo spento) non compaiono. fields: le impostazioni che il passaggio modifica.
-const STEPS = [
-	{
-		id: 'forms',
-		fields: [ 'smtp', 'email', 'privacy' ],
-		icon: 'feedback',
-		title: __( 'Forms', 'barrio-suite' ),
-		description: __(
-			'The emails leave through an SMTP server, so they do not end up in spam, and carry the logo of the site; the entries are kept only as long as needed, as the GDPR asks.',
-			'barrio-suite'
-		),
-	},
-	{
-		id: 'timezone',
-		fields: [ 'timezone' ],
-		icon: 'clock',
-		title: __( 'Time zone', 'barrio-suite' ),
-		description: __(
-			'For the dates of entries and emails.',
-			'barrio-suite'
-		),
-	},
-	{
-		id: 'search',
-		fields: [ 'search' ],
-		icon: 'search',
-		title: __( 'Search engines', 'barrio-suite' ),
-		description: __(
-			'While the site was being built WordPress may have asked search engines not to index it.',
-			'barrio-suite'
-		),
-	},
-];
-
-// Quelle che il browser conosce; quella salvata anche se il browser non la conosce.
+// Quelle che il browser conosce; quella salvata anche se il browser non la conosce. Array.from e non
+// [ ...new Set() ]: il parser di wp i18n make-pot non legge la build e perde le stringhe.
 const zones = ( saved ) =>
-	[ ...new Set( [ saved, ...Intl.supportedValuesOf( 'timeZone' ) ] ) ]
+	Array.from( new Set( [ saved, ...Intl.supportedValuesOf( 'timeZone' ) ] ) )
 		.filter( Boolean )
 		.map( ( zone ) => ( { value: zone, label: zone } ) );
 
-// I valori salvati di ogni passaggio, nella forma dei campi.
-const values = ( launch, settings ) => ( {
-	smtp: settings.smtp,
-	email: settings.email,
-	privacy: settings.privacy,
-	timezone: launch.timezone,
-	search: launch.steps.search,
-} );
-
-const settingsPut = ( data ) =>
-	apiFetch( { path: '/barrio/v1/settings', method: 'PUT', data } );
-
-const SAVE = {
-	forms: ( draft, password ) =>
-		settingsPut( {
-			smtp: draft.smtp,
-			email: draft.email,
-			privacy: draft.privacy,
-			...( password && { password } ),
-		} ),
-	timezone: ( draft ) =>
+/*
+ * Un passaggio: id (la chiave di Launch::steps()), icon, title, description, load() per i suoi dati
+ * (facoltativo), value( data, launch ) per i valori salvati nella forma dei campi, initial() se la
+ * guida propone altro, save( draft ) e Fields, i campi, con draft, set, data, launch, dirty e onNotice.
+ */
+const timezoneStep = {
+	id: 'timezone',
+	icon: 'clock',
+	title: __( 'Time zone', 'barrio-suite' ),
+	description: __( 'For the dates of entries and emails.', 'barrio-suite' ),
+	value: ( data, launch ) => launch.timezone,
+	// Senza un fuso salvato, quello del browser: di solito è quello giusto.
+	initial: ( data, launch ) =>
+		launch.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+	save: ( draft ) =>
 		apiFetch( {
 			path: '/wp/v2/settings',
 			method: 'POST',
-			data: { timezone: draft.timezone },
+			data: { timezone: draft },
 		} ),
-	search: ( draft ) =>
+	Fields: ( { draft, set, launch } ) => (
+		<Select
+			label={ __( 'Time zone', 'barrio-suite' ) }
+			value={ draft }
+			options={ zones( launch.timezone ) }
+			onChange={ set }
+		/>
+	),
+};
+
+const searchStep = {
+	id: 'search',
+	icon: 'search',
+	title: __( 'Search engines', 'barrio-suite' ),
+	description: __(
+		'While the site was being built WordPress may have asked search engines not to index it.',
+		'barrio-suite'
+	),
+	value: ( data, launch ) => launch.steps.search,
+	save: ( draft ) =>
 		apiFetch( {
 			path: '/barrio/v1/launch',
 			method: 'PUT',
-			data: { search_engines: draft.search },
+			data: { search_engines: draft },
 		} ),
+	Fields: ( { draft, set } ) => (
+		<Check
+			label={ __( 'Let search engines index the site', 'barrio-suite' ) }
+			help={ __(
+				'The same setting as Search engine visibility in Settings → Reading.',
+				'barrio-suite'
+			) }
+			checked={ draft }
+			onChange={ set }
+		/>
+	),
 };
+
+// L'ordine della guida: le email, un passaggio per modulo, poi il sito. Quelli che il server non
+// restituisce (di un modulo spento) non compaiono. launchSteps dipende dal branch
+// (extensions/Extensions.js).
+const STEPS = [ smtpStep, formsStep, timezoneStep, searchStep, ...launchSteps ];
 
 // I passaggi ancora da configurare: né fatti né saltati.
 export const pending = ( launch ) =>
@@ -180,9 +171,9 @@ export function LaunchBanner( { launch, href } ) {
 
 export function Launch() {
 	const [ launch, setLaunch ] = useState( null );
-	const [ saved, setSaved ] = useState( null );
+	// Per passaggio: i suoi dati (da load()) e i valori dei campi.
+	const [ data, setData ] = useState( null );
 	const [ draft, setDraft ] = useState( null );
-	const [ password, setPassword ] = useState( '' );
 	const [ current, setCurrent ] = useState(
 		new URLSearchParams( window.location.search ).get( 'step' )
 	);
@@ -190,21 +181,29 @@ export function Launch() {
 	const [ busy, setBusy ] = useState( false );
 
 	const load = () =>
-		Promise.all( [
-			apiFetch( { path: '/barrio/v1/launch' } ),
-			apiFetch( { path: '/barrio/v1/settings' } ),
-		] ).then( ( [ nextLaunch, settings ] ) => {
-			setLaunch( nextLaunch );
-			setSaved( settings );
-			// Senza un fuso salvato, quello del browser: di solito è quello giusto.
-			setDraft( {
-				...values( nextLaunch, settings ),
-				timezone:
-					nextLaunch.timezone ||
-					Intl.DateTimeFormat().resolvedOptions().timeZone,
+		apiFetch( { path: '/barrio/v1/launch' } ).then( ( next ) => {
+			const present = STEPS.filter( ( { id } ) => id in next.steps );
+			return Promise.all(
+				present.map( ( step ) => ( step.load ? step.load() : null ) )
+			).then( ( loaded ) => {
+				const nextData = Object.fromEntries(
+					present.map( ( { id }, index ) => [ id, loaded[ index ] ] )
+				);
+				setLaunch( next );
+				setData( nextData );
+				setDraft(
+					Object.fromEntries(
+						present.map( ( step ) => [
+							step.id,
+							( step.initial ?? step.value )(
+								nextData[ step.id ],
+								next
+							),
+						] )
+					)
+				);
+				return next;
 			} );
-			setPassword( '' );
-			return nextLaunch;
 		} );
 	useEffect( () => {
 		load()
@@ -225,12 +224,8 @@ export function Launch() {
 	const step = steps.find( ( { id } ) => id === current );
 	const dirty =
 		!! step &&
-		( ( 'forms' === step.id && '' !== password ) ||
-			step.fields.some(
-				( field ) =>
-					JSON.stringify( draft[ field ] ) !==
-					JSON.stringify( values( launch, saved )[ field ] )
-			) );
+		JSON.stringify( draft[ step.id ] ) !==
+			JSON.stringify( step.value( data[ step.id ], launch ) );
 	useUnsavedWarning( dirty );
 
 	if ( ! launch ) {
@@ -264,66 +259,6 @@ export function Launch() {
 				setNotice( { status: 'error', message: errorMessage( error ) } )
 			)
 			.finally( () => setBusy( false ) );
-	};
-	const set = ( field ) => ( value ) =>
-		setDraft( { ...draft, [ field ]: value } );
-	const fields = {
-		forms: (
-			<>
-				{ /* Le sezioni delle card di Form → Impostazioni, nello stesso ordine. */ }
-				<SectionHead title="SMTP" level={ 3 } />
-				<SmtpFields
-					smtp={ draft.smtp }
-					onChange={ set( 'smtp' ) }
-					password={ password }
-					onPassword={ setPassword }
-					passwordStatus={ saved.password_status }
-				/>
-				<SectionHead
-					title={ __( 'Email template', 'barrio-suite' ) }
-					level={ 3 }
-				/>
-				<TemplateFields
-					email={ draft.email }
-					onChange={ set( 'email' ) }
-				/>
-				<SectionHead
-					title={ __( 'Test email', 'barrio-suite' ) }
-					level={ 3 }
-				/>
-				<TestEmail dirty={ dirty } onNotice={ setNotice } />
-				<SectionHead
-					title={ __( 'Privacy', 'barrio-suite' ) }
-					level={ 3 }
-				/>
-				<RetentionField
-					privacy={ draft.privacy }
-					onChange={ set( 'privacy' ) }
-				/>
-			</>
-		),
-		timezone: (
-			<Select
-				label={ __( 'Time zone', 'barrio-suite' ) }
-				value={ draft.timezone }
-				options={ zones( launch.timezone ) }
-				onChange={ set( 'timezone' ) }
-			/>
-		),
-		search: (
-			<Check
-				label={ __(
-					'Let search engines index the site',
-					'barrio-suite'
-				) }
-				help={ __(
-					'The same setting as Search engine visibility in Settings → Reading.',
-					'barrio-suite'
-				) }
-				checked={ draft.search }
-				onChange={ set( 'search' ) }
-			/>
-		),
 	};
 
 	let badge = null;
@@ -400,7 +335,7 @@ export function Launch() {
 						onClick={ () =>
 							advance(
 								dirty
-									? SAVE[ step.id ]( draft, password )
+									? step.save( draft[ step.id ] )
 									: Promise.resolve()
 							)
 						}
@@ -454,7 +389,19 @@ export function Launch() {
 					description={ step.description }
 					actions={ badge }
 				>
-					{ fields[ step.id ] }
+					<step.Fields
+						draft={ draft[ step.id ] }
+						set={ ( value ) =>
+							setDraft( ( now ) => ( {
+								...now,
+								[ step.id ]: value,
+							} ) )
+						}
+						data={ data[ step.id ] }
+						launch={ launch }
+						dirty={ dirty }
+						onNotice={ setNotice }
+					/>
 				</Card>
 			) : (
 				<LaunchBanner launch={ launch } href="?page=barrio" />

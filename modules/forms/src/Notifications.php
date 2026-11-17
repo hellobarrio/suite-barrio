@@ -11,6 +11,7 @@ use BarrioSuite\Forms\Model\Notification;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\FileStore;
+use BarrioSuite\I18n;
 use BarrioSuite\Mail\Smtp;
 use Throwable;
 use WP_Error;

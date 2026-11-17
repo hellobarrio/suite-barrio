@@ -1,6 +1,8 @@
 // Pagina Estensioni (Barrio → Extensions): le estensioni della directory di WordPress.org e quelle
 // installate (src/Extensions.php), ognuna un plugin separato. Le azioni sono quelle della REST di
-// WordPress (/wp/v2/plugins); l'aggiornamento è la schermata di WordPress.
+// WordPress (/wp/v2/plugins); l'aggiornamento è la schermata di WordPress. Questo file dipende dal
+// branch, come src/Extensions.php: in con-updater porta anche gli aggiornamenti da GitHub nella messa
+// online e nelle Impostazioni, qui nessuno.
 import apiFetch from '@wordpress/api-fetch';
 import {
 	createInterpolateElement,
@@ -9,6 +11,7 @@ import {
 } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
+import { pageUrl } from '../../../modules/forms/assets/src/ui.js';
 import {
 	Bar,
 	Card,
@@ -16,9 +19,12 @@ import {
 	Loading,
 	Notice,
 	Search,
-	pageUrl,
+	errorMessage,
 } from '../admin/ui.js';
-import { errorMessage } from '../builder/model.js';
+
+// Passaggi della messa online (assets/src/launch) e sezioni delle Impostazioni (assets/src/general).
+export const launchSteps = [];
+export const settingsSections = [];
 
 const DONE = {
 	install: ( name ) =>

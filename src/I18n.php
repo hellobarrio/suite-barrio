@@ -1,11 +1,11 @@
 <?php
 
-namespace BarrioSuite\Forms;
+namespace BarrioSuite;
 
 /**
- * Lingue dei form. Il core conosce solo la lingua del sito: un plugin multilingua si collega con
- * un'estensione (extensions/barrio-suite-wpml) che usa i filtri barrio_forms_languages,
- * barrio_forms_current_language, barrio_forms_locale e, per l'admin, barrio_forms_language_flags.
+ * Lingue di tutti i moduli. Il core conosce solo la lingua del sito: un plugin multilingua si collega con
+ * un'estensione (extensions/barrio-suite-wpml) che usa i filtri barrio_languages,
+ * barrio_current_language, barrio_locale e, per l'admin, barrio_language_flags.
  * Senza estensione le traduzioni salvate restano nel database e tornano attive con l'estensione.
  */
 final class I18n {
@@ -13,13 +13,13 @@ final class I18n {
 	/** @return non-empty-list<string> Codici in minuscolo (it, en, pt-br), la lingua principale per prima. */
 	public static function languages(): array {
 		$site      = self::code( get_locale() );
-		$languages = array_map( static fn( mixed $code ): string => self::code( (string) $code ), (array) apply_filters( 'barrio_forms_languages', [ $site ] ) );
+		$languages = array_map( static fn( mixed $code ): string => self::code( (string) $code ), (array) apply_filters( 'barrio_languages', [ $site ] ) );
 		return array_values( array_unique( $languages ) ) ?: [ $site ];
 	}
 
 	// La lingua della pagina che si sta mostrando.
 	public static function current(): string {
-		return self::resolve( apply_filters( 'barrio_forms_current_language', null ) );
+		return self::resolve( apply_filters( 'barrio_current_language', null ) );
 	}
 
 	// La lingua richiesta se è attiva, altrimenti la principale.
@@ -32,7 +32,7 @@ final class I18n {
 	/** @return array<string, string> L'immagine della bandiera per codice, per le lingue che ne hanno una. */
 	public static function flags(): array {
 		$flags = [];
-		foreach ( (array) apply_filters( 'barrio_forms_language_flags', [] ) as $code => $url ) {
+		foreach ( (array) apply_filters( 'barrio_language_flags', [] ) as $code => $url ) {
 			$flags[ self::code( (string) $code ) ] = esc_url_raw( (string) $url );
 		}
 		return array_filter( $flags );
@@ -40,7 +40,7 @@ final class I18n {
 
 	// Il locale di WordPress di una lingua (en-us → en_US); senza estensione quello del sito.
 	public static function locale( string $lang ): string {
-		return (string) apply_filters( 'barrio_forms_locale', get_locale(), $lang );
+		return (string) apply_filters( 'barrio_locale', get_locale(), $lang );
 	}
 
 	/**

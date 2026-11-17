@@ -206,7 +206,7 @@ final class RestFormsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'data-barrio-preview', $html );
 		$this->assertStringContainsString( '>Information</label>', $html );
 		// Nella lingua scelta nella scheda Traduzioni, se è attiva.
-		add_filter( 'barrio_forms_languages', static fn(): array => [ 'en', 'it' ] );
+		add_filter( 'barrio_languages', static fn(): array => [ 'en', 'it' ] );
 		$this->assertStringContainsString( '>Un preventivo</label>', $this->request( 'POST', '/forms/preview', self::FORM + [ 'lang' => 'it' ] )->get_data()['html'] );
 		$this->assertStringContainsString( '>Information</label>', $this->request( 'POST', '/forms/preview', self::FORM + [ 'lang' => 'fr' ] )->get_data()['html'] );
 		$this->assertSame( 400, $this->request( 'POST', '/forms/preview', [ 'fields' => [ [ 'config' => [] ] + self::FORM['fields'][1] ] ] + self::FORM )->get_status() );

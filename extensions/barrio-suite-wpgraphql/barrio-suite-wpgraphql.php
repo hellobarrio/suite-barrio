@@ -18,11 +18,11 @@
 // lo schema deve essere lo stesso in ogni lingua.
 
 use BarrioSuite\Forms\FieldTypes;
-use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\Submission;
+use BarrioSuite\I18n;
 use GraphQL\Error\UserError;
 
 defined( 'ABSPATH' ) || exit;

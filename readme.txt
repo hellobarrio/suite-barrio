@@ -23,16 +23,18 @@ Barrio Suite starts with a Forms module:
 * A block and the `[barrio_form id="…"]` shortcode, both cache friendly (no nonce in the page).
 * Translations of every text when an extension provides the languages (for example WPML).
 
-Integrations with other plugins and services are separate extensions, so the core contains no code for third parties. Barrio → Extensions lists the ones published in the WordPress.org plugin directory and installs them with one click.
+Every module can be turned off in Barrio → Settings: it disappears from the menu and from the site, and its data is kept.
+
+Integrations with other plugins and services are separate extensions, so the core contains no code for third parties. Barrio → Extensions installs them with one click.
 
 = Source code =
 
-The admin pages are built from the sources in `modules/forms/assets/src` with `@wordpress/scripts` (`npm install && npm run build`). The full repository is at https://github.com/hellobarrio/suite-barrio (branch `stable`).
+The admin pages are built from the sources in `assets/src` and `modules/forms/assets/src` with `@wordpress/scripts` (`npm install && npm run build`). The full repository is at https://github.com/hellobarrio/suite-barrio (branch `stable`).
 
 == Installation ==
 
 1. Upload the plugin and activate it. It needs MySQL 8.0.16+ or MariaDB 10.5+ with InnoDB, and refuses to activate with a clear message otherwise.
-2. Open Barrio → Dashboard and follow the site launch steps (SMTP, email template, privacy).
+2. Open Barrio → Dashboard and follow the site launch steps (SMTP, email template, privacy…).
 3. Create a form in Barrio → Forms and add the Barrio Form block to a page.
 
 == Frequently Asked Questions ==

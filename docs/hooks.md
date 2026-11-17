@@ -7,7 +7,7 @@ plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
 |---|---|
 | [`barrio-suite-mailchimp`](../extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php) | Un'integrazione con impostazioni globali (la chiave API) e per form, anche tradotte, e `process()` |
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
-| [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_forms_languages` e seguenti |
+| [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_languages` e seguenti |
 | [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio: lo schema GraphQL del prototipo sopra `FormRepository` e `Submission::process()` (vedi [GraphQL](#graphql)) |
 | [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle di un altro plugin e scrive con `FormRepository::create()` (con l'ID) ed `EntryRepository::create()` (con data e stato di lettura), in un comando WP-CLI (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
 
@@ -20,12 +20,8 @@ WPGraphQL, come nella riga WPGraphQL della CI: in locale si installa una volta n
 
 Ogni estensione è un plugin a sé, in `extensions/<slug>/<slug>.php`, con `Requires Plugins: barrio-suite`:
 WordPress non la attiva senza Barrio Suite. Il suo text domain è lo slug, anche per le stringhe uguali a quelle
-del core. `npm run zip` prepara lo zip di Barrio Suite (con `readme.txt`, traduzioni e sorgenti JS) e
-`npm run zip:extensions` quelli delle estensioni. Tutte, tranne la migrazione, si pubblicano nella directory
-di WordPress.org con l'account `hellobarrio`: Barrio → Extensions le elenca con `plugins_api()` (autore
-`hellobarrio`, in cache 12 ore, `src/Extensions.php`) insieme a quelle installate a mano, e le installa,
-attiva, disattiva ed elimina con la REST di WordPress (`/wp/v2/plugins`). Gli aggiornamenti sono quelli di
-WordPress per i plugin della directory. La migrazione resta uno zip da caricare da Plugin → Carica plugin.
+del core. Come si pubblicano e da dove le installa Barrio → Extensions dipende dal branch: lo dice
+[`docs/release.md`](release.md).
 
 ## Quando registrarsi
 
@@ -35,8 +31,8 @@ add_action( 'barrio_forms_loaded', static function (): void {
 } );
 ```
 
-`barrio_forms_loaded` parte su `init` (priorità 5), solo se Barrio Suite è attivo e il suo database è
-aggiornato. Le funzioni `barrio_forms_*` esistono solo da lì in poi, quindi un'estensione senza
+`barrio_forms_loaded` parte su `init` (priorità 5), solo se Barrio Suite è attivo, il modulo Forms è
+acceso (Barrio → Impostazioni → Moduli) e il suo database è aggiornato. Le funzioni `barrio_forms_*` esistono solo da lì in poi, quindi un'estensione senza
 Barrio Suite non fa niente e non dà errori. Su `init` le stringhe tradotte (`__()`) delle etichette
 funzionano: prima WordPress segnala le traduzioni caricate troppo presto.
 
@@ -132,11 +128,12 @@ le aspetta.
 | `barrio_forms_after_submission` | azione | `Entry`, `Form` | Dopo il salvataggio: notifiche (10) e integrazioni (20). Un'eccezione finisce nelle note |
 | `barrio_forms_notification` | filtro | `array $email`, `Notification`, `Entry` | `to`, `subject`, `heading`, `body` (HTML), `reply_to`, `attachments` prima dell'invio |
 | `barrio_forms_presets` | filtro | `array $presets` | Scelte pronte del builder: `'id' => [ 'label' => …, 'choices' => [ [ 'valore', 'Etichetta' ], … ] ]`; con `'intl' => 'region'` (o `language`, `weekday`, `month`) le etichette vuote le scrive il builder con `Intl`, nella lingua principale del form |
-| `barrio_forms_languages` | filtro | `list<string>` | Codici delle lingue attive, la principale per prima |
-| `barrio_forms_current_language` | filtro | `?string` | La lingua della pagina |
-| `barrio_forms_locale` | filtro | `string $locale`, `string $lang` | Il locale di WordPress di una lingua |
-| `barrio_forms_language_flags` | filtro | `array $flags` | URL della bandiera per codice, per l'admin |
-| `barrio_launch_steps` | filtro | `array<string, bool> $steps` | Messa online (`src/Launch.php`): per passaggio, se è configurato secondo le impostazioni vere. Un passaggio per modulo (Forms: `forms`) più quelli del sito; un passaggio nuovo compare nella guida solo se `assets/src/launch/Launch.js` sa come configurarlo |
+| `barrio_languages` | filtro | `list<string>` | Codici delle lingue attive, la principale per prima. Valgono per tutti i moduli (`src/I18n.php`) |
+| `barrio_current_language` | filtro | `?string` | La lingua della pagina |
+| `barrio_locale` | filtro | `string $locale`, `string $lang` | Il locale di WordPress di una lingua |
+| `barrio_language_flags` | filtro | `array $flags` | URL della bandiera per codice, per l'admin |
+| `barrio_launch_steps` | filtro | `array<string, bool> $steps` | Messa online (`src/Launch.php`): per passaggio, se è configurato secondo le impostazioni vere. Un passaggio per modulo (Forms: `forms`) più quelli del sito (`smtp`, `timezone`, `search`); un passaggio nuovo compare nella guida solo se `assets/src/launch/Launch.js` sa come configurarlo |
+| `barrio_admin_data` | filtro | `array $data` | Per i moduli: i dati delle pagine Barrio, in `window.barrioAdmin` (`src/Admin.php`). Forms aggiunge `forms`; senza, il JavaScript sa che il modulo è spento |
 
 ## Nel browser
 

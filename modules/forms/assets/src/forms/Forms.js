@@ -1,22 +1,14 @@
-// Pagine Barrio: intestazione e, nella pagina Form, le schede Form, Registrazioni e Impostazioni.
-// Sotto Form l'elenco, o il builder con ?form=ID (o ?form=new); sotto Registrazioni (tab=entries)
-// quelle di un form, con il dettaglio in ?entry=ID. Bacheca (page=barrio), Estensioni e Impostazioni
-// del plugin non sono dei form: niente schede. Ogni vista è un URL: link normali, niente router.
+// La pagina Form, con le schede Form, Registrazioni e Impostazioni. Sotto Form l'elenco, o il builder
+// con ?form=ID (o ?form=new); sotto Registrazioni (tab=entries) quelle di un form, con il dettaglio in
+// ?entry=ID. Ogni vista è un URL: link normali, niente router.
 import apiFetch from '@wordpress/api-fetch';
-import { createRoot, useEffect, useState } from '@wordpress/element';
+import { useEffect, useState } from '@wordpress/element';
 import { __, _n, _x, sprintf } from '@wordpress/i18n';
 
-import { Builder } from '../builder/Builder.js';
-import { errorMessage } from '../builder/model.js';
-import { Dashboard } from '../dashboard/Dashboard.js';
-import { Entries } from '../entries/Entries.js';
-import { Entry } from '../entries/Entry.js';
-import { Extensions } from '../extensions/Extensions.js';
-import { General } from '../general/General.js';
-import { Launch } from '../launch/Launch.js';
-import { Settings } from '../settings/Settings.js';
-import './admin.css';
-import { initialQuery, localQuery } from './query.js';
+import {
+	initialQuery,
+	localQuery,
+} from '../../../../../assets/src/admin/query.js';
 import {
 	Icon,
 	Lang,
@@ -24,10 +16,14 @@ import {
 	Menu,
 	Notice,
 	Table,
-	entriesUrl,
+	errorMessage,
 	langOption,
-	pageUrl,
-} from './ui.js';
+} from '../../../../../assets/src/admin/ui.js';
+import { Builder } from '../builder/Builder.js';
+import { Entries } from '../entries/Entries.js';
+import { Entry } from '../entries/Entry.js';
+import { Settings } from '../settings/Settings.js';
+import { entriesUrl, formsData, pageUrl } from '../ui.js';
 
 const STATUS = {
 	active: [ __( 'Active', 'barrio-suite' ), 'is-success' ],
@@ -556,139 +552,81 @@ function FormList() {
 	);
 }
 
-const { canManageForms, canManageEntries, canManageOptions } =
-	window.barrioAdmin;
-const params = new URLSearchParams( window.location.search );
-const id = ( name ) =>
-	/^[1-9]\d*$/.test( params.get( name ) ?? '' )
-		? Number( params.get( name ) )
-		: null;
-const tab = params.get( 'tab' );
-const settings = canManageOptions && 'settings' === tab;
-// Chi non gestisce i form (di default gli editor) ha solo le registrazioni, senza schede; chi
-// gestisce solo i form non ha le registrazioni.
-const entries =
-	canManageEntries && ! settings && ( 'entries' === tab || ! canManageForms );
+const { canManageForms, canManageEntries } = formsData;
+const { canManageOptions } = window.barrioAdmin;
 
-let content = <FormList />;
-if ( entries ) {
-	content = id( 'entry' ) ? (
-		<Entry id={ id( 'entry' ) } />
-	) : (
-		<Entries form={ id( 'form' ) } />
-	);
-} else if ( settings ) {
-	content = <Settings />;
-} else if ( 'new' === params.get( 'form' ) || id( 'form' ) ) {
-	content = <Builder id={ id( 'form' ) } />;
-}
+function FormsPage() {
+	const params = new URLSearchParams( window.location.search );
+	const id = ( name ) =>
+		/^[1-9]\d*$/.test( params.get( name ) ?? '' )
+			? Number( params.get( name ) )
+			: null;
+	const tab = params.get( 'tab' );
+	const settings = canManageOptions && 'settings' === tab;
+	// Chi non gestisce i form (di default gli editor) ha solo le registrazioni, senza schede; chi
+	// gestisce solo i form non ha le registrazioni.
+	const entries =
+		canManageEntries &&
+		! settings &&
+		( 'entries' === tab || ! canManageForms );
 
-// Le schede dei form; le altre pagine sono di tutta la suite.
-const tabs = canManageForms && (
-	<nav className="barrio-nav" aria-label={ __( 'Sections', 'barrio-suite' ) }>
-		<a
-			href={ pageUrl() }
-			aria-current={ entries || settings ? undefined : 'page' }
-		>
-			{ __( 'Forms', 'barrio-suite' ) }
-		</a>
-		{ canManageEntries && (
-			<a
-				href={ entriesUrl() }
-				aria-current={ entries ? 'page' : undefined }
-			>
-				{ __( 'Entries', 'barrio-suite' ) }
-			</a>
-		) }
-		{ canManageOptions && (
-			<a
-				href={ pageUrl( { tab: 'settings' } ) }
-				aria-current={ settings ? 'page' : undefined }
-			>
-				{ __( 'Settings', 'barrio-suite' ) }
-			</a>
-		) }
-	</nav>
-);
+	let content = <FormList />;
+	if ( entries ) {
+		content = id( 'entry' ) ? (
+			<Entry id={ id( 'entry' ) } />
+		) : (
+			<Entries form={ id( 'form' ) } />
+		);
+	} else if ( settings ) {
+		content = <Settings />;
+	} else if ( 'new' === params.get( 'form' ) || id( 'form' ) ) {
+		content = <Builder id={ id( 'form' ) } />;
+	}
 
-// Il nome della pagina dopo "Barrio Suite" (senza, la Bacheca mostra la versione), la descrizione e
-// il contenuto.
-const PAGES = {
-	barrio: {
-		description: __(
-			'Forms and site tools by Hellobarrio.',
-			'barrio-suite'
-		),
-		page: <Dashboard />,
-	},
-	'barrio-extensions': {
-		title: __( 'Extensions', 'barrio-suite' ),
-		description: __(
-			'Plugins that connect Barrio Suite to other services.',
-			'barrio-suite'
-		),
-		page: <Extensions />,
-	},
-	'barrio-settings': {
-		title: __( 'Settings', 'barrio-suite' ),
-		description: __( 'Settings of the whole plugin.', 'barrio-suite' ),
-		page: <General />,
-	},
-};
-// La messa online è una vista della Bacheca: niente voce di menu.
-if ( 'barrio' === params.get( 'page' ) && params.has( 'launch' ) ) {
-	PAGES.barrio = {
-		title: __( 'Site launch', 'barrio-suite' ),
-		description: __(
-			'Check that the site is ready to go online and configure what is missing.',
-			'barrio-suite'
-		),
-		page: <Launch />,
-	};
-}
-const { title, description, page } = PAGES[ params.get( 'page' ) ] ?? {
-	title: __( 'Forms', 'barrio-suite' ),
-	description: __(
-		'Contact forms, their notifications and the email of the site.',
-		'barrio-suite'
-	),
-	page: (
+	return (
 		<>
-			{ tabs }
+			{ canManageForms && (
+				<nav
+					className="barrio-nav"
+					aria-label={ __( 'Sections', 'barrio-suite' ) }
+				>
+					<a
+						href={ pageUrl() }
+						aria-current={
+							entries || settings ? undefined : 'page'
+						}
+					>
+						{ __( 'Forms', 'barrio-suite' ) }
+					</a>
+					{ canManageEntries && (
+						<a
+							href={ entriesUrl() }
+							aria-current={ entries ? 'page' : undefined }
+						>
+							{ __( 'Entries', 'barrio-suite' ) }
+						</a>
+					) }
+					{ canManageOptions && (
+						<a
+							href={ pageUrl( { tab: 'settings' } ) }
+							aria-current={ settings ? 'page' : undefined }
+						>
+							{ __( 'Settings', 'barrio-suite' ) }
+						</a>
+					) }
+				</nav>
+			) }
 			{ content }
 		</>
-	),
-};
+	);
+}
 
-createRoot( document.getElementById( 'barrio-forms-admin' ) ).render(
-	<div className="barrio-admin">
-		<header className="barrio-header">
-			{ /* L'icona del prototipo, come nel menu di WordPress. */ }
-			<span className="barrio-header__logo">
-				<svg
-					width="26"
-					height="26"
-					viewBox="0 0 20 20"
-					fill="currentColor"
-					aria-hidden="true"
-				>
-					<path d="M5,5h2.5v2.5H5ZM0,8.75h2.5v2.5H0ZM2.5,11.25h2.5v2.5H2.5ZM5,13.75h10v2.5H5ZM17.5,8.75h2.5v2.5H17.5ZM15,11.25h2.5v2.5H15ZM12.5,5h2.5v2.5H12.5Z" />
-				</svg>
-			</span>
-			<div>
-				<h1>
-					Barrio Suite{ ' ' }
-					{ title ? (
-						<span>/ { title }</span>
-					) : (
-						<span className="barrio-badge">
-							v{ window.barrioAdmin.version }
-						</span>
-					) }
-				</h1>
-				<p>{ description }</p>
-			</div>
-		</header>
-		{ page }
-	</div>
-);
+// Nella shell (assets/src/admin/index.js): il nome e la descrizione nell'intestazione.
+export const formsPage = {
+	title: __( 'Forms', 'barrio-suite' ),
+	description: __(
+		'Contact forms, their entries and their notifications.',
+		'barrio-suite'
+	),
+	page: <FormsPage />,
+};

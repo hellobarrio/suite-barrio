@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Barrio Suite WPML
- * Description:       Languages of the Barrio Suite forms from WPML: translations in the builder, forms and emails in the visitor's language.
+ * Description:       Languages of Barrio Suite from WPML: translations in the builder, forms and emails in the visitor's language.
  * Version:           0.1.0
  * Requires at least: 6.9
  * Requires PHP:      8.2
@@ -13,7 +13,7 @@
  */
 
 // L'unico codice che conosce WPML. Legge i suoi filtri e risponde a quelli di Barrio Suite
-// (BarrioSuite\Forms\I18n); senza WPML attivo i filtri di WPML restituiscono null e non cambia niente.
+// (BarrioSuite\I18n); senza WPML attivo i filtri di WPML restituiscono null e non cambia niente.
 
 defined( 'ABSPATH' ) || exit;
 
@@ -25,7 +25,7 @@ function barrio_wpml_languages(): array {
 }
 
 add_filter(
-	'barrio_forms_languages',
+	'barrio_languages',
 	static function ( array $languages ): array {
 		$default = apply_filters( 'wpml_default_language', null ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WPML.
 		return is_string( $default ) ? [ $default, ...array_keys( barrio_wpml_languages() ) ] : $languages;
@@ -33,7 +33,7 @@ add_filter(
 );
 
 add_filter(
-	'barrio_forms_current_language',
+	'barrio_current_language',
 	static function ( mixed $current ): mixed {
 		// In admin può essere "all": Barrio Suite la scarta e usa la lingua principale.
 		return apply_filters( 'wpml_current_language', null ) ?? $current; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WPML.
@@ -41,14 +41,14 @@ add_filter(
 );
 
 add_filter(
-	'barrio_forms_locale',
+	'barrio_locale',
 	static fn( string $locale, string $lang ): string => (string) ( barrio_wpml_languages()[ $lang ]['default_locale'] ?? '' ) ?: $locale,
 	10,
 	2
 );
 
 add_filter(
-	'barrio_forms_language_flags',
+	'barrio_language_flags',
 	static fn( array $flags ): array => array_filter( array_map( static fn( array $language ): string => (string) ( $language['country_flag_url'] ?? '' ), barrio_wpml_languages() ) ) + $flags
 );
 
