@@ -17,22 +17,17 @@ import {
 	Picker,
 	SectionHead,
 	Select,
-	Shortcode,
 	Text,
+	errorMessage,
 	langOption,
-	pageUrl,
 	useScrollIntoView,
 	useUnsavedWarning,
-} from '../admin/ui.js';
+} from '../../../../../assets/src/admin/ui.js';
+import { Shortcode, pageUrl } from '../ui.js';
+import { fillTranslations, trimTranslations, withTexts } from './model.js';
 import { Conditions } from './Conditions.js';
 import { FieldsTab, ruleFields } from './Fields.js';
 import { IntegrationsTab, formIntegrations } from './Integrations.js';
-import {
-	errorMessage,
-	fillTranslations,
-	trimTranslations,
-	withTexts,
-} from './model.js';
 import { Fixed, TextIn } from './Texts.js';
 
 const { languages } = window.barrioAdmin;

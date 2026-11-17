@@ -24,7 +24,6 @@ use BarrioSuite\Database\Db;
 use BarrioSuite\Forms\Conditions;
 use BarrioSuite\Forms\FieldTypes;
 use BarrioSuite\Forms\Frontend\Render;
-use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\Integrations;
 use BarrioSuite\Forms\Model\Entry;
 use BarrioSuite\Forms\Model\Field;
@@ -36,6 +35,7 @@ use BarrioSuite\Forms\Privacy;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\FileStore;
+use BarrioSuite\I18n;
 use BarrioSuite\Mail\Smtp;
 
 defined( 'ABSPATH' ) || exit;

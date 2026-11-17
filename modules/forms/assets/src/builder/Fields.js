@@ -28,9 +28,8 @@ import {
 	SectionHead,
 	Text,
 	useScrollIntoView,
-} from '../admin/ui.js';
-import { Conditions } from './Conditions.js';
-import { SettingControl } from './Integrations.js';
+} from '../../../../../assets/src/admin/ui.js';
+import { formsData } from '../ui.js';
 import {
 	choiceRows,
 	renameChoice,
@@ -39,9 +38,12 @@ import {
 	uniqueKey,
 	withChoices,
 } from './model.js';
+import { Conditions } from './Conditions.js';
+import { SettingControl } from './Integrations.js';
 import { Fixed, TextIn } from './Texts.js';
 
-const { languages, types, presets } = window.barrioAdmin;
+const { languages } = window.barrioAdmin;
+const { types, presets } = formsData;
 const main = languages[ 0 ];
 
 // Tipi senza un controllo da compilare: niente obbligatorio, segnaposto o messaggio di errore.

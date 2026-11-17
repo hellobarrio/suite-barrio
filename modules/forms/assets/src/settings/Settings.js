@@ -1,7 +1,7 @@
-// Scheda Impostazioni: SMTP, template delle email, email di test, privacy (con l'eliminazione di
-// tutte le registrazioni, subito e senza Salva), cosa può fare ogni ruolo e le impostazioni globali
-// delle integrazioni (i campi sono in Sections.js). Legge e salva con GET/PUT /barrio/v1/settings;
-// la password SMTP e i segreti delle integrazioni non tornano mai dal server, se ne conosce solo lo stato.
+// Scheda Impostazioni: template delle email, privacy (con l'eliminazione di tutte le registrazioni,
+// subito e senza Salva), cosa può fare ogni ruolo e le impostazioni globali delle integrazioni (i campi
+// sono in Sections.js). Legge e salva con GET/PUT /barrio/v1/settings; i segreti delle integrazioni non
+// tornano mai dal server, se ne conosce solo lo stato. L'SMTP è in Barrio → Impostazioni.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
@@ -14,19 +14,14 @@ import {
 	Loading,
 	Lucide,
 	Notice,
+	errorMessage,
 	useUnsavedWarning,
-} from '../admin/ui.js';
-import { errorMessage } from '../builder/model.js';
-import {
-	GlobalFields,
-	RetentionField,
-	SmtpFields,
-	TemplateFields,
-	TestEmail,
-} from './Sections.js';
+} from '../../../../../assets/src/admin/ui.js';
+import { formsData } from '../ui.js';
+import { GlobalFields, RetentionField, TemplateFields } from './Sections.js';
 
 // Le integrazioni delle estensioni con impostazioni globali, una card ciascuna.
-const GLOBAL = Object.entries( window.barrioAdmin.integrations ).filter(
+const GLOBAL = Object.entries( formsData.integrations ).filter(
 	( [ , definition ] ) => Object.keys( definition.global_settings ).length
 );
 
@@ -38,8 +33,7 @@ const CAPS = {
 
 // integrations: le impostazioni globali per slug (i segreti solo se appena scritti); roles: per
 // ruolo le capability (gli amministratori hanno sempre tutto).
-const editable = ( { smtp, email, privacy, integrations, roles } ) => ( {
-	smtp,
+const editable = ( { email, privacy, integrations, roles } ) => ( {
 	email,
 	privacy,
 	integrations,
@@ -49,7 +43,6 @@ const editable = ( { smtp, email, privacy, integrations, roles } ) => ( {
 export function Settings() {
 	const [ saved, setSaved ] = useState( null );
 	const [ draft, setDraft ] = useState( null );
-	const [ password, setPassword ] = useState( '' );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( null );
 
@@ -66,8 +59,7 @@ export function Settings() {
 
 	const dirty =
 		!! saved &&
-		( '' !== password ||
-			JSON.stringify( draft ) !== JSON.stringify( editable( saved ) ) );
+		JSON.stringify( draft ) !== JSON.stringify( editable( saved ) );
 	useUnsavedWarning( dirty );
 
 	if ( ! saved ) {
@@ -169,14 +161,13 @@ export function Settings() {
 			{
 				path: '/barrio/v1/settings',
 				method: 'PUT',
-				data: { ...draft, ...( password && { password } ) },
+				data: draft,
 			},
 			( response ) => {
 				setSaved( response );
 				setDraft( ( now ) =>
 					now === draft ? editable( response ) : now
 				);
-				setPassword( ( now ) => ( now === password ? '' : now ) );
 				return __( 'Settings saved.', 'barrio-suite' );
 			}
 		);
@@ -201,28 +192,10 @@ export function Settings() {
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<Card
 				className="barrio-wide"
-				icon="email-alt"
-				title="SMTP"
-				description={ __(
-					'Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail.',
-					'barrio-suite'
-				) }
-			>
-				<SmtpFields
-					smtp={ draft.smtp }
-					onChange={ set( 'smtp' ) }
-					password={ password }
-					onPassword={ setPassword }
-					passwordStatus={ saved.password_status }
-				/>
-			</Card>
-
-			<Card
-				className="barrio-wide"
 				icon="art"
 				title={ __( 'Email template', 'barrio-suite' ) }
 				description={ __(
-					'Logo, colors and footer of the form notifications and of the test email.',
+					'Logo, colors and footer of the form notifications.',
 					'barrio-suite'
 				) }
 			>
@@ -230,18 +203,6 @@ export function Settings() {
 					email={ draft.email }
 					onChange={ set( 'email' ) }
 				/>
-			</Card>
-
-			<Card
-				className="barrio-wide"
-				icon="email"
-				title={ __( 'Test email', 'barrio-suite' ) }
-				description={ __(
-					'Sends an email with the saved settings and the template of the notifications.',
-					'barrio-suite'
-				) }
-			>
-				<TestEmail dirty={ dirty } onNotice={ setNotice } />
 			</Card>
 
 			<Card

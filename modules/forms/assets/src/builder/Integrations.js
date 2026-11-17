@@ -15,12 +15,14 @@ import {
 	Select,
 	Text,
 	useScrollIntoView,
-} from '../admin/ui.js';
+} from '../../../../../assets/src/admin/ui.js';
+import { formsData } from '../ui.js';
 import { Conditions } from './Conditions.js';
 import { ruleFields } from './Fields.js';
 import { Fixed, TextIn } from './Texts.js';
 
-const { languages, integrations } = window.barrioAdmin;
+const { languages } = window.barrioAdmin;
+const { integrations } = formsData;
 const main = languages[ 0 ];
 
 // Le integrazioni con impostazioni per form: le sole che si aggiungono a un form.

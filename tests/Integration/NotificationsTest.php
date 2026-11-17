@@ -33,7 +33,7 @@ final class NotificationsTest extends WP_UnitTestCase {
 		parent::set_up();
 		reset_phpmailer_instance();
 		// Sito in italiano e inglese: la lingua della registrazione decide testi ed etichette.
-		add_filter( 'barrio_forms_languages', static fn(): array => [ 'it', 'en' ] );
+		add_filter( 'barrio_languages', static fn(): array => [ 'it', 'en' ] );
 		$this->form = FormRepository::create( 'Contact', [ 'it' => [ 'submit_label' => 'Invia' ] ], self::notifications(), new FormVersion( self::fields() ) );
 	}
 
@@ -81,7 +81,7 @@ final class NotificationsTest extends WP_UnitTestCase {
 		add_filter( 'get_available_languages', static fn(): array => [ 'it_IT' ] );
 		$GLOBALS['wp_locale_switcher'] = new WP_Locale_Switcher(); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- globale di WordPress.
 		$GLOBALS['wp_locale_switcher']->init();
-		add_filter( 'barrio_forms_locale', static fn( string $locale, string $lang ): string => 'it' === $lang ? 'it_IT' : 'en_US', 10, 2 );
+		add_filter( 'barrio_locale', static fn( string $locale, string $lang ): string => 'it' === $lang ? 'it_IT' : 'en_US', 10, 2 );
 		// Ogni stringa del plugin dice in quale locale è nata, con il testo originale (non la traduzione italiana).
 		add_filter( 'gettext_barrio-suite', static fn( string $translation, string $text ): string => get_locale() . ":{$text}", 10, 2 );
 		$yes = static fn(): string => self::body( tests_retrieve_phpmailer_instance()->get_sent() );

@@ -7,8 +7,6 @@ use BarrioSuite\Mail\Smtp;
 
 final class Plugin {
 
-	private const MODULES = [ 'forms' => Forms\Module::class ];
-
 	public static function activate(): void {
 		$errors = Requirements::errors();
 		if ( $errors ) {
@@ -22,25 +20,28 @@ final class Plugin {
 	}
 
 	public static function deactivate(): void {
-		Extensions::deactivate();
-		foreach ( self::MODULES as $module_class ) {
+		foreach ( Modules::ALL as $module_class ) {
 			$module_class::deactivate();
 		}
 	}
 
 	// Da uninstall.php: elimina i dati solo dove il sito lo ha scelto.
 	public static function uninstall(): void {
-		Uninstall::run( array_values( self::MODULES ) );
+		Uninstall::run( array_values( Modules::ALL ) );
 	}
 
 	public static function boot(): void {
 		// Per tutte le email del sito, anche con un modulo spento.
 		Smtp::boot();
-		// REST e aggiornamenti delle estensioni anche con lo schema non aggiornato; la pagina è del modulo Forms.
+		Admin::boot();
+		Modules::boot();
 		Extensions::boot();
 		Launch::boot();
 		Uninstall::boot();
-		foreach ( self::MODULES as $module => $module_class ) {
+		foreach ( Modules::ALL as $module => $module_class ) {
+			if ( ! Modules::is_enabled( $module ) ) {
+				continue;
+			}
 			$migrator = new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" );
 			$error    = $migrator->run();
 			// Finché lo schema non è aggiornato il modulo resta spento: per esempio non accetta invii.
@@ -66,6 +67,10 @@ final class Plugin {
 					}
 				);
 			}
+		}
+		// Con il modulo Forms spento uno shortcode di un form non resta come testo nella pagina.
+		if ( ! Modules::is_enabled( 'forms' ) ) {
+			add_shortcode( 'barrio_form', '__return_empty_string' );
 		}
 	}
 }

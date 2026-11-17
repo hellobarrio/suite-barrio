@@ -4,7 +4,7 @@
 // visibili ma disattivate (Fixed); lo spiega l'avviso sotto la barra.
 import { __, sprintf } from '@wordpress/i18n';
 
-import { Text } from '../admin/ui.js';
+import { Text } from '../../../../../assets/src/admin/ui.js';
 import { setTranslation } from './model.js';
 
 const [ main ] = window.barrioAdmin.languages;

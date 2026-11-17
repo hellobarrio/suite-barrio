@@ -5,10 +5,13 @@ namespace BarrioSuite\Mail;
 use BarrioSuite\Crypto;
 use PHPMailer\PHPMailer\PHPMailer;
 use WP_Error;
+use WP_REST_Request;
+use WP_REST_Response;
 
 /**
  * SMTP per tutte le email del sito, non solo per quelle dei form: wp_mail() usa il PHPMailer di
  * WordPress, che qui si configura su phpmailer_init. Con l'host vuoto resta l'invio di WordPress.
+ * Si sceglie in Barrio → Impostazioni (GET e PUT /barrio/v1/smtp), anche con i moduli spenti.
  *
  * La password si definisce con la costante BARRIO_SMTP_PASSWORD in wp-config.php, oppure si salva
  * cifrata (Crypto): se i salt di WordPress cambiano va inserita di nuovo.
@@ -101,7 +104,15 @@ final class Smtp {
 		return null === self::password() ? 'unreadable' : 'saved';
 	}
 
+	// Messa online (src/Launch.php): le email partono dall'SMTP; senza utente il server non chiede la password.
+	public static function is_configured(): bool {
+		$smtp = self::settings();
+		return '' !== $smtp['host'] && '' !== $smtp['from_email']
+			&& ( '' === $smtp['username'] || in_array( self::password_status(), [ 'saved', 'constant' ], true ) );
+	}
+
 	public static function boot(): void {
+		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'phpmailer_init', [ self::class, 'configure' ] );
 		// Il mittente con i filtri e non su phpmailer_init: wp_mail() lo imposta prima, e con quello di
 		// default non valido (wordpress@localhost) fallirebbe ancora prima di arrivare a configure().
@@ -109,6 +120,85 @@ final class Smtp {
 		// di solito accettano solo mittenti autorizzati, e SPF e DMARC vogliono il dominio giusto.
 		add_filter( 'wp_mail_from', [ self::class, 'from_email' ], PHP_INT_MAX );
 		add_filter( 'wp_mail_from_name', [ self::class, 'from_name' ], PHP_INT_MAX );
+	}
+
+	public static function register(): void {
+		$admin = static fn(): bool => current_user_can( 'manage_options' );
+		register_rest_route(
+			'barrio/v1',
+			'/smtp',
+			[
+				[
+					'methods'             => 'GET',
+					'callback'            => [ self::class, 'get' ],
+					'permission_callback' => $admin,
+				],
+				[
+					'methods'             => 'PUT',
+					'callback'            => [ self::class, 'put' ],
+					'permission_callback' => $admin,
+					'args'                => [
+						'smtp'     => self::schema(),
+						// In sola scrittura: non torna mai indietro. Assente o vuota = resta quella salvata.
+						'password' => [
+							'type'      => 'string',
+							'maxLength' => 255,
+						],
+					],
+				],
+			]
+		);
+		register_rest_route(
+			'barrio/v1',
+			'/smtp/test-email',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ self::class, 'test_email' ],
+				'permission_callback' => $admin,
+				// Assente = all'indirizzo di chi la chiede.
+				'args'                => [
+					'to' => [
+						'type'   => 'string',
+						'format' => 'email',
+					],
+				],
+			]
+		);
+	}
+
+	public static function get(): WP_REST_Response {
+		return new WP_REST_Response(
+			[
+				'smtp'            => self::settings(),
+				'password_status' => self::password_status(),
+			]
+		);
+	}
+
+	public static function put( WP_REST_Request $request ): WP_REST_Response {
+		if ( is_array( $request['smtp'] ) ) {
+			self::save( $request['smtp'] );
+		}
+		if ( is_string( $request['password'] ) && '' !== $request['password'] ) {
+			self::save_password( $request['password'] );
+		}
+		return self::get();
+	}
+
+	// Con le impostazioni salvate.
+	public static function test_email( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$to    = is_string( $request['to'] ) ? $request['to'] : wp_get_current_user()->user_email;
+		$error = self::send(
+			$to,
+			/* translators: %s: site name. */
+			sprintf( __( 'Test email from %s', 'barrio-suite' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			wpautop( __( 'If you are reading this, the site can send email.', 'barrio-suite' ) )
+		);
+		if ( null !== $error ) {
+			return new WP_Error( 'barrio_mail_failed', $error->get_error_message(), [ 'status' => 502 ] );
+		}
+		/* translators: %s: email address. */
+		return new WP_REST_Response( [ 'message' => sprintf( __( 'Test email sent to %s.', 'barrio-suite' ), $to ) ] );
 	}
 
 	public static function from_email( string $email ): string {

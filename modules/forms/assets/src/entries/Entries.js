@@ -4,7 +4,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
-import { initialQuery } from '../admin/query.js';
+import { initialQuery } from '../../../../../assets/src/admin/query.js';
 import {
 	Icon,
 	Lang,
@@ -13,11 +13,11 @@ import {
 	Notice,
 	Picker,
 	Table,
-	entriesUrl,
+	errorMessage,
 	langOption,
 	restLink,
-} from '../admin/ui.js';
-import { errorMessage } from '../builder/model.js';
+} from '../../../../../assets/src/admin/ui.js';
+import { entriesUrl } from '../ui.js';
 
 // Le più recenti per prime.
 const INITIAL = { ...initialQuery( 'created_at', 'desc' ), read: '', lang: '' };

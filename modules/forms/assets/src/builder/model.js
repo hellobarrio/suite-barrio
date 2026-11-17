@@ -159,9 +159,3 @@ export const fillTranslations = ( form, [ main, ...others ] ) =>
 		}
 		return { ...item, i18n };
 	} );
-
-// La validazione degli argomenti REST mette i dettagli in data.params ("fields[2][key] …").
-export const errorMessage = ( error ) =>
-	error.data?.params
-		? Object.values( error.data.params ).join( ' ' )
-		: error.message;

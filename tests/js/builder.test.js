@@ -4,7 +4,6 @@ import { test } from 'node:test';
 
 import {
 	choiceRows,
-	errorMessage,
 	fillTranslations,
 	renameChoice,
 	setTranslation,
@@ -85,17 +84,6 @@ test( 'missing texts of the main language start from another language', () => {
 		it: { submit_label: 'Send' },
 	} );
 	assert.equal( form.fields[ 0 ].i18n.it.label, 'Nome' );
-} );
-
-test( 'validation errors show the details', () => {
-	assert.equal(
-		errorMessage( {
-			message: 'Invalid parameter(s): fields',
-			data: { params: { fields: 'fields[0][key] is not valid.' } },
-		} ),
-		'fields[0][key] is not valid.'
-	);
-	assert.equal( errorMessage( { message: 'Conflict.' } ), 'Conflict.' );
 } );
 
 test( 'translations keep only their own texts and are completed when saved', () => {

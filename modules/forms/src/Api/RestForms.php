@@ -4,8 +4,6 @@ namespace BarrioSuite\Forms\Api;
 
 use BarrioSuite\Forms\Conditions;
 use BarrioSuite\Forms\FieldTypes;
-use BarrioSuite\Forms\I18n;
-use BarrioSuite\Forms\Notifications;
 use BarrioSuite\Forms\Frontend\Render;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
@@ -13,7 +11,9 @@ use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Model\Integration;
 use BarrioSuite\Forms\Model\Notification;
+use BarrioSuite\Forms\Notifications;
 use BarrioSuite\Forms\Repository\FormRepository;
+use BarrioSuite\I18n;
 use InvalidArgumentException;
 use WP_Error;
 use WP_REST_Request;

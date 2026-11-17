@@ -19,11 +19,11 @@ import { __, sprintf } from '@wordpress/i18n';
 
 import { PER_PAGE, nextSort, pages } from './query.js';
 
-export const pageUrl = ( params = {} ) =>
-	'?' + new URLSearchParams( { page: 'barrio-forms', ...params } );
-
-export const entriesUrl = ( params ) =>
-	pageUrl( { tab: 'entries', ...params } );
+// La validazione degli argomenti REST mette i dettagli in data.params ("fields[2][key] …").
+export const errorMessage = ( error ) =>
+	error.data?.params
+		? Object.values( error.data.params ).join( ' ' )
+		: error.message;
 
 // Un download (file, CSV) è un link e non passa da apiFetch: il nonce va nell'URL. Con i
 // permalink semplici l'URL della REST ha già un "?" (?rest_route=).
@@ -281,36 +281,59 @@ export const Card = ( {
 	</section>
 );
 
-// Si copia con un clic dove il browser lo permette (HTTPS o localhost); altrimenti si seleziona.
-export function Shortcode( { id, onCopy } ) {
-	const code = `[barrio_form id="${ id }"]`;
-	if ( ! window.navigator.clipboard ) {
-		return (
-			<code className="barrio-chip">
-				<span className="barrio-chip__text">{ code }</span>
-			</code>
-		);
-	}
-	return (
-		<button
-			type="button"
-			className="barrio-chip"
-			aria-label={ sprintf(
-				/* translators: %s: form shortcode. */
-				__( 'Copy %s', 'barrio-suite' ),
-				code
-			) }
-			onClick={ () =>
-				window.navigator.clipboard.writeText( code ).then( onCopy )
-			}
+/**
+ * Nella Bacheca, la card di un modulo acceso.
+ *
+ * @param {Object}                       props
+ * @param {Object}                       props.module   icon, title, description e color del modulo.
+ * @param {Array<[string, number]>|null} props.stats    [ etichetta, numero ]; null mentre si caricano.
+ * @param {Array<[string, string]>}      props.actions  [ testo, link ], la prima è la principale.
+ * @param {Object}                       [props.notice] Un errore nel caricare i numeri.
+ */
+export const ModuleCard = ( { module, stats, actions, notice } ) => (
+	<section className="barrio-card barrio-module">
+		<header
+			className="barrio-module__head"
+			style={ { background: module.color } }
 		>
-			<span className="barrio-button__text barrio-chip__text">
-				{ code }
+			<span className="barrio-module__icon">
+				<Icon name={ module.icon } />
 			</span>
-			<Icon name="admin-page" />
-		</button>
-	);
-}
+			<div>
+				<h2 className="barrio-module__title">{ module.title }</h2>
+				<p>{ module.description }</p>
+			</div>
+		</header>
+		<div className="barrio-module__body">
+			<Notice notice={ notice } />
+			{ stats ? (
+				<dl className="barrio-module__stats">
+					{ stats.map( ( [ label, value ] ) => (
+						<div key={ label }>
+							<dt>{ label }</dt>
+							<dd>{ value.toLocaleString() }</dd>
+						</div>
+					) ) }
+				</dl>
+			) : (
+				! notice && <Loading />
+			) }
+			<div className="barrio-row is-fill">
+				{ actions.map( ( [ text, href ], index ) => (
+					<a
+						key={ href }
+						className={ `barrio-button${
+							index ? '' : ' is-primary'
+						}` }
+						href={ href }
+					>
+						{ text }
+					</a>
+				) ) }
+			</div>
+		</div>
+	</section>
+);
 
 // Titolo di una sezione con le sue azioni a destra: ogni elenco ha "Aggiungi" qui, in alto.
 export function SectionHead( { title, level = 2, children } ) {

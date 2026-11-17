@@ -167,6 +167,17 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->auto_update( true )->get_status() );
 	}
 
+	// Messa online: il passaggio degli aggiornamenti automatici, per chi gestisce i plugin.
+	public function test_the_launch_has_the_automatic_updates_step(): void {
+		$steps = static fn(): array => rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/launch' ) )->get_data()['steps'];
+		$this->assertFalse( $steps()['updates'] );
+		update_site_option( 'auto_update_plugins', [ plugin_basename( dirname( __DIR__, 2 ) . '/barrio-suite.php' ) ] );
+		$this->assertTrue( $steps()['updates'] );
+
+		add_filter( 'user_has_cap', static fn( array $caps ): array => [ 'activate_plugins' => false ] + $caps );
+		$this->assertArrayNotHasKey( 'updates', $steps(), 'Like the administrator of a site of a multisite.' );
+	}
+
 	public function test_an_inactive_extension_can_be_deleted(): void {
 		$this->request( 'POST', 'install' );
 		$this->assertSame( 409, $this->request( 'POST', 'delete' )->get_status(), 'Active: it is deactivated first.' );

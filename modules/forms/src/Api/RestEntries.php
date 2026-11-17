@@ -2,7 +2,6 @@
 
 namespace BarrioSuite\Forms\Api;
 
-use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\MergeTags;
 use BarrioSuite\Forms\Model\Entry;
 use BarrioSuite\Forms\Model\Field;
@@ -13,6 +12,7 @@ use BarrioSuite\Forms\Notifications;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\FileStore;
+use BarrioSuite\I18n;
 use Closure;
 use WP_Error;
 use WP_HTTP_Response;

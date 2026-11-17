@@ -42,6 +42,8 @@ final class Extensions {
 	private static bool $night = false;
 
 	public static function boot(): void {
+		register_deactivation_hook( dirname( __DIR__ ) . '/barrio-suite.php', [ self::class, 'deactivate' ] );
+		add_filter( 'barrio_launch_steps', [ self::class, 'launch_steps' ] );
 		add_filter( 'update_plugins_github.com', [ self::class, 'update' ], 10, 3 );
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'init', [ self::class, 'schedule' ] );
@@ -51,6 +53,17 @@ final class Extensions {
 
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( self::NIGHTLY );
+	}
+
+	/**
+	 * Messa online (src/Launch.php): fatto con gli aggiornamenti automatici accesi. Solo per chi gestisce
+	 * i plugin, come la pagina Estensioni da cui legge (non l'amministratore di un sito di un multisite).
+	 *
+	 * @param array<string, bool> $steps
+	 * @return array<string, bool>
+	 */
+	public static function launch_steps( array $steps ): array {
+		return current_user_can( 'activate_plugins' ) ? $steps + [ 'updates' => self::auto_update() ] : $steps;
 	}
 
 	/*

@@ -21,7 +21,7 @@ msgstr ""
 
 #. Description of the plugin
 #: barrio-suite-wpml.php
-msgid "Languages of the Barrio Suite forms from WPML: translations in the builder, forms and emails in the visitor's language."
+msgid "Languages of Barrio Suite from WPML: translations in the builder, forms and emails in the visitor's language."
 msgstr ""
 
 #. Author of the plugin

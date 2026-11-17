@@ -22,12 +22,12 @@ final class LaunchTest extends WP_UnitTestCase {
 	public function test_each_step_follows_the_real_settings(): void {
 		$this->assertSame(
 			[
+				'smtp'     => false,
 				'timezone' => false,
 				'search'   => false,
-				'updates'  => false,
 				'forms'    => false,
 			],
-			$this->get()['steps']
+			$this->steps()
 		);
 
 		update_option( 'timezone_string', 'Europe/Rome' );
@@ -41,25 +41,23 @@ final class LaunchTest extends WP_UnitTestCase {
 		);
 		Notifications::save_settings( [ 'logo' => 'https://example.com/logo.png' ] );
 		Privacy::save_settings( [ 'retention_days' => 730 ] );
-		$this->assertFalse( $this->get()['steps']['forms'], 'With a username the password is needed.' );
+		$this->assertFalse( $this->steps()['smtp'], 'With a username the password is needed.' );
 
 		Smtp::save_password( 's3cret' );
-		$steps = $this->get()['steps'];
-
-		$this->assertSame( [ 'updates' ], array_keys( array_filter( $steps, static fn( bool $done ): bool => ! $done ) ) );
+		$this->assertSame( [], array_keys( array_filter( $this->steps(), static fn( bool $done ): bool => ! $done ) ) );
 		Privacy::save_settings( [ 'retention_days' => 0 ] );
-		$this->assertFalse( $this->get()['steps']['forms'], 'Entries kept forever.' );
+		$this->assertFalse( $this->steps()['forms'], 'Entries kept forever.' );
 	}
 
 	public function test_skipped_steps_and_search_engines_are_saved(): void {
 		$data = $this->put(
 			[
-				'skipped'        => [ 'forms', 'updates' ],
+				'skipped'        => [ 'forms', 'smtp' ],
 				'search_engines' => true,
 			]
 		)->get_data();
 
-		$this->assertSame( [ 'forms', 'updates' ], $data['skipped'] );
+		$this->assertSame( [ 'forms', 'smtp' ], $data['skipped'] );
 		$this->assertTrue( $data['steps']['search'] );
 		$this->assertSame( '1', (string) get_option( 'blog_public' ) );
 		$this->assertSame( 400, $this->put( [ 'skipped' => [ 'Spam!' ] ] )->get_status() );
@@ -70,6 +68,11 @@ final class LaunchTest extends WP_UnitTestCase {
 
 		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/launch' ) )->get_status() );
 		$this->assertSame( 403, $this->put( [ 'search_engines' => true ] )->get_status() );
+	}
+
+	/** @return array<string, bool> Quelli del core e dei form; le estensioni ne aggiungono altri. */
+	private function steps(): array {
+		return array_intersect_key( $this->get()['steps'], array_flip( [ 'smtp', 'timezone', 'search', 'forms' ] ) );
 	}
 
 	/** @return array<string, mixed> */

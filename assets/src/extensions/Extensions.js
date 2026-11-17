@@ -1,7 +1,8 @@
 // Pagina Estensioni (Barrio → Extensions): le estensioni pubblicate nelle release GitHub
 // (src/Extensions.php), ognuna un plugin separato, con installa, attiva, disattiva e aggiorna. Lo zip
 // di un'estensione si può anche caricare da WordPress, e gli aggiornamenti compaiono anche in
-// Bacheca → Aggiornamenti.
+// Bacheca → Aggiornamenti. Questo file dipende dal branch, come src/Extensions.php: in con-updater porta
+// anche gli aggiornamenti (Updates.js) nella messa online e nelle Impostazioni.
 import apiFetch from '@wordpress/api-fetch';
 import {
 	createInterpolateElement,
@@ -10,6 +11,7 @@ import {
 } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
+import { pageUrl } from '../../../modules/forms/assets/src/ui.js';
 import {
 	Bar,
 	Card,
@@ -17,9 +19,13 @@ import {
 	Loading,
 	Notice,
 	Search,
-	pageUrl,
+	errorMessage,
 } from '../admin/ui.js';
-import { errorMessage } from '../builder/model.js';
+import { newer, updatesSection, updatesStep } from './Updates.js';
+
+// Passaggi della messa online (assets/src/launch) e sezioni delle Impostazioni (assets/src/general).
+export const launchSteps = [ updatesStep ];
+export const settingsSections = [ updatesSection ];
 
 const DONE = {
 	install: ( name ) =>
@@ -41,10 +47,6 @@ const DONE = {
 
 // "Mailchimp" e non "Barrio Suite Mailchimp", come nelle Impostazioni e nel builder: la pagina è già di Barrio Suite.
 const short = ( name ) => name.replace( /^Barrio Suite /, '' );
-
-// Più recente di quella installata: le versioni sono x.y.z.
-export const newer = ( available, installed ) =>
-	available.localeCompare( installed, undefined, { numeric: true } ) > 0;
 
 export function Extensions() {
 	const [ data, setData ] = useState( null );

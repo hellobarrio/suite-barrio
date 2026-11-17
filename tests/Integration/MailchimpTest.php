@@ -32,7 +32,7 @@ final class MailchimpTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		add_filter( 'barrio_forms_languages', static fn(): array => [ 'it', 'en' ] );
+		add_filter( 'barrio_languages', static fn(): array => [ 'it', 'en' ] );
 		Integrations::save_settings( [ 'mailchimp' => [ 'api_key' => 'abc123-us21' ] ] );
 		add_filter(
 			'pre_http_request',

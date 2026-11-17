@@ -7,7 +7,7 @@ import {
 	initialQuery,
 	localQuery,
 	nextSort,
-} from '../../modules/forms/assets/src/admin/query.js';
+} from '../../assets/src/admin/query.js';
 
 const rows = Array.from( { length: 45 }, ( x, i ) => ( {
 	id: 45 - i,

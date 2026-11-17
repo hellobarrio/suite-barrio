@@ -38,7 +38,7 @@ final class MigrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		add_filter( 'barrio_forms_languages', static fn(): array => [ 'it', 'en' ] );
+		add_filter( 'barrio_languages', static fn(): array => [ 'it', 'en' ] );
 		$this->prototype();
 	}
 

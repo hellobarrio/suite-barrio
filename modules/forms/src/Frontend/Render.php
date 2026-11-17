@@ -3,11 +3,11 @@
 namespace BarrioSuite\Forms\Frontend;
 
 use BarrioSuite\Forms\FieldTypes;
-use BarrioSuite\Forms\I18n;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Repository\FormRepository;
+use BarrioSuite\I18n;
 
 // HTML del form, unico per il blocco barrio/form e lo shortcode [barrio_form id=""].
 final class Render {

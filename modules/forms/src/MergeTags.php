@@ -7,6 +7,7 @@ use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
 use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Repository\FormRepository;
+use BarrioSuite\I18n;
 
 /**
  * Merge tag delle notifiche, nella lingua della registrazione:
