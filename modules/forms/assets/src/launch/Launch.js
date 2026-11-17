@@ -51,7 +51,7 @@ const STEPS = [
 		icon: 'clock',
 		title: __( 'Time zone', 'barrio-suite' ),
 		description: __(
-			'For the dates of entries and emails, and for the time of the nightly updates.',
+			'For the dates of entries and emails.',
 			'barrio-suite'
 		),
 	},
@@ -62,16 +62,6 @@ const STEPS = [
 		title: __( 'Search engines', 'barrio-suite' ),
 		description: __(
 			'While the site was being built WordPress may have asked search engines not to index it.',
-			'barrio-suite'
-		),
-	},
-	{
-		id: 'updates',
-		fields: [ 'updates' ],
-		icon: 'update',
-		title: __( 'Automatic updates', 'barrio-suite' ),
-		description: __(
-			'Barrio Suite and its extensions get fixes and new features by themselves.',
 			'barrio-suite'
 		),
 	},
@@ -90,7 +80,6 @@ const values = ( launch, settings ) => ( {
 	privacy: settings.privacy,
 	timezone: launch.timezone,
 	search: launch.steps.search,
-	updates: launch.steps.updates,
 } );
 
 const settingsPut = ( data ) =>
@@ -115,12 +104,6 @@ const SAVE = {
 			path: '/barrio/v1/launch',
 			method: 'PUT',
 			data: { search_engines: draft.search },
-		} ),
-	updates: ( draft ) =>
-		apiFetch( {
-			path: '/barrio/v1/extensions',
-			method: 'PUT',
-			data: { auto_update: draft.updates },
 		} ),
 };
 
@@ -339,28 +322,6 @@ export function Launch() {
 				) }
 				checked={ draft.search }
 				onChange={ set( 'search' ) }
-			/>
-		),
-		updates: (
-			<Check
-				label={ __(
-					'Update automatically every night',
-					'barrio-suite'
-				) }
-				help={
-					launch.can_auto_update
-						? __(
-								'Every night after midnight (site time) Barrio Suite and every installed extension are updated to the latest version.',
-								'barrio-suite'
-							)
-						: __(
-								'Automatic updates of plugins are not available on this site.',
-								'barrio-suite'
-							)
-				}
-				disabled={ ! launch.can_auto_update }
-				checked={ draft.updates }
-				onChange={ set( 'updates' ) }
 			/>
 		),
 	};

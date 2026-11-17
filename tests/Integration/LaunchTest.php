@@ -24,7 +24,6 @@ final class LaunchTest extends WP_UnitTestCase {
 			[
 				'timezone' => false,
 				'search'   => false,
-				'updates'  => false,
 				'forms'    => false,
 			],
 			$this->get()['steps']
@@ -46,7 +45,7 @@ final class LaunchTest extends WP_UnitTestCase {
 		Smtp::save_password( 's3cret' );
 		$steps = $this->get()['steps'];
 
-		$this->assertSame( [ 'updates' ], array_keys( array_filter( $steps, static fn( bool $done ): bool => ! $done ) ) );
+		$this->assertSame( [], array_keys( array_filter( $steps, static fn( bool $done ): bool => ! $done ) ) );
 		Privacy::save_settings( [ 'retention_days' => 0 ] );
 		$this->assertFalse( $this->get()['steps']['forms'], 'Entries kept forever.' );
 	}
@@ -54,12 +53,12 @@ final class LaunchTest extends WP_UnitTestCase {
 	public function test_skipped_steps_and_search_engines_are_saved(): void {
 		$data = $this->put(
 			[
-				'skipped'        => [ 'forms', 'updates' ],
+				'skipped'        => [ 'forms', 'search' ],
 				'search_engines' => true,
 			]
 		)->get_data();
 
-		$this->assertSame( [ 'forms', 'updates' ], $data['skipped'] );
+		$this->assertSame( [ 'forms', 'search' ], $data['skipped'] );
 		$this->assertTrue( $data['steps']['search'] );
 		$this->assertSame( '1', (string) get_option( 'blog_public' ) );
 		$this->assertSame( 400, $this->put( [ 'skipped' => [ 'Spam!' ] ] )->get_status() );

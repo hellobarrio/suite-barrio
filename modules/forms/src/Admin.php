@@ -6,8 +6,7 @@ namespace BarrioSuite\Forms;
  * Menu "Barrio", che ospiterà anche i moduli futuri. Una sola app React (assets/src/admin, compilata
  * in build/) per tutte le pagine: la Bacheca, con una card per modulo; Form, con le schede Form (elenco
  * e builder), Registrazioni, che basta agli editor, e Impostazioni, che richiede manage_options perché
- * l'SMTP vale per tutte le email del sito; Estensioni e Impostazioni del plugin (gli aggiornamenti),
- * che non sono dei form (src/Extensions.php).
+ * l'SMTP vale per tutte le email del sito; Estensioni e Impostazioni del plugin, che non sono dei form.
  * ponytail: menu e app stanno nel modulo Forms finché è l'unico; con un secondo modulo passano al core.
  */
 final class Admin {
@@ -28,10 +27,9 @@ final class Admin {
 		$pages = [
 			self::PAGE          => [ __( 'Dashboard', 'barrio-suite' ), $forms ],
 			'barrio-forms'      => [ __( 'Forms', 'barrio-suite' ), $forms ],
-			// Installare e aggiornare richiedono altre capability (src/Extensions.php).
 			'barrio-extensions' => [ __( 'Extensions', 'barrio-suite' ), 'activate_plugins' ],
-			// Per ora solo gli aggiornamenti: la stessa capability di Estensioni, che ne legge i dati.
-			'barrio-settings'   => [ __( 'Settings', 'barrio-suite' ), 'activate_plugins' ],
+			// Per ora solo i dati alla disinstallazione.
+			'barrio-settings'   => [ __( 'Settings', 'barrio-suite' ), 'manage_options' ],
 		];
 		foreach ( $pages as $slug => [ $title, $capability ] ) {
 			$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );

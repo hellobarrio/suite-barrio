@@ -631,10 +631,7 @@ const PAGES = {
 	},
 	'barrio-settings': {
 		title: __( 'Settings', 'barrio-suite' ),
-		description: __(
-			'Settings of the whole plugin, like updates.',
-			'barrio-suite'
-		),
+		description: __( 'Settings of the whole plugin.', 'barrio-suite' ),
 		page: <General />,
 	},
 };

@@ -1,7 +1,6 @@
-// Pagina Estensioni (Barrio → Extensions): le estensioni pubblicate nelle release GitHub
-// (src/Extensions.php), ognuna un plugin separato, con installa, attiva, disattiva e aggiorna. Lo zip
-// di un'estensione si può anche caricare da WordPress, e gli aggiornamenti compaiono anche in
-// Bacheca → Aggiornamenti.
+// Pagina Estensioni (Barrio → Extensions): le estensioni della directory di WordPress.org e quelle
+// installate (src/Extensions.php), ognuna un plugin separato. Le azioni sono quelle della REST di
+// WordPress (/wp/v2/plugins); l'aggiornamento è la schermata di WordPress.
 import apiFetch from '@wordpress/api-fetch';
 import {
 	createInterpolateElement,
@@ -25,9 +24,6 @@ const DONE = {
 	install: ( name ) =>
 		/* translators: %s: extension name. */
 		sprintf( __( '%s installed and activated.', 'barrio-suite' ), name ),
-	update: ( name ) =>
-		/* translators: %s: extension name. */
-		sprintf( __( '%s updated.', 'barrio-suite' ), name ),
 	activate: ( name ) =>
 		/* translators: %s: extension name. */
 		sprintf( __( '%s activated.', 'barrio-suite' ), name ),
@@ -42,9 +38,27 @@ const DONE = {
 // "Mailchimp" e non "Barrio Suite Mailchimp", come nelle Impostazioni e nel builder: la pagina è già di Barrio Suite.
 const short = ( name ) => name.replace( /^Barrio Suite /, '' );
 
-// Più recente di quella installata: le versioni sono x.y.z.
-export const newer = ( available, installed ) =>
-	available.localeCompare( installed, undefined, { numeric: true } ) > 0;
+const ACTIONS = {
+	install: ( extension ) => ( {
+		path: '/wp/v2/plugins',
+		method: 'POST',
+		data: { slug: extension.slug, status: 'active' },
+	} ),
+	activate: ( extension ) => ( {
+		path: `/wp/v2/plugins/${ extension.plugin }`,
+		method: 'POST',
+		data: { status: 'active' },
+	} ),
+	deactivate: ( extension ) => ( {
+		path: `/wp/v2/plugins/${ extension.plugin }`,
+		method: 'POST',
+		data: { status: 'inactive' },
+	} ),
+	delete: ( extension ) => ( {
+		path: `/wp/v2/plugins/${ extension.plugin }`,
+		method: 'DELETE',
+	} ),
+};
 
 export function Extensions() {
 	const [ data, setData ] = useState( null );
@@ -53,10 +67,16 @@ export function Extensions() {
 	const [ busy, setBusy ] = useState( null );
 	const [ search, setSearch ] = useState( '' );
 
+	// Dopo un'azione di WordPress si rilegge l'elenco.
 	const request = ( kind, options, message ) => {
 		setBusy( kind );
 		setNotice( null );
 		apiFetch( options )
+			.then( ( response ) =>
+				'load' === kind
+					? response
+					: apiFetch( { path: '/barrio/v1/extensions' } )
+			)
 			.then( ( response ) => {
 				setData( response );
 				if ( message ) {
@@ -79,11 +99,7 @@ export function Extensions() {
 	const act = ( extension, action ) =>
 		request(
 			`${ extension.slug }-${ action }`,
-			{
-				path: `/barrio/v1/extensions/${ extension.slug }`,
-				method: 'POST',
-				data: { action },
-			},
+			ACTIONS[ action ]( extension ),
 			DONE[ action ]( short( extension.name ) )
 		);
 	// Elimina chiede conferma: non si annulla.
@@ -139,23 +155,6 @@ export function Extensions() {
 						</span>
 					</a>
 				) }
-				<button
-					type="button"
-					className="barrio-button"
-					disabled={ !! busy }
-					onClick={ () =>
-						request( 'refresh', {
-							path: '/barrio/v1/extensions?refresh=1',
-						} )
-					}
-				>
-					<Icon name="update" />
-					<span className="barrio-button__text">
-						{ 'refresh' === busy
-							? __( 'Checking…', 'barrio-suite' )
-							: __( 'Check for updates', 'barrio-suite' ) }
-					</span>
-				</button>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<Notice
@@ -174,10 +173,7 @@ export function Extensions() {
 				) }
 			</p>
 			{ found.map( ( extension ) => {
-				const update =
-					extension.installed &&
-					extension.version &&
-					newer( extension.version, extension.installed );
+				const update = extension.update_url;
 				let status = sprintf(
 					/* translators: %s: version number, for example 0.2.0. */
 					__( 'Not installed. Latest version: %s.', 'barrio-suite' ),
@@ -246,14 +242,14 @@ export function Extensions() {
 										__( 'Activate', 'barrio-suite' ),
 										update ? '' : 'is-primary'
 									) }
-								{ update &&
-									data.can_update &&
-									button(
-										extension,
-										'update',
-										__( 'Update', 'barrio-suite' ),
-										'is-primary'
-									) }
+								{ update && (
+									<a
+										className="barrio-button is-primary"
+										href={ update }
+									>
+										{ __( 'Update', 'barrio-suite' ) }
+									</a>
+								) }
 							</>
 						}
 					>

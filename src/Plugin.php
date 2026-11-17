@@ -22,7 +22,6 @@ final class Plugin {
 	}
 
 	public static function deactivate(): void {
-		Extensions::deactivate();
 		foreach ( self::MODULES as $module_class ) {
 			$module_class::deactivate();
 		}
@@ -36,7 +35,6 @@ final class Plugin {
 	public static function boot(): void {
 		// Per tutte le email del sito, anche con un modulo spento.
 		Smtp::boot();
-		// REST e aggiornamenti delle estensioni anche con lo schema non aggiornato; la pagina è del modulo Forms.
 		Extensions::boot();
 		Launch::boot();
 		Uninstall::boot();

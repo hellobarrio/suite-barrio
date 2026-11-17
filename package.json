@@ -34,8 +34,7 @@
 		"format": "wp-scripts format",
 		"test:js": "node --test 'tests/js/**/*.test.js'",
 		"zip": "npm run build && wp-scripts plugin-zip",
-		"zip:extensions": "cd extensions && for e in */; do rm -f \"../${e%/}.zip\" && zip -qr \"../${e%/}.zip\" \"$e\"; done",
-		"release": "npm run zip && npm run zip:extensions && node dev/release.js"
+		"zip:extensions": "cd extensions && for e in */; do rm -f \"../${e%/}.zip\" && zip -qr \"../${e%/}.zip\" \"$e\"; done"
 	},
 	"devDependencies": {
 		"@dnd-kit/core": "^6.3.1",

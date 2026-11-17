@@ -23,7 +23,7 @@ Barrio Suite starts with a Forms module:
 * A block and the `[barrio_form id="…"]` shortcode, both cache friendly (no nonce in the page).
 * Translations of every text when an extension provides the languages (for example WPML).
 
-Integrations with other plugins and services are separate extensions, so the core contains no code for third parties.
+Integrations with other plugins and services are separate extensions, so the core contains no code for third parties. Barrio → Extensions lists the ones published in the WordPress.org plugin directory and installs them with one click.
 
 = Source code =
 
@@ -47,9 +47,7 @@ The form is shown, but it is sent only with JavaScript enabled: part of the spam
 
 == External services ==
 
-This plugin installs and updates itself and its extensions from GitHub. When WordPress checks for plugin updates, when an administrator opens Barrio → Extensions or Barrio → Settings, and at night if automatic updates are on, the site downloads `catalog.json` from the latest release of https://github.com/hellobarrio/suite-barrio (at most once an hour); installing or updating downloads the zip files of that release. No data about the site or its users is sent, apart from what any HTTP request carries (the site's IP address and the WordPress user agent). GitHub terms: https://docs.github.com/site-policy/github-terms/github-terms-of-service — privacy: https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement
-
-Emails are sent through the SMTP server you configure, if any.
+Barrio Suite connects to no external service by itself. Emails are sent through the SMTP server you configure, if any.
 
 == Changelog ==
 

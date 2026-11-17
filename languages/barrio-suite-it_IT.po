@@ -2042,3 +2042,7 @@ msgstr "contatto"
 msgctxt "block keyword"
 msgid "barrio"
 msgstr "barrio"
+
+#: build/forms-admin.js:1
+msgid "Settings of the whole plugin."
+msgstr "Impostazioni dell'intero plugin."
