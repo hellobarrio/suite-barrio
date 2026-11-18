@@ -6,6 +6,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
+import { BLOCKS } from '../../../modules/blocks/assets/src/Blocks.js';
 import { DUPLICATE } from '../../../modules/duplicate/assets/src/Duplicate.js';
 import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { ORDERING } from '../../../modules/ordering/assets/src/Ordering.js';
@@ -35,6 +36,7 @@ const MODULES = {
 			'barrio-suite'
 		),
 	},
+	blocks: BLOCKS,
 	ordering: ORDERING,
 	duplicate: DUPLICATE,
 	performance: {

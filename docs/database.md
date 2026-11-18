@@ -197,6 +197,15 @@ del sito la legge intera: arriva con le altre opzioni, senza query in più.
   tabella di SEO → Redirect cerca anche nella sorgente senza distinguere le maiuscole
   (`COLLATE utf8mb4_unicode_ci` nella query).
 
+## Modulo Blocchi
+
+Nessuna tabella: un solo record, l'opzione `barrio_blocks` (non in autoload: si legge solo nell'editor e nella sua
+REST), validata dallo schema della rotta `PUT /blocks`. `roles` ha per ruolo i blocchi spenti (non quelli ammessi:
+un blocco nuovo resta disponibile) e le restrizioni `h1`, `styles`, `code`, `lock`, `panels`, sempre tutte; un ruolo
+senza restrizioni e `administrator` non si salvano. `editors` ha per tipo di contenuto `blocks`, `classic` o `none`
+(assente: la scelta di WordPress); `remote_patterns` e `openverse` sono accesi di default. Nessun dato nei contenuti:
+spegnere il modulo o una restrizione riporta l'editor com'era.
+
 ## Modulo Ordinamento
 
 Nessuna tabella. L'ordine dei contenuti è `menu_order` di `wp_posts`, il campo del core che usano già temi, menu e

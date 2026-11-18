@@ -17,6 +17,7 @@ final class Modules {
 		'forms'       => Forms\Module::class,
 		'seo'         => Seo\Module::class,
 		// Prima di Prestazioni: l'ordine dei moduli è quello del menu, con la pagina Editor e le sue schede.
+		'blocks'      => Blocks\Module::class,
 		'ordering'    => Ordering\Module::class,
 		'duplicate'   => Duplicate\Module::class,
 		'performance' => Performance\Module::class,

@@ -175,6 +175,7 @@ msgid "Woman"
 msgstr "Donna"
 
 #: modules/forms/src/Admin.php:113
+#: build/barrio-admin.js:60
 msgid "Other"
 msgstr "Altro"
 
@@ -685,6 +686,7 @@ msgid "Search"
 msgstr "Cerca"
 
 #: build/barrio-admin.js:4
+#: build/barrio-admin.js:60
 msgid "No results."
 msgstr "Nessun risultato."
 
@@ -3296,6 +3298,7 @@ msgid "Modern image formats, faster navigation and a lighter page head, with wha
 msgstr "Formati di immagine moderni, navigazione più veloce e un head più leggero, con ciò che WordPress offre già."
 
 #: build/barrio-admin.js:39
+#: build/barrio-admin.js:60
 msgid "WordPress default"
 msgstr "Predefinito di WordPress"
 
@@ -3535,3 +3538,128 @@ msgstr "In ordine manuale, il menu del tipo di contenuto ha una pagina Riordina 
 #: build/barrio-admin.js:39
 msgid "Drag the items by their handle, or press space on it and move them with the arrow keys, then save."
 msgstr "Trascina gli elementi dalla maniglia, oppure premi spazio sulla maniglia e spostali con le frecce, poi salva."
+
+#: build/barrio-admin.js:60
+msgid "Blocks"
+msgstr "Blocchi"
+
+#: build/barrio-admin.js:60
+msgid "The blocks and the editor restrictions of each role, and the editor of each content type."
+msgstr "I blocchi e le restrizioni dell'editor di ogni ruolo, e l'editor di ogni tipo di contenuto."
+
+#: build/barrio-admin.js:60
+msgid "No heading 1"
+msgstr "Niente titolo 1"
+
+#: build/barrio-admin.js:60
+msgid "The H1 is the title of the page. Headings already saved stay as they are."
+msgstr "L'H1 è il titolo della pagina. I titoli già salvati restano come sono."
+
+#: build/barrio-admin.js:60
+msgid "Only the colors and font sizes of the theme"
+msgstr "Solo i colori e le dimensioni del testo del tema"
+
+#: build/barrio-admin.js:60
+msgid "No custom colors, font sizes, line heights and other typography settings. Blocks styled by an administrator keep their style."
+msgstr "Niente colori, dimensioni del testo, interlinea e altre impostazioni tipografiche personalizzate. I blocchi formattati da un amministratore mantengono il loro stile."
+
+#: build/barrio-admin.js:60
+msgid "No code editor"
+msgstr "Niente editor del codice"
+
+#: build/barrio-admin.js:60
+msgid "Neither the code editor of the content nor Edit as HTML of the blocks."
+msgstr "Né l'editor del codice del contenuto né Modifica come HTML dei blocchi."
+
+#: build/barrio-admin.js:60
+msgid "No locking and unlocking of blocks"
+msgstr "Niente blocco e sblocco dei blocchi"
+
+#: build/barrio-admin.js:60
+msgid "Blocks locked by an administrator stay locked."
+msgstr "I blocchi bloccati da un amministratore restano bloccati."
+
+#: build/barrio-admin.js:60
+msgid "Hide Author, Revisions and Parent"
+msgstr "Nascondi Autore, Revisioni e Genitore"
+
+#: build/barrio-admin.js:60
+msgid "In the settings of the content. Revisions are still saved."
+msgstr "Nelle impostazioni del contenuto. Le revisioni si salvano comunque."
+
+#: build/barrio-admin.js:60
+msgid "Available blocks"
+msgstr "Blocchi disponibili"
+
+#: build/barrio-admin.js:60
+msgid "Search blocks"
+msgstr "Cerca blocchi"
+
+#: build/barrio-admin.js:60
+msgid "Blocks and restrictions"
+msgstr "Blocchi e restrizioni"
+
+#: build/barrio-admin.js:60
+msgid "What the users with this role find in the editor. Administrators always have everything, and nothing changes on the site."
+msgstr "Cosa trovano nell'editor gli utenti con questo ruolo. Gli amministratori hanno sempre tutto, e nel sito non cambia niente."
+
+#: build/barrio-admin.js:60
+msgid "Role"
+msgstr "Ruolo"
+
+#: build/barrio-admin.js:60
+msgid "Editor by content type"
+msgstr "Editor per tipo di contenuto"
+
+#: build/barrio-admin.js:60
+msgid "With No editor the screen keeps the title and the other fields, and the content stays in the REST API and in GraphQL."
+msgstr "Con Nessun editor la schermata tiene il titolo e gli altri campi, e il contenuto resta nella REST API e in GraphQL."
+
+#: build/barrio-admin.js:60
+msgid "Block editor"
+msgstr "Editor a blocchi"
+
+#: build/barrio-admin.js:60
+msgid "Classic editor"
+msgstr "Editor classico"
+
+#: build/barrio-admin.js:60
+msgid "No editor"
+msgstr "Nessun editor"
+
+#: build/barrio-admin.js:60
+msgid "External content"
+msgstr "Contenuti esterni"
+
+#: build/barrio-admin.js:60
+msgid "What the inserter of the editor offers from other services, for everyone who writes."
+msgstr "Cosa offre l'inseritore dell'editor da altri servizi, per chiunque scriva."
+
+#: build/barrio-admin.js:60
+msgid "Patterns from WordPress.org"
+msgstr "Pattern da WordPress.org"
+
+#: build/barrio-admin.js:60
+msgid "The patterns of the WordPress.org directory, downloaded by the site."
+msgstr "I pattern della directory di WordPress.org, scaricati dal sito."
+
+#: build/barrio-admin.js:60
+msgid "Openverse images"
+msgstr "Immagini di Openverse"
+
+#: build/barrio-admin.js:60
+msgid "Free images to search in the Media tab: the browser of whoever writes asks Openverse."
+msgstr "Immagini libere da cercare nella scheda Media: il browser di chi scrive le chiede a Openverse."
+
+#: build/barrio-admin.js:69
+msgid "Roles with restrictions"
+msgstr "Ruoli con restrizioni"
+
+#: build/barrio-admin.js:69
+msgid "Content types with a chosen editor"
+msgstr "Tipi di contenuto con un editor scelto"
+
+#: build/barrio-admin.js:60
+msgctxt "blocks"
+msgid "None"
+msgstr "Nessuno"

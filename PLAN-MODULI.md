@@ -297,14 +297,18 @@ proprietario della scheda, non un service account.
 - **Per tutto il sito**: pattern dalla directory di WordPress.org e immagini di Openverse nell'editor (accesi come
   nel core). Sono richieste a servizi esterni dal browser di chi scrive.
 
-Ognuna di queste cose è un filtro del core, tranne due righe di JavaScript scritte a mano, senza build, come il
+Ognuna di queste cose è un filtro del core, tranne poche righe di JavaScript scritte a mano, senza build, come il
 blocco dei form:
 - `allowed_block_types_all`;
 - `use_block_editor_for_post_type`;
 - `block_editor_settings_all` (`codeEditingEnabled`, `canLockBlocks`, `enableOpenverseMediaCategory`);
 - `should_load_remote_block_patterns`;
 - i colori e la tipografia con `wp_theme_json_data_theme`, solo nell'admin;
-- in JavaScript: `levelOptions` del titolo e `removeEditorPanel`.
+- i pannelli con `rest_prepare_post_type`: in WordPress 7.1 Autore, Revisioni e Genitore (attributi della pagina)
+  compaiono solo se il tipo li supporta, e `removeEditorPanel` non toglie i primi due. Per chi ha la restrizione la
+  REST dei tipi non li elenca; il supporto resta, e con lui le revisioni;
+- in JavaScript: il default di `levelOptions` nei blocchi che lo hanno senza un valore loro (il titolo, non il titolo
+  del sito) e la scorciatoia `# `, che creerebbe un H1.
 
 ### 5.2 Dati
 
@@ -333,7 +337,8 @@ blocco dei form:
   - card Editor per tipo di contenuto;
   - card Contenuti esterni.
 
-  I blocchi si leggono da `/wp/v2/block-types`, con titolo, icona e categoria.
+  I blocchi, con titolo e categoria, li dà `GET /blocks` dal registro del server: `/wp/v2/block-types` è molto più
+  pesante, e le icone dei blocchi del core sono solo nel JavaScript, quindi l'elenco non ne ha.
 - **REST**: `GET`/`PUT /blocks` (`manage_options`).
 
 **Da PublishPress Blocks e Disable Gutenberg**:
@@ -540,8 +545,10 @@ Blocchi, Duplicazione e Testi alternativi non hanno hook: nessuna estensione ne 
 - **Prototipo, blocchi**: con la lista di default (`core/list` ammesso, `core/list-item` no) un elenco non dovrebbe
   poter avere voci; e un paragrafo colorato da un amministratore dovrebbe risultare "contenuto inatteso" per un
   editor. Da provare sul prototipo prima della migrazione: se è vero, i siti del prototipo lo hanno già.
-- **Colori e tipografia per ruolo**: `wp_theme_json_data_theme` filtrato secondo l'utente nell'admin; verificare che
-  la cache delle impostazioni globali (`wp_get_global_settings`) non porti la scelta da un utente all'altro.
+- **Colori e tipografia per ruolo** (verificato in M3): `wp_theme_json_data_theme` filtrato secondo l'utente
+  nell'admin. Il risultato resta in `WP_Theme_JSON_Resolver` e nel gruppo di cache `theme_json`, che il core dichiara
+  non persistente: nessuna scelta passa da un utente all'altro, anche con Redis. Nell'editor dei post i controlli
+  seguono le impostazioni del PHP (provato con un editor e un paragrafo colorato da un amministratore).
 - **Blocchi registrati solo in JavaScript**: non compaiono in `/wp/v2/block-types`, quindi non si possono
   disattivare. Con una restrizione attiva `allowed_block_types_all` dà una lista e li nasconderebbe: vanno contati
   sui siti dei clienti.

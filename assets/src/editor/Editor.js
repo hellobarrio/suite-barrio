@@ -3,6 +3,12 @@
 import { __ } from '@wordpress/i18n';
 
 import {
+	BLOCKS,
+	blocksData,
+	blocksSection,
+	blocksStats,
+} from '../../../modules/blocks/assets/src/Blocks.js';
+import {
 	DUPLICATE,
 	duplicateData,
 	duplicateSection,
@@ -30,11 +36,26 @@ const EDITOR = {
 };
 
 // Costante: General ricarica le sezioni quando cambia l'array.
+const BLOCKS_SECTIONS = [ blocksSection ];
 const ORDERING_SECTIONS = [ orderingSection ];
 const DUPLICATE_SECTIONS = [ duplicateSection ];
 
 // Per strumento: la scheda della pagina ([ tab, nome, componente ]) e i numeri della card.
 const TOOLS = [
+	blocksData &&
+		canManageOptions && {
+			tab: [
+				'blocks',
+				BLOCKS.title,
+				() => (
+					<General
+						title={ BLOCKS.title }
+						sections={ BLOCKS_SECTIONS }
+					/>
+				),
+			],
+			stats: blocksStats,
+		},
 	orderingData &&
 		canManageOptions && {
 			tab: [

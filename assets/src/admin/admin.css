@@ -472,6 +472,17 @@
 	padding-top: 8px;
 }
 
+/* I blocchi di un ruolo (modules/blocks), in colonne. */
+.barrio-blocks {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	gap: 8px 16px;
+}
+
+.barrio-wide .barrio-blocks {
+	padding-top: 8px;
+}
+
 @media (max-width: 782px) {
 
 	.barrio-wide .barrio-field {

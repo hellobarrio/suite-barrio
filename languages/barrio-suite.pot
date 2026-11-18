@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-18T15:47:33+00:00\n"
+"POT-Creation-Date: 2026-11-18T16:14:38+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -229,6 +229,7 @@ msgid "Woman"
 msgstr ""
 
 #: modules/forms/src/Admin.php:113
+#: build/barrio-admin.js:60
 msgid "Other"
 msgstr ""
 
@@ -854,6 +855,7 @@ msgid "Search"
 msgstr ""
 
 #: build/barrio-admin.js:4
+#: build/barrio-admin.js:60
 msgid "No results."
 msgstr ""
 
@@ -2002,6 +2004,7 @@ msgid "As uploaded"
 msgstr ""
 
 #: build/barrio-admin.js:39
+#: build/barrio-admin.js:60
 msgid "WordPress default"
 msgstr ""
 
@@ -3078,6 +3081,123 @@ msgid "Indexed contents"
 msgstr ""
 
 #: build/barrio-admin.js:60
+msgid "Blocks"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "The blocks and the editor restrictions of each role, and the editor of each content type."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "No heading 1"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "The H1 is the title of the page. Headings already saved stay as they are."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Only the colors and font sizes of the theme"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "No custom colors, font sizes, line heights and other typography settings. Blocks styled by an administrator keep their style."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "No code editor"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Neither the code editor of the content nor Edit as HTML of the blocks."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "No locking and unlocking of blocks"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Blocks locked by an administrator stay locked."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Hide Author, Revisions and Parent"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "In the settings of the content. Revisions are still saved."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Available blocks"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Search blocks"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgctxt "blocks"
+msgid "None"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Blocks and restrictions"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "What the users with this role find in the editor. Administrators always have everything, and nothing changes on the site."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Role"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Editor by content type"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "With No editor the screen keeps the title and the other fields, and the content stays in the REST API and in GraphQL."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Block editor"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Classic editor"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "No editor"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "External content"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "What the inserter of the editor offers from other services, for everyone who writes."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Patterns from WordPress.org"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "The patterns of the WordPress.org directory, downloaded by the site."
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Openverse images"
+msgstr ""
+
+#: build/barrio-admin.js:60
+msgid "Free images to search in the Media tab: the browser of whoever writes asks Openverse."
+msgstr ""
+
+#: build/barrio-admin.js:60
 msgid "Duplication"
 msgstr ""
 
@@ -3393,6 +3513,14 @@ msgstr ""
 
 #: build/barrio-admin.js:69
 msgid "Tools for writing and managing the contents"
+msgstr ""
+
+#: build/barrio-admin.js:69
+msgid "Roles with restrictions"
+msgstr ""
+
+#: build/barrio-admin.js:69
+msgid "Content types with a chosen editor"
 msgstr ""
 
 #: build/barrio-admin.js:69
