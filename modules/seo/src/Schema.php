@@ -48,7 +48,6 @@ final class Schema {
 				'inLanguage'         => $lang,
 				'isPartOf'           => [ '@id' => "{$home}#website" ],
 				'primaryImageOfPage' => self::image( $meta['image'] ),
-				'keywords'           => implode( ', ', $meta['keywords'] ),
 				'breadcrumb'         => $crumbs ? [ '@id' => $crumbs['@id'] ] : null,
 			];
 			if ( $queried instanceof WP_Post ) {
@@ -199,7 +198,7 @@ final class Schema {
 	 * @return array<string, mixed>|null
 	 */
 	private static function item_list( string $post_type ): ?array {
-		if ( '' === $post_type || ! is_post_type_viewable( $post_type ) ) {
+		if ( ! isset( Module::post_types()[ $post_type ] ) ) {
 			return null;
 		}
 		/** @var list<WP_Post> $posts */

@@ -329,7 +329,7 @@ function barrio_migration_seo_redirects( bool $table, array &$report ): array {
 		$reason = match ( true ) {
 			'' === $from || mb_strlen( $source ) > 768 => 'invalid source',
 			null === $code => 'invalid code',
-			null !== $target && ( ! preg_match( '#^(/|https?://)#', $target ) || mb_strlen( $target ) > 2048 ) => 'invalid target',
+			null !== $target && ( ! preg_match( Redirects::TARGET, $target ) || mb_strlen( $target ) > 2048 ) => 'invalid target',
 			isset( $valid[ $source ] ) => 'duplicate',
 			$table && null !== RedirectRepository::find( $source ) => 'already in Barrio Suite',
 			default => null,
@@ -348,23 +348,12 @@ function barrio_migration_seo_redirects( bool $table, array &$report ): array {
 		];
 	}
 
-	// I cicli si cercano tra i percorsi: un URL assoluto chiude la catena.
-	$next = [];
-	foreach ( $valid as $source => $redirect ) {
-		if ( str_starts_with( (string) $redirect['target'], '/' ) ) {
-			$next[ $source ] = Redirects::path( (string) $redirect['target'] );
-		}
-	}
-	$limit = count( $next );
-	foreach ( array_keys( $next ) as $source ) {
-		$at = $next[ $source ];
-		for ( $steps = 1; $at !== $source && isset( $next[ $at ] ) && $steps < $limit; ++$steps ) {
-			$at = $next[ $at ];
-		}
-		if ( $at === $source ) {
-			$skipped['loop'][] = $source;
-			unset( $valid[ $source ] );
-		}
+	// Tutti i redirect di un ciclo restano fuori.
+	$next  = static fn( string $path ): ?string => $valid[ $path ]['target'] ?? null;
+	$loops = array_filter( array_keys( $valid ), static fn( string $source ): bool => Redirects::loops( $source, $valid[ $source ]['target'], $next ) );
+	foreach ( $loops as $source ) {
+		$skipped['loop'][] = $source;
+		unset( $valid[ $source ] );
 	}
 
 	$report['counts'][] = [

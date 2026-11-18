@@ -38,11 +38,21 @@ const params = ( query ) =>
 const EMPTY = { source: '', target: '', code: 301, note: '' };
 
 function RedirectModal( { redirect, onSaved, onClose } ) {
-	const [ draft, setDraft ] = useState( {
+	const [ initial ] = useState( () => ( {
 		...redirect,
 		target: redirect.target ?? '',
 		note: redirect.note ?? '',
-	} );
+	} ) );
+	const [ draft, setDraft ] = useState( initial );
+	const close = () => {
+		if (
+			JSON.stringify( draft ) === JSON.stringify( initial ) ||
+			// eslint-disable-next-line no-alert -- le modifiche non salvate non si perdono con Esc o un clic fuori.
+			window.confirm( __( 'Discard the changes?', 'barrio-suite' ) )
+		) {
+			onClose();
+		}
+	};
 	const [ busy, setBusy ] = useState( false );
 	const [ notice, setNotice ] = useState( null );
 	// Il Salva sta nel piede della modale, fuori dal form: lo invia con l'attributo form.
@@ -83,7 +93,7 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 					<button
 						type="button"
 						className="barrio-button"
-						onClick={ onClose }
+						onClick={ close }
 					>
 						{ __( 'Cancel', 'barrio-suite' ) }
 					</button>
@@ -108,7 +118,7 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 					? __( 'Edit redirect', 'barrio-suite' )
 					: __( 'Add redirect', 'barrio-suite' )
 			}
-			onRequestClose={ onClose }
+			onRequestClose={ close }
 		>
 			<form id={ form } className="barrio-stack" onSubmit={ save }>
 				<Notice notice={ notice } />

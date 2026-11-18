@@ -14,6 +14,9 @@ use BarrioSuite\Seo\Repository\RedirectRepository;
  */
 final class Redirects {
 
+	// Una destinazione: un percorso del sito o un URL assoluto. //altro-sito.example/x porterebbe fuori dal sito.
+	public const TARGET = '#^(/(?!/)|https?://)#';
+
 	/** @var array<string, array<int, string>> Gli URL prima del salvataggio, per "post_ID" o "term_ID". */
 	private static array $before = [];
 
@@ -26,10 +29,12 @@ final class Redirects {
 			return;
 		}
 		if ( null === $redirect['target'] ) {
-			// 410: la pagina "non trovata" del tema, con il suo codice.
+			// 410: la pagina "non trovata" del tema, con il suo codice, senza che il core indovini un altro contenuto.
 			$wp_query->set_404();
 			status_header( 410 );
 			nocache_headers();
+			remove_action( 'template_redirect', 'redirect_canonical' );
+			remove_action( 'template_redirect', 'wp_old_slug_redirect' );
 			return;
 		}
 		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- la destinazione la sceglie chi gestisce la SEO, anche su un altro dominio.
@@ -63,6 +68,28 @@ final class Redirects {
 		return $path . ( empty( $parts['query'] ) ? '' : "?{$parts['query']}" );
 	}
 
+	// Il percorso del sito a cui porta una destinazione; null per il 410 e fuori dal sito.
+	public static function local( ?string $target ): ?string {
+		$host = null === $target ? false : wp_parse_url( $target, PHP_URL_HOST );
+		return null === $host || wp_parse_url( home_url(), PHP_URL_HOST ) === $host ? self::path( (string) $target ) : null;
+	}
+
+	/**
+	 * Se un redirect da $source verso $target ci riporta, seguendo la catena tra i percorsi del sito.
+	 *
+	 * @param callable(string): (string|null) $next La destinazione del redirect di un percorso, o null.
+	 */
+	public static function loops( string $source, ?string $target, callable $next ): bool {
+		$seen = [];
+		for ( $at = self::local( $target ); null !== $at && ! isset( $seen[ $at ] ); $at = self::local( $next( $at ) ) ) {
+			if ( $at === $source ) {
+				return true;
+			}
+			$seen[ $at ] = true;
+		}
+		return false;
+	}
+
 	// pre_post_update: gli URL si leggono prima del salvataggio.
 	public static function before_post( int $post_id ): void {
 		self::$before[ "post_{$post_id}" ] = self::post_urls( $post_id );
@@ -88,8 +115,8 @@ final class Redirects {
 	/**
 	 * Un 301 per ogni URL cambiato, verso l'URL vero (con la / finale dei permalink, così WordPress non
 	 * aggiunge un secondo redirect). Il redirect che partiva dal nuovo URL si toglie (la pagina è di nuovo
-	 * lì), e chi portava al vecchio porta al nuovo: niente catene, e quindi niente loop. Un redirect che
-	 * parte già dal vecchio URL resta com'è.
+	 * lì), e chi portava al vecchio porta al nuovo, scritto con o senza / finale o come URL assoluto: niente
+	 * catene, e quindi niente loop. Un redirect che parte già dal vecchio URL resta com'è.
 	 *
 	 * @param array<int, string> $before
 	 * @param array<int, string> $after
@@ -104,7 +131,8 @@ final class Redirects {
 					if ( null !== $stale ) {
 						RedirectRepository::delete( $stale['id'] );
 					}
-					RedirectRepository::retarget( $from, $to );
+					$origin = (string) preg_replace( '#^((https?:)?//[^/]+).*#i', '$1', home_url() );
+					RedirectRepository::retarget( [ $from, untrailingslashit( $from ), $origin . $from, $origin . untrailingslashit( $from ) ], $to );
 					if ( null === RedirectRepository::find( self::path( $from ) ) ) {
 						RedirectRepository::create( self::path( $from ), $to, RedirectCode::MovedPermanently, null, true );
 					}
@@ -119,7 +147,7 @@ final class Redirects {
 	/** @return array<int, string> Gli URL relativi di un contenuto pubblicato e dei suoi discendenti, per ID. */
 	private static function post_urls( int $post_id ): array {
 		$post = get_post( $post_id );
-		if ( ! $post || 'publish' !== $post->post_status || 'attachment' === $post->post_type || ! is_post_type_viewable( $post->post_type ) || ! Settings::get()['auto_redirects'] ) {
+		if ( ! $post || 'publish' !== $post->post_status || ! isset( Module::post_types()[ $post->post_type ] ) || ! Settings::get()['auto_redirects'] ) {
 			return [];
 		}
 		$posts = [ $post ];
@@ -148,7 +176,7 @@ final class Redirects {
 	 * @return array<int, string>
 	 */
 	private static function term_urls( int $term_id, string $taxonomy ): array {
-		if ( ! is_taxonomy_viewable( $taxonomy ) || ! Settings::get()['auto_redirects'] ) {
+		if ( ! isset( Module::taxonomies()[ $taxonomy ] ) || ! Settings::get()['auto_redirects'] ) {
 			return [];
 		}
 		$children = is_taxonomy_hierarchical( $taxonomy ) ? get_term_children( $term_id, $taxonomy ) : [];

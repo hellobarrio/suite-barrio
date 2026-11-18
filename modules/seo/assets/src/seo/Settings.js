@@ -20,7 +20,7 @@ import { documentTitle } from '../title.js';
 import { SeoText, SettingsPage, editable, main } from './SettingsPage.js';
 import { MediaField, seoData } from './ui.js';
 
-const { types, llms, sitemap, robots, ai } = seoData;
+const { types, llms, sitemap, robots, ai, attachments } = seoData;
 
 // Le capability del modulo, nei Permessi (Module::CAPS).
 const CAPS = {
@@ -143,10 +143,11 @@ function SettingsCards( {
 			);
 	}, [ saved ] );
 
-	// Un tipo indicizzato e seguito non si salva: una chiave assente vale già sì.
+	// Un tipo indicizzato e seguito non si salva: una chiave assente vale già sì. Gli allegati invece hanno
+	// un default loro (noindex) e restano sempre.
 	const setRobots = ( group, name ) => ( value ) => {
 		const next = { ...seo.index[ group ], [ name ]: value };
-		if ( value.index && value.follow ) {
+		if ( value.index && value.follow && 'attachment' !== name ) {
 			delete next[ name ];
 		}
 		setSeo( 'index' )( { ...seo.index, [ group ]: next } );
@@ -156,13 +157,13 @@ function SettingsCards( {
 			...seo.index,
 			archives: { ...seo.index.archives, [ name ]: value },
 		} );
-	// Includi è il valore di una chiave assente.
-	const setLlms = ( group, name ) => ( value ) => {
-		const next = { ...seo.llms[ group ], [ name ]: value };
-		if ( 'include' === value ) {
-			delete next[ name ];
+	// Il valore di una chiave assente è type.llms (Llms::preset()).
+	const setLlms = ( type ) => ( value ) => {
+		const next = { ...seo.llms[ type.group ], [ type.name ]: value };
+		if ( type.llms === value ) {
+			delete next[ type.name ];
 		}
-		setSeo( 'llms' )( { ...seo.llms, [ group ]: next } );
+		setSeo( 'llms' )( { ...seo.llms, [ type.group ]: next } );
 	};
 	// Nell'ordine di CAPS, così il confronto con quelle salvate non dipende dall'ordine dei clic.
 	const setCap = ( role, cap ) => ( on ) =>
@@ -336,6 +337,17 @@ function SettingsCards( {
 								) ) }
 						</Fragment>
 					) ) }
+					{ attachments && (
+						<Robots
+							label={ __( 'Attachment pages', 'barrio-suite' ) }
+							value={ robotsOf(
+								seo.index,
+								'post_types',
+								'attachment'
+							) }
+							onChange={ setRobots( 'post_types', 'attachment' ) }
+						/>
+					) }
 					<SectionHead
 						title={ __( 'Archives', 'barrio-suite' ) }
 						level={ 3 }
@@ -427,10 +439,10 @@ function SettingsCards( {
 							key={ `${ type.group }/${ type.name }` }
 							label={ type.label }
 							value={
-								seo.llms[ type.group ][ type.name ] ?? 'include'
+								seo.llms[ type.group ][ type.name ] ?? type.llms
 							}
 							options={ LLMS }
-							onChange={ setLlms( type.group, type.name ) }
+							onChange={ setLlms( type ) }
 						/>
 					) ) }
 				</Fixed>
@@ -455,7 +467,16 @@ function SettingsCards( {
 						/>
 					}
 				/>
-				<Group label={ __( 'Files', 'barrio-suite' ) }>
+				<Group
+					label={ __( 'Files', 'barrio-suite' ) }
+					help={
+						! llms.length &&
+						__(
+							'WordPress does not publish them while the site asks search engines not to index it (Settings → Reading) or uses plain permalinks (Settings → Permalinks).',
+							'barrio-suite'
+						)
+					}
+				>
 					<div className="barrio-row">
 						{ llms.map( ( url ) => (
 							<a

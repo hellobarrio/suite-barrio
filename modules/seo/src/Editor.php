@@ -54,7 +54,7 @@ final class Editor {
 	}
 
 	public static function render_term( WP_Term $term ): void {
-		if ( ! in_array( $term->taxonomy, get_taxonomies( [ 'public' => true ] ), true ) || ! current_user_can( 'barrio_edit_seo' ) || ! current_user_can( 'edit_term', $term->term_id ) ) {
+		if ( ! isset( Module::taxonomies()[ $term->taxonomy ] ) || ! current_user_can( 'barrio_edit_seo' ) || ! current_user_can( 'edit_term', $term->term_id ) ) {
 			return;
 		}
 		self::form( self::context( 'taxonomies', $term->taxonomy ) + [ 'page' => self::term_page( $term ) ], new WP_REST_Term_Meta_Fields( $term->taxonomy ), $term->term_id );
@@ -70,8 +70,7 @@ final class Editor {
 	}
 
 	private static function can_post( WP_Post $post ): bool {
-		return 'attachment' !== $post->post_type && get_post_type_object( $post->post_type )?->public
-			&& current_user_can( 'barrio_edit_seo' ) && current_user_can( 'edit_post', $post->ID );
+		return isset( Module::post_types()[ $post->post_type ] ) && current_user_can( 'barrio_edit_seo' ) && current_user_can( 'edit_post', $post->ID );
 	}
 
 	/**
@@ -168,16 +167,20 @@ final class Editor {
 		];
 		// Solo le pagine diventano l'archivio di un tipo (Schema::item_list).
 		if ( 'post_types' === $group && 'page' === $name ) {
-			foreach ( get_post_types( [ 'public' => true ], 'objects' ) as $type ) {
-				if ( 'attachment' !== $type->name ) {
-					$context['collections'][] = [
-						'value' => $type->name,
-						'label' => $type->labels->name,
-					];
-				}
+			foreach ( Module::post_types() as $type ) {
+				$context['collections'][] = [
+					'value' => $type->name,
+					'label' => $type->labels->name,
+				];
 			}
 		}
 		return $context;
+	}
+
+	/** @return list<string> Gli shortcode registrati: text() in title.js toglie solo questi, come strip_shortcodes(). */
+	public static function shortcodes(): array {
+		global $shortcode_tags;
+		return array_map( 'strval', array_keys( $shortcode_tags ) );
 	}
 
 	/**
@@ -196,7 +199,8 @@ final class Editor {
 		$url    = plugins_url( "build/{$build}", "{$dir}/barrio-suite.php" );
 		$handle = "barrio-{$build}";
 		wp_enqueue_script( $handle, "{$url}.js", $asset['dependencies'], $asset['version'], true );
-		wp_add_inline_script( $handle, 'window.barrioSeo = ' . wp_json_encode( $data ) . ';', 'before' );
+		// Il contenuto del post può avere un <script o un commento non chiuso: JSON_HEX_TAG non chiude il tag.
+		wp_add_inline_script( $handle, 'window.barrioSeo = ' . wp_json_encode( $data + [ 'shortcodes' => self::shortcodes() ], JSON_HEX_TAG ) . ';', 'before' );
 		wp_set_script_translations( $handle, 'barrio-suite', "{$dir}/languages" );
 		wp_enqueue_style( $handle, "{$url}.css", [ 'wp-components' ], $asset['version'] );
 		wp_style_add_data( $handle, 'rtl', 'replace' );

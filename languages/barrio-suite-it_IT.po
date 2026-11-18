@@ -193,7 +193,7 @@ msgstr "File non trovato."
 #: modules/forms/src/Api/RestEntries.php:351
 #: modules/forms/src/FieldTypes.php:45
 #: modules/forms/src/Privacy.php:71
-#: modules/seo/src/Llms.php:147
+#: modules/seo/src/Llms.php:160
 #: build/barrio-admin.js:23
 #: build/barrio-admin.js:25
 msgid "Date"
@@ -592,7 +592,7 @@ msgstr "Non è stato possibile accettare il tuo invio."
 msgid "Too many submissions. Please try again in a few minutes."
 msgstr "Troppi invii. Riprova tra qualche minuto."
 
-#: modules/seo/src/Llms.php:137
+#: modules/seo/src/Llms.php:150
 msgid "Navigation"
 msgstr "Navigazione"
 
@@ -664,7 +664,7 @@ msgid "Barrio Suite cannot be activated"
 msgstr "Non è possibile attivare Barrio Suite"
 
 #. translators: %s: database error message.
-#: src/Plugin.php:62
+#: src/Plugin.php:64
 #, php-format
 msgid "Barrio Suite could not update its database tables: %s. It will try again on the next page load."
 msgstr "Barrio Suite non è riuscito ad aggiornare le sue tabelle del database: %s. Riproverà al prossimo caricamento di una pagina."
@@ -2460,7 +2460,7 @@ msgctxt "block keyword"
 msgid "barrio"
 msgstr "barrio"
 
-#: modules/seo/src/Api/RestContents.php:56
+#: modules/seo/src/Api/RestContents.php:57
 msgid "This content type does not exist."
 msgstr "Questo tipo di contenuto non esiste."
 
@@ -2472,12 +2472,12 @@ msgstr "Redirect non trovato."
 msgid "The destination must start with / or with http:// or https://."
 msgstr "La destinazione deve iniziare con / oppure con http:// o https://."
 
-#: modules/seo/src/Api/RestRedirects.php:178
+#: modules/seo/src/Api/RestRedirects.php:177
 msgid "The destination is the same as the source."
 msgstr "La destinazione è uguale all'origine."
 
 #. translators: %s: the source address of a redirect, such as /old-page.
-#: modules/seo/src/Api/RestRedirects.php:183
+#: modules/seo/src/Api/RestRedirects.php:190
 #, php-format
 msgid "There is already a redirect from %s."
 msgstr "Esiste già un redirect da %s."
@@ -2499,6 +2499,7 @@ msgid "Private"
 msgstr "Privato"
 
 #: build/barrio-admin.js:48
+#: build/barrio-admin.js:49
 msgid "Discard the changes?"
 msgstr "Annullare le modifiche?"
 
@@ -3467,3 +3468,15 @@ msgstr "Tipi di contenuto con Duplica"
 #: build/barrio-admin.js:69
 msgid "Taxonomies with Duplicate"
 msgstr "Tassonomie con Duplica"
+
+#: modules/seo/src/Api/RestRedirects.php:185
+msgid "The destination leads back to the source through other redirects."
+msgstr "La destinazione riporta all'origine attraverso altri redirect."
+
+#: build/barrio-admin.js:50
+msgid "Attachment pages"
+msgstr "Pagine degli allegati"
+
+#: build/barrio-admin.js:52
+msgid "WordPress does not publish them while the site asks search engines not to index it (Settings → Reading) or uses plain permalinks (Settings → Permalinks)."
+msgstr "WordPress non li pubblica finché il sito chiede ai motori di ricerca di non indicizzarlo (Impostazioni → Lettura) o usa i permalink semplici (Impostazioni → Permalink)."

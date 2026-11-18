@@ -63,6 +63,15 @@ function parse( href, base ) {
 	}
 }
 
+// Un % non valido (/100%-sconto/, un /%postname%/ rimasto) resta com'è.
+function decode( value ) {
+	try {
+		return decodeURIComponent( value );
+	} catch {
+		return value;
+	}
+}
+
 /**
  * @param {Object}      page
  * @param {string}      page.title       Il titolo SEO, o quello del contenuto, senza il nome del sito.
@@ -73,14 +82,13 @@ function parse( href, base ) {
  * @param {string}      page.home        L'URL della home, per riconoscere i link interni.
  * @param {boolean}     page.image       Un'immagine di condivisione sua, non quella predefinita del sito.
  * @param {string|null} page.content     L'HTML del contenuto; null per i termini.
- * @return {{score: number, checks: Array<{id: string, pass: boolean, value?: number}>}} Il punteggio da 0
- *         a 100 e i controlli, con il numero che li spiega (caratteri, parole, percentuale).
+ * @return {{score: number, checks: Array<{id: string, pass: boolean, value?: number, content?: boolean}>}} Il
+ *         punteggio da 0 a 100 e i controlli, con il numero che li spiega (caratteri, parole, percentuale);
+ *         content per quelli sul contenuto.
  */
 export function score( page ) {
 	const keyword = page.keywords?.[ 0 ] ?? '';
-	const path = decodeURIComponent(
-		parse( page.url || '/', page.home )?.pathname ?? ''
-	);
+	const path = decode( parse( page.url || '/', page.home )?.pathname ?? '' );
 	const titleAt = keyword
 		? fold( page.title ).indexOf( fold( keyword ) )
 		: -1;
@@ -129,7 +137,7 @@ export function score( page ) {
 			.filter( ( link ) =>
 				[ 'http:', 'https:' ].includes( link?.protocol )
 			);
-		checks.push(
+		const content = [
 			{
 				id: 'content_length',
 				pass: all.length >= 600,
@@ -175,7 +183,10 @@ export function score( page ) {
 			{
 				id: 'media',
 				pass: /<(img|video|iframe)\b|wp-block-embed/i.test( html ),
-			}
+			},
+		];
+		checks.push(
+			...content.map( ( check ) => ( { ...check, content: true } ) )
 		);
 	}
 

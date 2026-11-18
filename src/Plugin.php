@@ -15,6 +15,8 @@ final class Plugin {
 				[ 'back_link' => true ]
 			);
 		}
+		// Con l'opzione che esiste, anche vuota, is_enabled() non fa una query a ogni richiesta.
+		add_option( Modules::OPTION, [], '', true );
 		self::boot();
 	}
 

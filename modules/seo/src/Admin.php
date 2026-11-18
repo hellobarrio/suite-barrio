@@ -27,15 +27,10 @@ final class Admin {
 	 * @return array<string, mixed>
 	 */
 	public static function data( array $data ): array {
-		$types = [];
-		foreach ( get_post_types( [ 'public' => true ], 'objects' ) as $type ) {
-			if ( 'attachment' !== $type->name ) {
-				$types[] = self::type( 'post_types', $type );
-			}
-		}
+		$types = array_map( static fn( WP_Post_Type $type ): array => self::type( 'post_types', $type ), array_values( Module::post_types() ) );
 		// Prima le pagine, poi gli articoli e gli altri tipi (sort è stabile).
 		usort( $types, static fn( array $a, array $b ): int => ( 'page' === $b['name'] ) <=> ( 'page' === $a['name'] ) );
-		foreach ( get_taxonomies( [ 'public' => true ], 'objects' ) as $taxonomy ) {
+		foreach ( Module::taxonomies() as $taxonomy ) {
 			$types[] = self::type( 'taxonomies', $taxonomy );
 		}
 		return $data + [
@@ -53,7 +48,11 @@ final class Admin {
 					'url'  => home_url( '/robots.txt' ),
 					'file' => file_exists( get_home_path() . 'robots.txt' ),
 				],
-				'llms'          => [ home_url( '/llms.txt' ), home_url( '/llms-full.txt' ) ],
+				// Senza permalink WordPress non riceve /llms.txt; un sito nascosto ai motori non lo pubblica (Llms::serve()).
+				'llms'          => get_option( 'permalink_structure' ) && get_option( 'blog_public' ) ? [ home_url( '/llms.txt' ), home_url( '/llms-full.txt' ) ] : [],
+				// Le pagine degli allegati, se il sito le ha ancora: una riga in più nell'indicizzazione.
+				'attachments'   => (bool) get_option( 'wp_attachment_pages_enabled' ),
+				'shortcodes'    => Editor::shortcodes(),
 				// "Genera con AI" resta spento finché l'AI non è configurata (src/Ai.php).
 				'ai'            => Ai::is_ready(),
 			],
@@ -62,9 +61,9 @@ final class Admin {
 
 	/**
 	 * rest: dove la REST del core modifica i meta; null per i tipi che non sono nella REST, che nella tabella
-	 * si leggono soltanto.
+	 * si leggono soltanto. llms: cosa va in llms.txt senza una scelta.
 	 *
-	 * @return array{group: string, name: string, label: string, rest: string|null}
+	 * @return array{group: string, name: string, label: string, rest: string|null, llms: string}
 	 */
 	private static function type( string $group, WP_Post_Type|WP_Taxonomy $type ): array {
 		return [
@@ -72,6 +71,7 @@ final class Admin {
 			'name'  => $type->name,
 			'label' => $type->labels->name,
 			'rest'  => $type->show_in_rest ? ( $type->rest_namespace ?: 'wp/v2' ) . '/' . ( $type->rest_base ?: $type->name ) : null,
+			'llms'  => Llms::preset( $group, $type->name ),
 		];
 	}
 }

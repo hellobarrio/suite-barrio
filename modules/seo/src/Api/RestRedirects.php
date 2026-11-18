@@ -170,12 +170,19 @@ final class RestRedirects {
 		$note   = trim( (string) $request['note'] );
 		$error  = static fn( string $message ): WP_Error => new WP_Error( 'barrio_invalid_redirect', $message, [ 'status' => 400 ] );
 
-		if ( null !== $target && ! preg_match( '#^(/|https?://)#', $target ) ) {
+		if ( null !== $target && ! preg_match( Redirects::TARGET, $target ) ) {
 			return $error( __( 'The destination must start with / or with http:// or https://.', 'barrio-suite' ) );
 		}
-		$host = wp_parse_url( (string) $target, PHP_URL_HOST );
-		if ( null !== $target && ( null === $host || wp_parse_url( home_url(), PHP_URL_HOST ) === $host ) && Redirects::path( $target ) === $source ) {
+		if ( Redirects::local( $target ) === $source ) {
 			return $error( __( 'The destination is the same as the source.', 'barrio-suite' ) );
+		}
+		// La versione salvata di questo redirect non conta: la sostituisce.
+		$next = static function ( string $path ) use ( $id ): ?string {
+			$redirect = Redirects::match( $path );
+			return null !== $redirect && $redirect['id'] !== $id ? $redirect['target'] : null;
+		};
+		if ( Redirects::loops( $source, $target, $next ) ) {
+			return $error( __( 'The destination leads back to the source through other redirects.', 'barrio-suite' ) );
 		}
 		$existing = RedirectRepository::find( $source );
 		if ( null !== $existing && $existing['id'] !== $id ) {

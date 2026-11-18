@@ -21,7 +21,7 @@ final class Modules {
 		'performance' => Performance\Module::class,
 	];
 
-	private const OPTION = 'barrio_disabled_modules';
+	public const OPTION = 'barrio_disabled_modules';
 
 	public static function boot(): void {
 		add_action( 'rest_api_init', [ self::class, 'register' ] );

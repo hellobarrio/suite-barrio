@@ -93,6 +93,7 @@ final class SeoAdminTest extends WP_UnitTestCase {
 				'already used'        => [ '/Vecchia-Pagina/?ref=1', '/altro', 301 ],
 				'without destination' => [ '/senza', '', 301 ],
 				'relative without /'  => [ '/senza', 'nuova', 302 ],
+				'another site'        => [ '/senza', '//altro-sito.example/x', 302 ],
 				'loop'                => [ '/giro', home_url( '/giro/' ), 301 ],
 				'unknown code'        => [ '/codice', '/x', 303 ],
 			] as $case => [ $source, $target, $code ]
@@ -139,6 +140,18 @@ final class SeoAdminTest extends WP_UnitTestCase {
 
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 		$this->assertSame( 403, $this->rest( 'GET', '/barrio/v1/seo/redirects' )->get_status() );
+	}
+
+	public function test_a_redirect_that_leads_back_to_its_source_is_rejected(): void {
+		$first = $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/giro-a', '/giro-b/', 301 );
+		$this->redirect( 'POST', '/barrio/v1/seo/redirects', '/giro-b', '/giro-c', 302 );
+		$this->assertSame( 400, $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/giro-c', home_url( '/giro-a' ), 301 )->get_status(), 'Through other redirects too.' );
+		$this->assertSame( 201, $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/giro-c', 'https://example.net/giro-a', 301 )->get_status(), 'Another site ends the chain.' );
+
+		$this->assertSame( 201, $first->get_status() );
+
+		$swap = $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/solo-x', '/solo-y', 301 );
+		$this->assertSame( 200, $this->redirect( 'PUT', "/barrio/v1/seo/redirects/{$swap->get_data()['id']}", '/solo-y', '/solo-x', 301 )->get_status(), 'The saved version of the same redirect does not count.' );
 	}
 
 	public function test_the_sitemap_counts_are_those_of_the_sitemap_of_wordpress(): void {

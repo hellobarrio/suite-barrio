@@ -1,6 +1,6 @@
 === Barrio Suite ===
 Contributors: hellobarrio
-Tags: forms, contact form, form builder, gdpr, multilingual
+Tags: seo, contact form, form builder, schema, multilingual
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.2

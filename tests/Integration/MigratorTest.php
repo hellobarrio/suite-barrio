@@ -49,6 +49,10 @@ final class MigratorTest extends WP_UnitTestCase {
 	}
 
 	public function test_missing_folder_means_no_migrations(): void {
+		global $wpdb;
+		wp_cache_delete( 'notoptions', 'options' );
+		$queries = $wpdb->num_queries;
 		$this->assertTrue( ( new Migrator( 'test', self::FIXTURES . '/missing' ) )->is_current() );
+		$this->assertSame( $queries, $wpdb->num_queries, 'No version to read.' );
 	}
 }

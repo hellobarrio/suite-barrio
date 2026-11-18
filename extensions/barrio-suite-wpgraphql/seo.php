@@ -4,6 +4,7 @@
 
 use BarrioSuite\Seo\Llms;
 use BarrioSuite\Seo\Meta;
+use BarrioSuite\Seo\Module;
 use BarrioSuite\Seo\Repository\RedirectRepository;
 use BarrioSuite\Seo\Schema;
 use BarrioSuite\Seo\Settings;
@@ -60,29 +61,21 @@ function barrio_wpgraphql_register_seo(): void {
 				],
 				'keywords'      => [
 					'type'        => [ 'list_of' => 'String' ],
-					'description' => 'The first one is the main keyword.',
+					'description' => 'The first one is the main keyword. Only for users who can edit the content.',
 				],
 			],
 		]
 	);
-	foreach ( get_post_types(
-		[
-			'public'          => true,
-			'show_in_graphql' => true,
-		],
-		'objects'
-	) as $type ) {
-		if ( 'attachment' !== $type->name ) {
-			register_graphql_field(
-				ucfirst( (string) ( $type->graphql_single_name ?? '' ) ),
-				'seo',
-				[
-					'type'        => 'HBSeoPost',
-					'description' => 'The SEO data of Barrio Suite.',
-					'resolve'     => static fn( Post $post ): ?array => barrio_wpgraphql_seo( get_post( $post->ID ) ),
-				]
-			);
-		}
+	foreach ( array_intersect_key( Module::post_types(), get_post_types( [ 'show_in_graphql' => true ] ) ) as $type ) {
+		register_graphql_field(
+			ucfirst( (string) ( $type->graphql_single_name ?? '' ) ),
+			'seo',
+			[
+				'type'        => 'HBSeoPost',
+				'description' => 'The SEO data of Barrio Suite.',
+				'resolve'     => static fn( Post $post ): ?array => barrio_wpgraphql_seo( get_post( $post->ID ) ),
+			]
+		);
 	}
 
 	register_graphql_object_type(
@@ -263,7 +256,8 @@ function barrio_wpgraphql_seo( ?WP_Post $post ): ?array {
 		'isIndexed'     => $meta['index'],
 		// Come la sitemap (Seo\Meta::indexable()).
 		'isInSitemap'   => $meta['index'] && 'publish' === $post->post_status && '' === $post->post_password,
-		'keywords'      => $meta['keywords'],
+		// Come nella REST del core: servono al punteggio, non alle pagine.
+		'keywords'      => current_user_can( 'edit_post', $post->ID ) ? $meta['keywords'] : [],
 	];
 }
 

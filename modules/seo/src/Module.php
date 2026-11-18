@@ -7,9 +7,11 @@ use BarrioSuite\Seo\Api\RestContents;
 use BarrioSuite\Seo\Api\RestGenerate;
 use BarrioSuite\Seo\Api\RestRedirects;
 use BarrioSuite\Seo\Api\RestSettings;
+use WP_Post_Type;
 use WP_REST_Posts_Controller;
 use WP_REST_Request;
 use WP_REST_Terms_Controller;
+use WP_Taxonomy;
 
 final class Module {
 
@@ -107,23 +109,39 @@ final class Module {
 	}
 
 	/**
-	 * Su tutti i tipi e le tassonomie pubblici, allegati esclusi, e nella REST del core: la stessa
-	 * validazione per l'editor, la tabella dei contenuti e le estensioni. Scrivere richiede
-	 * barrio_edit_seo oltre al permesso di modificare il contenuto o il termine, che controlla WordPress.
+	 * I tipi con il SEO: quelli pubblici con le loro pagine, come nella sitemap del core, senza gli allegati.
+	 *
+	 * @return array<string, WP_Post_Type>
+	 */
+	public static function post_types(): array {
+		return array_filter( get_post_types( [ 'public' => true ], 'objects' ), static fn( WP_Post_Type $type ): bool => 'attachment' !== $type->name && is_post_type_viewable( $type ) );
+	}
+
+	/**
+	 * Le tassonomie con il SEO, come i tipi, senza i formati degli articoli, che non si modificano.
+	 *
+	 * @return array<string, WP_Taxonomy>
+	 */
+	public static function taxonomies(): array {
+		return array_filter( get_taxonomies( [ 'public' => true ], 'objects' ), static fn( WP_Taxonomy $taxonomy ): bool => 'post_format' !== $taxonomy->name && is_taxonomy_viewable( $taxonomy ) );
+	}
+
+	/**
+	 * Sui tipi e sulle tassonomie del SEO, e nella REST del core: la stessa validazione per l'editor, la
+	 * tabella dei contenuti e le estensioni. Scrivere richiede barrio_edit_seo oltre al permesso di
+	 * modificare il contenuto o il termine, che controlla WordPress.
 	 */
 	public static function register_meta(): void {
 		$meta = self::meta_args();
-		foreach ( get_post_types( [ 'public' => true ] ) as $post_type ) {
-			if ( 'attachment' !== $post_type ) {
-				// Senza custom-fields la REST del core non scrive i meta, e l'editor a blocchi non li salverebbe.
-				add_post_type_support( $post_type, 'custom-fields' );
-				foreach ( $meta as $key => $args ) {
-					register_post_meta( $post_type, "_barrio_seo_{$key}", $args );
-				}
+		foreach ( array_keys( self::post_types() ) as $post_type ) {
+			// Senza custom-fields la REST del core non scrive i meta, e l'editor a blocchi non li salverebbe.
+			add_post_type_support( $post_type, 'custom-fields' );
+			foreach ( $meta as $key => $args ) {
+				register_post_meta( $post_type, "_barrio_seo_{$key}", $args );
 			}
 		}
 		unset( $meta['collection'] );
-		foreach ( get_taxonomies( [ 'public' => true ] ) as $taxonomy ) {
+		foreach ( array_keys( self::taxonomies() ) as $taxonomy ) {
 			foreach ( $meta as $key => $args ) {
 				register_term_meta( $taxonomy, "_barrio_seo_{$key}", $args );
 			}
@@ -201,12 +219,13 @@ final class Module {
 				'type'         => 'integer',
 				'show_in_rest' => [ 'schema' => [ 'minimum' => 1 ] ],
 			],
-			// La prima è la principale. Servono al punteggio e allo schema, non a un <meta name="keywords">.
+			// La prima è la principale. Servono solo al punteggio: la REST le dà a chi modifica il contenuto.
 			'keywords'    => [
 				'type'              => 'array',
 				'sanitize_callback' => static fn( mixed $value ): mixed => map_deep( $value, 'sanitize_text_field' ),
 				'show_in_rest'      => [
 					'schema' => [
+						'context'     => [ 'edit' ],
 						'items'       => [
 							'type'      => 'string',
 							'minLength' => 1,

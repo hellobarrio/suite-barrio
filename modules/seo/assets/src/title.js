@@ -1,5 +1,5 @@
-// Titolo e testi come li calcola Seo\Meta, per le anteprime e il punteggio. documentTitle() ha le stesse
-// fixture di Meta::document_title() (tests/fixtures/seo-title.json).
+// Titolo e testi come li calcola Seo\Meta, per le anteprime e il punteggio, con le stesse fixture
+// (tests/fixtures/seo-title.json e seo-text.json).
 import { __, sprintf } from '@wordpress/i18n';
 
 /**
@@ -25,6 +25,22 @@ export function documentTitle( title, site, page = 1 ) {
 	return ( site.order === 'site_page' ? parts.reverse() : parts ).join( sep );
 }
 
+// Gli shortcode registrati sul sito (Seo\Editor::shortcodes()), con ciò che racchiudono, come strip_shortcodes().
+const SHORTCODES = (
+	globalThis.barrioSeo?.shortcodes ??
+	globalThis.barrioAdmin?.seo?.shortcodes ??
+	[]
+)
+	.map( ( name ) => name.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) )
+	.join( '|' );
+const SHORTCODE =
+	SHORTCODES &&
+	new RegExp(
+		`\\[(${ SHORTCODES })(?![\\w-])[^\\]]*?(?:\\/\\]|\\](?:[\\s\\S]*?\\[\\/\\1\\])?)`,
+		'g'
+	);
+
+// Senza il browser (node --test) le entità con nome sono solo queste.
 const ENTITIES = {
 	amp: '&',
 	lt: '<',
@@ -32,24 +48,40 @@ const ENTITIES = {
 	quot: '"',
 	apos: "'",
 	nbsp: ' ',
+	euro: '€',
+	ndash: '–',
+	mdash: '—',
+	hellip: '…',
+	laquo: '«',
+	raquo: '»',
+	rsquo: '’',
+	ldquo: '“',
+	rdquo: '”',
 };
 
-// Testo semplice da HTML: senza commenti dei blocchi, tag, shortcode, entità e spazi ripetuti.
+function entity( match, name ) {
+	if ( typeof document !== 'undefined' ) {
+		const area = document.createElement( 'textarea' );
+		area.innerHTML = match;
+		return area.value;
+	}
+	if ( name[ 0 ] !== '#' ) {
+		return ENTITIES[ name.toLowerCase() ] ?? match;
+	}
+	const code =
+		name[ 1 ].toLowerCase() === 'x'
+			? parseInt( name.slice( 2 ), 16 )
+			: parseInt( name.slice( 1 ), 10 );
+	return code <= 0x10ffff ? String.fromCodePoint( code ) : match;
+}
+
+// Testo semplice da HTML: senza shortcode, commenti, script, tag, entità e spazi ripetuti; un tag separa le parole.
 // ponytail: regex invece di un parser HTML, così gira anche in node --test; basta per anteprime e punteggio.
 export const text = ( html = '' ) =>
-	html
+	( SHORTCODE ? html.replace( SHORTCODE, '' ) : html )
 		.replace( /<!--[\s\S]*?-->|<(script|style)\b[\s\S]*?<\/\1>/gi, ' ' )
-		.replace( /<[^>]*>|\[\/?[a-z][\w-]*[^\]]*\]/gi, ' ' )
-		.replace( /&(#x?[\da-f]+|[a-z]+);/gi, ( entity, name ) => {
-			if ( name[ 0 ] !== '#' ) {
-				return ENTITIES[ name.toLowerCase() ] ?? entity;
-			}
-			return String.fromCodePoint(
-				name[ 1 ].toLowerCase() === 'x'
-					? parseInt( name.slice( 2 ), 16 )
-					: parseInt( name.slice( 1 ), 10 )
-			);
-		} )
+		.replace( /<[^>]*>/g, ' ' )
+		.replace( /&(#x?[\da-f]+|[a-z][a-z\d]*);/gi, entity )
 		.replace( /\s+/g, ' ' )
 		.trim();
 

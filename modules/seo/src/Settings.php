@@ -17,7 +17,7 @@ final class Settings {
 	// Le 16 voci del prototipo.
 	private const ORGANIZATION_TYPES = [ 'LocalBusiness', 'Organization', 'Restaurant', 'Hotel', 'Store', 'MedicalBusiness', 'LegalService', 'FinancialService', 'InteriorDesigner', 'Architect', 'Attorney', 'Dentist', 'Physician', 'RealEstateAgent', 'LodgingBusiness', 'ProfessionalService' ];
 
-	// Una chiave assente nelle mappe per tipo e per tassonomia vale indicizzato, segui e (llms) includi.
+	// Una chiave assente nelle mappe per tipo e per tassonomia vale indicizzato e segui; per llms vedi Llms::preset().
 	private const DEFAULTS = [
 		'title'          => [
 			'separator' => '—',
@@ -25,7 +25,13 @@ final class Settings {
 		],
 		'default_image'  => 0,
 		'index'          => [
-			'post_types' => [],
+			// Le pagine degli allegati: i siti nati prima di WordPress 6.4 le hanno ancora (wp_attachment_pages_enabled).
+			'post_types' => [
+				'attachment' => [
+					'index'  => false,
+					'follow' => true,
+				],
+			],
 			'taxonomies' => [],
 			// Gli archivi per data ripetono i contenuti degli articoli.
 			'archives'   => [

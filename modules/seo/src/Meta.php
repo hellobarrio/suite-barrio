@@ -120,7 +120,7 @@ final class Meta {
 
 	/**
 	 * Indicizza e segui di un tipo o di una tassonomia ('post_types', 'taxonomies') o di un archivio
-	 * ('archives': 'author', 'date'). Una chiave assente vale sì.
+	 * ('archives': 'author', 'date'). Una chiave assente vale sì; gli allegati hanno il loro default (Settings).
 	 *
 	 * @return array{index: bool, follow: bool}
 	 */
@@ -162,9 +162,10 @@ final class Meta {
 		return (string) apply_filters( 'barrio_seo_url', $url );
 	}
 
-	// Testo semplice: senza shortcode, tag, entità e spazi ripetuti.
+	// Testo semplice: senza shortcode, tag, entità e spazi ripetuti; un tag separa le parole. Come text() in title.js
+	// (tests/fixtures/seo-text.json).
 	public static function text( string $html ): string {
-		return trim( (string) preg_replace( '/\s+/u', ' ', html_entity_decode( wp_strip_all_tags( strip_shortcodes( $html ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
+		return trim( (string) preg_replace( '/\s+/u', ' ', html_entity_decode( wp_strip_all_tags( str_replace( '<', ' <', strip_shortcodes( $html ) ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
 	}
 
 	public static function default_description(): string {

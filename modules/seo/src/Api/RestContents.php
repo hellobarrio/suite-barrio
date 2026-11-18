@@ -5,6 +5,7 @@ namespace BarrioSuite\Seo\Api;
 use BarrioSuite\I18n;
 use BarrioSuite\Seo\Editor;
 use BarrioSuite\Seo\Meta;
+use BarrioSuite\Seo\Module;
 use BarrioSuite\Seo\Repository\RedirectRepository;
 use WP_Error;
 use WP_Query;
@@ -51,8 +52,8 @@ final class RestContents {
 	public static function list( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$group = (string) $request['group'];
 		$name  = (string) $request['name'];
-		$posts = 'post_types' === $group && 'attachment' !== $name && in_array( $name, get_post_types( [ 'public' => true ] ), true );
-		if ( ! $posts && ! ( 'taxonomies' === $group && in_array( $name, get_taxonomies( [ 'public' => true ] ), true ) ) ) {
+		$posts = 'post_types' === $group && isset( Module::post_types()[ $name ] );
+		if ( ! $posts && ! ( 'taxonomies' === $group && isset( Module::taxonomies()[ $name ] ) ) ) {
 			return new WP_Error( 'barrio_seo_unknown_type', __( 'This content type does not exist.', 'barrio-suite' ), [ 'status' => 404 ] );
 		}
 		$rows     = [];
@@ -132,15 +133,13 @@ final class RestContents {
 	public static function stats(): WP_REST_Response {
 		$indexed = 0;
 		$missing = 0;
-		foreach ( get_post_types( [ 'public' => true ] ) as $type ) {
-			if ( 'attachment' === $type ) {
-				continue;
-			}
+		foreach ( array_keys( Module::post_types() ) as $type ) {
 			$args     = [
 				'post_type'        => $type,
 				'post_status'      => 'publish',
 				'posts_per_page'   => 1,
 				'fields'           => 'ids',
+				// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.SuppressFilters -- senza i filtri del plugin multilingua si contano tutte le lingue.
 				'suppress_filters' => true,
 			] + Meta::indexable( 'post_types', $type );
 			$indexed += ( new WP_Query( $args ) )->found_posts;
