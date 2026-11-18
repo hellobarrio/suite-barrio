@@ -6,6 +6,7 @@ use BarrioSuite\Seo\Editor;
 use BarrioSuite\Seo\Meta;
 use BarrioSuite\Seo\Module;
 use BarrioSuite\Seo\Settings;
+use ReflectionMethod;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_UnitTestCase;
@@ -44,6 +45,14 @@ final class SeoEditorTest extends WP_UnitTestCase {
 				]
 			);
 			$this->assertSame( $case['expected'], Meta::document_title( $case['title'], $case['page'] ), $case['name'] );
+		}
+	}
+
+	public function test_the_text_is_the_same_in_php_and_js(): void {
+		$excerpt = new ReflectionMethod( Meta::class, 'excerpt' );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- una fixture locale.
+		foreach ( json_decode( (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/seo-text.json' ), true ) as $case ) {
+			$this->assertSame( [ $case['text'], $case['excerpt'] ], [ Meta::text( $case['html'] ), $excerpt->invoke( null, $case['html'] ) ], $case['name'] );
 		}
 	}
 

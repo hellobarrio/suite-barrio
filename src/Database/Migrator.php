@@ -25,8 +25,10 @@ final class Migrator {
 		return $this->current ?? (int) get_option( $this->option(), 0 );
 	}
 
+	// Un modulo senza migrazioni non ha una versione da leggere.
 	public function is_current(): bool {
-		return $this->version() >= (int) array_key_last( $this->files() );
+		$files = $this->files();
+		return ! $files || $this->version() >= array_key_last( $files );
 	}
 
 	public function run(): ?WP_Error {

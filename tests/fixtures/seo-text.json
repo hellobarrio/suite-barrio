@@ -1,0 +1,8 @@
+[
+	{ "name": "block HTML", "html": "<!-- wp:paragraph --><p>Pane &amp; <b>coperto</b>&nbsp;[gallery ids=\"1\"]&#8217;</p><!-- /wp:paragraph -->", "text": "Pane & coperto ’", "excerpt": "Pane & coperto ’" },
+	{ "name": "brackets that are not a shortcode stay, every entity is decoded", "html": "Prezzi [da confermare] &euro; 10 &ndash; 20 &#8220;circa&#8221;", "text": "Prezzi [da confermare] € 10 – 20 “circa”", "excerpt": "Prezzi [da confermare] € 10 – 20 “circa”" },
+	{ "name": "an enclosing shortcode goes with what it encloses", "html": "[caption id=\"attachment_1\"]<img src=\"forno.jpg\" alt=\"Forno\"> Il forno[/caption]Il menu", "text": "Il menu", "excerpt": "Il menu" },
+	{ "name": "a tag separates words", "html": "<h2>Menu</h2><p>Pizze</p><ul><li>Margherita</li><li>Marinara</li></ul>Fine<br>riga", "text": "Menu Pizze Margherita Marinara Fine riga", "excerpt": "Menu Pizze Margherita Marinara Fine riga" },
+	{ "name": "without scripts and styles", "html": "<style>p { color: red; }</style><p>Ciao</p><script>alert( 1 );</script>", "text": "Ciao", "excerpt": "Ciao" },
+	{ "name": "160 characters at most, without cutting a word", "html": "<p>parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola</p>", "text": "parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola", "excerpt": "parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola parola…" }
+]

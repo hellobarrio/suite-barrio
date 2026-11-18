@@ -102,7 +102,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 			[
 				'title'         => 'La pizzeria',
 				'description'   => 'La nostra storia.',
-				'keywords'      => [ 'pizza', 'forno' ],
+				'keywords'      => [],
 				'robots'        => 'index,nofollow',
 				'canonical'     => 'http://example.org/chi-siamo/',
 				'ogImage'       => wp_get_attachment_image_url( $image, 'full' ),
@@ -119,6 +119,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		);
 
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$this->assertSame( [ 'pizza', 'forno' ], $this->seo( '/chi-siamo/' )['keywords'], 'The keywords only for those who can edit the content.' );
 		$seo = $this->seo( '/segreta/' );
 		$this->assertSame( 'Pizza napoletana a Torino.', $seo['description'], 'Never the protected content.' );
 		$this->assertSame( [ 'noindex,follow', false, false, 'article', null ], [ $seo['robots'], $seo['isIndexed'], $seo['isInSitemap'], $seo['ogType'], $seo['ogImage'] ] );

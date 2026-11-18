@@ -175,6 +175,23 @@ final class SeoOutputTest extends WP_UnitTestCase {
 		$this->assertSame( 'max-image-preview:large, noindex', $this->robots( (string) get_permalink( $page ) ) );
 		$this->assertSame( 'max-image-preview:large, nofollow', $this->robots( (string) get_permalink( $other ) ) );
 		$this->assertSame( 0, $this->head( (string) get_permalink( $page ) )->query( '//script[@type="application/ld+json"]' )->length, 'No graph on noindex pages.' );
+
+		// I siti nati prima di WordPress 6.4 hanno ancora le pagine degli allegati.
+		$attachment = get_post( self::factory()->attachment->create() );
+		$this->assertSame( [ false, true ], [ Meta::post( $attachment )['index'], Meta::post( $attachment )['follow'] ], 'Attachment pages are noindex unless chosen.' );
+		Settings::save(
+			[
+				'index' => [
+					'post_types' => [
+						'attachment' => [
+							'index'  => true,
+							'follow' => true,
+						],
+					],
+				] + Settings::get()['index'],
+			]
+		);
+		$this->assertTrue( Meta::post( $attachment )['index'] );
 	}
 
 	public function test_the_json_ld_graph(): void {
@@ -240,7 +257,7 @@ final class SeoOutputTest extends WP_UnitTestCase {
 		[ $business, , $page, $breadcrumb ] = $graph;
 		$this->assertSame( [ 'Pizzeria da Mario', '+39 011 123456', 0, 'https://schema.org/InStock' ], [ $business['name'], $business['telephone'], $business['hasOfferCatalog']['itemListElement'][0]['price'], $business['hasOfferCatalog']['itemListElement'][0]['availability'] ] );
 		$this->assertArrayNotHasKey( 'address', $business, 'Empty fields stay out.' );
-		$this->assertSame( [ 'forni, torino', 'en-US' ], [ $page['keywords'], $page['inLanguage'] ] );
+		$this->assertSame( [ null, 'en-US' ], [ $page['keywords'] ?? null, $page['inLanguage'] ], 'The keywords are not printed.' );
 		$this->assertSame( [ get_permalink( $visible ) ], array_column( $page['mainEntity']['itemListElement'], 'url' ), 'Only indexable, unprotected items.' );
 		$this->assertSame( [ 'Pizzeria & Forno', 'Servizi', 'Progetti' ], array_column( $breadcrumb['itemListElement'], 'name' ) );
 		$this->assertSame( $page['breadcrumb']['@id'], $breadcrumb['@id'] );
@@ -329,6 +346,7 @@ final class SeoOutputTest extends WP_UnitTestCase {
 		Redirects::run();
 		$this->assertSame( 410, $status );
 		$this->assertTrue( is_404(), 'A 410 shows the 404 template, even for an existing page.' );
+		$this->assertSame( [ false, false ], [ has_action( 'template_redirect', 'redirect_canonical' ), has_action( 'template_redirect', 'wp_old_slug_redirect' ) ], 'WordPress does not guess another content with a similar slug.' );
 	}
 
 	public function test_a_changed_url_gets_a_301_without_chains_or_loops(): void {
@@ -390,6 +408,34 @@ final class SeoOutputTest extends WP_UnitTestCase {
 		Settings::save( [ 'auto_redirects' => false ] );
 		$rename( 'altro' );
 		$this->assertArrayNotHasKey( '/chi-siamo', $this->redirects() );
+	}
+
+	public function test_a_changed_url_also_moves_the_redirects_written_by_hand(): void {
+		$page = self::factory()->post->create(
+			[
+				'post_type' => 'page',
+				'post_name' => 'promo',
+			]
+		);
+		RedirectRepository::create( '/promo-1', '/promo', RedirectCode::MovedPermanently );
+		RedirectRepository::create( '/promo-2', home_url( '/promo/' ), RedirectCode::Found );
+		RedirectRepository::create( '/promo-3', 'https://example.net/promo/', RedirectCode::MovedPermanently );
+		wp_update_post(
+			[
+				'ID'        => $page,
+				'post_name' => 'offerte',
+			]
+		);
+		$this->assertSame(
+			[
+				'/promo'   => '/offerte/',
+				'/promo-1' => '/offerte/',
+				'/promo-2' => '/offerte/',
+				'/promo-3' => 'https://example.net/promo/',
+			],
+			$this->redirects(),
+			'With or without the slash and as a full URL; another site stays.'
+		);
 	}
 
 	public function test_llms_txt_never_has_protected_or_noindex_content(): void {
@@ -458,6 +504,35 @@ final class SeoOutputTest extends WP_UnitTestCase {
 		$this->assertSame( [ home_url( '/' ) ], array_keys( get_transient( 'barrio_seo_llms' ) ), 'One copy per site address.' );
 		self::factory()->post->create();
 		$this->assertFalse( get_transient( 'barrio_seo_llms' ), 'A changed content empties the cache.' );
+
+		global $wpdb;
+		Llms::flush();
+		$queries = $wpdb->num_queries;
+		Llms::flush();
+		$this->assertSame( $queries, $wpdb->num_queries, 'An empty cache costs no query (clean_post_cache, clean_term_cache).' );
+	}
+
+	public function test_llms_txt_has_only_the_links_of_other_types_unless_chosen(): void {
+		self::factory()->post->create(
+			[
+				'post_type'    => 'project',
+				'post_title'   => 'Forno nuovo',
+				'post_content' => 'Il testo riservato del progetto.',
+			]
+		);
+		$full = Llms::build( true );
+		$this->assertStringContainsString( "## Projects\n\n- [Forno nuovo](", $full );
+		$this->assertStringNotContainsString( 'riservato', $full );
+
+		Settings::save(
+			[
+				'llms' => [
+					'post_types' => [ 'project' => 'include' ],
+					'taxonomies' => [],
+				],
+			]
+		);
+		$this->assertStringContainsString( 'Il testo riservato del progetto.', Llms::build( true ) );
 	}
 
 	// L'head di un URL: un solo title, description, robots e canonical, e Open Graph coerente.

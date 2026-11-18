@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-18T11:58:03+00:00\n"
+"POT-Creation-Date: 2026-11-18T13:14:43+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -193,7 +193,7 @@ msgstr ""
 #: modules/forms/src/Api/RestEntries.php:351
 #: modules/forms/src/FieldTypes.php:45
 #: modules/forms/src/Privacy.php:71
-#: modules/seo/src/Llms.php:147
+#: modules/seo/src/Llms.php:160
 #: build/barrio-admin.js:23
 #: build/barrio-admin.js:25
 msgid "Date"
@@ -598,7 +598,7 @@ msgstr ""
 msgid "SEO"
 msgstr ""
 
-#: modules/seo/src/Api/RestContents.php:56
+#: modules/seo/src/Api/RestContents.php:57
 msgid "This content type does not exist."
 msgstr ""
 
@@ -614,17 +614,21 @@ msgstr ""
 msgid "The destination must start with / or with http:// or https://."
 msgstr ""
 
-#: modules/seo/src/Api/RestRedirects.php:178
+#: modules/seo/src/Api/RestRedirects.php:177
 msgid "The destination is the same as the source."
 msgstr ""
 
+#: modules/seo/src/Api/RestRedirects.php:185
+msgid "The destination leads back to the source through other redirects."
+msgstr ""
+
 #. translators: %s: the source address of a redirect, such as /old-page.
-#: modules/seo/src/Api/RestRedirects.php:183
+#: modules/seo/src/Api/RestRedirects.php:190
 #, php-format
 msgid "There is already a redirect from %s."
 msgstr ""
 
-#: modules/seo/src/Llms.php:137
+#: modules/seo/src/Llms.php:150
 msgid "Navigation"
 msgstr ""
 
@@ -751,7 +755,7 @@ msgid "Barrio Suite cannot be activated"
 msgstr ""
 
 #. translators: %s: database error message.
-#: src/Plugin.php:62
+#: src/Plugin.php:64
 #, php-format
 msgid "Barrio Suite could not update its database tables: %s. It will try again on the next page load."
 msgstr ""
@@ -2337,6 +2341,7 @@ msgid "Private"
 msgstr ""
 
 #: build/barrio-admin.js:48
+#: build/barrio-admin.js:53
 msgid "Discard the changes?"
 msgstr ""
 
@@ -2866,6 +2871,10 @@ msgid "What search engines may show and whose links they may follow. Each page c
 msgstr ""
 
 #: build/barrio-admin.js:57
+msgid "Attachment pages"
+msgstr ""
+
+#: build/barrio-admin.js:57
 msgid "Archives"
 msgstr ""
 
@@ -2921,6 +2930,10 @@ msgstr ""
 
 #: build/barrio-admin.js:59
 msgid "Files"
+msgstr ""
+
+#: build/barrio-admin.js:59
+msgid "WordPress does not publish them while the site asks search engines not to index it (Settings → Reading) or uses plain permalinks (Settings → Permalinks)."
 msgstr ""
 
 #: build/barrio-admin.js:59

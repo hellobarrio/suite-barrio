@@ -11,6 +11,7 @@ use WP_Term;
  * llms.txt e llms-full.txt: li genera WordPress alla prima richiesta e li tiene in cache finché un
  * contenuto, un termine, un menu o le impostazioni non cambiano. Solo contenuti indicizzabili e mai quelli
  * protetti da password. Un file vero nella cartella del sito ha la precedenza: il web server lo serve prima.
+ * Un sito nascosto ai motori di ricerca non li pubblica; l'estensione WPGraphQL li dà comunque al frontend.
  */
 final class Llms {
 
@@ -21,7 +22,7 @@ final class Llms {
 
 	// parse_request.
 	public static function serve( WP $wp ): void {
-		if ( ! isset( self::FILES[ $wp->request ] ) ) {
+		if ( ! isset( self::FILES[ $wp->request ] ) || ! get_option( 'blog_public' ) ) {
 			return;
 		}
 		header( 'Content-Type: text/plain; charset=utf-8' );
@@ -51,9 +52,21 @@ final class Llms {
 		return $cache[ $home ];
 	}
 
+	// Su ogni clean_post_cache: con la cache già vuota, nessuna query.
 	public static function flush(): void {
-		delete_transient( 'barrio_seo_llms' );
-		delete_transient( 'barrio_seo_llms_full' );
+		foreach ( [ 'barrio_seo_llms', 'barrio_seo_llms_full' ] as $key ) {
+			if ( false !== get_transient( $key ) ) {
+				delete_transient( $key );
+			}
+		}
+	}
+
+	/**
+	 * Includi, Solo link o Escludi, senza una scelta. Dei tipi diversi da articoli e pagine solo i link: il loro
+	 * testo non passa da the_content, e può essere riservato (corsi, aree per gli iscritti, modelli dei page builder).
+	 */
+	public static function preset( string $group, string $name ): string {
+		return 'post_types' === $group && ! in_array( $name, [ 'post', 'page' ], true ) ? 'links' : 'include';
 	}
 
 	// Con più lingue un blocco per lingua, la principale per prima, come nel prototipo.
@@ -81,10 +94,10 @@ final class Llms {
 		$md = '# ' . Meta::text( get_bloginfo( 'name' ) ) . ( '' === $lang ? '' : ' (' . strtoupper( $lang ) . ')' )
 			. "\n\n> " . Meta::url( home_url( '/' ) ) . "\n\n" . ( '' === $intro ? '' : "{$intro}\n\n" );
 
-		foreach ( get_post_types( [ 'public' => true ], 'objects' ) as $type ) {
-			$mode = $settings['post_types'][ $type->name ] ?? 'include';
+		foreach ( Module::post_types() as $type ) {
+			$mode = $settings['post_types'][ $type->name ] ?? self::preset( 'post_types', $type->name );
 			/** @var list<WP_Post> $posts */
-			$posts = 'attachment' === $type->name || 'exclude' === $mode ? [] : get_posts(
+			$posts = 'exclude' === $mode ? [] : get_posts(
 				[
 					'post_type'        => $type->name,
 					'numberposts'      => $limit,
@@ -105,8 +118,8 @@ final class Llms {
 			}
 		}
 
-		foreach ( get_taxonomies( [ 'public' => true ], 'objects' ) as $taxonomy ) {
-			$mode = $settings['taxonomies'][ $taxonomy->name ] ?? 'include';
+		foreach ( Module::taxonomies() as $taxonomy ) {
+			$mode = $settings['taxonomies'][ $taxonomy->name ] ?? self::preset( 'taxonomies', $taxonomy->name );
 			/** @var list<WP_Term>|\WP_Error $terms */
 			$terms = 'exclude' === $mode ? [] : get_terms(
 				[
@@ -145,9 +158,9 @@ final class Llms {
 		}
 		$text = $full ? mb_substr( Meta::text( $post->post_content ), 0, 4000 ) : Meta::post( $post )['description'];
 		$info = 'post' === $post->post_type ? '**' . __( 'Date', 'barrio-suite' ) . ':** ' . get_the_date( 'Y-m-d', $post ) . "  \n" : '';
-		foreach ( get_object_taxonomies( $post, 'objects' ) as $taxonomy ) {
-			$tax_mode = $tax_modes[ $taxonomy->name ] ?? 'include';
-			$terms    = $taxonomy->public && 'exclude' !== $tax_mode ? get_the_terms( $post, $taxonomy->name ) : false;
+		foreach ( array_intersect_key( get_object_taxonomies( $post, 'objects' ), Module::taxonomies() ) as $taxonomy ) {
+			$tax_mode = $tax_modes[ $taxonomy->name ] ?? self::preset( 'taxonomies', $taxonomy->name );
+			$terms    = 'exclude' !== $tax_mode ? get_the_terms( $post, $taxonomy->name ) : false;
 			if ( is_array( $terms ) ) {
 				$names = array_map( static fn( WP_Term $term ): string => 'links' === $tax_mode ? self::link( $term->name, get_term_link( $term ) ) : Meta::text( $term->name ), $terms );
 				$info .= "**{$taxonomy->labels->name}:** " . implode( ', ', $names ) . "  \n";

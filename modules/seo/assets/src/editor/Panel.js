@@ -338,8 +338,14 @@ function checkLabel( { id, value } ) {
 
 function Checks( { checks } ) {
 	const groups = [
-		[ __( 'Search result', 'barrio-suite' ), checks.slice( 0, 9 ) ],
-		[ __( 'Content', 'barrio-suite' ), checks.slice( 9 ) ],
+		[
+			__( 'Search result', 'barrio-suite' ),
+			checks.filter( ( check ) => ! check.content ),
+		],
+		[
+			__( 'Content', 'barrio-suite' ),
+			checks.filter( ( check ) => check.content ),
+		],
 	].filter( ( [ , list ] ) => list.length );
 	return groups.map( ( [ title, list ] ) => (
 		<div key={ title }>

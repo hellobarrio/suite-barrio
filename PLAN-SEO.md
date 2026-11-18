@@ -19,7 +19,7 @@ resta una sola differenza, l'updater da GitHub.
 | Modulo spento | Il modulo non registra hook, menu, rotte REST, blocchi o cron, e le sue migrazioni non girano: le tabelle si creano alla prima accensione. I dati restano, come quando si disattiva il plugin. Le estensioni del modulo restano ferme, perché `barrio_<modulo>_loaded` non parte. Con Forms spento, `[barrio_form]` non stampa niente (invece del testo dello shortcode) |
 | WordPress classico e headless | Il prototipo è quasi solo headless: in WordPress stampa i meta, mentre sitemap, redirect e JSON-LD esistono solo in GraphQL. Barrio Suite va su WordPress.org, quindi il modulo fa tutto anche in WordPress: head, `wp-sitemap.xml`, redirect, JSON-LD e `llms.txt`. Ai siti headless gli stessi dati arrivano dall'estensione `barrio-suite-wpgraphql`, con i nomi del prototipo |
 | Una sola risoluzione | Titolo, descrizione, robots, canonical, immagine e indicizzazione si calcolano in un solo punto (`Seo\Meta`). Lo usano head, sitemap, schema, llms.txt e GraphQL. Nel prototipo la stessa logica è copiata cinque volte e dà risultati diversi |
-| Prima WordPress | Per la sitemap si usa quella del core (`wp-sitemap.xml`, filtrata; `/sitemap.xml` lo redirige già il core). Poi `wp_robots`, `pre_get_document_title` e `get_canonical_url`, il redirect dei vecchi slug del core, le pagine degli allegati spente dal core (`wp_attachment_pages_enabled`). Nome e icona del sito restano le opzioni di WordPress (`blogname`, `site_icon`): niente copie |
+| Prima WordPress | Per la sitemap si usa quella del core (`wp-sitemap.xml`, filtrata; `/sitemap.xml` lo redirige già il core). Poi `wp_robots`, `pre_get_document_title` e `get_canonical_url`, il redirect dei vecchi slug del core, le pagine degli allegati spente dal core (`wp_attachment_pages_enabled`, solo sui siti nati dalla 6.4: sugli altri sono noindex di default, con una riga in Indicizzazione). Nome e icona del sito restano le opzioni di WordPress (`blogname`, `site_icon`): niente copie |
 | Dati dell'azienda | Stanno nelle impostazioni SEO, card Organizzazione, come la "Local SEO" di Rank Math: servono allo schema. Il futuro modulo Dati aziendali (`info-azienda`, `hbCompanyInfo`) li leggerà da qui invece di tenerne una copia, come succede oggi nel prototipo |
 | AI | Nel core, non in un'estensione (scelta del 18 novembre): serve a tutta la suite, non solo al SEO. Gemini su Vertex AI, con il **service account di Google** in Barrio → Impostazioni, lo stesso che userà Analytics (basterà aggiungere l'ID della proprietà GA4): Vertex AI accetta i token dei service account, l'API Gemini di AI Studio solo le chiavi API (il suo discovery document non dichiara scope OAuth). Nessun modello o regione scritti nel codice: si scelgono dalle liste di Google (`publishers/google/models`, `projects.locations`), che la card AI legge da sola appena c'è il service account; la regione vuota è l'endpoint `global`. "Genera con AI" resta spento finché mancano service account e modello. Le chiamate a Google partono solo da un clic di chi lavora nell'admin, e il readme le dichiara (regola di WordPress.org) |
 | Sitemap | Niente interruttore "in sitemap" separato: in sitemap c'è ciò che è indicizzabile, come in Yoast e Rank Math. Il prototipo aveva due fonti per la stessa scelta, e una non si poteva impostare. Niente scheda a sé: la sitemap non si modifica, è l'effetto dell'indicizzazione, quindi sta nella card Indicizzazione con i numeri per tipo. L'elenco degli URL è `wp-sitemap.xml`, leggibile nel browser |
@@ -60,7 +60,7 @@ porta con sé e la cancellazione li elimina con il post. Si registrano con `regi
 | `_barrio_seo_title` | stringa | titolo del contenuto, del termine o dell'archivio |
 | `_barrio_seo_description` | stringa | estratto manuale o 160 caratteri del contenuto (descrizione del termine), poi la descrizione predefinita. La stessa regola vale ovunque: nel prototipo head, GraphQL e schema ne usavano tre diverse |
 | `_barrio_seo_image` | ID dell'allegato | immagine in evidenza (solo post), poi immagine predefinita |
-| `_barrio_seo_keywords` | lista di stringhe; la prima è la principale | nessuna. Servono al punteggio e a `keywords` nello schema; nessun `<meta name="keywords">` |
+| `_barrio_seo_keywords` | lista di stringhe; la prima è la principale | nessuna. Servono solo al punteggio: niente `keywords` nello schema né `<meta name="keywords">`, e la REST e GraphQL le danno solo a chi modifica il contenuto |
 | `_barrio_seo_index` | `index` \| `noindex` | la scelta del tipo o della tassonomia |
 | `_barrio_seo_follow` | `follow` \| `nofollow` | la scelta del tipo o della tassonomia |
 | `_barrio_seo_collection` (solo post) | slug di un post type | pagina normale; con uno slug, `CollectionPage` con un `ItemList` di quel tipo |
@@ -81,7 +81,7 @@ Ha un JSON Schema e la scrive solo la rotta `PUT /barrio/v1/seo/settings` (come 
   `State` e `Country`: `Text` e `GeoShape` del prototipo non sono luoghi con un nome), competenze (lista), profili
   (`same_as`, una lista di URL al posto dei cinque social fissi), catalogo delle offerte (nome, valuta, voci
   come nel prototipo);
-- `llms`: `post_types` e `taxonomies` (`include` \| `links` \| `exclude`);
+- `llms`: `post_types` e `taxonomies` (`include` \| `links` \| `exclude`); una chiave assente vale `include` per articoli, pagine e tassonomie, `links` per gli altri tipi (`Llms::preset()`);
 - `auto_redirects` (default `true`);
 - `texts`: `{lingua: {default_description, organization_description, llms_intro}}`. Come nei form, nessun
   testo ha una lingua implicita: senza estensione multilingua c'è solo la lingua del sito.
@@ -166,7 +166,7 @@ Ci sono tre build: `barrio-admin` (shell, Forms e SEO), `seo-sidebar` (il pannel
   La riga `Sitemap:` in robots.txt la aggiunge già il core.
 - **Redirect**: su `template_redirect`, priorità 0, prima di `redirect_canonical` e del redirect dei vecchi slug; solo nel frontend.
   - Il percorso si normalizza e si cerca prima con la query string, poi senza; la query della richiesta passa alla destinazione.
-  - Un 410 risponde con `status_header(410)` e il template 404.
+  - Un 410 risponde con `status_header(410)` e il template 404, senza `redirect_canonical` e il redirect dei vecchi slug, che indovinerebbero un altro contenuto.
   - **Redirect automatici** (se `auto_redirects`): quando cambia l'URL di un contenuto pubblicato o di un termine, anche cambiando il genitore, si crea un 301.
     - niente loop;
     - catene appiattite (A→B→C diventa A→C);
@@ -427,8 +427,8 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
 - **AI con un service account vero** (S8): provato solo con Google simulato. Da provare: API Vertex AI attiva, ruolo
   Vertex AI User, l'endpoint `global` per `generateContent`, la lista `v1beta1/publishers/google/models` (scope
   `cloud-platform` dal discovery document) e i tempi dei modelli che ragionano (timeout di 60 secondi, a volte oltre il
-  `max_execution_time` di PHP). La lista non dice quali modelli scrivono testo, quindi contiene anche Imagen, Veo,
-  gli embedding: scegliendone uno sbagliato, l'errore di Google compare nel pannello. Non tutti i modelli sono in tutte
+  `max_execution_time` di PHP). La lista non dice quali modelli scrivono testo: si tengono solo i Gemini, senza
+  gli embedding. Non tutti i modelli sono in tutte
   le regioni: la lista dei modelli è unica, quindi l'errore arriva generando.
 - **Prestazioni provate** (S9): sul sito dei test di wp-env (8889, WordPress 7.1, Twenty Twenty-Five). Una JPEG
   caricata ha il full e le dimensioni in WebP e l'originale identico (stesso md5); il full passa da 203 a 70 KB, le

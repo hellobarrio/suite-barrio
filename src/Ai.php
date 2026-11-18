@@ -112,8 +112,8 @@ final class Ai {
 	}
 
 	/**
-	 * I modelli di Google in Vertex AI, come { value, label }. La lista non dice quali scrivono testo: un modello
-	 * che non lo fa (immagini, embedding) dà l'errore di Google quando si genera.
+	 * I modelli Gemini di Google in Vertex AI, come { value, label }. La lista non dice quali scrivono testo: senza
+	 * gli altri (Imagen, Veo, embedding) non si sceglie un modello che darebbe errore solo generando.
 	 */
 	public static function models(): WP_REST_Response|WP_Error {
 		$models = self::pages( 'v1beta1/publishers/google/models', 'publisherModels' );
@@ -123,7 +123,7 @@ final class Ai {
 		$options = [];
 		foreach ( $models as $model ) {
 			$name = (string) ( $model['name'] ?? '' );
-			if ( preg_match( '#' . self::MODEL . '#', $name ) ) {
+			if ( preg_match( '#' . self::MODEL . '#', $name ) && preg_match( '#/gemini-(?!embedding)#', $name ) ) {
 				$options[ $name ] = [
 					'value' => $name,
 					'label' => basename( $name ),

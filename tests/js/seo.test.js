@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 // eslint-disable-next-line vitest/no-import-node-test -- node --test, senza dipendenze.
 import { test } from 'node:test';
 
-import { score, level } from '../../modules/seo/assets/src/score.js';
-import {
-	documentTitle,
-	excerpt,
-	text,
-} from '../../modules/seo/assets/src/title.js';
+// Gli shortcode registrati che le fixture usano, come Seo\Editor::shortcodes(): title.js li legge caricandosi.
+globalThis.barrioSeo = { shortcodes: [ 'gallery', 'caption' ] };
+const { score, level } =
+	await import( '../../modules/seo/assets/src/score.js' );
+const { documentTitle, excerpt, text } =
+	await import( '../../modules/seo/assets/src/title.js' );
 
 // Le stesse fixture di SeoEditorTest::test_the_title_is_the_same_in_php_and_js.
 const titles = JSON.parse(
@@ -30,17 +30,16 @@ for ( const {
 		) );
 }
 
-test( 'plain text from block HTML', () => {
-	assert.equal(
-		text(
-			'<!-- wp:paragraph --><p>Pane &amp; <b>coperto</b>&nbsp;[gallery ids="1"]&#8217;</p><!-- /wp:paragraph -->'
-		),
-		'Pane & coperto ’'
-	);
-	const cut = excerpt( 'parola '.repeat( 40 ) );
-	assert.ok( cut.length <= 161 && cut.endsWith( ' parola…' ), cut );
-	assert.equal( excerpt( 'Breve.' ), 'Breve.' );
-} );
+// Le stesse fixture di SeoEditorTest::test_the_text_is_the_same_in_php_and_js.
+const texts = JSON.parse(
+	readFileSync( new URL( '../fixtures/seo-text.json', import.meta.url ) )
+);
+for ( const { name, html, text: plain, excerpt: cut } of texts ) {
+	test( `text: ${ name }`, () => {
+		assert.equal( text( html ), plain );
+		assert.equal( excerpt( html ), cut );
+	} );
+}
 
 const page = {
 	title: 'Pizza napoletana a Torino',
@@ -63,6 +62,28 @@ test( 'a term with everything right scores 100 without the content checks', () =
 	assert.equal( result.score, 100 );
 	assert.equal( result.checks.length, 9 );
 	assert.equal( level( result.score ), 'good' );
+} );
+
+test( 'an address with an invalid % still has a score', () => {
+	for ( const url of [
+		'https://example.com/100%-sconto/',
+		'https://example.com/%postname%/',
+	] ) {
+		const result = checks( score( { ...page, url } ) );
+		assert.equal( result.url_length, true, url );
+	}
+} );
+
+test( 'the content checks say they are about the content', () => {
+	const result = score( { ...page, content: '<p>Pizza napoletana.</p>' } );
+	assert.deepEqual(
+		result.checks
+			.filter( ( check ) => ! check.content )
+			.map( ( check ) => check.id ),
+		score( page ).checks.map( ( check ) => check.id ),
+		'The others are those of a term.'
+	);
+	assert.ok( result.checks.some( ( check ) => check.content ) );
 } );
 
 test( 'without a keyword every keyword check fails', () => {

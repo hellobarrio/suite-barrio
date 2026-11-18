@@ -6,6 +6,7 @@ use BarrioSuite\Seo\Module;
 use BarrioSuite\Seo\RedirectCode;
 use BarrioSuite\Seo\Repository\RedirectRepository;
 use BarrioSuite\Seo\Settings;
+use WP_REST_Posts_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_UnitTestCase;
@@ -74,6 +75,11 @@ final class SeoDataTest extends WP_UnitTestCase {
 
 		$this->update( "/wp/v2/posts/{$post}", [ '_barrio_seo_index' => null ] );
 		$this->assertFalse( metadata_exists( 'post', $post, '_barrio_seo_index' ) );
+
+		// Un controller nuovo: quello del tipo tiene in cache lo schema, con i contesti dei meta, tra i test.
+		wp_set_current_user( 0 );
+		$meta = ( new WP_REST_Posts_Controller( 'post' ) )->prepare_item_for_response( get_post( $post ), new WP_REST_Request( 'GET', "/wp/v2/posts/{$post}" ) )->get_data()['meta'];
+		$this->assertSame( [ false, 'Chi siamo' ], [ isset( $meta['_barrio_seo_keywords'] ), $meta['_barrio_seo_title'] ], 'The keywords only for those who edit the content.' );
 	}
 
 	public function test_terms_have_the_same_meta_except_the_collection(): void {

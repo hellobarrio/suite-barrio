@@ -102,10 +102,16 @@ final class RedirectRepository {
 		);
 	}
 
-	// Chi portava a $from ora porta a $to: A→B→C diventa A→C.
-	public static function retarget( string $from, string $to ): void {
+	/**
+	 * Chi portava a uno dei $from ora porta a $to: A→B→C diventa A→C.
+	 *
+	 * @param list<string> $from
+	 */
+	public static function retarget( array $from, string $to ): void {
 		global $wpdb;
-		Db::query( $wpdb->prepare( 'UPDATE %i SET target = %s, updated_at = %s WHERE target = %s COLLATE utf8mb4_bin', Db::table( 'redirects' ), $to, gmdate( 'Y-m-d H:i:s' ), $from ) );
+		$from = array_values( array_unique( $from ) );
+		// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- un %s per ogni $from.
+		Db::query( $wpdb->prepare( 'UPDATE %i SET target = %s, updated_at = %s WHERE target COLLATE utf8mb4_bin IN (' . implode( ', ', array_fill( 0, count( $from ), '%s' ) ) . ')', Db::table( 'redirects' ), $to, gmdate( 'Y-m-d H:i:s' ), ...$from ) );
 	}
 
 	// Quanti ne ha eliminati.

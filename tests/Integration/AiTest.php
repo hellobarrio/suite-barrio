@@ -222,6 +222,8 @@ final class AiTest extends WP_UnitTestCase {
 					'publisherModels' => [
 						[ 'name' => 'publishers/google/models/gemini-b' ],
 						[ 'name' => 'publishers/other/models/x' ],
+						[ 'name' => 'publishers/google/models/imagen-4.0-generate-001' ],
+						[ 'name' => 'publishers/google/models/gemini-embedding-001' ],
 					],
 					'nextPageToken'   => 'two',
 				],

@@ -1,6 +1,7 @@
 // Le schede delle impostazioni SEO (Organizzazione e Impostazioni, manage_options): leggono e salvano le
 // sezioni di barrio_seo con GET/PUT /seo/settings, e nome e icona del sito, opzioni di WordPress, con
-// /wp/v2/settings. Un solo Salva nella barra, che manda solo ciò che è cambiato. Con più lingue la barra
+// /wp/v2/settings. Un solo Salva nella barra, che manda solo le sezioni cambiate: due amministratori su due
+// schede non si sovrascrivono. Con più lingue la barra
 // sceglie quella dei testi (SeoText): nelle altre il resto è disattivato (Fixed), come nel builder dei form.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
@@ -168,15 +169,19 @@ export function SettingsPage( { title, render } ) {
 	const save = () => {
 		setBusy( true );
 		setNotice( null );
+		const before = editable( saved.seo );
+		const sections = Object.fromEntries(
+			Object.entries( {
+				...seo,
+				organization: cleanOrganization( seo.organization ),
+			} ).filter( ( [ name, value ] ) => ! same( value, before[ name ] ) )
+		);
 		Promise.all( [
 			seoChanged
 				? apiFetch( {
 						path: '/barrio/v1/seo/settings',
 						method: 'PUT',
-						data: {
-							...seo,
-							organization: cleanOrganization( seo.organization ),
-						},
+						data: sections,
 					} )
 				: saved.seo,
 			siteChanged
