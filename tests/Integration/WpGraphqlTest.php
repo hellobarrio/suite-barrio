@@ -464,17 +464,21 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		return $response['data']['hbSubmitForm'];
 	}
 
-	// I tipi raggiungibili da hbForm, hbForms e hbSubmitForm, senza descrizioni e con i campi in ordine
-	// alfabetico: conta che nomi, tipi e argomenti siano quelli del prototipo.
-	private static function sdl(): string {
+	/**
+	 * I campi e i tipi raggiungibili da loro, senza descrizioni e con i campi in ordine alfabetico: conta
+	 * che nomi, tipi e argomenti siano quelli del prototipo. Anche per SeoGraphqlTest.
+	 *
+	 * @param array<string, list<string>> $fields I campi per tipo.
+	 */
+	public static function sdl( array $fields = [
+		'RootQuery'    => [ 'hbForm', 'hbForms' ],
+		'RootMutation' => [ 'hbSubmitForm' ],
+	] ): string {
 		$schema = \WPGraphQL::get_schema();
 		$args   = static fn( array $arguments ): string => $arguments ? '(' . implode( ', ', array_map( static fn( $arg ): string => "{$arg->name}: {$arg->getType()}", $arguments ) ) . ')' : '';
 		$lines  = [];
 		$queue  = [];
-		foreach ( [
-			'RootQuery'    => [ 'hbForm', 'hbForms' ],
-			'RootMutation' => [ 'hbSubmitForm' ],
-		] as $root => $names ) {
+		foreach ( $fields as $root => $names ) {
 			foreach ( $names as $name ) {
 				$field   = $schema->getType( $root )->getField( $name );
 				$lines[] = "{$root}.{$name}{$args( $field->args )}: {$field->getType()}";

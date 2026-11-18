@@ -1,0 +1,59 @@
+RootQuery.hbLlms: LlmsContent
+RootQuery.hbLlmsFull: LlmsContent
+RootQuery.hbRedirects: [HBRedirect]
+RootQuery.hbSchemaRaw(uri: String): String
+RootQuery.hbSeoSite: HBSeoSite
+RootQuery.hbSitemap: [HBSitemapEntry]
+Page.seo: HBSeoPost
+Post.seo: HBSeoPost
+
+type HBRedirect {
+  code: Int!
+  from: String!
+  id: String!
+  note: String
+  to: String
+}
+
+type HBSeoPost {
+  canonical: String
+  description: String
+  isInSitemap: Boolean
+  isIndexed: Boolean
+  keywords: [String]
+  ogDescription: String
+  ogImage: String
+  ogTitle: String
+  ogType: String
+  robots: String
+  title: String
+  twitterCard: String
+  twitterImage: String
+  twitterTitle: String
+}
+
+type HBSeoSite {
+  defaultDesc: String
+  favicon: String
+  ogImage: String
+  robotsDefault: String
+  separator: String
+  siteTitle: String
+  titleOrder: String
+}
+
+type HBSitemapEntry {
+  id: Int!
+  lastmod: String
+  loc: String!
+  priority: Float
+  subtype: String!
+  title: String
+  type: String!
+}
+
+type LlmsContent {
+  bytes: Int
+  content: String
+  updatedAt: String
+}

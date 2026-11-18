@@ -375,10 +375,18 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
   una lingua alla volta; le loro `get_posts()` hanno `suppress_filters => false`, senza il quale WPML non filtra. La
   card della Bacheca conta tutte le lingue con `suppress_filters => true`. Con WPML la riga `>` di llms.txt resta
   l'indirizzo del sito: WPML converte `home_url` con la lingua della richiesta, non con quella attiva.
-- **Campo `seo` in GraphQL**: il `graphql.php` del prototipo lo registra sempre, anche con il suo modulo SEO spento. Per i tipi vince la prima registrazione (fase 9 dei form); per un campo sullo stesso tipo va provato su wp-env con il prototipo attivo.
+- **Campo `seo` in GraphQL** (S6, fatto): il `graphql.php` del prototipo lo registra sempre, anche con il suo modulo SEO spento. Anche per un campo sullo stesso tipo WPGraphQL tiene la prima registrazione (`DUPLICATE_FIELD` nel suo debug), quindi basta la priorità 9. Provato su wp-env con il prototipo attivo: le query di `hello_standard` (`getSeo`, `SeoFragment`, `getSchema`, `getSitemap`, `getRedirects`, `getLLMS`) rispondono con i dati di Barrio Suite; con il modulo SEO spento risponde il prototipo.
 - **Revalidation dei siti headless**: il ponte funziona finché il prototipo è attivo. Sui siti headless il prototipo si toglie solo dopo che Barrio Suite avrà un'estensione di revalidation, che userà `barrio_seo_changed` e l'indirizzo del frontend.
 - **Ordine degli aggiornamenti sui siti del prototipo**: il core con il modulo SEO e l'estensione di migrazione aggiornata vanno installati insieme. Sui siti dove la migrazione è già stata tolta dopo i form, va reinstallata prima di aggiornare il core.
-- **Impostazioni di WPGraphQL**: verificare che `register_graphql_settings_field` regga il campo dell'indirizzo del frontend; altrimenti, una costante in `wp-config.php`.
+- **Impostazioni di WPGraphQL** (S6, fatto): `register_graphql_settings_field` regge il campo dell'indirizzo del
+  frontend, nelle impostazioni generali (GraphQL → Settings): salvato dal suo form, con la `/` finale tolta.
+- **Lingua dei contenuti in GraphQL**: `seo` e `hbSchemaRaw` usano i testi predefiniti (descrizione,
+  descrizione dell'organizzazione) e `inLanguage` della lingua della richiesta, non del contenuto, perché il core
+  non sa la lingua di un contenuto. Conta solo per i contenuti senza descrizione, riassunto e testo; se un sito
+  tradotto ne ha bisogno, un filtro della lingua di un contenuto nell'estensione WPML.
+- **Autori in `hbSitemap`** (S7): come `wp-sitemap.xml`, ha gli archivi degli autori se sono indicizzati (lo sono
+  di default), che il prototipo non aveva e che i frontend come `hello_standard` non mostrano. La migrazione li
+  mette noindex; su un sito headless nuovo si spengono in SEO → Impostazioni → Indicizzazione.
 - **`site_icon` in `/wp/v2/settings`** (S4, fatto): la REST del core lo espone, come `blogname` (`title`). SEO →
   Impostazioni salva nome e icona del sito con `/wp/v2/settings`, con lo stesso Salva delle sezioni di `barrio_seo`.
 - **Lingua in SEO → Contenuti** (S5, fatto): la tabella chiede i contenuti una lingua alla volta, la principale per

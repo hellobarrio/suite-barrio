@@ -455,7 +455,7 @@ final class SeoOutputTest extends WP_UnitTestCase {
 		}
 
 		$this->assertSame( Llms::get( false ), Llms::get( false ) );
-		$this->assertIsString( get_transient( 'barrio_seo_llms' ) );
+		$this->assertSame( [ home_url( '/' ) ], array_keys( get_transient( 'barrio_seo_llms' ) ), 'One copy per site address.' );
 		self::factory()->post->create();
 		$this->assertFalse( get_transient( 'barrio_seo_llms' ), 'A changed content empties the cache.' );
 	}
