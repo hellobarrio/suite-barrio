@@ -39,6 +39,13 @@ funzionano: prima WordPress segnala le traduzioni caricate troppo presto.
 Hook e filtri che servono solo con Barrio Suite (per esempio `barrio_forms_spam_check`) si aggiungono
 dentro `barrio_forms_loaded`, come fa `barrio-suite-recaptcha`.
 
+Un'estensione che lavora con più moduli ha un file per modulo (`forms.php`, `seo.php`), ognuno con la sua
+funzione `barrio_<estensione>_<modulo>_boot()` che aggiunge gli hook del modulo. Il file principale ha solo
+l'intestazione, i `require` e un aggancio a `barrio_<modulo>_loaded` per modulo, con lo stesso controllo sul
+plugin di terzi: così un modulo spento non registra niente e i moduli non si mescolano. Esempio:
+`barrio-suite-wpgraphql`. Il plugin di terzi si controlla lì e non quando si carica il file, perché WordPress
+carica i plugin in ordine alfabetico e il suo può arrivare dopo.
+
 ## Integrazioni
 
 Il concetto di *feed* di Gravity Forms: un servizio che riceve ogni registrazione, con impostazioni
