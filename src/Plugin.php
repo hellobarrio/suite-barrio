@@ -2,7 +2,6 @@
 
 namespace BarrioSuite;
 
-use BarrioSuite\Database\Migrator;
 use BarrioSuite\Mail\Smtp;
 
 final class Plugin {
@@ -42,7 +41,7 @@ final class Plugin {
 			if ( ! Modules::is_enabled( $module ) ) {
 				continue;
 			}
-			$migrator = new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" );
+			$migrator = Modules::migrator( $module );
 			$error    = $migrator->run();
 			// Finché lo schema non è aggiornato il modulo resta spento: per esempio non accetta invii.
 			if ( $migrator->is_current() ) {

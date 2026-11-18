@@ -2,6 +2,7 @@
 
 namespace BarrioSuite;
 
+use BarrioSuite\Database\Migrator;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -57,19 +58,30 @@ final class Modules {
 		return new WP_REST_Response( $modules );
 	}
 
-	// Un modulo appena spento toglie i suoi eventi di WP-Cron; riacceso, migra e riparte dalla richiesta successiva.
 	public static function save( WP_REST_Request $request ): WP_REST_Response {
-		$disabled = [];
-		foreach ( self::ALL as $module => $module_class ) {
-			$was = self::is_enabled( $module );
-			if ( ! ( is_bool( $request[ $module ] ) ? $request[ $module ] : $was ) ) {
-				$disabled[] = $module;
-				if ( $was ) {
-					$module_class::deactivate();
-				}
+		foreach ( array_keys( self::ALL ) as $module ) {
+			if ( is_bool( $request[ $module ] ) ) {
+				self::set( $module, $request[ $module ] );
 			}
 		}
-		update_option( self::OPTION, $disabled );
 		return self::get();
+	}
+
+	/**
+	 * Un modulo appena spento toglie i suoi eventi di WP-Cron; riacceso, migra e riparte dalla richiesta successiva.
+	 *
+	 * @param key-of<self::ALL> $module
+	 */
+	public static function set( string $module, bool $enabled ): void {
+		if ( ! $enabled && self::is_enabled( $module ) ) {
+			self::ALL[ $module ]::deactivate();
+		}
+		$disabled = array_diff( (array) get_option( self::OPTION, [] ), [ $module ] );
+		update_option( self::OPTION, $enabled ? array_values( $disabled ) : [ ...$disabled, $module ] );
+	}
+
+	// Anche per un modulo spento: un'importazione scrive nelle sue tabelle prima di accenderlo.
+	public static function migrator( string $module ): Migrator {
+		return new Migrator( $module, dirname( __DIR__ ) . "/modules/{$module}/migrations" );
 	}
 }
