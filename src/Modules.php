@@ -14,8 +14,9 @@ use WP_REST_Response;
 final class Modules {
 
 	public const ALL = [
-		'forms' => Forms\Module::class,
-		'seo'   => Seo\Module::class,
+		'forms'       => Forms\Module::class,
+		'seo'         => Seo\Module::class,
+		'performance' => Performance\Module::class,
 	];
 
 	private const OPTION = 'barrio_disabled_modules';

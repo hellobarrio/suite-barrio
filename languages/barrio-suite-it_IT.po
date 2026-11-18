@@ -3365,3 +3365,87 @@ msgstr "Nel service account, apri Chiavi → Aggiungi chiave → Crea nuova chia
 #: build/barrio-admin.js:75
 msgid "To use the AI, connect the Google service account first."
 msgstr "Per usare l'AI, prima collega il service account di Google."
+
+#: build/barrio-admin.js:74
+msgid "Performance"
+msgstr "Prestazioni"
+
+#: build/barrio-admin.js:74
+msgid "Modern image formats, faster navigation and a lighter page head, with what WordPress already provides."
+msgstr "Formati di immagine moderni, navigazione più veloce e un head più leggero, con ciò che WordPress offre già."
+
+#: build/barrio-admin.js:74
+msgid "WordPress default"
+msgstr "Predefinito di WordPress"
+
+#: build/barrio-admin.js:74
+msgid "Remove the emoji script and styles"
+msgstr "Rimuovi script e stili delle emoji"
+
+#: build/barrio-admin.js:74
+msgid "Remove the WordPress version (generator)"
+msgstr "Rimuovi la versione di WordPress (generator)"
+
+#: build/barrio-admin.js:74
+msgid "Remove the RSD link"
+msgstr "Rimuovi il link RSD"
+
+#: build/barrio-admin.js:74
+msgid "Remove the shortlink"
+msgstr "Rimuovi lo shortlink"
+
+#: build/barrio-admin.js:74
+msgid "Everything happens on this server, without external services. Changes apply from the next page load."
+msgstr "Tutto avviene su questo server, senza servizi esterni. Le modifiche valgono dal caricamento successivo di una pagina."
+
+#: build/barrio-admin.js:74
+msgid "Image format"
+msgstr "Formato delle immagini"
+
+#: build/barrio-admin.js:74
+msgid "The sizes WordPress creates from new JPEG images are saved in this format; the uploaded file stays as it is. For images already in the media library, regenerate the sizes, for example with wp media regenerate."
+msgstr "Le dimensioni che WordPress crea dalle nuove immagini JPEG si salvano in questo formato; il file caricato resta com'è. Per le immagini già nella libreria dei media, rigenera le dimensioni, per esempio con wp media regenerate."
+
+#: build/barrio-admin.js:74
+msgid "As uploaded"
+msgstr "Come caricato"
+
+#: build/barrio-admin.js:74
+msgid "Speculative loading"
+msgstr "Caricamento speculativo"
+
+#: build/barrio-admin.js:74
+msgid "The browser loads the next page before the click, for visitors who are not logged in. Prerender also runs the JavaScript of the page: check that forms, analytics and slideshows still work."
+msgstr "Il browser carica la pagina successiva prima del clic, per i visitatori che non hanno fatto l'accesso. Il prerender esegue anche il JavaScript della pagina: verifica che form, statistiche e slideshow funzionino ancora."
+
+#: build/barrio-admin.js:74
+msgid "Prefetch"
+msgstr "Prefetch"
+
+#: build/barrio-admin.js:74
+msgid "Prerender"
+msgstr "Prerender"
+
+#: build/barrio-admin.js:74
+msgid "Eagerness"
+msgstr "Anticipo"
+
+#: build/barrio-admin.js:74
+msgid "Conservative: when the link is pressed"
+msgstr "Prudente: quando si preme il link"
+
+#: build/barrio-admin.js:74
+msgid "Moderate: when the pointer rests on the link"
+msgstr "Moderata: quando il puntatore si ferma sul link"
+
+#: build/barrio-admin.js:74
+msgid "Eager: as soon as the pointer is on the link"
+msgstr "Anticipata: appena il puntatore è sul link"
+
+#: build/barrio-admin.js:74
+msgid "Remove Dashicons for visitors"
+msgstr "Rimuovi le Dashicons per i visitatori"
+
+#: build/barrio-admin.js:74
+msgid "Only for those who do not see the admin bar. Leave it off if the theme uses Dashicons icons."
+msgstr "Solo per chi non vede la barra di amministrazione. Lascialo spento se il tema usa le icone Dashicons."

@@ -312,17 +312,19 @@ anche ai siti che usano Yoast o Rank Math e tengono spento il modulo SEO. Il mod
 suo interno sono accese solo le funzioni che non cambiano file né comportamento.
 
 - **Presi**:
-  - **immagini WebP o AVIF**: le dimensioni create al caricamento escono in WebP, o in AVIF se l'editor di
-    immagini del server lo supporta (`wp_image_editor_supports()`). Si usa il filtro del core
-    `image_editor_output_format`, e l'originale resta com'è. Vale per i nuovi caricamenti; per quelli già fatti
-    c'è `wp media regenerate`. Spenta di default, perché cambia i file. È l'alternativa all'Image CDN di Jetpack,
-    senza servizi di terzi;
-  - **caricamento speculativo**: il core (dalla 6.8) fa già il prefetch `conservative` dei link per i visitatori.
+  - **immagini WebP o AVIF** (fatto): le dimensioni create dai JPEG (e dagli HEIC, che il core porta in JPEG)
+    escono nel formato scelto, tra quelli che l'editor di immagini del server sa scrivere (`wp_image_editor_supports()`).
+    Si usa il filtro del core `image_editor_output_format`, e l'originale resta com'è (`original_image`). I PNG no:
+    sono di solito loghi e grafiche, dove la compressione lossy si vede. Vale per i nuovi caricamenti; per quelli già
+    fatti c'è `wp media regenerate`. Spenta di default, perché cambia i file. È l'alternativa all'Image CDN di
+    Jetpack, senza servizi di terzi;
+  - **caricamento speculativo** (fatto): il core (dalla 6.8) fa già il prefetch `conservative` dei link per i visitatori.
     Si sceglie tra prefetch e prerender e tra `conservative`, `moderate` ed `eager`
-    (`wp_speculation_rules_configuration`). Gli URL che cambiano stato (logout, carrello, `add-to-cart`) restano
-    esclusi (`wp_speculation_rules_href_exclude_paths`). Il prerender esegue il JavaScript della pagina: va provato
-    con i form. Di default resta la scelta del core;
-  - **head più leggero**: un interruttore per ciascuno tra script e stili delle emoji, meta generator, link RSD e
+    (`wp_speculation_rules_configuration`). Gli URL che cambiano stato li esclude già il core, quindi niente codice:
+    chi ha fatto l'accesso (e quindi il logout) non ha regole, `wp-admin` e `wp-*.php` sono sempre esclusi e, con i
+    permalink (senza, il core spegne tutto), ogni URL con una query (`add-to-cart`). Il prerender esegue il JavaScript
+    della pagina: provato con i form (§8). Di default resta la scelta del core;
+  - **head più leggero** (fatto): un interruttore per ciascuno tra script e stili delle emoji, meta generator, link RSD e
     shortlink (accesi), e Dashicons nel sito per chi non vede la barra di amministrazione (spento). Ognuno è un
     `remove_action` o un `wp_dequeue_style`.
 - **Già nel core, quindi niente codice**: lazy loading di immagini e iframe, `fetchpriority="high"` sull'immagine
@@ -428,4 +430,14 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
   `max_execution_time` di PHP). La lista non dice quali modelli scrivono testo, quindi contiene anche Imagen, Veo,
   gli embedding: scegliendone uno sbagliato, l'errore di Google compare nel pannello. Non tutti i modelli sono in tutte
   le regioni: la lista dei modelli è unica, quindi l'errore arriva generando.
+- **Prestazioni provate** (S9): sul sito dei test di wp-env (8889, WordPress 7.1, Twenty Twenty-Five). Una JPEG
+  caricata ha il full e le dimensioni in WebP e l'originale identico (stesso md5); il full passa da 203 a 70 KB, le
+  dimensioni piccole restano alla pari (±4%, con le qualità di default del core). Le regole di speculazione hanno
+  modalità e anticipo scelti e le esclusioni del core. In Chrome 158 il form di `/contatti/` si invia da una pagina
+  prerenderizzata davvero (`activationStart` > 0, `barrio:success`): il suo JavaScript non chiede niente al server
+  prima dell'invio. Lighthouse mobile (il motore di PageSpeed Insights, mediana di tre corse) con i default contro il
+  modulo spento: nessuna metrica peggiora (FCP 763 contro 774 ms, LCP 1513 contro 1520 ms, TBT 0, CLS 0), due
+  richieste e 7 KB in meno. Resta PageSpeed Insights su un sito pubblico. Per togliere gli stili delle emoji si stacca
+  `print_emoji_styles` da `wp_print_styles`, come chiede il core: staccando `wp_enqueue_emoji_styles` resterebbe la
+  funzione deprecata, che li stampa lo stesso.
 - **Conflitti nei cherry-pick** (S0, fatto): i file diversi tra i due branch sono elencati in `docs/release.md` (pagina Estensioni, `Updates.js` e `dev/release.js` solo su `con-updater`, header `Update URI`, "External services" del readme) e le fasi successive non li toccano. Il resto, compresi `PLAN.md`, `docs/hooks.md`, la messa online e le Impostazioni, è uguale: le parti dell'updater arrivano da `Extensions.js` (`launchSteps`, `settingsSections`). `languages/` resta diverso per le stringhe dell'updater: dopo un cherry-pick si rigenera in ogni branch.

@@ -43,8 +43,9 @@ final class ModulesTest extends WP_UnitTestCase {
 		$this->assertFalse( get_option( 'barrio_disabled_modules' ) );
 		$this->assertSame(
 			[
-				'forms' => true,
-				'seo'   => true,
+				'forms'       => true,
+				'seo'         => true,
+				'performance' => true,
 			],
 			rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/modules' ) )->get_data()
 		);
@@ -57,8 +58,9 @@ final class ModulesTest extends WP_UnitTestCase {
 
 		$this->assertSame(
 			[
-				'forms' => false,
-				'seo'   => true,
+				'forms'       => false,
+				'seo'         => true,
+				'performance' => true,
 			],
 			$this->put( [ 'forms' => false ] )->get_data()
 		);
