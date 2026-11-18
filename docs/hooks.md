@@ -8,11 +8,11 @@ plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
 | [`barrio-suite-mailchimp`](../extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php) | Un'integrazione con impostazioni globali (la chiave API) e per form, anche tradotte, e `process()` |
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_languages` e seguenti |
-| [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio: lo schema GraphQL del prototipo sopra `FormRepository` e `Submission::process()` (vedi [GraphQL](#graphql)) |
+| [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio e per il SEO: lo schema GraphQL del prototipo sopra `FormRepository`, `Submission::process()` e `Seo\Meta`, e un'impostazione nella pagina di un altro plugin (vedi [GraphQL](#graphql)) |
 | [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle di un altro plugin e scrive con `FormRepository::create()` (con l'ID) ed `EntryRepository::create()` (con data e stato di lettura), in un comando WP-CLI (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
 
 I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`,
-`WpGraphqlTest`, `MigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. `WpGraphqlTest` gira solo con
+`WpGraphqlTest`, `SeoGraphqlTest`, `MigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. I test GraphQL girano solo con
 WPGraphQL, come nella riga WPGraphQL della CI: in locale si installa una volta nell'ambiente dei test
 (`npx wp-env run tests-cli wp plugin install wp-graphql`) e si lancia `npm run test:php:graphql`.
 
@@ -181,6 +181,40 @@ i frontend Next.js del prototipo funzionano senza modifiche. Senza WPGraphQL non
   (è quello del frontend, non chi compila).
 - **`hbForms`**: come `GET /barrio/v1/forms`, solo per chi può modificare gli articoli o gestire le
   registrazioni (nel prototipo era pubblico); senza permesso è un errore GraphQL.
+
+### SEO
+
+Con il modulo SEO acceso (`barrio_seo_loaded`) l'estensione registra lo schema SEO del prototipo, con gli stessi
+nomi e tipi (`tests/fixtures/wpgraphql-seo-schema.txt`), anch'esso con priorità 9: con il prototipo attivo
+rispondono i dati di Barrio Suite, anche per il campo `seo` sui suoi stessi tipi (WPGraphQL tiene il primo campo
+registrato e scarta l'altro, `DUPLICATE_FIELD` nel suo debug). Con il modulo spento non registra niente e, se è
+attivo, risponde il prototipo. I dati sono quelli dell'head, della sitemap e di llms.txt di WordPress: nessuna
+logica a parte.
+
+- **`seo`** (`HBSeoPost`) su ogni post type pubblico in GraphQL: `Seo\Meta::post()`. `title` è senza il nome del
+  sito, `robots` è `index,follow` e simili, `ogType` è `article` solo per gli articoli (nel prototipo sempre),
+  `isInSitemap` vale per i contenuti pubblicati, indicizzati e senza password.
+- **`hbSeoSite`**: nome del sito, separatore, ordine, descrizione e immagine predefinite, icona del sito.
+  `robotsDefault` è sempre `index,follow`: l'indicizzazione è per tipo e per contenuto.
+- **`hbSchemaRaw(uri)`**: il JSON-LD di `Seo\Schema`, con `JSON_HEX_TAG` perché finisce in un `<script>`. L'URI si
+  risolve come `nodeByUri`; con un contenuto o un termine indicizzabile ci sono anche la pagina e il breadcrumb,
+  altrimenti (senza `uri`, archivi, noindex, 404) solo organizzazione e sito.
+- **`hbSitemap`**: gli URL di `wp-sitemap.xml` in tutte le lingue (`Seo\Sitemaps::each()`, gli stessi che conta
+  SEO → Impostazioni), anche con "Scoraggia i motori di ricerca", perché il WordPress di un sito headless spesso
+  non va indicizzato. `loc` è relativo; `type` è `post`, `term` o `user` (gli archivi degli autori, se
+  indicizzati); `priority` è sempre `null`.
+- **`hbRedirects`**: tutti i redirect. `from` ha la `/` finale dei permalink (le sorgenti nel database non ce
+  l'hanno), perché i frontend del prototipo la confrontano con il percorso della pagina; non l'hanno quelle con
+  la query string o con un'estensione (`/pagina.html`). Un 410 ha `to` null. `note` solo per chi ha
+  `barrio_manage_seo` (nel prototipo era pubblica).
+- **`hbLlms`, `hbLlmsFull`**: il testo di `Seo\Llms` dalla sua cache, con `updatedAt` (timestamp Unix) del momento
+  in cui è stato generato.
+- **Indirizzo del frontend**: un campo nelle impostazioni generali di WPGraphQL (GraphQL → Settings,
+  `get_graphql_setting( 'barrio_frontend_url' )`). Se c'è, durante le richieste GraphQL il filtro `barrio_seo_url`
+  porta su quell'indirizzo gli URL delle pagine (canonical, JSON-LD, llms.txt); le immagini restano su WordPress,
+  e l'head e il `llms.txt` di WordPress non cambiano. La cache di llms.txt ha una copia per indirizzo.
+- **Lingue**: i testi predefiniti (la descrizione, quella dell'organizzazione) sono nella lingua della richiesta, non
+  in quella del contenuto, perché il core non sa la lingua di un contenuto.
 
 ## Migrazione dal prototipo
 

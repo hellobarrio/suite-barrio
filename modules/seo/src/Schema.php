@@ -16,59 +16,57 @@ use WP_Term;
 final class Schema {
 
 	/**
-	 * @param Resolved             $meta
+	 * @param Resolved|null        $meta    Null per il solo sito: l'organizzazione e WebSite, senza la pagina.
 	 * @param WP_Post|WP_Term|null $queried Il contenuto o il termine della pagina; null per gli altri archivi.
 	 * @return array<string, mixed>
 	 */
-	public static function graph( array $meta, WP_Post|WP_Term|null $queried ): array {
-		$settings = Settings::get();
-		$home     = Meta::url( home_url( '/' ) );
-		$lang     = str_replace( '_', '-', I18n::locale( I18n::current() ) );
-		$crumbs   = self::breadcrumb( $meta, $queried, $home );
-		$page     = [
-			'@type'              => $queried instanceof WP_Post ? 'WebPage' : 'CollectionPage',
-			'@id'                => "{$meta['canonical']}#webpage",
-			'url'                => $meta['canonical'],
-			'name'               => $meta['title'],
-			'description'        => $meta['description'],
-			'inLanguage'         => $lang,
-			'isPartOf'           => [ '@id' => "{$home}#website" ],
-			'primaryImageOfPage' => self::image( $meta['image'] ),
-			'keywords'           => implode( ', ', $meta['keywords'] ),
-			'breadcrumb'         => $crumbs ? [ '@id' => $crumbs['@id'] ] : null,
+	public static function graph( ?array $meta, WP_Post|WP_Term|null $queried = null ): array {
+		$home  = Meta::url( home_url( '/' ) );
+		$lang  = str_replace( '_', '-', I18n::locale( I18n::current() ) );
+		$graph = [
+			self::organization( Settings::get()['organization'], $home, Settings::text( 'organization_description', I18n::current() ) ),
+			self::clean(
+				[
+					'@type'       => 'WebSite',
+					'@id'         => "{$home}#website",
+					'url'         => $home,
+					'name'        => Meta::text( get_bloginfo( 'name' ) ),
+					'description' => Meta::default_description(),
+					'inLanguage'  => $lang,
+					'publisher'   => [ '@id' => "{$home}#organization" ],
+				]
+			),
 		];
-		if ( $queried instanceof WP_Post ) {
-			$page['datePublished'] = get_post_time( DATE_W3C, true, $queried );
-			$page['dateModified']  = get_post_modified_time( DATE_W3C, true, $queried );
-			$list                  = self::item_list( (string) get_post_meta( $queried->ID, '_barrio_seo_collection', true ) );
-			if ( $list ) {
-				$page['@type']      = 'CollectionPage';
-				$page['mainEntity'] = $list;
+		if ( null !== $meta ) {
+			$crumbs = self::breadcrumb( $meta, $queried, $home );
+			$page   = [
+				'@type'              => $queried instanceof WP_Post ? 'WebPage' : 'CollectionPage',
+				'@id'                => "{$meta['canonical']}#webpage",
+				'url'                => $meta['canonical'],
+				'name'               => $meta['title'],
+				'description'        => $meta['description'],
+				'inLanguage'         => $lang,
+				'isPartOf'           => [ '@id' => "{$home}#website" ],
+				'primaryImageOfPage' => self::image( $meta['image'] ),
+				'keywords'           => implode( ', ', $meta['keywords'] ),
+				'breadcrumb'         => $crumbs ? [ '@id' => $crumbs['@id'] ] : null,
+			];
+			if ( $queried instanceof WP_Post ) {
+				$page['datePublished'] = get_post_time( DATE_W3C, true, $queried );
+				$page['dateModified']  = get_post_modified_time( DATE_W3C, true, $queried );
+				$list                  = self::item_list( (string) get_post_meta( $queried->ID, '_barrio_seo_collection', true ) );
+				if ( $list ) {
+					$page['@type']      = 'CollectionPage';
+					$page['mainEntity'] = $list;
+				}
 			}
+			$graph[] = self::clean( $page );
+			$graph[] = $crumbs;
 		}
 
 		return [
 			'@context' => 'https://schema.org',
-			'@graph'   => array_values(
-				array_filter(
-					[
-						self::organization( $settings['organization'], $home, Settings::text( 'organization_description', I18n::current() ) ),
-						self::clean(
-							[
-								'@type'       => 'WebSite',
-								'@id'         => "{$home}#website",
-								'url'         => $home,
-								'name'        => Meta::text( get_bloginfo( 'name' ) ),
-								'description' => Meta::default_description(),
-								'inLanguage'  => $lang,
-								'publisher'   => [ '@id' => "{$home}#organization" ],
-							]
-						),
-						self::clean( $page ),
-						$crumbs,
-					]
-				)
-			),
+			'@graph'   => array_values( array_filter( $graph ) ),
 		];
 	}
 

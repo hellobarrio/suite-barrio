@@ -60,6 +60,12 @@ final class RedirectRepository {
 		];
 	}
 
+	/** @return list<Redirect> Tutti, per sorgente: per i frontend headless, che li eseguono da sé. */
+	public static function all(): array {
+		global $wpdb;
+		return array_values( array_filter( array_map( self::hydrate( ... ), Db::rows( $wpdb->prepare( 'SELECT * FROM %i ORDER BY source', Db::table( 'redirects' ) ) ) ) ) );
+	}
+
 	public static function count(): int {
 		global $wpdb;
 		return (int) Db::var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Db::table( 'redirects' ) ) );

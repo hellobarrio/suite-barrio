@@ -25,19 +25,30 @@ final class Llms {
 			return;
 		}
 		header( 'Content-Type: text/plain; charset=utf-8' );
-		echo self::get( self::FILES[ $wp->request ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- testo semplice, non HTML.
+		echo self::get( self::FILES[ $wp->request ] )['text']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- testo semplice, non HTML.
 		exit;
 	}
 
-	public static function get( bool $full ): string {
-		$key  = $full ? 'barrio_seo_llms_full' : 'barrio_seo_llms';
-		$text = get_transient( $key );
-		if ( ! is_string( $text ) ) {
-			$text = self::build( $full );
-			// Al più un giorno, per ciò che cambia senza passare dagli hook di flush().
-			set_transient( $key, $text, DAY_IN_SECONDS );
+	/**
+	 * Il testo dalla cache, con il momento in cui è stato generato. Una copia per indirizzo del sito, perché
+	 * l'estensione WPGraphQL porta i link sul frontend headless (barrio_seo_url) e WordPress no.
+	 *
+	 * @return array{text: string, time: int}
+	 */
+	public static function get( bool $full ): array {
+		$key   = $full ? 'barrio_seo_llms_full' : 'barrio_seo_llms';
+		$home  = Meta::url( home_url( '/' ) );
+		$cache = get_transient( $key );
+		$cache = is_array( $cache ) ? $cache : [];
+		// Al più un giorno, per ciò che cambia senza passare dagli hook di flush().
+		if ( ! isset( $cache[ $home ]['time'] ) || $cache[ $home ]['time'] < time() - DAY_IN_SECONDS ) {
+			$cache[ $home ] = [
+				'text' => self::build( $full ),
+				'time' => time(),
+			];
+			set_transient( $key, $cache, DAY_IN_SECONDS );
 		}
-		return $text;
+		return $cache[ $home ];
 	}
 
 	public static function flush(): void {

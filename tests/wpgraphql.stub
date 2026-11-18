@@ -1,5 +1,5 @@
 <?php
-// Per PHPStan: le funzioni di WPGraphQL che usa extensions/barrio-suite-wpgraphql.
+// Per PHPStan: le funzioni e le classi di WPGraphQL che usa extensions/barrio-suite-wpgraphql.
 
 namespace {
 	/** @param array<string, mixed> $config */
@@ -13,8 +13,44 @@ namespace {
 
 	/** @param array<string, mixed> $config */
 	function register_graphql_mutation( string $mutation_name, array $config ): void {}
+
+	/** @param array<string, mixed> $config */
+	function register_graphql_settings_field( string $group, array $config ): void {}
+
+	function get_graphql_setting( string $option_name, mixed $default_value = '', string $section_name = 'graphql_general_settings' ): mixed {}
+
+	function is_graphql_request(): bool {}
+}
+
+namespace GraphQL {
+	class Deferred {
+		public function then( ?callable $on_fulfilled = null, ?callable $on_rejected = null ): object {}
+	}
 }
 
 namespace GraphQL\Error {
 	class UserError extends \RuntimeException {}
+}
+
+namespace WPGraphQL {
+	class AppContext {
+		public Data\NodeResolver $node_resolver;
+	}
+}
+
+namespace WPGraphQL\Data {
+	class NodeResolver {
+		/** @param array<string, mixed>|string $extra_query_vars */
+		public function resolve_uri( string $uri, array|string $extra_query_vars = '' ): mixed {}
+	}
+}
+
+namespace WPGraphQL\Model {
+	class Post {
+		public int $ID;
+	}
+
+	class Term {
+		public int $term_id;
+	}
 }
