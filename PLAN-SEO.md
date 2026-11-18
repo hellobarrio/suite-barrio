@@ -21,7 +21,7 @@ resta una sola differenza, l'updater da GitHub.
 | Una sola risoluzione | Titolo, descrizione, robots, canonical, immagine e indicizzazione si calcolano in un solo punto (`Seo\Meta`). Lo usano head, sitemap, schema, llms.txt e GraphQL. Nel prototipo la stessa logica è copiata cinque volte e dà risultati diversi |
 | Prima WordPress | Per la sitemap si usa quella del core (`wp-sitemap.xml`, filtrata; `/sitemap.xml` lo redirige già il core). Poi `wp_robots`, `pre_get_document_title` e `get_canonical_url`, il redirect dei vecchi slug del core, le pagine degli allegati spente dal core (`wp_attachment_pages_enabled`). Nome e icona del sito restano le opzioni di WordPress (`blogname`, `site_icon`): niente copie |
 | Dati dell'azienda | Stanno nelle impostazioni SEO, card Organizzazione, come la "Local SEO" di Rank Math: servono allo schema. Il futuro modulo Dati aziendali (`info-azienda`, `hbCompanyInfo`) li leggerà da qui invece di tenerne una copia, come succede oggi nel prototipo |
-| AI | Titoli e descrizioni generati con Anthropic o Gemini, e l'introduzione di llms.txt: estensione `barrio-suite-ai`, perché è un servizio di terzi come Mailchimp. Il core non fa chiamate esterne |
+| AI | Nel core, non in un'estensione (scelta del 18 novembre): serve a tutta la suite, non solo al SEO. Gemini su Vertex AI, con il **service account di Google** in Barrio → Impostazioni, lo stesso che userà Analytics (basterà aggiungere l'ID della proprietà GA4): Vertex AI accetta i token dei service account, l'API Gemini di AI Studio solo le chiavi API (il suo discovery document non dichiara scope OAuth). Nessun modello o regione scritti nel codice: si scelgono dalle liste di Google (`publishers/google/models`, `projects.locations`), che la card AI legge da sola appena c'è il service account; la regione vuota è l'endpoint `global`. "Genera con AI" resta spento finché mancano service account e modello. Le chiamate a Google partono solo da un clic di chi lavora nell'admin, e il readme le dichiara (regola di WordPress.org) |
 | Sitemap | Niente interruttore "in sitemap" separato: in sitemap c'è ciò che è indicizzabile, come in Yoast e Rank Math. Il prototipo aveva due fonti per la stessa scelta, e una non si poteva impostare. Niente scheda a sé: la sitemap non si modifica, è l'effetto dell'indicizzazione, quindi sta nella card Indicizzazione con i numeri per tipo. L'elenco degli URL è `wp-sitemap.xml`, leggibile nel browser |
 | robots.txt | Quello virtuale del core, che ha già la riga `Sitemap:`; con "Scoraggia i motori di ricerca" il core usa `noindex` e non `Disallow: /`, che nasconderebbe il `noindex`. Niente editor: robots.txt blocca la scansione ma non toglie le pagine da Google (lo fa `noindex`), una riga sbagliata toglie il sito dai risultati, e un file vero nella cartella del sito ha comunque la precedenza. La card Indicizzazione avvisa se quel file c'è. Il blocco dei crawler AI, se un sito lo chiede, è un interruttore sul filtro `robots_txt` |
 | Impostazioni | Un'opzione, `barrio_seo`, in autoload: è un solo record letto intero a ogni pagina, quindi arriva con le altre opzioni senza query in più. Una tabella avrebbe una riga sola, o diventerebbe una copia di `wp_options`. Come per i form: tabelle per le raccolte di record, opzioni per le impostazioni |
@@ -42,7 +42,7 @@ resta una sola differenza, l'updater da GitHub.
 | `llms-full.txt` pubblica il contenuto dei post protetti da password. I file si scrivono a mano in `ABSPATH` (permessi, multisite) e si rigenerano solo a mano | Generati alla richiesta e tenuti in cache, senza contenuti protetti o noindex; la cache si svuota quando un contenuto cambia |
 | Redirect in un'opzione: un 410 si salva con `to='/'`, la modifica accetta duplicati, nessuno li esegue in WordPress. Il vecchio URL di un termine si legge dopo il salvataggio | Tabella con UNIQUE e CHECK; il vecchio URL si legge prima del salvataggio |
 | I dati dell'azienda stanno in due opzioni, senza sincronia. Con l'opzione vuota lo schema genera warning PHP. Per trovare un termine scorre tutti i termini a ogni richiesta | Un solo posto, valori di default dallo schema, ricerca diretta |
-| Chiavi API in chiaro, e il codice dei provider AI copiato quattro volte (advisor, llms, alt, cookie) | Un'estensione AI, con le chiavi cifrate da `Crypto` |
+| Chiavi API in chiaro, e il codice dei provider AI copiato quattro volte (advisor, llms, alt, cookie) | Un solo client AI nel core (`src/Ai.php`), con il service account cifrato da `Crypto` (`src/Google.php`) |
 | Sei sotto-pagine nascoste con il CSS; il selettore dei media scritto quattro volte | L'app React del plugin, con i suoi componenti |
 | GraphQL registra lo schema SEO anche con il modulo spento | L'estensione lo registra solo con il modulo acceso |
 
@@ -112,7 +112,9 @@ toglie anche i meta `_barrio_seo_*`, che il core non vede.
 src/
 ├── Admin.php            # menu Barrio e app React (da modules/forms/src/Admin.php)
 ├── Modules.php          # quali moduli sono accesi; GET/PUT /barrio/v1/modules
-└── I18n.php             # dal modulo Forms, con i filtri barrio_languages…
+├── I18n.php             # dal modulo Forms, con i filtri barrio_languages…
+├── Google.php           # service account di Google: GET/PUT /barrio/v1/google, token con un JWT firmato
+└── Ai.php               # Gemini su Vertex AI: GET/PUT /barrio/v1/ai, GET /ai/models, generate()
 assets/src/              # la shell: ui.js, query.js, Bacheca, Messa online, Impostazioni, Estensioni
 modules/forms/assets/src/  # solo le pagine dei form
 modules/seo/
@@ -128,7 +130,7 @@ modules/seo/
 │   ├── Repository/RedirectRepository.php   # l'unico a usare $wpdb
 │   ├── Llms.php
 │   ├── Editor.php       # sidebar dell'editor a blocchi, metabox classica, campi dei termini e loro salvataggio
-│   └── Api/RestSettings.php, RestRedirects.php, RestContents.php
+│   └── Api/RestSettings.php, RestRedirects.php, RestContents.php, RestGenerate.php (POST /seo/generate e /seo/generate/llms)
 └── assets/src/{seo,editor}/   # pagina SEO e pannello (Panel.js); title.js e score.js condivisi
 tests/fixtures/seo-title.json  # lo stesso titolo in PHP e in JS
 ```
@@ -208,7 +210,7 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
 - **SEO → Impostazioni** (`manage_options`), un solo Salva:
   - **Titoli e meta**: nome e icona del sito, separatore, ordine con l'anteprima, descrizione e immagine di condivisione predefinite;
   - **Indicizzazione**: una riga per tipo e per tassonomia (Indicizza, Segui) con il robots risultante e quanti indirizzi mette nella sitemap; archivi autore e data. I numeri sono contati dai provider della sitemap del core con i filtri del modulo (`GET /seo/settings/sitemap`), quindi sono quelli che legge Google; una riga che si spegne dice subito che esce dalla sitemap. In fondo il totale, i link a `wp-sitemap.xml` e robots.txt e, con il sito che chiede di non essere indicizzato, che WordPress non pubblica la sitemap. Un avviso se nella cartella del sito c'è un file robots.txt;
-  - **llms.txt**: per tipo e per tassonomia Includi / Solo link / Escludi, l'introduzione e i link ai due file;
+  - **Assistenti AI** (llms.txt e llms-full.txt): per tipo e per tassonomia Includi / Solo link / Escludi, l'introduzione e i link ai due file;
   - **Redirect**: la creazione automatica al cambio di URL;
   - **Permessi**: `barrio_manage_seo` e `barrio_edit_seo` per ruolo (`Roles.php`).
 - **Pannello SEO** (`barrio_edit_seo` più il permesso di modificare il contenuto). Dove compare:
@@ -266,14 +268,18 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
 | `barrio-suite-wpgraphql` | Solo con il modulo acceso, e con i dati di `Seo\Meta`:<br>• `seo` (`HBSeoPost`) sui post type pubblici;<br>• `hbSeoSite`, `hbSchemaRaw(uri)`, `hbSitemap`, `hbRedirects`, `hbLlms` e `hbLlmsFull`.<br>Nomi e forme sono quelli del prototipo (`loc` relativo, `title` senza il nome del sito). Registra con priorità 9, come per i form.<br>L'**indirizzo del frontend** è un'impostazione dell'estensione, in GraphQL → Settings con l'API delle impostazioni di WPGraphQL (prima lo faceva, senza dirlo, l'URL dello schema del prototipo). Nelle risposte GraphQL l'estensione porta su quell'indirizzo gli URL delle pagine (canonical, schema, llms) con il filtro `barrio_seo_url`; le immagini restano su WordPress |
 | `barrio-suite-wpml` | I filtri delle lingue del core e `barrio_switch_language` (`wpml_switch_language`). Un `wpml-config.xml` per i meta: index, follow e collection si copiano, titolo, descrizione e parole chiave si traducono, l'immagine si copia una volta; sostituisce il codice di copia del prototipo. Le sitemap delle altre lingue in robots.txt (§8) |
 | `barrio-suite-migration` | `wp barrio seo migrate [--dry-run]` (fase S7, in `seo.php`). Tiene spento il modulo SEO di Barrio Suite finché il SEO del prototipo è acceso e non migrato. Finché il prototipo resta attivo, fa anche da ponte verso la sua revalidation di Next.js |
-| `barrio-suite-ai` (nuova) | Anthropic o Gemini, chiave cifrata, modello scelto dalla lista dell'API. Aggiunge "Genera con AI" al pannello SEO, alla modale e alle azioni di massa di Contenuti, e all'introduzione di llms.txt. Il servizio esterno va dichiarato nel readme (regola di WordPress.org) |
 
 Hook nuovi, solo quelli che un'estensione di questo piano usa (come dopo l'audit):
 - `barrio_seo_loaded` (su `init`, priorità 5);
 - `barrio_seo_changed` (`'settings'`, `'redirects'`, o `'post'` e `'term'` con l'ID quando ne cambiano i meta SEO,
   una volta per richiesta): serve al ponte di revalidation e, più avanti, a un'estensione di revalidation per Next.js;
-- `barrio_seo_url` (l'URL di una pagina, in ogni punto in cui il modulo lo scrive): serve all'estensione WPGraphQL;
-- in JS, `barrio.seo.generators` con `@wordpress/hooks`: un generatore registrato fa comparire "Genera".
+- `barrio_seo_url` (l'URL di una pagina, in ogni punto in cui il modulo lo scrive): serve all'estensione WPGraphQL.
+
+L'AI è nel core (Decisioni), quindi "Genera con AI" non ha hook: il pannello SEO (anche nella modale di Contenuti) lo
+mostra sopra il titolo SEO e riempie titolo, descrizione e parole chiave; le azioni di massa di Contenuti scrivono
+solo i campi vuoti, un contenuto alla volta, e si fermano al primo errore; sotto l'introduzione di llms.txt scrive
+l'introduzione nella lingua della barra. Senza service account e modello i bottoni sono spenti, con il motivo. Il
+testo dei post protetti da password non va mai a Google.
 
 Da sviluppare come estensioni se un sito li chiede: importazione da Yoast e Rank Math, IndexNow, schema
 WooCommerce, monitor dei 404.
@@ -347,7 +353,7 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
 | S5 | **Traduzioni**: testi per lingua scelti nella barra delle Impostazioni, `wpml-config.xml`, sitemap e llms.txt per lingua | Sullo shop Docker con WPML (it, en-us, de):<br>• head di ogni lingua con i default tradotti;<br>• la traduzione eredita index e follow;<br>• sitemap con tutte le lingue.<br>Senza WPML tutto funziona in una lingua |
 | S6 | **GraphQL** nell'estensione `barrio-suite-wpgraphql` | Lo snapshot dello schema SEO coincide con quello del prototipo. `hello_standard` funziona senza modifiche contro wp-env (`getSeo`, `SeoFragment`, `getSchema`, `getSitemap`, `getRedirects`, `getLLMS`). Senza il modulo acceso non registra niente |
 | S7 | **Migrazione dal prototipo** (dettagli sotto) | Un sito headless reale migrato:<br>• conteggi uguali prima e dopo (prova a vuoto, poi migrazione);<br>• `<head>` e GraphQL di cinque pagine uguali prima e dopo, tranne i bug corretti |
-| S8 | **Estensione AI** (`barrio-suite-ai`), con le chiavi e le impostazioni dell'advisor del prototipo | Titolo, descrizione e parole chiave generati per un contenuto e in massa, senza modificare il core; errori e chiave mancante mostrati nel pannello |
+| S8 | **AI nel core**: service account di Google e Gemini su Vertex AI, in Barrio → Impostazioni; "Genera con AI" nel SEO; la descrizione del sito dall'advisor del prototipo | Titolo, descrizione e parole chiave generati per un contenuto e in massa; bottoni spenti finché mancano service account e modello; errori mostrati dove si è cliccato (`AiTest`, con Google simulato e la firma del JWT controllata). Resta la prova con un service account vero |
 | S9 | **Prestazioni** (modulo `performance`, §6 "Da Jetpack"): immagini WebP o AVIF, caricamento speculativo, head più leggero, card in Impostazioni | Su un sito di prova:<br>• una JPEG caricata ha le dimensioni in WebP (o AVIF) e l'originale intatto;<br>• le regole di speculazione hanno la modalità scelta ed escludono admin e logout;<br>• l'head non ha emoji, generator, RSD e shortlink;<br>• PageSpeed Insights su mobile non peggiora in nessuna metrica;<br>• i form si inviano anche con il prerender acceso.<br>Con il modulo spento tutto torna come nel core |
 
 **Migrazione (S7, fatta)**: legge le opzioni e i meta del prototipo e scrive nell'opzione, nei meta e nella tabella del
@@ -361,7 +367,7 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
   - Le parole chiave passano da JSON a lista; un'immagine che non è più un allegato e una collezione di un tipo che non esiste non passano.
   - Per ogni meta il comando conta trovati, migrati, predefiniti e saltati: `found = migrated + default + skipped`.
 - **Redirect**: l'opzione diventa la tabella con la sorgente normalizzata (`Redirects::path()`); il 410 prende `target` NULL; la nota "Aggiunto automaticamente al cambio slug" diventa `is_auto`. Non passano, con un avviso: sorgenti, codici e destinazioni non validi, i doppioni (`/a/` e `/a`: resta il primo) e i redirect in un ciclo (anche `/a` → `/a/`), che nel prototipo finivano in "troppi reindirizzamenti".
-- **AI**: le chiavi restano nel prototipo, con un avviso; le porterà l'estensione AI (S8).
+- **AI** (S8): contesto, settore e parole chiave dell'advisor diventano la descrizione del sito dell'AI, se non ce n'è già una. Le chiavi API del prototipo non passano, con un avviso: Barrio Suite usa un service account.
 - **Alla fine**:
   - il modulo SEO del prototipo si spegne (`suite_barrio_tools_modules['seo'] = 0`) e quello di Barrio Suite si accende (`Modules::set()`; `barrio_migration_seo` = `migrated`);
   - si eliminano i `llms.txt` e `llms-full.txt` in `ABSPATH`, se il prototipo li ha generati;
@@ -416,4 +422,10 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
   non rispetta lo schema (500 su `index`, `follow`, `image`, `collection`). Il filtro
   `rest_request_before_callbacks` toglie i meta SEO assenti che restano assenti (`Module::changes()`, che usa anche
   la metabox). Senza `custom-fields` la REST del core non scrive i meta: il modulo lo aggiunge ai tipi pubblici.
+- **AI con un service account vero** (S8): provato solo con Google simulato. Da provare: API Vertex AI attiva, ruolo
+  Vertex AI User, l'endpoint `global` per `generateContent`, la lista `v1beta1/publishers/google/models` (scope
+  `cloud-platform` dal discovery document) e i tempi dei modelli che ragionano (timeout di 60 secondi, a volte oltre il
+  `max_execution_time` di PHP). La lista non dice quali modelli scrivono testo, quindi contiene anche Imagen, Veo,
+  gli embedding: scegliendone uno sbagliato, l'errore di Google compare nel pannello. Non tutti i modelli sono in tutte
+  le regioni: la lista dei modelli è unica, quindi l'errore arriva generando.
 - **Conflitti nei cherry-pick** (S0, fatto): i file diversi tra i due branch sono elencati in `docs/release.md` (pagina Estensioni, `Updates.js` e `dev/release.js` solo su `con-updater`, header `Update URI`, "External services" del readme) e le fasi successive non li toccano. Il resto, compresi `PLAN.md`, `docs/hooks.md`, la messa online e le Impostazioni, è uguale: le parti dell'updater arrivano da `Extensions.js` (`launchSteps`, `settingsSections`). `languages/` resta diverso per le stringhe dell'updater: dopo un cherry-pick si rigenera in ogni branch.

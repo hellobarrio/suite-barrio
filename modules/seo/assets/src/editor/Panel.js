@@ -1,9 +1,11 @@
 // Il pannello SEO, uguale nella sidebar dell'editor a blocchi, nella metabox dell'editor classico e nei
 // termini (src/Editor.php): anteprime, campi, indicizzazione e controlli del punteggio. I meta sono quelli
 // della REST del core; null vuol dire "eredita".
+import apiFetch from '@wordpress/api-fetch';
 import {
 	Button,
 	FormTokenField,
+	Notice,
 	PanelBody,
 	SelectControl,
 	TextControl,
@@ -53,6 +55,82 @@ export function analyze( meta, page, context ) {
 		} ),
 	};
 }
+
+/**
+ * Titolo, descrizione e parole chiave scritti dall'AI (Api/RestGenerate.php) per una pagina, anche non salvata. Il
+ * testo di un post protetto da password non esce mai, nemmeno verso l'AI.
+ *
+ * @param {Object} page Come in analyze().
+ * @param {string} lang La lingua in cui scrivere.
+ * @return {Promise<Object>} { title, description, keywords }.
+ */
+export const generate = ( page, lang ) =>
+	apiFetch( {
+		path: '/barrio/v1/seo/generate',
+		method: 'POST',
+		data: {
+			lang,
+			title: page.title,
+			url: page.url,
+			text: page.password
+				? ''
+				: [ page.excerpt, page.content ?? page.description ]
+						.filter( Boolean )
+						.join( '\n\n' ),
+		},
+	} );
+
+// Riempie i tre campi, che si possono cambiare prima di salvare. Spento finché l'AI non è configurata.
+function Generate( { ready, page, lang, onChange } ) {
+	const [ busy, setBusy ] = useState( false );
+	const [ error, setError ] = useState( null );
+	const run = () => {
+		setBusy( true );
+		setError( null );
+		generate( page, lang )
+			.then( ( result ) =>
+				onChange( {
+					_barrio_seo_title: result.title || null,
+					_barrio_seo_description: result.description || null,
+					_barrio_seo_keywords: result.keywords.length
+						? result.keywords
+						: null,
+				} )
+			)
+			.catch( ( failure ) => setError( failure.message ) )
+			.finally( () => setBusy( false ) );
+	};
+	return (
+		<div className="barrio-seo-generate">
+			{ error && (
+				<Notice status="error" isDismissible={ false }>
+					{ error }
+				</Notice>
+			) }
+			<Button
+				variant="secondary"
+				isBusy={ busy }
+				disabled={ busy || ! ready }
+				accessibleWhenDisabled
+				onClick={ run }
+				__next40pxDefaultSize
+			>
+				{ busy
+					? __( 'Generating…', 'barrio-suite' )
+					: __( 'Generate with AI', 'barrio-suite' ) }
+			</Button>
+			{ ! ready && (
+				<p className="components-base-control__help">{ AI_SETUP }</p>
+			) }
+		</div>
+	);
+}
+
+// Accanto ai "Genera" spenti, anche nella tabella Contenuti e per llms.txt.
+export const AI_SETUP = __(
+	'To use it, set up Google AI in Barrio → Settings.',
+	'barrio-suite'
+);
 
 // Il punteggio sull'icona della sidebar: un SVG come le altre icone, con il numero centrato nel cerchio.
 export const Badge = ( { value } ) => (
@@ -333,6 +411,12 @@ export function Panel( { meta, page, context, seo, onChange } ) {
 						{ seo.description }
 					</span>
 				</div>
+				<Generate
+					ready={ context.ai }
+					page={ page }
+					lang={ context.lang }
+					onChange={ onChange }
+				/>
 				<TextControl
 					label={ __( 'SEO title', 'barrio-suite' ) }
 					value={ meta._barrio_seo_title ?? '' }

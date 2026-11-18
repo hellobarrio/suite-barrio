@@ -3,7 +3,6 @@
 // sua lingua (descrizione predefinita, nome del sito). Filtri e ordinamento nel browser (GET /seo/contents); le modifiche
 // passano dalla REST del core, una richiesta per contenuto, nella modale con lo stesso pannello dell'editor.
 import apiFetch from '@wordpress/api-fetch';
-import { Modal } from '@wordpress/components';
 import { useEffect, useMemo, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
@@ -12,6 +11,7 @@ import {
 	localQuery,
 } from '../../../../../assets/src/admin/query.js';
 import {
+	Dialog,
 	Lang,
 	Loading,
 	Lucide,
@@ -22,13 +22,13 @@ import {
 	errorMessage,
 	langOption,
 } from '../../../../../assets/src/admin/ui.js';
-import { LEVELS, Panel, analyze } from '../editor/Panel.js';
+import { AI_SETUP, LEVELS, Panel, analyze, generate } from '../editor/Panel.js';
 import '../editor/editor.css';
 import { level } from '../score.js';
 import { text } from '../title.js';
 import { pageUrl, seoData } from './ui.js';
 
-const { types, canEditSeo } = seoData;
+const { types, canEditSeo, ai } = seoData;
 const { languages } = window.barrioAdmin;
 
 // index, score e lang: il valore scelto; description 'missing': senza una descrizione loro.
@@ -95,8 +95,32 @@ function SeoModal( { row, context, onSave, onClose } ) {
 			} );
 	};
 	return (
-		<Modal
+		<Dialog
 			className="barrio-seo-modal"
+			footer={
+				<>
+					<button
+						type="button"
+						className="barrio-button"
+						onClick={ close }
+					>
+						{ __( 'Cancel', 'barrio-suite' ) }
+					</button>
+					<button
+						type="button"
+						className="barrio-button is-primary"
+						disabled={ busy || ! dirty }
+						onClick={ save }
+					>
+						<Lucide name="save" />
+						<span className="barrio-button__text">
+							{ busy
+								? __( 'Saving…', 'barrio-suite' )
+								: __( 'Save', 'barrio-suite' ) }
+						</span>
+					</button>
+				</>
+			}
 			size="medium"
 			title={ sprintf(
 				/* translators: %s: title of a page, post or term. */
@@ -115,29 +139,7 @@ function SeoModal( { row, context, onSave, onClose } ) {
 					setMeta( ( now ) => ( { ...now, ...changes } ) )
 				}
 			/>
-			<div className="barrio-row barrio-seo-modal__actions">
-				<button
-					type="button"
-					className="barrio-button"
-					onClick={ close }
-				>
-					{ __( 'Cancel', 'barrio-suite' ) }
-				</button>
-				<button
-					type="button"
-					className="barrio-button is-primary"
-					disabled={ busy || ! dirty }
-					onClick={ save }
-				>
-					<Lucide name="save" />
-					<span className="barrio-button__text">
-						{ busy
-							? __( 'Saving…', 'barrio-suite' )
-							: __( 'Save', 'barrio-suite' ) }
-					</span>
-				</button>
-			</div>
-		</Modal>
+		</Dialog>
 	);
 }
 
@@ -147,6 +149,7 @@ export function Contents() {
 	const [ query, setQuery ] = useState( INITIAL );
 	const [ notice, setNotice ] = useState( null );
 	const [ editing, setEditing ] = useState( null );
+	const [ generating, setGenerating ] = useState( false );
 
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
@@ -217,25 +220,63 @@ export function Contents() {
 				)
 			)
 		);
+	const done = ( ids ) =>
+		setNotice( {
+			status: 'success',
+			message: sprintf(
+				/* translators: %d: number of pages, posts or terms. */
+				_n(
+					'%d item updated.',
+					'%d items updated.',
+					ids.length,
+					'barrio-suite'
+				),
+				ids.length
+			),
+		} );
 	const setIndex = ( ids, value ) => {
 		setNotice( null );
 		save( ids, { _barrio_seo_index: value } )
-			.then( () =>
+			.then( () => done( ids ) )
+			.catch( fail );
+	};
+	// Uno alla volta, per i limiti di richieste al minuto dei servizi; si scrivono solo i campi vuoti, così niente
+	// di scritto a mano si perde. Si ferma al primo errore: i contenuti già fatti restano salvati.
+	const fill = async ( ids ) => {
+		setGenerating( true );
+		try {
+			for ( const [ index, id ] of ids.entries() ) {
 				setNotice( {
-					status: 'success',
+					status: 'info',
 					message: sprintf(
-						/* translators: %d: number of pages, posts or terms. */
-						_n(
-							'%d item updated.',
-							'%d items updated.',
-							ids.length,
-							'barrio-suite'
-						),
+						/* translators: 1: number of the item being generated, 2: number of selected items. */
+						__( 'Generating %1$d of %2$d…', 'barrio-suite' ),
+						index + 1,
 						ids.length
 					),
-				} )
-			)
-			.catch( fail );
+				} );
+				const row = rows.find( ( item ) => item.id === id );
+				const result = await generate( row.page, row.lang );
+				const meta = Object.fromEntries(
+					Object.entries( {
+						_barrio_seo_title: result.title,
+						_barrio_seo_description: result.description,
+						_barrio_seo_keywords: result.keywords,
+					} ).filter(
+						( [ name, value ] ) =>
+							value?.length && ! row.meta[ name ]?.length
+					)
+				);
+				if ( Object.keys( meta ).length ) {
+					await save( [ id ], meta );
+				}
+			}
+			done( ids );
+		} catch ( error ) {
+			fail( error );
+		} finally {
+			setGenerating( false );
+		}
 	};
 
 	const count = ( field, value ) =>
@@ -511,6 +552,16 @@ export function Contents() {
 									),
 									icon: 'undo',
 									onClick: () => setIndex( ids, null ),
+								},
+								{
+									label: __(
+										'Generate with AI, empty fields only',
+										'barrio-suite'
+									),
+									icon: 'lightbulb',
+									disabled: ! ai || generating,
+									info: ai ? undefined : AI_SETUP,
+									onClick: () => fill( ids ),
 								},
 							]
 						: undefined

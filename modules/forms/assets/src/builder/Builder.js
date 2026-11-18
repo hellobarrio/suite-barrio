@@ -2,13 +2,14 @@
 // (409 se nel frattempo qualcuno ha salvato) o, per un form nuovo, con POST /forms. Con più lingue
 // la barra sceglie quella dei testi: nelle altre si traducono solo i testi (Texts.js).
 import apiFetch from '@wordpress/api-fetch';
-import { Modal, TabPanel } from '@wordpress/components';
+import { TabPanel } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import {
 	Bar,
 	Card,
+	Dialog,
 	Fixed,
 	Icon,
 	LangNotice,
@@ -305,7 +306,7 @@ export function Builder( { id } ) {
 			</TabPanel>
 
 			{ preview && (
-				<Modal
+				<Dialog
 					className="barrio-preview-modal"
 					title={
 						preview.subject
@@ -350,7 +351,7 @@ export function Builder( { id } ) {
 							</p>
 						) }
 					</div>
-				</Modal>
+				</Dialog>
 			) }
 		</div>
 	);

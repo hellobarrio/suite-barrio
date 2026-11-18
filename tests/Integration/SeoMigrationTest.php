@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Tests\Integration;
 
+use BarrioSuite\Ai;
 use BarrioSuite\Modules;
 use BarrioSuite\Seo\RedirectCode;
 use BarrioSuite\Seo\Repository\RedirectRepository;
@@ -249,6 +250,25 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$this->assertSame( [ 0 ], array_unique( array_column( $second['counts'], 'migrated' ) ) );
 		$this->assertSame( 4, RedirectRepository::count() );
 		$this->assertContains( 'Settings: Barrio Suite already has its SEO settings, they stay as they are.', $second['notes'] );
+	}
+
+	public function test_the_advisor_context_becomes_the_description_of_the_site_and_the_keys_stay(): void {
+		update_option( 'suite_barrio_advisor_gemini_key', 'AIza-prototype' );
+		update_option( 'suite_barrio_advisor_context', 'Trattoria a Torino.' );
+		update_option( 'suite_barrio_advisor_keywords', 'trattoria, Torino' );
+
+		barrio_migration_seo_run( true );
+		$this->assertFalse( get_option( 'barrio_ai' ), 'The dry run writes nothing.' );
+		$report = $this->migrate();
+
+		$this->assertContains( 'AI: the context and the keywords of the SEO advisor become the description of the site.', $report['notes'] );
+		$this->assertContains( 'AI: the API keys of Suite Barrio are not migrated. Barrio Suite connects to Google with a service account: add it in Barrio → Settings and choose the model.', $report['warnings'] );
+		$this->assertSame( "Trattoria a Torino.\nParole chiave da includere se pertinenti: trattoria, Torino", Ai::settings()['instructions'] );
+		$this->assertSame( '', Ai::settings()['model'] );
+
+		update_option( 'suite_barrio_advisor_context', 'Altro.' );
+		$this->assertContains( 'AI: Barrio Suite already has its description of the site, it stays as it is.', $this->migrate()['notes'] );
+		$this->assertStringStartsWith( 'Trattoria', Ai::settings()['instructions'] );
 	}
 
 	public function test_without_data_of_the_prototype_it_is_an_error(): void {

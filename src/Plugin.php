@@ -32,6 +32,8 @@ final class Plugin {
 	public static function boot(): void {
 		// Per tutte le email del sito, anche con un modulo spento.
 		Smtp::boot();
+		Google::boot();
+		Ai::boot();
 		Admin::boot();
 		Modules::boot();
 		Extensions::boot();

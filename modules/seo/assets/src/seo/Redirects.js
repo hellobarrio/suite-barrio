@@ -1,12 +1,12 @@
 // SEO → Redirect: ricerca, filtri, ordinamento e pagine sul server (GET /seo/redirects); aggiunta e modifica in
 // una modale, eliminazione dal menu della riga o sulle righe selezionate.
 import apiFetch from '@wordpress/api-fetch';
-import { Modal } from '@wordpress/components';
-import { useEffect, useState } from '@wordpress/element';
+import { useEffect, useId, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import { initialQuery } from '../../../../../assets/src/admin/query.js';
 import {
+	Dialog,
 	Icon,
 	Loading,
 	Lucide,
@@ -45,6 +45,8 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 	} );
 	const [ busy, setBusy ] = useState( false );
 	const [ notice, setNotice ] = useState( null );
+	// Il Salva sta nel piede della modale, fuori dal form: lo invia con l'attributo form.
+	const form = useId();
 	const gone = 410 === draft.code;
 	const set = ( name ) => ( value ) =>
 		setDraft( ( now ) => ( { ...now, [ name ]: value } ) );
@@ -74,8 +76,32 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 			} );
 	};
 	return (
-		<Modal
+		<Dialog
 			className="barrio-seo-modal"
+			footer={
+				<>
+					<button
+						type="button"
+						className="barrio-button"
+						onClick={ onClose }
+					>
+						{ __( 'Cancel', 'barrio-suite' ) }
+					</button>
+					<button
+						type="submit"
+						form={ form }
+						className="barrio-button is-primary"
+						disabled={ busy }
+					>
+						<Lucide name="save" />
+						<span className="barrio-button__text">
+							{ busy
+								? __( 'Saving…', 'barrio-suite' )
+								: __( 'Save', 'barrio-suite' ) }
+						</span>
+					</button>
+				</>
+			}
 			size="medium"
 			title={
 				redirect.id
@@ -84,7 +110,7 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 			}
 			onRequestClose={ onClose }
 		>
-			<form className="barrio-stack" onSubmit={ save }>
+			<form id={ form } className="barrio-stack" onSubmit={ save }>
 				<Notice notice={ notice } />
 				<Text
 					label={ __( 'From', 'barrio-suite' ) }
@@ -132,29 +158,8 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 					value={ draft.note }
 					onChange={ set( 'note' ) }
 				/>
-				<div className="barrio-row barrio-seo-modal__actions">
-					<button
-						type="button"
-						className="barrio-button"
-						onClick={ onClose }
-					>
-						{ __( 'Cancel', 'barrio-suite' ) }
-					</button>
-					<button
-						type="submit"
-						className="barrio-button is-primary"
-						disabled={ busy }
-					>
-						<Lucide name="save" />
-						<span className="barrio-button__text">
-							{ busy
-								? __( 'Saving…', 'barrio-suite' )
-								: __( 'Save', 'barrio-suite' ) }
-						</span>
-					</button>
-				</div>
 			</form>
-		</Modal>
+		</Dialog>
 	);
 }
 

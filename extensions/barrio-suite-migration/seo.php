@@ -4,6 +4,7 @@
 // vuoto calcola tutto e non scrive niente. Si può rilanciare: ciò che Barrio Suite ha già resta com'è. Finché il
 // SEO del prototipo è acceso quello di Barrio Suite resta spento; alla fine si scambiano.
 
+use BarrioSuite\Ai;
 use BarrioSuite\Database\Db;
 use BarrioSuite\I18n;
 use BarrioSuite\Modules;
@@ -141,9 +142,7 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 	$redirects = barrio_migration_seo_redirects( $migrator->is_current(), $report );
 	$settings  = barrio_migration_seo_settings( $report );
 
-	if ( array_filter( array_map( 'get_option', [ 'suite_barrio_advisor_api_key', 'suite_barrio_advisor_gemini_key', 'suite_barrio_llms_api_key', 'suite_barrio_llms_gemini_key' ] ) ) ) {
-		$report['warnings'][] = 'The AI keys of Suite Barrio are not migrated: Barrio Suite does not have its AI extension yet.';
-	}
+	$ai = barrio_migration_seo_ai( $report );
 	// Il web server li servirebbe al posto di quelli di Barrio Suite; solo se li ha scritti il prototipo.
 	$files = get_option( 'suite_barrio_llms_last_generated' ) ? array_filter( [ ABSPATH . 'llms.txt', ABSPATH . 'llms-full.txt' ], 'is_file' ) : [];
 	if ( $files ) {
@@ -171,6 +170,9 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 			update_option( 'graphql_general_settings', [ 'barrio_frontend_url' => $settings['frontend'] ] + $graphql );
 		}
 	}
+	if ( null !== $ai ) {
+		Ai::save( [ 'instructions' => $ai ] );
+	}
 	foreach ( $files as $file ) {
 		wp_delete_file( $file );
 	}
@@ -181,6 +183,38 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 	barrio_migration_seo_revalidate( 'settings' );
 	barrio_migration_seo_revalidate( 'redirects' );
 	return $report;
+}
+
+/**
+ * Contesto, settore e parole chiave dell'advisor e di llms.txt del prototipo diventano la descrizione del sito
+ * dell'AI, se Barrio Suite non ne ha già una. Le chiavi API non passano: Barrio Suite usa un service account.
+ *
+ * @param array{counts: list<array{data: string, found: int, migrated: int, default: int, skipped: int}>, notes: list<string>, warnings: list<string>} $report
+ */
+function barrio_migration_seo_ai( array &$report ): ?string {
+	if ( array_filter( array_map( 'get_option', [ 'suite_barrio_advisor_api_key', 'suite_barrio_advisor_gemini_key', 'suite_barrio_llms_api_key', 'suite_barrio_llms_gemini_key' ] ) ) ) {
+		$report['warnings'][] = 'AI: the API keys of Suite Barrio are not migrated. Barrio Suite connects to Google with a service account: add it in Barrio → Settings and choose the model.';
+	}
+	$keywords     = trim( (string) get_option( 'suite_barrio_advisor_keywords' ) );
+	$instructions = implode(
+		"\n",
+		array_filter(
+			[
+				trim( (string) get_option( 'suite_barrio_advisor_context' ) ),
+				trim( (string) get_option( 'suite_barrio_llms_focus' ) ),
+				'' === $keywords ? '' : "Parole chiave da includere se pertinenti: {$keywords}",
+			]
+		)
+	);
+	if ( '' === $instructions ) {
+		return null;
+	}
+	if ( '' !== Ai::settings()['instructions'] ) {
+		$report['notes'][] = 'AI: Barrio Suite already has its description of the site, it stays as it is.';
+		return null;
+	}
+	$report['notes'][] = 'AI: the context and the keywords of the SEO advisor become the description of the site.';
+	return mb_substr( $instructions, 0, 2000 );
 }
 
 /**

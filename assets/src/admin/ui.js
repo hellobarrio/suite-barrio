@@ -4,6 +4,7 @@ import { speak } from '@wordpress/a11y';
 import {
 	Dropdown,
 	MenuItem,
+	Modal,
 	NavigableMenu,
 	Spinner,
 } from '@wordpress/components';
@@ -24,6 +25,15 @@ export const errorMessage = ( error ) =>
 	error.data?.params
 		? Object.values( error.data.params ).join( ' ' )
 		: error.message;
+
+// Lo stato di un segreto salvato (una chiave API), che non torna mai dal server.
+export const SECRET_HELP = {
+	saved: __( 'Saved: leave empty to keep it.', 'barrio-suite' ),
+	unreadable: __(
+		'The saved value can no longer be read, probably because the WordPress security keys have changed. Enter it again.',
+		'barrio-suite'
+	),
+};
 
 // Un download (file, CSV) è un link e non passa da apiFetch: il nonce va nell'URL. Con i
 // permalink semplici l'URL della REST ha già un "?" (?rest_route=).
@@ -199,8 +209,9 @@ export const Fixed = ( { lang, children } ) => (
 	</fieldset>
 );
 
-// addon: un bottone accanto al controllo (per esempio "Mostra" della password).
-export function Field( { label, help, addon, children } ) {
+// addon: un bottone accanto al controllo (per esempio "Mostra" della password); actions: bottoni sotto, larghi
+// quanto il controllo.
+export function Field( { label, help, addon, actions, children } ) {
 	const id = useId();
 	const control = cloneElement( children, {
 		id,
@@ -219,6 +230,9 @@ export function Field( { label, help, addon, children } ) {
 					</div>
 				) : (
 					control
+				) }
+				{ actions && (
+					<div className="barrio-row is-fill">{ actions }</div>
 				) }
 				{ help && (
 					<p className="barrio-field__help" id={ `${ id }-help` }>
@@ -246,6 +260,7 @@ export function Text( {
 	label,
 	help,
 	addon,
+	actions,
 	value,
 	onChange,
 	multiline,
@@ -265,13 +280,26 @@ export function Text( {
 	return hideLabel ? (
 		input
 	) : (
-		<Field label={ label } help={ help } addon={ addon }>
+		<Field
+			label={ label }
+			help={ help }
+			addon={ addon }
+			actions={ actions }
+		>
 			{ input }
 		</Field>
 	);
 }
 
-export function Select( { label, help, value, options, onChange, hideLabel } ) {
+export function Select( {
+	label,
+	help,
+	actions,
+	value,
+	options,
+	onChange,
+	hideLabel,
+} ) {
 	const select = (
 		<select
 			className="barrio-input"
@@ -289,7 +317,7 @@ export function Select( { label, help, value, options, onChange, hideLabel } ) {
 	return hideLabel ? (
 		select
 	) : (
-		<Field label={ label } help={ help }>
+		<Field label={ label } help={ help } actions={ actions }>
 			{ select }
 		</Field>
 	);
@@ -395,6 +423,26 @@ export function Card( {
 		</section>
 	);
 }
+
+/**
+ * Ogni modale del plugin: l'intestazione resta in alto, sempre separata dal contenuto da una linea, e i bottoni
+ * (footer) restano in fondo mentre il contenuto scorre. WordPress la mette in fondo alla pagina, fuori da
+ * .barrio-admin: la classe la porta anche qui, con gli stili dei campi. Le altre props sono quelle di Modal.
+ *
+ * @param {Object} props
+ * @param {string} props.className
+ * @param {Object} props.footer    I bottoni, la principale per ultima.
+ * @param {Object} props.children
+ */
+export const Dialog = ( { className = '', footer, children, ...props } ) => (
+	<Modal
+		className={ `barrio-admin barrio-modal ${ className }` }
+		{ ...props }
+	>
+		{ children }
+		{ footer && <div className="barrio-modal__footer">{ footer }</div> }
+	</Modal>
+);
 
 // Una sezione di una card chiusa all'inizio, per ciò che serve di rado (le impostazioni avanzate).
 export const Details = ( { title, children } ) => (
@@ -506,7 +554,7 @@ function useSearch( items ) {
  * @param {string}  props.className Del bottone con il testo.
  * @param {boolean} props.inBar     Aperto dalla barra sticky. Gli altri, scorrendo, passano sotto
  *                                  la barra e sotto quella di WordPress (i popover sono nel body).
- * @param {Array}   props.items     { label, icon?, onClick?, href?, danger? }; i falsy si saltano.
+ * @param {Array}   props.items     { label, icon?, onClick?, href?, danger?, disabled?, info? }; i falsy si saltano.
  */
 export function Menu( {
 	label,
@@ -565,6 +613,8 @@ function MenuItems( { label, items, onClose } ) {
 						iconPosition="left"
 						href={ item.href }
 						isDestructive={ item.danger }
+						disabled={ item.disabled }
+						info={ item.info }
 						onClick={ () => {
 							onClose();
 							item.onClick?.();

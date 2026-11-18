@@ -47,6 +47,22 @@
 	gap: 8px;
 }
 
+/* "Genera" del generatore, largo quanto i campi, con il suo errore sopra. */
+.barrio-seo-generate {
+	display: grid;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.barrio-seo-generate .components-button {
+	justify-content: center;
+}
+
+.barrio-seo-generate .components-notice,
+.barrio-seo-generate p {
+	margin: 0;
+}
+
 /* Anteprime */
 
 .barrio-seo-google,
