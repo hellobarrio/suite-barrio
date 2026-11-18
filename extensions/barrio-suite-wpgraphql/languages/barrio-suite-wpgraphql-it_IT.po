@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Barrio Suite WPGraphQL 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite-"
 "wpgraphql\n"
-"POT-Creation-Date: 2026-11-18T08:38:52+00:00\n"
+"POT-Creation-Date: 2026-11-18T08:56:44+00:00\n"
 "PO-Revision-Date: 2026-11-17 08:54+0000\n"
 "Last-Translator: Hellobarrio\n"
 "Language-Team: Italian\n"
@@ -38,28 +38,28 @@ msgstr ""
 msgid "Hellobarrio"
 msgstr "Hellobarrio"
 
-#: barrio-suite-wpgraphql.php:68
+#: forms.php:298
+msgid "Sorry, you are not allowed to list the forms."
+msgstr "Non hai i permessi per elencare i form."
+
+#: forms.php:325
+msgid "Form not found."
+msgstr "Form non trovato."
+
+#: forms.php:382
+msgid "Thank you, your submission has been received."
+msgstr "Grazie, abbiamo ricevuto il tuo messaggio."
+
+#: seo.php:26
 msgid "Frontend address"
 msgstr "Indirizzo del frontend"
 
-#: barrio-suite-wpgraphql.php:69
+#: seo.php:27
 msgid ""
 "The address of the headless site, like https://www.example.com. In GraphQL "
 "the links of the Barrio Suite SEO (canonical, JSON-LD, llms.txt) point there "
 "instead of WordPress; images stay on WordPress."
 msgstr ""
 "L'indirizzo del sito headless, come https://www.esempio.it. In GraphQL i "
-"link del SEO di Barrio Suite (canonical, JSON-LD, llms.txt) puntano lì invece "
-"che a WordPress; le immagini restano su WordPress."
-
-#: barrio-suite-wpgraphql.php:352
-msgid "Sorry, you are not allowed to list the forms."
-msgstr "Non hai i permessi per elencare i form."
-
-#: barrio-suite-wpgraphql.php:379
-msgid "Form not found."
-msgstr "Form non trovato."
-
-#: barrio-suite-wpgraphql.php:436
-msgid "Thank you, your submission has been received."
-msgstr "Grazie, abbiamo ricevuto il tuo messaggio."
+"link del SEO di Barrio Suite (canonical, JSON-LD, llms.txt) puntano lì "
+"invece che a WordPress; le immagini restano su WordPress."
