@@ -7,6 +7,10 @@ import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
+import {
+	PERFORMANCE,
+	performanceSection,
+} from '../../../modules/performance/assets/src/Performance.js';
 import { SEO } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import {
 	Bar,
@@ -32,6 +36,7 @@ const MODULES = {
 			'barrio-suite'
 		),
 	},
+	performance: PERFORMANCE,
 };
 
 // GET e PUT /barrio/v1/modules: per modulo, acceso o no. Cambiano il menu: dopo il salvataggio la
@@ -109,6 +114,7 @@ const SECTIONS = [
 	modulesSection,
 	smtpSection,
 	googleSection,
+	performanceSection,
 	...settingsSections,
 	uninstallSection,
 ];
@@ -125,11 +131,16 @@ export function General() {
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
 	useEffect( () => {
-		// Una sezione che chi guarda non può leggere (gli aggiornamenti senza activate_plugins) non compare.
+		// Una sezione che chi guarda non può leggere (gli aggiornamenti senza activate_plugins) non compare, come
+		// quella di un modulo spento, che non ha la rotta.
 		Promise.all(
 			SECTIONS.map( ( section ) =>
 				section.load().catch( ( error ) => {
-					if ( 'rest_forbidden' !== error.code ) {
+					if (
+						! [ 'rest_forbidden', 'rest_no_route' ].includes(
+							error.code
+						)
+					) {
 						fail( error );
 					}
 					return null;

@@ -25,13 +25,15 @@ Barrio Suite starts with a Forms module:
 
 And an SEO module: titles and meta descriptions, Open Graph, JSON-LD (organization, website, page and breadcrumbs), the WordPress sitemap with only indexable content, redirects (also created automatically when the URL of a content changes) and llms.txt. An SEO panel in the block editor, the classic editor and the term pages shows the Google and social previews and a score with the checks to improve. If the site already uses another SEO plugin, such as Yoast SEO or Rank Math, turn the SEO module off.
 
+And a Performance module, with what WordPress already provides and no external services: the sizes of new JPEG images in WebP or AVIF (the uploaded file is kept as it is), speculative loading of the next page (prefetch or prerender, with the eagerness you choose) and a lighter page head, without the emoji script and styles, the generator tag, the RSD link and the shortlink.
+
 Every module can be turned off in Barrio → Settings: it disappears from the menu and from the site, and its data is kept.
 
 Integrations with other plugins and services are separate extensions, so the core contains no code for third parties. Barrio → Extensions installs them with one click.
 
 = Source code =
 
-The admin pages are built from the sources in `assets/src` and `modules/forms/assets/src` with `@wordpress/scripts` (`npm install && npm run build`). The full repository is at https://github.com/hellobarrio/suite-barrio (branch `stable`).
+The admin pages are built from the sources in `assets/src` and `modules/*/assets/src` with `@wordpress/scripts` (`npm install && npm run build`). The full repository is at https://github.com/hellobarrio/suite-barrio (branch `stable`).
 
 == Installation ==
 
