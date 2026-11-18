@@ -6,20 +6,11 @@ import { MediaUpload } from '@wordpress/media-utils';
 
 import {
 	Group,
+	SECRET_HELP,
 	SectionHead,
 	Text,
 } from '../../../../../assets/src/admin/ui.js';
 import { SettingControl } from '../builder/Integrations.js';
-
-// Lo stato di un segreto delle integrazioni (una chiave API), come quello della password SMTP
-// (assets/src/general/Smtp.js).
-const SECRET_HELP = {
-	saved: __( 'Saved: leave empty to keep it.', 'barrio-suite' ),
-	unreadable: __(
-		'The saved value can no longer be read, probably because the WordPress security keys have changed. Enter it again.',
-		'barrio-suite'
-	),
-};
 
 export function TemplateFields( { email, onChange } ) {
 	const set = ( key ) => ( value ) =>

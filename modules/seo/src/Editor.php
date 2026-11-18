@@ -2,6 +2,8 @@
 
 namespace BarrioSuite\Seo;
 
+use BarrioSuite\Ai;
+use BarrioSuite\I18n;
 use WP_Post;
 use WP_REST_Meta_Fields;
 use WP_REST_Post_Meta_Fields;
@@ -144,14 +146,16 @@ final class Editor {
 	}
 
 	/**
-	 * Ciò che il pannello eredita dal sito e dal tipo ('post_types') o dalla tassonomia ('taxonomies'). Nell'editor
-	 * a blocchi titolo, contenuto e URL vengono dal suo store.
+	 * Ciò che il pannello eredita dal sito e dal tipo ('post_types') o dalla tassonomia ('taxonomies'), la lingua e
+	 * se l'AI è pronta. Nell'editor a blocchi titolo, contenuto e URL vengono dal suo store.
 	 *
 	 * @return array<string, mixed>
 	 */
 	public static function context( string $group, string $name ): array {
 		$settings = Settings::get();
 		$context  = [
+			'lang'        => I18n::current(),
+			'ai'          => Ai::is_ready(),
 			'site'        => [
 				'name'      => Meta::text( get_bloginfo( 'name' ) ),
 				'separator' => $settings['title']['separator'],

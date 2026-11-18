@@ -101,7 +101,7 @@ export function SeoText( { form, name, help, ...props } ) {
  * @param {Object}                   props
  * @param {string}                   props.title  Della barra.
  * @param {(form: Object) => Object} props.render Le card, con saved, seo, site, lang, texts (nella lingua, per le
- *                                                anteprime), setSeo, setSite e setText.
+ *                                                anteprime), setSeo, setSite, setText e onNotice.
  */
 export function SettingsPage( { title, render } ) {
 	const [ saved, setSaved ] = useState( null );
@@ -232,6 +232,7 @@ export function SettingsPage( { title, render } ) {
 				setSeo,
 				setSite,
 				setText,
+				onNotice: setNotice,
 			} ) }
 		</div>
 	);

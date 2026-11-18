@@ -294,11 +294,12 @@ wp barrio seo migrate
   `barrio_seo`, solo se Barrio Suite non ha ancora le sue; i meta dei contenuti e dei termini, tranne quelli che
   Barrio Suite ha già e gli index e follow uguali al default del tipo, che restano "predefinito"; i redirect,
   tranne doppioni, cicli e quelli già nella tabella. La tabella del comando conta per ogni meta trovati, migrati,
-  predefiniti e saltati: gli stessi numeri nella prova a vuoto e nella migrazione.
+  predefiniti e saltati: gli stessi numeri nella prova a vuoto e nella migrazione. Contesto, settore e parole
+  chiave dell'advisor diventano la descrizione del sito dell'AI (Barrio → Impostazioni), se non ce n'è già una.
 - **Avvisi**: i contenuti fuori dalla sitemap ma indicizzabili (in Barrio Suite in sitemap c'è ciò che è
   indicizzabile: se devono restarne fuori, noindex), le immagini dello schema che non sono nella libreria dei media,
-  i prezzi che non sono numeri, i redirect scartati, la lingua dello schema diversa da quella del sito, le chiavi AI
-  (le porterà l'estensione AI).
+  i prezzi che non sono numeri, i redirect scartati, la lingua dello schema diversa da quella del sito, le chiavi API
+  dell'AI, che non passano perché Barrio Suite si collega a Google con un service account.
 - **Dopo**: il SEO del prototipo è spento e quello di Barrio Suite acceso, i `llms.txt` e `llms-full.txt` del
   prototipo nella cartella del sito sono eliminati, e finché il prototipo è attivo l'estensione chiama la sua
   revalidation di Next.js su `barrio_seo_changed`. Gli archivi degli autori sono noindex, come nel prototipo che non

@@ -4,6 +4,7 @@ namespace BarrioSuite\Seo;
 
 use BarrioSuite\I18n;
 use BarrioSuite\Seo\Api\RestContents;
+use BarrioSuite\Seo\Api\RestGenerate;
 use BarrioSuite\Seo\Api\RestRedirects;
 use BarrioSuite\Seo\Api\RestSettings;
 use WP_REST_Posts_Controller;
@@ -24,6 +25,7 @@ final class Module {
 		add_action( 'rest_api_init', [ RestSettings::class, 'register' ] );
 		add_action( 'rest_api_init', [ RestContents::class, 'register' ] );
 		add_action( 'rest_api_init', [ RestRedirects::class, 'register' ] );
+		add_action( 'rest_api_init', [ RestGenerate::class, 'register' ] );
 		add_action( 'admin_menu', [ Admin::class, 'menu' ] );
 		add_filter( 'barrio_admin_data', [ Admin::class, 'data' ] );
 		add_filter( 'barrio_launch_steps', [ self::class, 'launch_steps' ] );

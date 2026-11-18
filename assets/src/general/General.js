@@ -19,6 +19,7 @@ import {
 	useUnsavedWarning,
 } from '../admin/ui.js';
 import { settingsSections } from '../extensions/Extensions.js';
+import { googleSection } from './Google.js';
 import { smtpSection } from './Smtp.js';
 
 // I nomi dei moduli di Modules::ALL (src/Modules.php).
@@ -107,6 +108,7 @@ const uninstallSection = {
 const SECTIONS = [
 	modulesSection,
 	smtpSection,
+	googleSection,
 	...settingsSections,
 	uninstallSection,
 ];

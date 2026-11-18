@@ -15,11 +15,12 @@ import {
 	Toggle,
 	errorMessage,
 } from '../../../../../assets/src/admin/ui.js';
+import { AI_SETUP } from '../editor/Panel.js';
 import { documentTitle } from '../title.js';
 import { SeoText, SettingsPage, editable, main } from './SettingsPage.js';
 import { MediaField, seoData } from './ui.js';
 
-const { types, llms, sitemap, robots } = seoData;
+const { types, llms, sitemap, robots, ai } = seoData;
 
 // Le capability del modulo, nei Permessi (Module::CAPS).
 const CAPS = {
@@ -37,6 +38,37 @@ const LLMS = [
 	[ 'links', __( 'Links only', 'barrio-suite' ) ],
 	[ 'exclude', __( 'Leave out', 'barrio-suite' ) ],
 ].map( ( [ value, label ] ) => ( { value, label } ) );
+
+// L'introduzione di llms.txt scritta dall'AI nella lingua scelta nella barra; spento finché l'AI non è configurata.
+function GenerateIntro( { lang, onText, onNotice } ) {
+	const [ busy, setBusy ] = useState( false );
+	const run = () => {
+		setBusy( true );
+		onNotice( null );
+		apiFetch( {
+			path: '/barrio/v1/seo/generate/llms',
+			method: 'POST',
+			data: { lang },
+		} )
+			.then( ( result ) => onText( result.text ) )
+			.catch( ( error ) =>
+				onNotice( { status: 'error', message: errorMessage( error ) } )
+			)
+			.finally( () => setBusy( false ) );
+	};
+	return (
+		<button
+			type="button"
+			className="barrio-button"
+			disabled={ busy || ! ai }
+			onClick={ run }
+		>
+			{ busy
+				? __( 'Generating…', 'barrio-suite' )
+				: __( 'Generate with AI', 'barrio-suite' ) }
+		</button>
+	);
+}
 
 // Indicizza e segui di un tipo, di una tassonomia o di un archivio, con il robots che ne risulta e cosa
 // mette nella sitemap.
@@ -98,6 +130,7 @@ function SettingsCards( {
 	setSeo,
 	setSite,
 	setText,
+	onNotice,
 } ) {
 	const form = { lang, seo, setText };
 	// I numeri della sitemap sono quelli salvati: si ricontano dopo ogni salvataggio.
@@ -382,9 +415,9 @@ function SettingsCards( {
 			<Card
 				className="barrio-wide"
 				icon="media-text"
-				title="llms.txt"
+				title={ __( 'AI assistants', 'barrio-suite' ) }
 				description={ __(
-					'A summary of the site for AI assistants such as ChatGPT and Claude, and the full text of the pages in llms-full.txt. What is not indexed is never included.',
+					'Two files that tell AI assistants such as ChatGPT, Gemini and Claude what the site is: llms.txt with a summary and the links, llms-full.txt also with the text of the pages. They are built from the contents, and what is not indexed is never included.',
 					'barrio-suite'
 				) }
 			>
@@ -405,10 +438,22 @@ function SettingsCards( {
 					form={ form }
 					name="llms_intro"
 					label={ __( 'Introduction', 'barrio-suite' ) }
-					help={ __(
-						'At the beginning of both files, after the name of the site.',
-						'barrio-suite'
-					) }
+					help={ [
+						__(
+							'At the beginning of both files, after the name of the site.',
+							'barrio-suite'
+						),
+						! ai && AI_SETUP,
+					]
+						.filter( Boolean )
+						.join( ' ' ) }
+					actions={
+						<GenerateIntro
+							lang={ lang }
+							onText={ setText( 'llms_intro' ) }
+							onNotice={ onNotice }
+						/>
+					}
 				/>
 				<Group label={ __( 'Files', 'barrio-suite' ) }>
 					<div className="barrio-row">

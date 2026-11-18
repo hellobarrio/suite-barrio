@@ -51,7 +51,9 @@ The form is shown, but it is sent only with JavaScript enabled: part of the spam
 
 == External services ==
 
-Barrio Suite connects to no external service by itself. Emails are sent through the SMTP server you configure, if any.
+Emails are sent through the SMTP server you configure, if any.
+
+The AI features use Gemini on Vertex AI, a service of Google Cloud, with the service account you add in Barrio → Settings, and only from the admin: with the service account saved, Barrio → Settings reads the regions and the models of Google; "Generate with AI" sends the title, the address and up to 4,000 characters of the text of a page (never the text of a password-protected post), the site name and the description of the site from the settings, or, for llms.txt, the current llms.txt of the site. Each request first gets an access token from Google with the key of the service account. Google Cloud terms: https://cloud.google.com/terms — Google privacy policy: https://policies.google.com/privacy
 
 == Changelog ==
 

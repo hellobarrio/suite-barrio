@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Seo;
 
+use BarrioSuite\Ai;
 use WP_Post_Type;
 use WP_Taxonomy;
 
@@ -53,6 +54,8 @@ final class Admin {
 					'file' => file_exists( get_home_path() . 'robots.txt' ),
 				],
 				'llms'          => [ home_url( '/llms.txt' ), home_url( '/llms-full.txt' ) ],
+				// "Genera con AI" resta spento finché l'AI non è configurata (src/Ai.php).
+				'ai'            => Ai::is_ready(),
 			],
 		];
 	}
