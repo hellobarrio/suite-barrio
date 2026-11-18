@@ -9,7 +9,7 @@ plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_languages` e seguenti |
 | [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio e per il SEO: lo schema GraphQL del prototipo sopra `FormRepository`, `Submission::process()` e `Seo\Meta`, e un'impostazione nella pagina di un altro plugin (vedi [GraphQL](#graphql)) |
-| [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle di un altro plugin e scrive con `FormRepository::create()` (con l'ID) ed `EntryRepository::create()` (con data e stato di lettura), in un comando WP-CLI (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
+| [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle e le opzioni di un altro plugin e scrive con `FormRepository::create()` (con l'ID), `EntryRepository::create()` (con data e stato di lettura), `Seo\Settings::save()` e `RedirectRepository::create()`, in due comandi WP-CLI; tiene spento un modulo finché i dati non sono migrati (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
 
 I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`,
 `WpGraphqlTest`, `SeoGraphqlTest`, `MigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. I test GraphQL girano solo con
@@ -225,7 +225,10 @@ logica a parte.
 
 ## Migrazione dal prototipo
 
-`barrio-suite-migration` porta su Barrio Suite il modulo Forms di Suite Barrio (il prototipo), un sito alla volta:
+`barrio-suite-migration` porta su Barrio Suite i moduli Forms e SEO di Suite Barrio (il prototipo), un sito alla volta.
+
+### Form
+
 
 ```sh
 wp barrio forms migrate --dry-run   # tutta l'importazione e poi il rollback: conteggi e avvisi, niente salvato
@@ -274,6 +277,32 @@ wp barrio forms migrate
   `hbSitemap`, `hbLlms`. Le tabelle `wpb_forms`, `wpb_form_submissions` e `wpb_forms_translations` e le opzioni
   `suite_barrio_forms_*` restano: contengono le registrazioni vecchie, con IP e dati personali, quindi si
   eliminano a mano appena verificata la migrazione (`wp db query "DROP TABLE …"`).
+
+### SEO
+
+```sh
+wp barrio seo migrate --dry-run   # i conteggi e gli avvisi, niente salvato
+wp barrio seo migrate
+```
+
+- **Prima**: con l'estensione attiva e il SEO del prototipo acceso, il modulo SEO di Barrio Suite si spegne da solo
+  (una volta, all'attivazione) e gli amministratori vedono un avviso: altrimenti i meta uscirebbero due volte. Sui
+  siti WPML attivare `barrio-suite-wpml`, che dà la lingua principale dei testi. L'indirizzo del frontend (l'URL
+  dello schema, se è diverso da quello di WordPress) va nelle impostazioni di WPGraphQL anche con WPGraphQL spento.
+- **Cosa passa**: le impostazioni (titoli, immagine e descrizione predefinite, indicizzazione per tipo e
+  tassonomia, organizzazione dello schema o, se è vuota, Info Azienda, modalità e introduzione di llms.txt) in
+  `barrio_seo`, solo se Barrio Suite non ha ancora le sue; i meta dei contenuti e dei termini, tranne quelli che
+  Barrio Suite ha già e gli index e follow uguali al default del tipo, che restano "predefinito"; i redirect,
+  tranne doppioni, cicli e quelli già nella tabella. La tabella del comando conta per ogni meta trovati, migrati,
+  predefiniti e saltati: gli stessi numeri nella prova a vuoto e nella migrazione.
+- **Avvisi**: i contenuti fuori dalla sitemap ma indicizzabili (in Barrio Suite in sitemap c'è ciò che è
+  indicizzabile: se devono restarne fuori, noindex), le immagini dello schema che non sono nella libreria dei media,
+  i prezzi che non sono numeri, i redirect scartati, la lingua dello schema diversa da quella del sito, le chiavi AI
+  (le porterà l'estensione AI).
+- **Dopo**: il SEO del prototipo è spento e quello di Barrio Suite acceso, i `llms.txt` e `llms-full.txt` del
+  prototipo nella cartella del sito sono eliminati, e finché il prototipo è attivo l'estensione chiama la sua
+  revalidation di Next.js su `barrio_seo_changed`. Gli archivi degli autori sono noindex, come nel prototipo che non
+  li aveva. Le opzioni e i meta `_suite_barrio_seo_*` del prototipo restano: si eliminano a mano dopo la verifica.
 
 ## Database
 

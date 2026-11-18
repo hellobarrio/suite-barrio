@@ -265,7 +265,7 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
 |---|---|
 | `barrio-suite-wpgraphql` | Solo con il modulo acceso, e con i dati di `Seo\Meta`:<br>• `seo` (`HBSeoPost`) sui post type pubblici;<br>• `hbSeoSite`, `hbSchemaRaw(uri)`, `hbSitemap`, `hbRedirects`, `hbLlms` e `hbLlmsFull`.<br>Nomi e forme sono quelli del prototipo (`loc` relativo, `title` senza il nome del sito). Registra con priorità 9, come per i form.<br>L'**indirizzo del frontend** è un'impostazione dell'estensione, in GraphQL → Settings con l'API delle impostazioni di WPGraphQL (prima lo faceva, senza dirlo, l'URL dello schema del prototipo). Nelle risposte GraphQL l'estensione porta su quell'indirizzo gli URL delle pagine (canonical, schema, llms) con il filtro `barrio_seo_url`; le immagini restano su WordPress |
 | `barrio-suite-wpml` | I filtri delle lingue del core e `barrio_switch_language` (`wpml_switch_language`). Un `wpml-config.xml` per i meta: index, follow e collection si copiano, titolo, descrizione e parole chiave si traducono, l'immagine si copia una volta; sostituisce il codice di copia del prototipo. Le sitemap delle altre lingue in robots.txt (§8) |
-| `barrio-suite-migration` | `wp barrio seo migrate [--dry-run]` (fase S7). Tiene spento il modulo SEO di Barrio Suite finché il SEO del prototipo è acceso e non migrato. Finché il prototipo resta attivo, fa anche da ponte verso la sua revalidation di Next.js |
+| `barrio-suite-migration` | `wp barrio seo migrate [--dry-run]` (fase S7, in `seo.php`). Tiene spento il modulo SEO di Barrio Suite finché il SEO del prototipo è acceso e non migrato. Finché il prototipo resta attivo, fa anche da ponte verso la sua revalidation di Next.js |
 | `barrio-suite-ai` (nuova) | Anthropic o Gemini, chiave cifrata, modello scelto dalla lista dell'API. Aggiunge "Genera con AI" al pannello SEO, alla modale e alle azioni di massa di Contenuti, e all'introduzione di llms.txt. Il servizio esterno va dichiarato nel readme (regola di WordPress.org) |
 
 Hook nuovi, solo quelli che un'estensione di questo piano usa (come dopo l'audit):
@@ -347,22 +347,26 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
 | S5 | **Traduzioni**: testi per lingua scelti nella barra delle Impostazioni, `wpml-config.xml`, sitemap e llms.txt per lingua | Sullo shop Docker con WPML (it, en-us, de):<br>• head di ogni lingua con i default tradotti;<br>• la traduzione eredita index e follow;<br>• sitemap con tutte le lingue.<br>Senza WPML tutto funziona in una lingua |
 | S6 | **GraphQL** nell'estensione `barrio-suite-wpgraphql` | Lo snapshot dello schema SEO coincide con quello del prototipo. `hello_standard` funziona senza modifiche contro wp-env (`getSeo`, `SeoFragment`, `getSchema`, `getSitemap`, `getRedirects`, `getLLMS`). Senza il modulo acceso non registra niente |
 | S7 | **Migrazione dal prototipo** (dettagli sotto) | Un sito headless reale migrato:<br>• conteggi uguali prima e dopo (prova a vuoto, poi migrazione);<br>• `<head>` e GraphQL di cinque pagine uguali prima e dopo, tranne i bug corretti |
-| S8 | **Estensione AI** (`barrio-suite-ai`) | Titolo, descrizione e parole chiave generati per un contenuto e in massa, senza modificare il core; errori e chiave mancante mostrati nel pannello |
+| S8 | **Estensione AI** (`barrio-suite-ai`), con le chiavi e le impostazioni dell'advisor del prototipo | Titolo, descrizione e parole chiave generati per un contenuto e in massa, senza modificare il core; errori e chiave mancante mostrati nel pannello |
 | S9 | **Prestazioni** (modulo `performance`, §6 "Da Jetpack"): immagini WebP o AVIF, caricamento speculativo, head più leggero, card in Impostazioni | Su un sito di prova:<br>• una JPEG caricata ha le dimensioni in WebP (o AVIF) e l'originale intatto;<br>• le regole di speculazione hanno la modalità scelta ed escludono admin e logout;<br>• l'head non ha emoji, generator, RSD e shortlink;<br>• PageSpeed Insights su mobile non peggiora in nessuna metrica;<br>• i form si inviano anche con il prerender acceso.<br>Con il modulo spento tutto torna come nel core |
 
-**Migrazione (S7)**: legge le opzioni e i meta del prototipo e scrive con le API del modulo.
-- **Prima della migrazione**: finché il SEO del prototipo è acceso (`suite_barrio_tools_modules['seo']`, assente = acceso), l'estensione mette `seo` tra i moduli spenti di Barrio Suite, una volta sola, e mostra un avviso agli amministratori. Altrimenti, aggiornando un sito del prototipo, i meta uscirebbero due volte e in GraphQL vincerebbero le impostazioni SEO di Barrio Suite, ancora vuote.
-- **Opzioni**: `suite_barrio_meta_settings`, `suite_barrio_meta_content`, `suite_barrio_schema_settings` (se è vuota, i dati vengono da `suite_barrio_company_info`) e le modalità llms diventano `barrio_seo`. Il separatore e l'ordine passano tali e quali. Se l'URL dello schema è diverso da `home_url()`, diventa l'indirizzo del frontend dell'estensione WPGraphQL.
-- **Meta di post e termini**: `_suite_barrio_seo_*` (e i vecchi `_wpb_seo_*`) diventano `_barrio_seo_*`.
+**Migrazione (S7, fatta)**: legge le opzioni e i meta del prototipo e scrive nell'opzione, nei meta e nella tabella del
+modulo. La prova a vuoto calcola tutto e non scrive niente; il comando si può rilanciare e lascia com'è ciò che Barrio
+Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
+- **Prima della migrazione**: finché il SEO del prototipo è acceso (`suite_barrio_tools_module_enabled( 'seo' )`, cioè il prototipo è attivo e `suite_barrio_tools_modules['seo']` non è 0), l'estensione mette `seo` tra i moduli spenti di Barrio Suite su `plugins_loaded` (priorità 9, prima del boot), una volta sola (`barrio_migration_seo` = `held`), e mostra un avviso agli amministratori. Altrimenti, aggiornando un sito del prototipo, i meta uscirebbero due volte e in GraphQL vincerebbero le impostazioni SEO di Barrio Suite, ancora vuote. Chi riaccende il modulo prima della migrazione lo sceglie. Le tabelle del modulo spento le crea il comando (`Modules::migrator()`).
+- **Opzioni**: `suite_barrio_meta_settings`, `suite_barrio_meta_content`, `suite_barrio_schema_settings` (se è vuota, i dati vengono da `suite_barrio_company_info`) e le modalità llms (`include_links` → `links`) diventano `barrio_seo`, validata sezione per sezione con il suo schema. Il separatore e l'ordine passano tali e quali. Logo, immagine e immagini delle offerte da URL diventano ID con `attachment_url_to_postid()` (se l'URL non è nella libreria dei media, un avviso). Le zone servite `Tipo: Nome` riconoscono anche City, State e Country; un prezzo che non è un numero resta vuoto, con un avviso. Gli archivi degli autori diventano noindex (vedi §8). L'introduzione di llms.txt si legge dal `llms.txt` del prototipo. La lingua dello schema era un'impostazione: se è diversa da quella del sito, un avviso. Se l'URL dello schema è diverso da `home_url()`, diventa l'indirizzo del frontend dell'estensione WPGraphQL (`graphql_general_settings['barrio_frontend_url']`), se non c'è già.
+- **Meta di post e termini**: `_suite_barrio_seo_*` (e i vecchi `_wpb_seo_*`, quando manca il nuovo) e `_suite_barrio_schema_collection` diventano `_barrio_seo_*`.
   - Un index o follow esplicito uguale al default del tipo diventa "predefinito", perché il prototipo li scriveva a ogni salvataggio.
-  - Un `_sitemap = 0` su un contenuto indicizzabile non ha più un equivalente: la prova a vuoto elenca questi contenuti.
-  - Le parole chiave passano da JSON a lista.
-- **Redirect**: l'opzione diventa la tabella; il 410 prende `target` NULL; duplicati e loop si segnalano.
-- **AI**: le chiavi e le impostazioni dell'advisor passano a `barrio-suite-ai`, se è attiva.
+  - Un `_sitemap = 0` su un contenuto indicizzabile non ha più un equivalente: il comando elenca questi contenuti.
+  - Le parole chiave passano da JSON a lista; un'immagine che non è più un allegato e una collezione di un tipo che non esiste non passano.
+  - Per ogni meta il comando conta trovati, migrati, predefiniti e saltati: `found = migrated + default + skipped`.
+- **Redirect**: l'opzione diventa la tabella con la sorgente normalizzata (`Redirects::path()`); il 410 prende `target` NULL; la nota "Aggiunto automaticamente al cambio slug" diventa `is_auto`. Non passano, con un avviso: sorgenti, codici e destinazioni non validi, i doppioni (`/a/` e `/a`: resta il primo) e i redirect in un ciclo (anche `/a` → `/a/`), che nel prototipo finivano in "troppi reindirizzamenti".
+- **AI**: le chiavi restano nel prototipo, con un avviso; le porterà l'estensione AI (S8).
 - **Alla fine**:
-  - il modulo SEO del prototipo si spegne (`suite_barrio_tools_modules['seo'] = 0`) e quello di Barrio Suite si accende;
-  - si eliminano i `llms.txt` e `llms-full.txt` in `ABSPATH`.
-- **Ponte di revalidation**: su `barrio_seo_changed` chiama `suite_barrio_invalidate_vercel_cache()` del prototipo, se esiste, con i suoi tag (`wp:seo`, `wp:sitemap`, `wp:schema`, `wp:redirects`, `wp:llms`).
+  - il modulo SEO del prototipo si spegne (`suite_barrio_tools_modules['seo'] = 0`) e quello di Barrio Suite si accende (`Modules::set()`; `barrio_migration_seo` = `migrated`);
+  - si eliminano i `llms.txt` e `llms-full.txt` in `ABSPATH`, se il prototipo li ha generati;
+  - il ponte fa rileggere tutto al frontend.
+- **Ponte di revalidation**: su `barrio_seo_changed` chiama `suite_barrio_invalidate_vercel_cache()` del prototipo, se esiste, con i suoi tag: l'ID e `wp:sitemap` per un contenuto, `wp:redirects` per i redirect, `wp:seo,wp:schema,wp:sitemap,wp:llms` per impostazioni e termini.
 
 ## 8. Da verificare durante lo sviluppo
 
@@ -384,9 +388,18 @@ un plugin installabile e lo stesso commit su `con-updater` e `senza-updater`.
   descrizione dell'organizzazione) e `inLanguage` della lingua della richiesta, non del contenuto, perché il core
   non sa la lingua di un contenuto. Conta solo per i contenuti senza descrizione, riassunto e testo; se un sito
   tradotto ne ha bisogno, un filtro della lingua di un contenuto nell'estensione WPML.
-- **Autori in `hbSitemap`** (S7): come `wp-sitemap.xml`, ha gli archivi degli autori se sono indicizzati (lo sono
+- **Autori in `hbSitemap`** (S7, fatto): come `wp-sitemap.xml`, ha gli archivi degli autori se sono indicizzati (lo sono
   di default), che il prototipo non aveva e che i frontend come `hello_standard` non mostrano. La migrazione li
   mette noindex; su un sito headless nuovo si spengono in SEO → Impostazioni → Indicizzazione.
+- **Migrazione provata** (S7): sul sito dei test di wp-env (8889) con il prototipo attivo, WPGraphQL e dati SEO del
+  prototipo (impostazioni, schema con offerte e zone servite, cinque contenuti, una categoria, tre redirect). Attivata
+  l'estensione, il modulo SEO di Barrio Suite si spegne. Prova a vuoto, migrazione e database danno gli stessi
+  conteggi. `<head>` e GraphQL (`nodeByUri { seo }`, `hbSchemaRaw`, `hbSeoSite`, `hbSitemap`, `hbRedirects`) di home,
+  due pagine, due articoli e una categoria cambiano solo per le correzioni previste: titolo con il separatore, un solo
+  canonical, home con canonical e `og:url` suoi, `og:type` website sulle pagine, canonical GraphQL sull'indirizzo del
+  frontend, `#organization`, breadcrumb come nodo a sé con i titoli dei contenuti, CollectionPage sulla categoria,
+  sitemap senza i tag noindex e senza `priority`, note dei redirect solo per chi gestisce il SEO. Resta da fare su un
+  sito headless reale, con il suo frontend.
 - **`site_icon` in `/wp/v2/settings`** (S4, fatto): la REST del core lo espone, come `blogname` (`title`). SEO →
   Impostazioni salva nome e icona del sito con `/wp/v2/settings`, con lo stesso Salva delle sezioni di `barrio_seo`.
 - **Lingua in SEO → Contenuti** (S5, fatto): la tabella chiede i contenuti una lingua alla volta, la principale per
