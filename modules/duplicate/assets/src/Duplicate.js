@@ -1,9 +1,9 @@
 // La scheda Duplicazione di Barrio → Editor (modules/duplicate/src/Module.php): su quali tipi di contenuto e
 // tassonomie compare Duplica. E i suoi numeri nella card Editor della Bacheca.
 import apiFetch from '@wordpress/api-fetch';
-import { __, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 
-import { Card, Toggle } from '../../../../assets/src/admin/ui.js';
+import { TypeCards } from '../../../../assets/src/admin/ui.js';
 
 // Anche nella card Moduli di Barrio → Impostazioni.
 export const DUPLICATE = {
@@ -66,34 +66,18 @@ export const duplicateSection = {
 			method: 'PUT',
 			data: draft,
 		} ),
-	Cards: ( { draft, set } ) =>
-		Object.entries( CARDS ).map( ( [ group, card ] ) => (
-			<Card key={ group } className="barrio-wide" { ...card }>
-				{ contentTypes[ group ].map( ( type ) => (
-					<Toggle
-						key={ type.name }
-						label={ type.label }
-						help={
-							type.types &&
-							sprintf(
-								/* translators: %s: content types, separated by commas. */
-								__( 'Used by %s', 'barrio-suite' ),
-								type.types.join( ', ' )
-							)
-						}
-						checked={ ! draft[ group ].includes( type.name ) }
-						onChange={ ( on ) =>
-							set( {
-								...draft,
-								[ group ]: on
-									? draft[ group ].filter(
-											( name ) => name !== type.name
-										)
-									: [ ...draft[ group ], type.name ],
-							} )
-						}
-					/>
-				) ) }
-			</Card>
-		) ),
+	Cards: ( { draft, set } ) => (
+		<TypeCards
+			cards={ CARDS }
+			checked={ ( group, name ) => ! draft[ group ].includes( name ) }
+			onChange={ ( group, name, on ) =>
+				set( {
+					...draft,
+					[ group ]: on
+						? draft[ group ].filter( ( item ) => item !== name )
+						: [ ...draft[ group ], name ],
+				} )
+			}
+		/>
+	),
 };

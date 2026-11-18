@@ -1,6 +1,6 @@
-// La scheda Ordinamento di Barrio → Editor (modules/ordering/src/Module.php): per ogni tipo di contenuto e tassonomia
-// l'interruttore dell'ordine manuale e l'elenco da trascinare, con un solo Salva. E i suoi numeri nella card Editor
-// della Bacheca.
+// Ordinamento (modules/ordering/src/Module.php): la scheda di Barrio → Editor che sceglie i tipi di contenuto e le
+// tassonomie in ordine manuale, e la pagina "Riordina …" che ognuno ha nel suo menu, dopo Aggiungi. E i suoi numeri
+// nella card Editor della Bacheca.
 import { arrayMove } from '@dnd-kit/sortable';
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
@@ -13,8 +13,7 @@ import {
 	Loading,
 	Lucide,
 	Notice,
-	Picker,
-	Toggle,
+	TypeCards,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
@@ -29,42 +28,73 @@ export const ORDERING = {
 	),
 };
 
-// Module::admin_data(): gli elenchi in ordine manuale e quelli che chi guarda può riordinare. Con il modulo spento manca.
+// Module::admin_data(): gli elenchi in ordine manuale e le pagine Riordina di chi guarda. Con il modulo spento manca.
 export const orderingData = window.barrioAdmin.ordering;
 
-const { canManageOptions, contentTypes } = window.barrioAdmin;
-
-// Ogni elenco con il suo percorso nella REST: post/page, term/category. Le tassonomie con i tipi che le usano.
-const LISTS = [
-	...contentTypes.post_types.map( ( { name, label } ) => ( {
-		value: `post/${ name }`,
-		label,
-		group: 'post_types',
-		name,
-	} ) ),
-	...contentTypes.taxonomies.map( ( { name, label, types } ) => ( {
-		value: `term/${ name }`,
-		label: `${ label } (${ types.join( ', ' ) })`,
-		group: 'taxonomies',
-		name,
-	} ) ),
-];
-
-const isManual = ( manual, list ) => manual[ list.group ].includes( list.name );
-
-const sameSet = ( a, b ) =>
-	a.length === b.length && a.every( ( item ) => b.includes( item ) );
-
-const title = ( item ) => item.title || __( '(no title)', 'barrio-suite' );
+const CARDS = {
+	post_types: {
+		icon: 'admin-page',
+		title: __( 'Content types', 'barrio-suite' ),
+		description: __(
+			'In manual order, the menu of the type has a Reorder page after Add. The order applies wherever the site lists the contents, unless another order is chosen (such as by title) or in a search; a new content goes to the top. Turned off, the most recent come first again, and the saved order is kept.',
+			'barrio-suite'
+		),
+	},
+	taxonomies: {
+		icon: 'tag',
+		title: __( 'Taxonomies', 'barrio-suite' ),
+		description: __(
+			'In manual order, the menu of the content type has a Reorder page for the terms. A new term goes to the end; turned off, the terms are in alphabetical order again, and the saved order is kept.',
+			'barrio-suite'
+		),
+	},
+};
 
 // Per la card Editor della Bacheca, dalle impostazioni salvate.
 export const orderingStats = () => [
 	[
 		__( 'Lists in manual order', 'barrio-suite' ),
-		LISTS.filter( ( list ) => isManual( orderingData.manual, list ) )
-			.length,
+		Object.keys( CARDS ).reduce(
+			( count, group ) =>
+				count +
+				window.barrioAdmin.contentTypes[ group ].filter( ( { name } ) =>
+					orderingData.manual[ group ].includes( name )
+				).length,
+			0
+		),
 	],
 ];
+
+// GET e PUT /barrio/v1/ordering/settings, con il Salva della barra. Cambiano il menu: dopo il salvataggio la pagina
+// si ricarica.
+export const orderingSection = {
+	id: 'ordering',
+	reload: true,
+	load: () => apiFetch( { path: '/barrio/v1/ordering/settings' } ),
+	value: ( settings ) => settings,
+	save: ( draft ) =>
+		apiFetch( {
+			path: '/barrio/v1/ordering/settings',
+			method: 'PUT',
+			data: draft,
+		} ),
+	Cards: ( { draft, set } ) => (
+		<TypeCards
+			cards={ CARDS }
+			checked={ ( group, name ) => draft[ group ].includes( name ) }
+			onChange={ ( group, name, on ) =>
+				set( {
+					...draft,
+					[ group ]: on
+						? [ ...draft[ group ], name ]
+						: draft[ group ].filter( ( item ) => item !== name ),
+				} )
+			}
+		/>
+	),
+};
+
+const title = ( item ) => item.title || __( '(no title)', 'barrio-suite' );
 
 // Un livello dell'albero: si sposta tra fratelli, e ogni elemento porta con sé i suoi figli.
 function Tree( { tree, parent = 0, items, onMove } ) {
@@ -104,125 +134,56 @@ function Tree( { tree, parent = 0, items, onMove } ) {
 	);
 }
 
-export function Ordering() {
-	// Chi gestisce il sito sceglie tra tutti gli elenchi; gli altri riordinano quelli che possono.
-	const lists = canManageOptions
-		? LISTS
-		: LISTS.filter( ( list ) =>
-				orderingData.reorderable.includes( list.value )
-			);
-	// Dal link Riordina delle liste di WordPress, o il primo in ordine manuale.
-	const [ value, setValue ] = useState( () => {
-		const asked = new URLSearchParams( window.location.search ).get(
-			'list'
-		);
-		return (
-			lists.find( ( list ) => list.value === asked ) ??
-			lists.find( ( list ) => isManual( orderingData.manual, list ) ) ??
-			lists[ 0 ]
-		).value;
-	} );
-	const [ manual, setManual ] = useState( orderingData.manual );
-	const [ draftManual, setDraftManual ] = useState( orderingData.manual );
-	// Per elenco: gli elementi salvati e l'albero della pagina.
-	const [ saved, setSaved ] = useState( {} );
-	const [ drafts, setDrafts ] = useState( {} );
+// Una pagina Riordina: l'elenco intero (GET /barrio/v1/ordering/post/page) e un Salva.
+function Reorder( { list, name } ) {
+	const path = `/barrio/v1/ordering/${ list }`;
+	// Gli elementi salvati e l'albero della pagina ({ genitore: [ id ] }).
+	const [ saved, setSaved ] = useState( null );
+	const [ tree, setTree ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
 
-	const list = lists.find( ( item ) => item.value === value );
-	const on = isManual( draftManual, list );
-	const loaded = !! saved[ value ];
-
-	const load = ( key, items ) => {
-		setSaved( ( now ) => ( { ...now, [ key ]: items } ) );
-		setDrafts( ( now ) => ( { ...now, [ key ]: toTree( items ) } ) );
+	const load = ( items ) => {
+		setSaved( items );
+		setTree( toTree( items ) );
 	};
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
-
 	useEffect( () => {
-		if ( on && ! loaded ) {
-			apiFetch( { path: `/barrio/v1/ordering/${ value }` } )
-				.then( ( items ) => load( value, items ) )
-				.catch( fail );
-		}
-	}, [ on, loaded, value ] );
+		apiFetch( { path } ).then( load ).catch( fail );
+	}, [ path ] );
 
-	const settingsChanged = Object.keys( manual ).some(
-		( group ) => ! sameSet( manual[ group ], draftManual[ group ] )
-	);
-	// Solo gli elenchi che restano in ordine manuale.
-	const changed = Object.keys( drafts ).filter(
-		( key ) =>
-			isManual(
-				draftManual,
-				LISTS.find( ( item ) => item.value === key )
-			) &&
-			flatten( drafts[ key ] ).join() !==
-				saved[ key ].map( ( { id } ) => id ).join()
-	);
-	useUnsavedWarning( settingsChanged || changed.length > 0 );
+	const dirty =
+		!! saved &&
+		flatten( tree ).join() !== saved.map( ( { id } ) => id ).join();
+	useUnsavedWarning( dirty );
 
-	const save = async () => {
+	if ( ! saved ) {
+		return notice ? <Notice notice={ notice } /> : <Loading />;
+	}
+
+	const save = () => {
 		setBusy( true );
 		setNotice( null );
-		try {
-			if ( settingsChanged ) {
-				const next = await apiFetch( {
-					path: '/barrio/v1/ordering/settings',
-					method: 'PUT',
-					data: draftManual,
+		apiFetch( { path, method: 'PUT', data: { ids: flatten( tree ) } } )
+			.then( ( items ) => {
+				load( items );
+				setNotice( {
+					status: 'success',
+					message: __( 'Order saved.', 'barrio-suite' ),
 				} );
-				setManual( next );
-				setDraftManual( next );
-			}
-			for ( const key of changed ) {
-				load(
-					key,
-					await apiFetch( {
-						path: `/barrio/v1/ordering/${ key }`,
-						method: 'PUT',
-						data: { ids: flatten( drafts[ key ] ) },
-					} )
-				);
-			}
-			setNotice( {
-				status: 'success',
-				message: __( 'Order saved.', 'barrio-suite' ),
-			} );
-		} catch ( error ) {
-			fail( error );
-		} finally {
-			setBusy( false );
-		}
+			} )
+			.catch( fail )
+			.finally( () => setBusy( false ) );
 	};
-
-	const draft = drafts[ value ];
-	const move = ( parent, from, to ) =>
-		setDrafts( ( now ) => ( {
-			...now,
-			[ value ]: {
-				...now[ value ],
-				[ parent ]: arrayMove( now[ value ][ parent ], from, to ),
-			},
-		} ) );
-	const terms = 'taxonomies' === list.group;
 
 	return (
 		<div className="barrio-stack">
-			<Bar title={ ORDERING.title }>
-				<Picker
-					label={ __( 'List', 'barrio-suite' ) }
-					text={ list.label }
-					options={ lists }
-					value={ value }
-					onChange={ setValue }
-				/>
+			<Bar title={ name }>
 				<button
 					type="button"
 					className="barrio-button is-primary"
-					disabled={ busy || ! ( settingsChanged || changed.length ) }
+					disabled={ busy || ! dirty }
 					onClick={ save }
 				>
 					<Lucide name="save" />
@@ -236,90 +197,57 @@ export function Ordering() {
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<Card
 				className="barrio-wide"
-				icon={ terms ? 'tag' : 'admin-page' }
-				title={ list.label }
 				description={
-					on &&
-					[
-						__(
-							'Drag the items by their handle, or press space on it and move them with the arrow keys. The order applies wherever the site lists them, unless another order is chosen (such as by title) or in a search.',
-							'barrio-suite'
-						),
-						terms
-							? __(
-									'A new term goes to the end until you move it.',
-									'barrio-suite'
-								)
-							: __(
-									'A new content goes to the top until you move it.',
-									'barrio-suite'
-								),
-						draft &&
-							Object.keys( draft ).length > 1 &&
-							__(
-								'Items move among those with the same parent: the parent is changed in the item itself.',
-								'barrio-suite'
-							),
-					]
-						.filter( Boolean )
-						.join( ' ' )
+					Object.keys( tree ).length > 1 &&
+					__(
+						'Items move among those with the same parent: the parent is changed in the item itself.',
+						'barrio-suite'
+					)
 				}
 			>
-				{ canManageOptions && (
-					<Toggle
-						label={ __( 'Manual order', 'barrio-suite' ) }
-						help={
-							terms
-								? __(
-										'Off, the terms are in alphabetical order. Turning it off keeps the order you saved, for when you turn it on again.',
-										'barrio-suite'
-									)
-								: __(
-										'Off, the most recent contents come first. Turning it off keeps the order you saved, for when you turn it on again.',
-										'barrio-suite'
-									)
-						}
-						checked={ on }
-						onChange={ ( checked ) =>
-							setDraftManual( {
-								...draftManual,
-								[ list.group ]: checked
-									? [
-											...draftManual[ list.group ],
-											list.name,
-										]
-									: draftManual[ list.group ].filter(
-											( name ) => name !== list.name
-										),
-							} )
+				{ tree[ 0 ] ? (
+					<Tree
+						tree={ tree }
+						items={ Object.fromEntries(
+							saved.map( ( item ) => [ item.id, item ] )
+						) }
+						onMove={ ( parent, from, to ) =>
+							setTree( ( now ) => ( {
+								...now,
+								[ parent ]: arrayMove(
+									now[ parent ],
+									from,
+									to
+								),
+							} ) )
 						}
 					/>
+				) : (
+					<p className="barrio-card__description">
+						{ __(
+							'There is nothing to order yet.',
+							'barrio-suite'
+						) }
+					</p>
 				) }
-				{ on &&
-					( draft ? (
-						( draft[ 0 ] && (
-							<Tree
-								tree={ draft }
-								items={ Object.fromEntries(
-									saved[ value ].map( ( item ) => [
-										item.id,
-										item,
-									] )
-								) }
-								onMove={ move }
-							/>
-						) ) || (
-							<p className="barrio-card__description">
-								{ __(
-									'There is nothing to order yet.',
-									'barrio-suite'
-								) }
-							</p>
-						)
-					) : (
-						<Loading />
-					) ) }
 			</Card>
 		</div>
 	);
 }
+
+// Le pagine di src/admin/index.js, per ?page= (Module::pages()).
+export const reorderPages = Object.fromEntries(
+	Object.entries( orderingData?.pages ?? {} ).map(
+		( [ slug, { list, title: name } ] ) => [
+			slug,
+			{
+				title: name,
+				description: __(
+					'Drag the items by their handle, or press space on it and move them with the arrow keys, then save.',
+					'barrio-suite'
+				),
+				page: <Reorder list={ list } name={ name } />,
+			},
+		]
+	)
+);

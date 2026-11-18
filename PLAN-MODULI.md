@@ -349,12 +349,13 @@ blocco dei form:
 ### 6.1 Cosa fa
 
 - **Per tipo di contenuto e tassonomia** (quelli con interfaccia, allegati esclusi), l'interruttore "Ordine manuale"
-  (`manage_options`).
-- **Riordina** (Editor → Ordinamento):
-  - nella barra il `Picker` dei tipi e delle tassonomie e Salva;
+  in Editor → Ordinamento (`manage_options`), con due card come Duplicazione.
+- **Riordina** è una voce del menu di ogni elenco in ordine manuale, dopo Tutte le pagine e Aggiungi pagina
+  (Pagine → Riordina Pagine); quella di una tassonomia è nel menu del suo primo tipo (Articoli → Riordina
+  Categorie). La vede solo chi può riordinare:
+  - nella barra il titolo e Salva;
   - sotto, l'elenco intero trascinabile, anche da tastiera (`@dnd-kit/sortable`, come i campi del builder). Nei tipi
-    e nelle tassonomie gerarchici è un albero e si sposta tra fratelli; il genitore si cambia dal contenuto;
-  - nelle liste native c'è un link "Riordina" accanto a Tutti, Pubblicati… (`views_edit-{tipo}`).
+    e nelle tassonomie gerarchici è un albero e si sposta tra fratelli; il genitore si cambia dal contenuto.
 - **Dove vale l'ordine**: in ogni query di un tipo in ordine manuale che non chiede un ordine, o chiede quello
   predefinito (data, decrescente): sito, admin, REST e WPGraphQL. L'ordine è `menu_order` crescente, poi la data.
   - Un ordine esplicito diverso (titolo, più vecchi, casuale, una colonna cliccata nell'admin) resta.
@@ -386,7 +387,7 @@ blocco dei form:
 | Basta `edit_posts`: un collaboratore riordina i contenuti degli altri, e l'elenco mostra bozze e privati di qualsiasi tipo, anche non abilitato | `edit_others_posts` del tipo e `edit_post` su ogni ID; solo contenuti di quel tipo e di quel genitore; per i termini `edit_terms` della tassonomia |
 | Spegnere un tipo azzera `menu_order` di tutti i suoi contenuti (anche l'ordine delle pagine messo da WordPress) e cancella l'ordine dei termini | Spegnere toglie solo l'ordinamento dalle query; gli ordini restano |
 | L'ordine vale solo per la query principale, anche nella ricerca e sopra un ordine scelto; quello dei termini sopra ogni `orderby` | §6.1 |
-| Gerarchia appiattita; jQuery UI senza tastiera; un menu "Riordina Categorie" solo per i non amministratori | Albero tra fratelli, `@dnd-kit` accessibile, una sola pagina |
+| Gerarchia appiattita; jQuery UI senza tastiera; un menu "Riordina Categorie" solo per i non amministratori | Albero tra fratelli, `@dnd-kit` accessibile, una pagina Riordina nel menu di ogni elenco per chi può riordinarlo |
 
 ### 6.4 Admin
 

@@ -10,7 +10,6 @@ import {
 } from '@dnd-kit/core';
 import {
 	SortableContext,
-	sortableKeyboardCoordinates,
 	useSortable,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
@@ -40,13 +39,34 @@ export const Handle = ( props ) => (
 	</button>
 );
 
+// Con le frecce si passa al centro dell'elemento prima o dopo. sortableKeyboardCoordinates allinea i bordi, così un
+// elemento alto (un genitore con i figli, un campo con le opzioni) non supera uno più basso.
+const nextCoordinates =
+	( ids ) =>
+	( event, { context: { active, over, collisionRect, droppableRects } } ) => {
+		const step = { ArrowDown: 1, ArrowUp: -1 }[ event.code ];
+		if ( ! step || ! active || ! collisionRect ) {
+			return undefined;
+		}
+		event.preventDefault();
+		const rect = droppableRects.get(
+			ids[ ids.indexOf( over?.id ?? active.id ) + step ]
+		);
+		return (
+			rect && {
+				x: collisionRect.left,
+				y: rect.top + ( rect.height - collisionRect.height ) / 2,
+			}
+		);
+	};
+
 // Drag & drop accessibile: si trascina dalla maniglia, o la si attiva con spazio e si sposta con
 // le frecce. children( item, indice, props della maniglia ); label( item ) è il nome negli annunci.
 export function Sortable( { ids, items, label, onMove, children } ) {
 	const sensors = useSensors(
 		useSensor( PointerSensor ),
 		useSensor( KeyboardSensor, {
-			coordinateGetter: sortableKeyboardCoordinates,
+			coordinateGetter: nextCoordinates( ids ),
 		} )
 	);
 	const name = ( { id } ) => label( items[ ids.indexOf( id ) ] );

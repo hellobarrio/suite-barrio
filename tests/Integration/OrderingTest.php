@@ -362,39 +362,43 @@ final class OrderingTest extends WP_UnitTestCase {
 		$this->assertSame( 1, get_post_field( 'menu_order', $old ), 'menu_order is of WordPress.' );
 	}
 
-	public function test_the_reorder_link_and_the_editor_tab_are_for_who_can_reorder(): void {
+	public function test_reorder_is_in_the_menu_of_the_list_for_who_can_reorder_it(): void {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		$names = [ 'menu', 'submenu', '_registered_pages', '_parent_pages', 'admin_page_hooks', '_wp_submenu_nopriv' ];
 		$saved = array_map( static fn( string $name ): mixed => $GLOBALS[ $name ] ?? null, $names );
-		$pages = static fn(): array => array_values( array_filter( array_column( $GLOBALS['submenu']['barrio'] ?? [], 2 ), static fn( string $slug ): bool => 'barrio-editor' === $slug ) );
+		// Le voci di un menu: slug => titolo.
+		$items = static fn( string $menu ): array => array_column( $GLOBALS['submenu'][ $menu ] ?? [], 0, 2 );
 		$this->request(
 			'PUT',
 			'/ordering/settings',
 			[
-				'post_types' => [ 'page' ],
-				'taxonomies' => [ 'category' ],
+				'post_types' => [ 'page', 'book' ],
+				'taxonomies' => [ 'category', 'genre' ],
 			]
 		);
 
-		Module::admin_init();
-		$views = static fn( string $screen ): array => apply_filters( "views_edit-{$screen}", [] ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound, WordPress.NamingConventions.ValidHookName.UseUnderscores -- il filtro del core.
-		$this->assertStringContainsString( 'list=post/page', $views( 'page' )['barrio_ordering'] ?? '' );
-		$this->assertStringContainsString( 'list=term/category', $views( 'category' )['barrio_ordering'] ?? '' );
-		$this->assertSame( [], $views( 'post' ), 'Not for a type without manual order.' );
-
-		foreach ( [ 'editor', 'author' ] as $role ) {
+		foreach ( [ 'administrator', 'editor', 'author' ] as $role ) {
 			$GLOBALS['submenu'] = []; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			wp_set_current_user( self::factory()->user->create( [ 'role' => $role ] ) );
 			Admin::menu();
 			Module::menu();
-			$data = apply_filters( 'barrio_admin_data', [] )['ordering'] ?? [];
-			if ( 'editor' === $role ) {
-				$this->assertSame( [ 'barrio-editor' ], $pages(), 'An editor reorders.' );
-				$this->assertSame( [ 'post/page', 'term/category' ], $data['reorderable'] ?? null );
-			} else {
-				$this->assertSame( [], $pages(), 'An author does not.' );
-				$this->assertSame( [], $data['reorderable'] ?? null );
+			$pages = array_keys( apply_filters( 'barrio_admin_data', [] )['ordering']['pages'] ?? [] );
+			if ( 'author' === $role ) {
+				$this->assertSame( [], $items( 'edit.php?post_type=page' ) + $items( 'edit.php' ), 'An author does not reorder.' );
+				$this->assertSame( [], $pages );
+				continue;
 			}
+			$this->assertSame( [ 'barrio-order-post-page' => 'Reorder Pages' ], $items( 'edit.php?post_type=page' ), "After All Pages and Add Page ({$role})." );
+			$this->assertSame(
+				[
+					'barrio-order-post-book'  => 'Reorder Books',
+					'barrio-order-term-genre' => 'Reorder Genres',
+				],
+				$items( 'edit.php?post_type=book' )
+			);
+			$this->assertSame( [ 'barrio-order-term-category' => 'Reorder Categories' ], $items( 'edit.php' ), 'The terms in the menu of their content type.' );
+			$this->assertSame( [ 'barrio-order-post-page', 'barrio-order-post-book', 'barrio-order-term-category', 'barrio-order-term-genre' ], $pages );
+			$this->assertSame( 'administrator' === $role ? [ 'barrio-editor' ] : [], array_values( array_intersect( array_column( $GLOBALS['submenu']['barrio'] ?? [], 2 ), [ 'barrio-editor' ] ) ), 'The settings, in Barrio → Editor, only for administrators.' );
 		}
 
 		foreach ( $names as $index => $name ) {

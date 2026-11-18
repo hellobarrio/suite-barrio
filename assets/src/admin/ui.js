@@ -425,6 +425,37 @@ export function Card( {
 }
 
 /**
+ * Le card dei tipi di contenuto e delle tassonomie degli strumenti dell'editor (Admin::content_types()), con un
+ * interruttore per tipo. Sotto ogni tassonomia i tipi che la usano: due possono chiamarsi entrambe "Categorie".
+ *
+ * @param {Object}                                             props
+ * @param {Object}                                             props.cards    { post_types, taxonomies }: icon, title e description di ogni card.
+ * @param {(group: string, name: string) => boolean}           props.checked
+ * @param {(group: string, name: string, on: boolean) => void} props.onChange
+ */
+export const TypeCards = ( { cards, checked, onChange } ) =>
+	Object.entries( cards ).map( ( [ group, card ] ) => (
+		<Card key={ group } className="barrio-wide" { ...card }>
+			{ window.barrioAdmin.contentTypes[ group ].map( ( type ) => (
+				<Toggle
+					key={ type.name }
+					label={ type.label }
+					help={
+						type.types &&
+						sprintf(
+							/* translators: %s: content types, separated by commas. */
+							__( 'Used by %s', 'barrio-suite' ),
+							type.types.join( ', ' )
+						)
+					}
+					checked={ checked( group, type.name ) }
+					onChange={ ( on ) => onChange( group, type.name, on ) }
+				/>
+			) ) }
+		</Card>
+	) );
+
+/**
  * Ogni modale del plugin: l'intestazione resta in alto, sempre separata dal contenuto da una linea, e i bottoni
  * (footer) restano in fondo mentre il contenuto scorre. WordPress la mette in fondo alla pagina, fuori da
  * .barrio-admin: la classe la porta anche qui, con gli stili dei campi. Le altre props sono quelle di Modal.

@@ -5,6 +5,7 @@ import { createRoot } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
+import { reorderPages } from '../../../modules/ordering/assets/src/Ordering.js';
 import {
 	PERFORMANCE,
 	performanceSection,
@@ -61,6 +62,8 @@ const PAGES = {
 		),
 		page: <General />,
 	},
+	// Nei menu dei tipi di contenuto, dopo Aggiungi.
+	...reorderPages,
 };
 // La messa online è una vista della Bacheca: niente voce di menu.
 if ( params.has( 'launch' ) ) {

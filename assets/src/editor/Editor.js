@@ -10,8 +10,8 @@ import {
 } from '../../../modules/duplicate/assets/src/Duplicate.js';
 import {
 	ORDERING,
-	Ordering,
 	orderingData,
+	orderingSection,
 	orderingStats,
 } from '../../../modules/ordering/assets/src/Ordering.js';
 import { ModuleCard, Tabs } from '../admin/ui.js';
@@ -30,14 +30,23 @@ const EDITOR = {
 };
 
 // Costante: General ricarica le sezioni quando cambia l'array.
+const ORDERING_SECTIONS = [ orderingSection ];
 const DUPLICATE_SECTIONS = [ duplicateSection ];
 
 // Per strumento: la scheda della pagina ([ tab, nome, componente ]) e i numeri della card.
 const TOOLS = [
-	// Anche per chi può solo riordinare (Module::menu()).
 	orderingData &&
-		( canManageOptions || orderingData.reorderable.length > 0 ) && {
-			tab: [ 'ordering', ORDERING.title, Ordering ],
+		canManageOptions && {
+			tab: [
+				'ordering',
+				ORDERING.title,
+				() => (
+					<General
+						title={ ORDERING.title }
+						sections={ ORDERING_SECTIONS }
+					/>
+				),
+			],
 			stats: orderingStats,
 		},
 	duplicateData &&

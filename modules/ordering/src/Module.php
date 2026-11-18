@@ -10,9 +10,9 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * L'ordine manuale di contenuti e termini (PLAN-MODULI.md §6): si accende per tipo e per tassonomia, si riordina
- * trascinando in Barrio → Editor → Ordinamento e vale in ogni query che non chiede un altro ordine. Spegnerlo toglie
- * l'ordine dalle query e lascia menu_order e i meta dei termini.
+ * L'ordine manuale di contenuti e termini (PLAN-MODULI.md §6): si accende per tipo e per tassonomia in Barrio → Editor
+ * → Ordinamento, si riordina trascinando nella pagina "Riordina …" del menu di ogni elenco e vale in ogni query che
+ * non chiede un altro ordine. Spegnerlo toglie l'ordine dalle query e lascia menu_order e i meta dei termini.
  *
  * @phpstan-import-type Item from OrderRepository
  * @phpstan-type Settings array{post_types: list<string>, taxonomies: list<string>}
@@ -37,7 +37,6 @@ final class Module {
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'admin_menu', [ self::class, 'menu' ] );
 		add_filter( 'barrio_admin_data', [ self::class, 'admin_data' ] );
-		add_action( 'admin_init', [ self::class, 'admin_init' ] );
 		add_action( 'pre_get_posts', [ self::class, 'posts' ] );
 		add_filter( 'terms_clauses', [ self::class, 'terms' ], 10, 3 );
 	}
@@ -49,14 +48,17 @@ final class Module {
 		delete_metadata( 'term', 0, OrderRepository::TERM_META, '', true );
 	}
 
-	// Per chi può riordinare almeno un elenco, e per chi sceglie quali sono in ordine manuale.
+	// La scheda delle impostazioni in Barrio → Editor, e "Riordina …" nel menu di ogni elenco in ordine manuale.
 	public static function menu(): void {
-		Admin::editor_tab( self::reorderable() ? 'read' : 'manage_options' );
+		Admin::editor_tab( 'manage_options' );
+		foreach ( self::pages() as $slug => $page ) {
+			Admin::add_page( $slug, $page['title'], $page['capability'], $page['parent'] );
+		}
 	}
 
 	/**
-	 * In window.barrioAdmin.ordering, per la scheda di Barrio → Editor e la card della Bacheca, con i tipi di
-	 * window.barrioAdmin.contentTypes. Senza, il JavaScript sa che il modulo è spento.
+	 * In window.barrioAdmin.ordering, per la scheda di Barrio → Editor, le pagine Riordina e la card della Bacheca,
+	 * con i tipi di window.barrioAdmin.contentTypes. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
@@ -64,35 +66,16 @@ final class Module {
 	public static function admin_data( array $data ): array {
 		return $data + [
 			'ordering' => [
-				'manual'      => self::settings(),
-				'reorderable' => self::reorderable(),
+				'manual' => self::settings(),
+				'pages'  => array_map(
+					static fn( array $page ): array => [
+						'list'  => $page['list'],
+						'title' => $page['title'],
+					],
+					self::pages()
+				),
 			],
 		];
-	}
-
-	// "Riordina" accanto a Tutti, Pubblicati… nelle liste di contenuti e termini che chi guarda può riordinare.
-	public static function admin_init(): void {
-		foreach ( self::reorderable() as $list ) {
-			add_filter(
-				'views_edit-' . explode( '/', $list )[1],
-				static fn( array $views ): array => $views + [
-					'barrio_ordering' => sprintf(
-						'<a href="%s">%s</a>',
-						esc_url(
-							add_query_arg(
-								[
-									'page' => 'barrio-editor',
-									'tab'  => 'ordering',
-									'list' => $list,
-								],
-								admin_url( 'admin.php' )
-							)
-						),
-						esc_html__( 'Reorder', 'barrio-suite' )
-					),
-				]
-			);
-		}
 	}
 
 	public static function register(): void {
@@ -296,28 +279,54 @@ final class Module {
 	}
 
 	/**
-	 * Gli elenchi in ordine manuale che chi guarda può riordinare.
+	 * Le pagine "Riordina …" che chi guarda può aprire, per slug: una per elenco in ordine manuale, nel menu del tipo
+	 * di contenuto dopo Tutte le pagine e Aggiungi pagina, o del primo tipo della tassonomia. Un tipo senza menu non
+	 * ne ha una.
 	 *
-	 * @return list<string>
+	 * @return array<string, array{list: string, title: string, parent: string, capability: string}>
 	 */
-	private static function reorderable(): array {
-		$lists = [];
+	private static function pages(): array {
+		$pages = [];
 		foreach ( self::KINDS as $kind => $group ) {
 			foreach ( self::settings()[ $group ] as $name ) {
-				if ( self::can( $kind, $name ) ) {
-					$lists[] = "{$kind}/{$name}";
+				$taxonomy   = 'term' === $kind ? ( get_taxonomy( $name ) ?: null ) : null;
+				$object     = $taxonomy ?? get_post_type_object( $name );
+				$capability = self::capability( $kind, $name );
+				$parents    = array_filter( array_map( [ self::class, 'parent' ], $taxonomy ? $taxonomy->object_type : [ $name ] ) );
+				if ( $object && $capability && $parents && current_user_can( $capability ) ) {
+					$pages[ "barrio-order-{$kind}-{$name}" ] = [
+						'list'       => "{$kind}/{$name}",
+						/* translators: %s: name of the content type or taxonomy, such as Pages. */
+						'title'      => sprintf( __( 'Reorder %s', 'barrio-suite' ), $object->labels->name ),
+						'parent'     => reset( $parents ),
+						'capability' => $capability,
+					];
 				}
 			}
 		}
-		return $lists;
+		return $pages;
+	}
+
+	// Il menu di un tipo di contenuto, come lo costruisce WordPress con show_in_menu; null senza menu.
+	private static function parent( string $type ): ?string {
+		$menu = 'attachment' === $type ? false : get_post_type_object( $type )?->show_in_menu;
+		if ( true === $menu ) {
+			return 'post' === $type ? 'edit.php' : "edit.php?post_type={$type}";
+		}
+		return is_string( $menu ) && '' !== $menu ? $menu : null;
 	}
 
 	// Chi riordina deve poter modificare i contenuti degli altri (un autore no) o i termini della tassonomia.
 	private static function can( string $kind, string $name ): bool {
+		$capability = self::capability( $kind, $name );
+		return $capability && current_user_can( $capability );
+	}
+
+	private static function capability( string $kind, string $name ): ?string {
 		if ( ! isset( self::KINDS[ $kind ] ) || ! in_array( $name, array_column( Admin::content_types()[ self::KINDS[ $kind ] ], 'name' ), true ) ) {
-			return false;
+			return null;
 		}
-		$cap = 'post' === $kind ? get_post_type_object( $name )?->cap->edit_others_posts : ( get_taxonomy( $name ) ?: null )?->cap->edit_terms;
-		return is_string( $cap ) && current_user_can( $cap );
+		$capability = 'post' === $kind ? get_post_type_object( $name )?->cap->edit_others_posts : ( get_taxonomy( $name ) ?: null )?->cap->edit_terms;
+		return is_string( $capability ) ? $capability : null;
 	}
 }

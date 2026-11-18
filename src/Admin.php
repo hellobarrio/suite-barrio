@@ -82,9 +82,10 @@ final class Admin {
 		];
 	}
 
-	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla.
-	public static function add_page( string $slug, string $title, string $capability ): string|false {
-		$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );
+	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla. Di solito nel menu
+	// Barrio; in un altro menu per gli strumenti di una lista di WordPress (Pagine → Riordina Pagine).
+	public static function add_page( string $slug, string $title, string $capability, string $menu = self::PAGE ): string|false {
+		$hook = add_submenu_page( $menu, $title, $title, $capability, $slug, [ self::class, 'page' ] );
 		if ( $hook ) {
 			add_action( "load-{$hook}", [ self::class, 'enqueue' ] );
 		}
