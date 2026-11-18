@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-18T11:40:07+00:00\n"
+"POT-Creation-Date: 2026-11-18T11:58:03+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -586,6 +586,11 @@ msgstr ""
 
 #: modules/forms/src/Submission/Submission.php:150
 msgid "Too many submissions. Please try again in a few minutes."
+msgstr ""
+
+#: modules/performance/src/Module.php:92
+#: build/barrio-admin.js:38
+msgid "Performance"
 msgstr ""
 
 #: modules/seo/src/Admin.php:16
@@ -1882,6 +1887,102 @@ msgstr ""
 
 #: build/barrio-admin.js:38
 msgid "Contact forms, their entries and their notifications."
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Image formats, speculative loading and page head"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "As uploaded"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "WordPress default"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Prefetch"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Prerender"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Remove the emoji script and styles"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Remove the WordPress version (generator)"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Remove the RSD link"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Remove the shortlink"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Remove Dashicons for visitors"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Images"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Image format"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "The sizes WordPress creates from new JPEG images are saved in this format; the uploaded file stays as it is. For images already in the media library, regenerate the sizes, for example with wp media regenerate."
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Speculative loading"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "The browser loads the next page before the click, for visitors who are not logged in. Prerender also runs the JavaScript of the page: check that forms, analytics and slideshows still work."
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Mode"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Eagerness"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Conservative: when the link is pressed"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Moderate: when the pointer rests on the link"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Eager: as soon as the pointer is on the link"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Page head"
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Tags and files that WordPress adds to every page and that most sites do not need."
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Only for those who do not see the admin bar. Leave it off if the theme uses Dashicons icons."
+msgstr ""
+
+#: build/barrio-admin.js:38
+msgid "Removed from the head"
 msgstr ""
 
 #: build/barrio-admin.js:39
@@ -3201,90 +3302,6 @@ msgid "Continue"
 msgstr ""
 
 #: build/barrio-admin.js:74
-msgid "Performance"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Modern image formats, faster navigation and a lighter page head, with what WordPress already provides."
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "WordPress default"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Remove the emoji script and styles"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Remove the WordPress version (generator)"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Remove the RSD link"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Remove the shortlink"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Everything happens on this server, without external services. Changes apply from the next page load."
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Image format"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "The sizes WordPress creates from new JPEG images are saved in this format; the uploaded file stays as it is. For images already in the media library, regenerate the sizes, for example with wp media regenerate."
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "As uploaded"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Speculative loading"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "The browser loads the next page before the click, for visitors who are not logged in. Prerender also runs the JavaScript of the page: check that forms, analytics and slideshows still work."
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Prefetch"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Prerender"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Eagerness"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Conservative: when the link is pressed"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Moderate: when the pointer rests on the link"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Eager: as soon as the pointer is on the link"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Remove Dashicons for visitors"
-msgstr ""
-
-#: build/barrio-admin.js:74
-msgid "Only for those who do not see the admin bar. Leave it off if the theme uses Dashicons icons."
-msgstr ""
-
-#: build/barrio-admin.js:74
 msgid "No service account yet"
 msgstr ""
 
@@ -3387,6 +3404,10 @@ msgid "Titles, descriptions, sitemap and redirects. Turn it off if the site uses
 msgstr ""
 
 #: build/barrio-admin.js:75
+msgid "Modern image formats, faster navigation and a lighter page head, with what WordPress already provides."
+msgstr ""
+
+#: build/barrio-admin.js:75
 msgid "Modules"
 msgstr ""
 
@@ -3408,6 +3429,10 @@ msgstr ""
 
 #: build/barrio-admin.js:75
 msgid "Forms, entries with their files, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first."
+msgstr ""
+
+#: build/barrio-admin.js:75
+msgid "Everything happens on this server, without external services. Changes apply from the next page load."
 msgstr ""
 
 #: build/barrio-admin.js:75
