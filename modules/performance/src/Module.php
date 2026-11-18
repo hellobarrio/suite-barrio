@@ -8,8 +8,8 @@ use WP_REST_Response;
 /**
  * Prestazioni con ciò che WordPress sa già fare, senza servizi esterni (PLAN-SEO.md, "Da Jetpack"): il formato
  * delle immagini, il caricamento speculativo e un head più leggero. Un modulo a sé e non nel SEO, perché serve
- * anche ai siti con Yoast o Rank Math. Si sceglie in Barrio → Impostazioni; accese di default solo le funzioni
- * che non cambiano file né comportamento.
+ * anche ai siti con Yoast o Rank Math. Si sceglie nella sua pagina, Barrio → Prestazioni; accese di default solo
+ * le funzioni che non cambiano file né comportamento.
  *
  * @phpstan-type Settings array{image_format: ''|'image/webp'|'image/avif', speculation_mode: 'auto'|'prefetch'|'prerender', speculation_eagerness: 'auto'|'conservative'|'moderate'|'eager', emoji: bool, generator: bool, rsd: bool, shortlink: bool, dashicons: bool}
  */
@@ -54,6 +54,8 @@ final class Module {
 
 	public static function boot(): void {
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
+		add_action( 'admin_menu', [ self::class, 'menu' ] );
+		add_filter( 'barrio_admin_data', [ self::class, 'admin_data' ] );
 		add_filter( 'wp_speculation_rules_configuration', [ self::class, 'speculation' ] );
 
 		$settings = self::settings();
@@ -85,6 +87,20 @@ final class Module {
 
 	// L'opzione la elimina il core (src/Uninstall.php).
 	public static function uninstall(): void {}
+
+	public static function menu(): void {
+		\BarrioSuite\Admin::add_page( 'barrio-performance', __( 'Performance', 'barrio-suite' ), 'manage_options' );
+	}
+
+	/**
+	 * In window.barrioAdmin.performance, per la card della Bacheca. Senza, il JavaScript sa che il modulo è spento.
+	 *
+	 * @param array<string, mixed> $data
+	 * @return array<string, mixed>
+	 */
+	public static function admin_data( array $data ): array {
+		return $data + [ 'performance' => self::settings() ];
+	}
 
 	public static function register(): void {
 		$admin = static fn(): bool => current_user_can( 'manage_options' );

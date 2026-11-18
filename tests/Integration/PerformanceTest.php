@@ -53,6 +53,7 @@ final class PerformanceTest extends WP_UnitTestCase {
 			array_diff_key( $data, [ 'formats' => true ] )
 		);
 		$this->assertContains( 'image/webp', $data['formats'], 'The image editor of the test server writes WebP.' );
+		$this->assertSame( array_diff_key( $data, [ 'formats' => true ] ), apply_filters( 'barrio_admin_data', [] )['performance'] ?? null, 'For the card of the Dashboard.' );
 	}
 
 	public function test_settings_are_validated_and_an_absent_one_stays(): void {
@@ -163,6 +164,7 @@ final class PerformanceTest extends WP_UnitTestCase {
 		);
 		Modules::set( 'performance', false );
 		$this->boot();
+		$this->assertArrayNotHasKey( 'performance', apply_filters( 'barrio_admin_data', [] ), 'No page, no card in the Dashboard.' );
 		$post = self::factory()->post->create();
 		add_action( 'wp_enqueue_scripts', static fn() => wp_enqueue_style( 'dashicons' ) );
 		wp_set_current_user( 0 );

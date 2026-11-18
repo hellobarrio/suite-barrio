@@ -5,6 +5,10 @@ import { createRoot } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
+import {
+	PERFORMANCE,
+	performanceSection,
+} from '../../../modules/performance/assets/src/Performance.js';
 import { seoPage } from '../../../modules/seo/assets/src/seo/Seo.js';
 import { Dashboard } from '../dashboard/Dashboard.js';
 import { Extensions } from '../extensions/Extensions.js';
@@ -26,6 +30,19 @@ const PAGES = {
 	},
 	'barrio-forms': formsPage,
 	'barrio-seo': seoPage,
+	'barrio-performance': {
+		title: PERFORMANCE.title,
+		description: __(
+			'Everything happens on this server, without external services. Changes apply from the next page load.',
+			'barrio-suite'
+		),
+		page: (
+			<General
+				title={ PERFORMANCE.title }
+				sections={ [ performanceSection ] }
+			/>
+		),
+	},
 	'barrio-extensions': {
 		title: __( 'Extensions', 'barrio-suite' ),
 		description: __(

@@ -7,10 +7,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
-import {
-	PERFORMANCE,
-	performanceSection,
-} from '../../../modules/performance/assets/src/Performance.js';
+import { PERFORMANCE } from '../../../modules/performance/assets/src/Performance.js';
 import { SEO } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import {
 	Bar,
@@ -36,7 +33,13 @@ const MODULES = {
 			'barrio-suite'
 		),
 	},
-	performance: PERFORMANCE,
+	performance: {
+		title: PERFORMANCE.title,
+		description: __(
+			'Modern image formats, faster navigation and a lighter page head, with what WordPress already provides.',
+			'barrio-suite'
+		),
+	},
 };
 
 // GET e PUT /barrio/v1/modules: per modulo, acceso o no. Cambiano il menu: dopo il salvataggio la
@@ -114,14 +117,23 @@ const SECTIONS = [
 	modulesSection,
 	smtpSection,
 	googleSection,
-	performanceSection,
 	...settingsSections,
 	uninstallSection,
 ];
 
 const same = ( a, b ) => JSON.stringify( a ) === JSON.stringify( b );
 
-export function General() {
+/**
+ * Anche per la pagina di un modulo che ha solo impostazioni, come Prestazioni: le sue sezioni con la stessa barra.
+ *
+ * @param {Object}   props
+ * @param {string}   props.title
+ * @param {Object[]} props.sections
+ */
+export function General( {
+	title = __( 'Settings', 'barrio-suite' ),
+	sections = SECTIONS,
+} ) {
 	// Per sezione: i dati salvati (null se non si sono potuti leggere) e quelli della pagina.
 	const [ data, setData ] = useState( null );
 	const [ draft, setDraft ] = useState( null );
@@ -131,16 +143,11 @@ export function General() {
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
 	useEffect( () => {
-		// Una sezione che chi guarda non può leggere (gli aggiornamenti senza activate_plugins) non compare, come
-		// quella di un modulo spento, che non ha la rotta.
+		// Una sezione che chi guarda non può leggere (gli aggiornamenti senza activate_plugins) non compare.
 		Promise.all(
-			SECTIONS.map( ( section ) =>
+			sections.map( ( section ) =>
 				section.load().catch( ( error ) => {
-					if (
-						! [ 'rest_forbidden', 'rest_no_route' ].includes(
-							error.code
-						)
-					) {
+					if ( 'rest_forbidden' !== error.code ) {
 						fail( error );
 					}
 					return null;
@@ -148,22 +155,23 @@ export function General() {
 			)
 		).then( ( loaded ) => {
 			const next = Object.fromEntries(
-				SECTIONS.map( ( { id }, index ) => [ id, loaded[ index ] ] )
+				sections.map( ( { id }, index ) => [ id, loaded[ index ] ] )
 			);
 			setData( next );
 			setDraft(
 				Object.fromEntries(
-					SECTIONS.map( ( { id, value } ) => [
+					sections.map( ( { id, value } ) => [
 						id,
 						next[ id ] && value( next[ id ] ),
 					] )
 				)
 			);
 		} );
-	}, [] );
+		// sections va passato costante: un array nuovo a ogni render ricaricherebbe le sezioni all'infinito.
+	}, [ sections ] );
 
 	const changed = data
-		? SECTIONS.filter(
+		? sections.filter(
 				( { id, value } ) =>
 					data[ id ] && ! same( draft[ id ], value( data[ id ] ) )
 			)
@@ -212,7 +220,7 @@ export function General() {
 
 	return (
 		<div className="barrio-stack">
-			<Bar title={ __( 'Settings', 'barrio-suite' ) }>
+			<Bar title={ title }>
 				<button
 					type="button"
 					className="barrio-button is-primary"
@@ -228,7 +236,7 @@ export function General() {
 				</button>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
-			{ SECTIONS.map(
+			{ sections.map(
 				( { id, Cards } ) =>
 					data[ id ] && (
 						<Cards

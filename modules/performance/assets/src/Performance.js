@@ -1,17 +1,24 @@
-// La card Prestazioni in Barrio → Impostazioni (modules/performance/src/Module.php). Con il modulo spento la
-// rotta non c'è e la card non compare.
+// La pagina Barrio → Prestazioni (modules/performance/src/Module.php), con le impostazioni del modulo, e la sua
+// card nella Bacheca.
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 
-import { Card, Select, Toggle } from '../../../../assets/src/admin/ui.js';
+import {
+	Card,
+	ModuleCard,
+	Select,
+	Toggle,
+} from '../../../../assets/src/admin/ui.js';
 
-// Anche nella card Moduli, dove il modulo può essere spento.
+// Anche nella card Moduli di Barrio → Impostazioni, dove il modulo può essere spento.
 export const PERFORMANCE = {
+	icon: 'performance',
 	title: __( 'Performance', 'barrio-suite' ),
 	description: __(
-		'Modern image formats, faster navigation and a lighter page head, with what WordPress already provides.',
+		'Image formats, speculative loading and page head',
 		'barrio-suite'
 	),
+	color: 'linear-gradient(135deg, #7c2d12, #c2410c)',
 };
 
 const FORMATS = {
@@ -19,9 +26,12 @@ const FORMATS = {
 	'image/avif': 'AVIF',
 };
 
-const AUTO = {
-	label: __( 'WordPress default', 'barrio-suite' ),
-	value: 'auto',
+const AS_UPLOADED = __( 'As uploaded', 'barrio-suite' );
+
+const MODES = {
+	auto: __( 'WordPress default', 'barrio-suite' ),
+	prefetch: __( 'Prefetch', 'barrio-suite' ),
+	prerender: __( 'Prerender', 'barrio-suite' ),
 };
 
 const HEAD = {
@@ -29,8 +39,16 @@ const HEAD = {
 	generator: __( 'Remove the WordPress version (generator)', 'barrio-suite' ),
 	rsd: __( 'Remove the RSD link', 'barrio-suite' ),
 	shortlink: __( 'Remove the shortlink', 'barrio-suite' ),
+	dashicons: __( 'Remove Dashicons for visitors', 'barrio-suite' ),
 };
 
+const options = ( labels ) =>
+	Object.entries( labels ).map( ( [ value, label ] ) => ( {
+		label,
+		value,
+	} ) );
+
+// Per la pagina, che salva con il Salva della barra come Barrio → Impostazioni (general/General.js).
 export const performanceSection = {
 	id: 'performance',
 	load: () => apiFetch( { path: '/barrio/v1/performance' } ),
@@ -50,104 +68,126 @@ export const performanceSection = {
 				data.formats.includes( mime ) || mime === draft.image_format
 		);
 		return (
-			<Card
-				className="barrio-wide"
-				icon="performance"
-				title={ PERFORMANCE.title }
-				description={ __(
-					'Everything happens on this server, without external services. Changes apply from the next page load.',
-					'barrio-suite'
-				) }
-			>
-				<Select
-					label={ __( 'Image format', 'barrio-suite' ) }
-					help={ __(
-						'The sizes WordPress creates from new JPEG images are saved in this format; the uploaded file stays as it is. For images already in the media library, regenerate the sizes, for example with wp media regenerate.',
-						'barrio-suite'
-					) }
-					value={ draft.image_format }
-					options={ [
-						{
-							label: __( 'As uploaded', 'barrio-suite' ),
-							value: '',
-						},
-						...formats.map( ( mime ) => ( {
-							label: FORMATS[ mime ],
-							value: mime,
-						} ) ),
-					] }
-					onChange={ setKey( 'image_format' ) }
-				/>
-				<Select
-					label={ __( 'Speculative loading', 'barrio-suite' ) }
-					help={ __(
+			<>
+				<Card
+					className="barrio-wide"
+					icon="format-image"
+					title={ __( 'Images', 'barrio-suite' ) }
+				>
+					<Select
+						label={ __( 'Image format', 'barrio-suite' ) }
+						help={ __(
+							'The sizes WordPress creates from new JPEG images are saved in this format; the uploaded file stays as it is. For images already in the media library, regenerate the sizes, for example with wp media regenerate.',
+							'barrio-suite'
+						) }
+						value={ draft.image_format }
+						options={ [
+							{ label: AS_UPLOADED, value: '' },
+							...formats.map( ( mime ) => ( {
+								label: FORMATS[ mime ],
+								value: mime,
+							} ) ),
+						] }
+						onChange={ setKey( 'image_format' ) }
+					/>
+				</Card>
+				<Card
+					className="barrio-wide"
+					icon="performance"
+					title={ __( 'Speculative loading', 'barrio-suite' ) }
+					description={ __(
 						'The browser loads the next page before the click, for visitors who are not logged in. Prerender also runs the JavaScript of the page: check that forms, analytics and slideshows still work.',
 						'barrio-suite'
 					) }
-					value={ draft.speculation_mode }
-					options={ [
-						AUTO,
-						{
-							label: __( 'Prefetch', 'barrio-suite' ),
-							value: 'prefetch',
-						},
-						{
-							label: __( 'Prerender', 'barrio-suite' ),
-							value: 'prerender',
-						},
-					] }
-					onChange={ setKey( 'speculation_mode' ) }
-				/>
-				<Select
-					label={ __( 'Eagerness', 'barrio-suite' ) }
-					value={ draft.speculation_eagerness }
-					options={ [
-						AUTO,
-						{
-							label: __(
+				>
+					<Select
+						label={ __( 'Mode', 'barrio-suite' ) }
+						value={ draft.speculation_mode }
+						options={ options( MODES ) }
+						onChange={ setKey( 'speculation_mode' ) }
+					/>
+					<Select
+						label={ __( 'Eagerness', 'barrio-suite' ) }
+						value={ draft.speculation_eagerness }
+						options={ options( {
+							auto: MODES.auto,
+							conservative: __(
 								'Conservative: when the link is pressed',
 								'barrio-suite'
 							),
-							value: 'conservative',
-						},
-						{
-							label: __(
+							moderate: __(
 								'Moderate: when the pointer rests on the link',
 								'barrio-suite'
 							),
-							value: 'moderate',
-						},
-						{
-							label: __(
+							eager: __(
 								'Eager: as soon as the pointer is on the link',
 								'barrio-suite'
 							),
-							value: 'eager',
-						},
-					] }
-					onChange={ setKey( 'speculation_eagerness' ) }
-				/>
-				{ Object.entries( HEAD ).map( ( [ key, label ] ) => (
-					<Toggle
-						key={ key }
-						label={ label }
-						checked={ draft[ key ] }
-						onChange={ setKey( key ) }
+						} ) }
+						onChange={ setKey( 'speculation_eagerness' ) }
 					/>
-				) ) }
-				<Toggle
-					label={ __(
-						'Remove Dashicons for visitors',
+				</Card>
+				<Card
+					className="barrio-wide"
+					icon="editor-code"
+					title={ __( 'Page head', 'barrio-suite' ) }
+					description={ __(
+						'Tags and files that WordPress adds to every page and that most sites do not need.',
 						'barrio-suite'
 					) }
-					help={ __(
-						'Only for those who do not see the admin bar. Leave it off if the theme uses Dashicons icons.',
-						'barrio-suite'
-					) }
-					checked={ draft.dashicons }
-					onChange={ setKey( 'dashicons' ) }
-				/>
-			</Card>
+				>
+					{ Object.entries( HEAD ).map( ( [ key, label ] ) => (
+						<Toggle
+							key={ key }
+							label={ label }
+							help={
+								'dashicons' === key &&
+								__(
+									'Only for those who do not see the admin bar. Leave it off if the theme uses Dashicons icons.',
+									'barrio-suite'
+								)
+							}
+							checked={ draft[ key ] }
+							onChange={ setKey( key ) }
+						/>
+					) ) }
+				</Card>
+			</>
 		);
 	},
 };
+
+// Le impostazioni arrivano con la pagina (barrio_admin_data): con il modulo spento non ci sono.
+const settings = window.barrioAdmin.performance;
+
+export function PerformanceCard() {
+	if ( ! settings || ! window.barrioAdmin.canManageOptions ) {
+		return null;
+	}
+	return (
+		<ModuleCard
+			module={ PERFORMANCE }
+			stats={ [
+				[
+					__( 'Image format', 'barrio-suite' ),
+					FORMATS[ settings.image_format ] ?? AS_UPLOADED,
+				],
+				[
+					__( 'Speculative loading', 'barrio-suite' ),
+					MODES[ settings.speculation_mode ],
+				],
+				[
+					__( 'Removed from the head', 'barrio-suite' ),
+					Object.keys( HEAD ).filter( ( key ) => settings[ key ] )
+						.length,
+				],
+			] }
+			actions={ [
+				[
+					__( 'Settings', 'barrio-suite' ),
+					'?page=barrio-performance',
+				],
+			] }
+		/>
+	);
+}
