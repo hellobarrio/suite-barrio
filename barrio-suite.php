@@ -25,6 +25,7 @@ spl_autoload_register(
 			'BarrioSuite\\Seo\\'         => '/modules/seo/src/',
 			'BarrioSuite\\Performance\\' => '/modules/performance/src/',
 			'BarrioSuite\\Duplicate\\'   => '/modules/duplicate/src/',
+			'BarrioSuite\\Ordering\\'    => '/modules/ordering/src/',
 			'BarrioSuite\\'              => '/src/',
 		];
 		foreach ( $roots as $prefix => $dir ) {

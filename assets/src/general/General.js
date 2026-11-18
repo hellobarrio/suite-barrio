@@ -8,6 +8,7 @@ import { __ } from '@wordpress/i18n';
 
 import { DUPLICATE } from '../../../modules/duplicate/assets/src/Duplicate.js';
 import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
+import { ORDERING } from '../../../modules/ordering/assets/src/Ordering.js';
 import { PERFORMANCE } from '../../../modules/performance/assets/src/Performance.js';
 import { SEO } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import {
@@ -34,6 +35,7 @@ const MODULES = {
 			'barrio-suite'
 		),
 	},
+	ordering: ORDERING,
 	duplicate: DUPLICATE,
 	performance: {
 		title: PERFORMANCE.title,

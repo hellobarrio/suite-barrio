@@ -364,33 +364,35 @@ final class DuplicateTest extends WP_UnitTestCase {
 		// Un altro modulo della pagina la chiede di nuovo.
 		Admin::editor_tab( 'edit_posts' );
 		$this->assertSame( [ 'barrio-editor' ], $pages() );
-		$data = apply_filters( 'barrio_admin_data', [] )['duplicate'] ?? [];
+		$types = Admin::content_types();
 		$this->assertContains(
 			[
 				'name'  => 'book',
 				'label' => 'Books',
 			],
-			$data['post_types'] ?? []
+			$types['post_types']
 		);
-		$this->assertNotContains( 'attachment', array_column( $data['post_types'] ?? [], 'name' ) );
+		$this->assertNotContains( 'attachment', array_column( $types['post_types'], 'name' ) );
 		$this->assertContains(
 			[
 				'name'  => 'genre',
 				'label' => 'Genres',
 				'types' => [ 'Books' ],
 			],
-			$data['taxonomies'] ?? [],
+			$types['taxonomies'],
 			'With its content types: two taxonomies can both be called Categories.'
 		);
+		$this->assertNotContains( 'link_category', array_column( $types['taxonomies'], 'name' ) );
 		$this->assertSame(
 			[
-				'post_types' => [],
-				'taxonomies' => [],
+				'disabled' => [
+					'post_types' => [],
+					'taxonomies' => [],
+				],
 			],
-			$data['disabled'] ?? null,
+			apply_filters( 'barrio_admin_data', [] )['duplicate'] ?? null,
 			'For the card of the Dashboard.'
 		);
-		$this->assertNotContains( 'link_category', array_column( $data['taxonomies'] ?? [], 'name' ) );
 
 		$GLOBALS['submenu'] = []; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		wp_set_current_user( $this->editor );

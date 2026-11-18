@@ -369,11 +369,13 @@ blocco dei form:
 - **Termini**: il meta `_barrio_order` (intero), come fa WooCommerce, perché WordPress non ha un ordine dei termini.
   È un dato del termine: segue il termine se lo si elimina, e la disinstallazione lo toglie con `Module::uninstall()`
   (il core non vede i meta).
-- **Scritture**: `OrderRepository`, l'unico del modulo a usare `$wpdb`.
-  - Per i contenuti, un solo `UPDATE … CASE` per tutto l'elenco, senza toccare `post_modified`, poi
-    `clean_post_cache()`. Un'istruzione sola è atomica anche dove `wp_posts` non è InnoDB (regola 9 di PLAN.md),
-    quindi niente transazione.
-  - Per i termini, `update_term_meta()`.
+- **Scritture**: `OrderRepository`, l'unico del modulo a usare `$wpdb`. Le posizioni sono quelle dell'elenco intero,
+  con i genitori prima dei figli: anche una query senza gerarchia esce nell'ordine dell'albero.
+  - Per i contenuti, un solo `UPDATE … SET menu_order = FIELD(ID, …)` per tutto l'elenco, senza toccare
+    `post_modified`, poi `clean_post_cache()`. Un'istruzione sola è atomica anche dove `wp_posts` non è InnoDB
+    (regola 9 di PLAN.md), quindi niente transazione.
+  - Per i termini, `DELETE` e `INSERT` dei meta in una transazione: `update_term_meta()` termine per termine
+    lascerebbe un ordine a metà se una scrittura fallisce.
 - **Opzione `barrio_ordering`** (autoload): `post_types` e `taxonomies` in ordine manuale.
 
 ### 6.3 Problemi del prototipo da non ripetere

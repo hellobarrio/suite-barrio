@@ -14,8 +14,11 @@ export const DUPLICATE = {
 	),
 };
 
-// Module::admin_data(): i tipi e le tassonomie con l'interfaccia, e quelli spenti. Con il modulo spento manca.
+// Module::admin_data(): i tipi e le tassonomie spenti. Con il modulo spento manca.
 export const duplicateData = window.barrioAdmin.duplicate;
+
+// Admin::content_types(): i tipi e le tassonomie con l'interfaccia.
+const { contentTypes } = window.barrioAdmin;
 
 // Una card per elenco, come le card di Prestazioni: una riga per tipo.
 const CARDS = {
@@ -38,9 +41,7 @@ const CARDS = {
 };
 
 const enabled = ( group, disabled ) =>
-	duplicateData[ group ].filter(
-		( { name } ) => ! disabled.includes( name )
-	);
+	contentTypes[ group ].filter( ( { name } ) => ! disabled.includes( name ) );
 
 // Per la card Editor della Bacheca, dalle impostazioni salvate.
 export const duplicateStats = () => [
@@ -68,7 +69,7 @@ export const duplicateSection = {
 	Cards: ( { draft, set } ) =>
 		Object.entries( CARDS ).map( ( [ group, card ] ) => (
 			<Card key={ group } className="barrio-wide" { ...card }>
-				{ duplicateData[ group ].map( ( type ) => (
+				{ contentTypes[ group ].map( ( type ) => (
 					<Toggle
 						key={ type.name }
 						label={ type.label }

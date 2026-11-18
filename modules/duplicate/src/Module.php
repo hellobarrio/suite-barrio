@@ -2,12 +2,11 @@
 
 namespace BarrioSuite\Duplicate;
 
+use BarrioSuite\Admin;
 use WP_Error;
 use WP_Post;
-use WP_Post_Type;
 use WP_REST_Request;
 use WP_REST_Response;
-use WP_Taxonomy;
 use WP_Term;
 
 /**
@@ -57,47 +56,31 @@ final class Module {
 	public static function uninstall(): void {}
 
 	public static function menu(): void {
-		\BarrioSuite\Admin::editor_tab( 'manage_options' );
+		Admin::editor_tab( 'manage_options' );
 	}
 
 	/**
-	 * In window.barrioAdmin.duplicate, per la scheda di Barrio → Editor e la card della Bacheca. Senza, il JavaScript
-	 * sa che il modulo è spento. Le tassonomie hanno i nomi dei loro tipi: due possono chiamarsi entrambe "Categorie".
+	 * In window.barrioAdmin.duplicate, per la scheda di Barrio → Editor e la card della Bacheca, con i tipi di
+	 * window.barrioAdmin.contentTypes. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
 	 */
 	public static function admin_data( array $data ): array {
-		$available = self::available();
-		$item      = static fn( WP_Post_Type|WP_Taxonomy $type ): array => [
-			'name'  => $type->name,
-			'label' => $type->labels->name,
-		];
-		$types     = static fn( WP_Taxonomy $taxonomy ): array => array_values(
-			array_map(
-				static fn( string $type ): string => $available['post_types'][ $type ]->labels->name,
-				array_intersect( $taxonomy->object_type, array_keys( $available['post_types'] ) )
-			)
-		);
-		return $data + [
-			'duplicate' => [
-				'post_types' => array_values( array_map( $item, $available['post_types'] ) ),
-				'taxonomies' => array_values( array_map( static fn( WP_Taxonomy $taxonomy ): array => $item( $taxonomy ) + [ 'types' => $types( $taxonomy ) ], $available['taxonomies'] ) ),
-				'disabled'   => self::settings(),
-			],
-		];
+		return $data + [ 'duplicate' => [ 'disabled' => self::settings() ] ];
 	}
 
 	// Dopo init, quando tipi e tassonomie ci sono. Anche in admin-ajax.php, che ridisegna una riga dopo la modifica rapida.
 	public static function admin_init(): void {
-		foreach ( self::available()['post_types'] as $type ) {
-			if ( self::enabled( 'post_types', $type->name ) ) {
-				add_filter( "bulk_actions-edit-{$type->name}", [ self::class, 'bulk_actions' ] );
-				add_filter( "handle_bulk_actions-edit-{$type->name}", [ self::class, 'handle_bulk' ], 10, 3 );
+		$available = Admin::content_types();
+		foreach ( array_column( $available['post_types'], 'name' ) as $type ) {
+			if ( self::enabled( 'post_types', $type ) ) {
+				add_filter( "bulk_actions-edit-{$type}", [ self::class, 'bulk_actions' ] );
+				add_filter( "handle_bulk_actions-edit-{$type}", [ self::class, 'handle_bulk' ], 10, 3 );
 			}
 		}
-		foreach ( self::available()['taxonomies'] as $taxonomy ) {
-			add_filter( "{$taxonomy->name}_row_actions", [ self::class, 'term_row_actions' ], 10, 2 );
+		foreach ( array_column( $available['taxonomies'], 'name' ) as $taxonomy ) {
+			add_filter( "{$taxonomy}_row_actions", [ self::class, 'term_row_actions' ], 10, 2 );
 		}
 	}
 
@@ -358,27 +341,9 @@ final class Module {
 		return $copy['term_id'];
 	}
 
-	/**
-	 * I tipi e le tassonomie con l'interfaccia di WordPress, senza gli allegati. Le tassonomie solo di quei tipi:
-	 * non le categorie dei link.
-	 *
-	 * @return array{post_types: array<string, WP_Post_Type>, taxonomies: array<string, WP_Taxonomy>}
-	 */
-	private static function available(): array {
-		$types = get_post_types( [ 'show_ui' => true ], 'objects' );
-		unset( $types['attachment'] );
-		return [
-			'post_types' => $types,
-			'taxonomies' => array_filter(
-				get_taxonomies( [ 'show_ui' => true ], 'objects' ),
-				static fn( WP_Taxonomy $taxonomy ): bool => (bool) array_intersect( $taxonomy->object_type, array_keys( $types ) )
-			),
-		];
-	}
-
 	/** @param 'post_types'|'taxonomies' $group */
 	private static function enabled( string $group, string $name ): bool {
-		return isset( self::available()[ $group ][ $name ] ) && ! in_array( $name, self::settings()[ $group ], true );
+		return in_array( $name, array_column( Admin::content_types()[ $group ], 'name' ), true ) && ! in_array( $name, self::settings()[ $group ], true );
 	}
 
 	// Chi duplica deve poter modificare l'originale (un collaboratore non legge così il privato di un altro) e

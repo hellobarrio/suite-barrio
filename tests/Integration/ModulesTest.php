@@ -45,6 +45,7 @@ final class ModulesTest extends WP_UnitTestCase {
 			[
 				'forms'       => true,
 				'seo'         => true,
+				'ordering'    => true,
 				'duplicate'   => true,
 				'performance' => true,
 			],
@@ -61,6 +62,7 @@ final class ModulesTest extends WP_UnitTestCase {
 			[
 				'forms'       => false,
 				'seo'         => true,
+				'ordering'    => true,
 				'duplicate'   => true,
 				'performance' => true,
 			],

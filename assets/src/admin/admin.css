@@ -1525,6 +1525,34 @@ button.barrio-table__title {
 	align-items: center;
 }
 
+/* L'albero di Ordinamento: i figli rientrano sotto il genitore e si spostano
+   con lui. */
+.barrio-order {
+	display: grid;
+	gap: 4px;
+}
+
+.barrio-order .barrio-order {
+	margin-top: 4px;
+	padding-inline-start: 32px;
+}
+
+.barrio-order__row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 4px 12px 4px 4px;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius-small);
+	background: #fff;
+}
+
+.barrio-order__title {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
 /* Campo e rimozione sulla prima riga, operatore e valore sulla seconda. */
 .barrio-rule {
 	display: grid;

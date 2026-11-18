@@ -196,3 +196,21 @@ del sito la legge intera: arriva con le altre opzioni, senza query in più.
 - Solo `RedirectRepository` legge e scrive la tabella; una sorgente già usata diventa un'eccezione di `Db`. La
   tabella di SEO → Redirect cerca anche nella sorgente senza distinguere le maiuscole
   (`COLLATE utf8mb4_unicode_ci` nella query).
+
+## Modulo Ordinamento
+
+Nessuna tabella. L'ordine dei contenuti è `menu_order` di `wp_posts`, il campo del core che usano già temi, menu e
+WPGraphQL; quello dei termini è il meta `_barrio_order` (un intero), perché WordPress non ha un ordine dei termini.
+Le posizioni partono da 1 e sono quelle dell'elenco intero, con i genitori prima dei figli: anche una query senza
+gerarchia esce nell'ordine dell'albero, e un contenuto nuovo (`menu_order` 0) va in cima. Solo `OrderRepository` le
+scrive:
+
+- **Contenuti**: un solo `UPDATE … SET menu_order = FIELD(ID, …)`, atomico anche dove `wp_posts` non è InnoDB, che
+  non tocca `post_modified` e non fa partire gli hook di salvataggio. Poi `clean_post_cache()`.
+- **Termini**: `DELETE` e `INSERT` dei meta in una transazione. Dove `termmeta` non è InnoDB un errore tra le due
+  lascia quei termini senza ordine (in fondo, per nome), non con un ordine a metà.
+
+Nelle query l'ordine è un `LEFT JOIN` su `termmeta` (`terms_clauses`) e `orderby` di `WP_Query` (`pre_get_posts`):
+nessuna query in più. L'opzione `barrio_ordering` (in autoload, la leggono le query del sito) elenca i tipi e le
+tassonomie in ordine manuale; spegnerli lascia `menu_order` e i meta. La disinstallazione con i dati elimina i meta
+`_barrio_order`; `menu_order` resta, perché è del core.

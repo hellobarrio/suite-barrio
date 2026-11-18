@@ -2,6 +2,8 @@
 
 namespace BarrioSuite;
 
+use WP_Post_Type;
+
 /**
  * Menu "Barrio" e la sua app React (assets/src, compilata in build/) per tutte le pagine: la Bacheca,
  * una voce per ogni modulo acceso, Estensioni e Impostazioni. Un modulo aggiunge la sua pagina con
@@ -42,6 +44,42 @@ final class Admin {
 		if ( current_user_can( $capability ) && ! get_plugin_page_hook( 'barrio-editor', self::PAGE ) ) {
 			self::add_page( 'barrio-editor', __( 'Editor', 'barrio-suite' ), $capability );
 		}
+	}
+
+	/**
+	 * I tipi di contenuto e le tassonomie degli strumenti dell'editor: quelli con l'interfaccia di WordPress, senza
+	 * gli allegati. Le tassonomie solo di quei tipi (non le categorie dei link), con i nomi dei tipi che le usano:
+	 * due possono chiamarsi entrambe "Categorie".
+	 *
+	 * @return array{post_types: list<array{name: string, label: string}>, taxonomies: list<array{name: string, label: string, types: list<string>}>}
+	 */
+	public static function content_types(): array {
+		$types = get_post_types( [ 'show_ui' => true ], 'objects' );
+		unset( $types['attachment'] );
+		$label      = static fn( WP_Post_Type $type ): string => $type->labels->name;
+		$taxonomies = [];
+		foreach ( get_taxonomies( [ 'show_ui' => true ], 'objects' ) as $taxonomy ) {
+			$used = array_intersect_key( $types, array_flip( $taxonomy->object_type ) );
+			if ( $used ) {
+				$taxonomies[] = [
+					'name'  => $taxonomy->name,
+					'label' => $taxonomy->labels->name,
+					'types' => array_values( array_map( $label, $used ) ),
+				];
+			}
+		}
+		return [
+			'post_types' => array_values(
+				array_map(
+					static fn( WP_Post_Type $type ): array => [
+						'name'  => $type->name,
+						'label' => $label( $type ),
+					],
+					$types
+				)
+			),
+			'taxonomies' => $taxonomies,
+		];
 	}
 
 	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla.
@@ -95,6 +133,7 @@ final class Admin {
 				// Un oggetto anche se vuoto: [] in JSON sarebbe una lista.
 				'flags'            => (object) I18n::flags(),
 				'canManageOptions' => current_user_can( 'manage_options' ),
+				'contentTypes'     => self::content_types(),
 				'version'          => BARRIO_SUITE_VERSION,
 				// Per i download (file ed export CSV), che sono link e non passano da apiFetch.
 				'rest'             => [

@@ -8,6 +8,12 @@ import {
 	duplicateSection,
 	duplicateStats,
 } from '../../../modules/duplicate/assets/src/Duplicate.js';
+import {
+	ORDERING,
+	Ordering,
+	orderingData,
+	orderingStats,
+} from '../../../modules/ordering/assets/src/Ordering.js';
 import { ModuleCard, Tabs } from '../admin/ui.js';
 import { General } from '../general/General.js';
 
@@ -28,6 +34,12 @@ const DUPLICATE_SECTIONS = [ duplicateSection ];
 
 // Per strumento: la scheda della pagina ([ tab, nome, componente ]) e i numeri della card.
 const TOOLS = [
+	// Anche per chi può solo riordinare (Module::menu()).
+	orderingData &&
+		( canManageOptions || orderingData.reorderable.length > 0 ) && {
+			tab: [ 'ordering', ORDERING.title, Ordering ],
+			stats: orderingStats,
+		},
 	duplicateData &&
 		canManageOptions && {
 			tab: [
