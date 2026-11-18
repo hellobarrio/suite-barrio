@@ -373,7 +373,23 @@ final class DuplicateTest extends WP_UnitTestCase {
 			$data['post_types'] ?? []
 		);
 		$this->assertNotContains( 'attachment', array_column( $data['post_types'] ?? [], 'name' ) );
-		$this->assertContains( 'genre', array_column( $data['taxonomies'] ?? [], 'name' ) );
+		$this->assertContains(
+			[
+				'name'  => 'genre',
+				'label' => 'Genres',
+				'types' => [ 'Books' ],
+			],
+			$data['taxonomies'] ?? [],
+			'With its content types: two taxonomies can both be called Categories.'
+		);
+		$this->assertSame(
+			[
+				'post_types' => [],
+				'taxonomies' => [],
+			],
+			$data['disabled'] ?? null,
+			'For the card of the Dashboard.'
+		);
 		$this->assertNotContains( 'link_category', array_column( $data['taxonomies'] ?? [], 'name' ) );
 
 		$GLOBALS['submenu'] = []; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited

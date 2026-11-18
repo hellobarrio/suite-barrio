@@ -61,22 +61,31 @@ final class Module {
 	}
 
 	/**
-	 * In window.barrioAdmin.duplicate, per la scheda di Barrio → Editor. Senza, il JavaScript sa che il modulo è spento.
+	 * In window.barrioAdmin.duplicate, per la scheda di Barrio → Editor e la card della Bacheca. Senza, il JavaScript
+	 * sa che il modulo è spento. Le tassonomie hanno i nomi dei loro tipi: due possono chiamarsi entrambe "Categorie".
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
 	 */
 	public static function admin_data( array $data ): array {
-		$list = static fn( array $objects ): array => array_values(
+		$available = self::available();
+		$item      = static fn( WP_Post_Type|WP_Taxonomy $type ): array => [
+			'name'  => $type->name,
+			'label' => $type->labels->name,
+		];
+		$types     = static fn( WP_Taxonomy $taxonomy ): array => array_values(
 			array_map(
-				static fn( WP_Post_Type|WP_Taxonomy $item ): array => [
-					'name'  => $item->name,
-					'label' => $item->labels->name,
-				],
-				$objects
+				static fn( string $type ): string => $available['post_types'][ $type ]->labels->name,
+				array_intersect( $taxonomy->object_type, array_keys( $available['post_types'] ) )
 			)
 		);
-		return $data + [ 'duplicate' => array_map( $list, self::available() ) ];
+		return $data + [
+			'duplicate' => [
+				'post_types' => array_values( array_map( $item, $available['post_types'] ) ),
+				'taxonomies' => array_values( array_map( static fn( WP_Taxonomy $taxonomy ): array => $item( $taxonomy ) + [ 'types' => $types( $taxonomy ) ], $available['taxonomies'] ) ),
+				'disabled'   => self::settings(),
+			],
+		];
 	}
 
 	// Dopo init, quando tipi e tassonomie ci sono. Anche in admin-ajax.php, che ridisegna una riga dopo la modifica rapida.

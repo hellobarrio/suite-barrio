@@ -7,6 +7,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { PerformanceCard } from '../../../modules/performance/assets/src/Performance.js';
 import { SeoCard } from '../../../modules/seo/assets/src/seo/SeoCard.js';
+import { EditorCard } from '../editor/Editor.js';
 import { LaunchBanner, launchUrl } from '../launch/Launch.js';
 
 const { canManageOptions } = window.barrioAdmin;
@@ -32,6 +33,7 @@ export function Dashboard() {
 			<div className="barrio-modules">
 				<FormsCard />
 				<SeoCard />
+				<EditorCard />
 				<PerformanceCard />
 			</div>
 		</div>
