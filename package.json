@@ -15,6 +15,7 @@
 		"modules/*/templates",
 		"modules/*/assets/frontend",
 		"modules/*/assets/block",
+		"modules/*/assets/editor",
 		"modules/*/assets/src",
 		"modules/*/presets.json"
 	],

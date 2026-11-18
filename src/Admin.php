@@ -32,6 +32,18 @@ final class Admin {
 		self::add_page( 'barrio-settings', __( 'Settings', 'barrio-suite' ), 'manage_options' );
 	}
 
+	/**
+	 * Barrio → Editor: gli strumenti dell'editor (Blocchi, Ordinamento, Duplicazione, Testi alternativi) in una
+	 * pagina sola, con una scheda per modulo acceso. Ogni modulo la chiede su admin_menu con la capability della
+	 * sua scheda: la pagina si aggiunge una volta, con la prima che chi guarda ha, e il JavaScript mostra solo le
+	 * schede che può aprire. Con tutti e quattro spenti non c'è.
+	 */
+	public static function editor_tab( string $capability ): void {
+		if ( current_user_can( $capability ) && ! get_plugin_page_hook( 'barrio-editor', self::PAGE ) ) {
+			self::add_page( 'barrio-editor', __( 'Editor', 'barrio-suite' ), $capability );
+		}
+	}
+
 	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla.
 	public static function add_page( string $slug, string $title, string $capability ): string|false {
 		$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );

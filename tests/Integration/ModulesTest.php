@@ -45,6 +45,7 @@ final class ModulesTest extends WP_UnitTestCase {
 			[
 				'forms'       => true,
 				'seo'         => true,
+				'duplicate'   => true,
 				'performance' => true,
 			],
 			rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/modules' ) )->get_data()
@@ -60,6 +61,7 @@ final class ModulesTest extends WP_UnitTestCase {
 			[
 				'forms'       => false,
 				'seo'         => true,
+				'duplicate'   => true,
 				'performance' => true,
 			],
 			$this->put( [ 'forms' => false ] )->get_data()

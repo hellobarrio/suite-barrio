@@ -520,6 +520,54 @@ export function SectionHead( { title, level = 2, children } ) {
 	);
 }
 
+/**
+ * Le schede di una pagina e il contenuto di quella aperta. Ogni scheda è un URL (&tab=): link normali, niente
+ * router. Senza tab, o con una che chi guarda non ha, si apre la prima.
+ *
+ * @param {Object} props
+ * @param {string} props.page Il ?page= della pagina.
+ * @param {Array}  props.tabs [ tab, nome, componente ]; '' per un URL senza tab.
+ */
+export function Tabs( { page, tabs } ) {
+	const tab = new URLSearchParams( window.location.search ).get( 'tab' );
+	const [ current, , Content ] =
+		tabs.find( ( [ value ] ) => value === tab ) ?? tabs[ 0 ];
+	return (
+		<>
+			<nav
+				className="barrio-nav"
+				aria-label={ __( 'Sections', 'barrio-suite' ) }
+			>
+				{ tabs.map( ( [ value, label ] ) => (
+					<a
+						key={ value }
+						href={
+							'?' +
+							new URLSearchParams(
+								value ? { page, tab: value } : { page }
+							)
+						}
+						aria-current={ value === current ? 'page' : undefined }
+						// Sugli schermi stretti le schede scorrono: quella aperta resta in vista.
+						ref={
+							value === current
+								? ( link ) =>
+										link?.scrollIntoView( {
+											block: 'nearest',
+											inline: 'nearest',
+										} )
+								: undefined
+						}
+					>
+						{ label }
+					</a>
+				) ) }
+			</nav>
+			<Content />
+		</>
+	);
+}
+
 // Oltre quante voci compare la ricerca, nelle scelte e nei menu.
 const SEARCH_ABOVE = 5;
 

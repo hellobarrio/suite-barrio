@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-18T11:59:29+00:00\n"
+"POT-Creation-Date: 2026-11-18T14:45:44+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -28,6 +28,60 @@ msgstr ""
 #. Author of the plugin
 #: barrio-suite.php
 msgid "Hellobarrio"
+msgstr ""
+
+#: modules/duplicate/src/Module.php:173
+#: modules/duplicate/src/Module.php:217
+#: modules/duplicate/src/Module.php:230
+#: modules/duplicate/src/Module.php:414
+#: build/barrio-admin.js:32
+msgid "Duplicate"
+msgstr ""
+
+#. translators: %s: number of copies.
+#: modules/duplicate/src/Module.php:200
+#, php-format
+msgid "%s copy created as a draft."
+msgid_plural "%s copies created as drafts."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: number of contents.
+#: modules/duplicate/src/Module.php:203
+#, php-format
+msgid "%s content could not be duplicated."
+msgid_plural "%s contents could not be duplicated."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: title of the original content.
+#. translators: %s: name of the original term.
+#. translators: %s: title of the copied form.
+#: modules/duplicate/src/Module.php:277
+#: modules/duplicate/src/Module.php:332
+#: modules/forms/src/Api/RestForms.php:153
+#, php-format
+msgid "%s (copy)"
+msgstr ""
+
+#. translators: 1: name of the original term, 2: number of the copy, from 2.
+#: modules/duplicate/src/Module.php:334
+#, php-format
+msgid "%1$s (copy %2$d)"
+msgstr ""
+
+#. translators: %s: title of the content or name of the term.
+#: modules/duplicate/src/Module.php:413
+#, php-format
+msgid "Duplicate &#8220;%s&#8221;"
+msgstr ""
+
+#: modules/duplicate/src/Module.php:419
+msgid "You are not allowed to duplicate this item."
+msgstr ""
+
+#: modules/duplicate/src/Module.php:423
+msgid "The copy could not be completed and has been deleted. Please try again."
 msgstr ""
 
 #: modules/forms/src/Admin.php:14
@@ -205,15 +259,15 @@ msgstr ""
 #: build/barrio-admin.js:24
 #: build/barrio-admin.js:25
 #: build/barrio-admin.js:32
-#: build/barrio-admin.js:51
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:54
+#: build/barrio-admin.js:55
 msgid "Language"
 msgstr ""
 
 #: modules/forms/src/Api/RestEntries.php:351
 #: modules/forms/src/Privacy.php:75
 #: build/barrio-admin.js:25
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 msgid "Page"
 msgstr ""
 
@@ -226,12 +280,6 @@ msgstr ""
 
 #: modules/forms/src/Api/RestEntries.php:473
 msgid "Entry not found."
-msgstr ""
-
-#. translators: %s: title of the copied form.
-#: modules/forms/src/Api/RestForms.php:153
-#, php-format
-msgid "%s (copy)"
 msgstr ""
 
 #: modules/forms/src/Api/RestForms.php:176
@@ -253,12 +301,12 @@ msgid "Text"
 msgstr ""
 
 #: modules/forms/src/FieldTypes.php:41
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 msgid "Email"
 msgstr ""
 
 #: modules/forms/src/FieldTypes.php:42
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 msgid "Phone"
 msgstr ""
 
@@ -331,12 +379,12 @@ msgid "Street address"
 msgstr ""
 
 #: modules/forms/src/FieldTypes.php:91
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 msgid "Postal code"
 msgstr ""
 
 #: modules/forms/src/FieldTypes.php:92
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 msgid "City"
 msgstr ""
 
@@ -345,7 +393,7 @@ msgid "State or province"
 msgstr ""
 
 #: modules/forms/src/FieldTypes.php:94
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 msgid "Country"
 msgstr ""
 
@@ -594,6 +642,7 @@ msgid "Performance"
 msgstr ""
 
 #: modules/seo/src/Admin.php:16
+#: build/barrio-admin.js:52
 #: build/barrio-admin.js:59
 msgid "SEO"
 msgstr ""
@@ -666,7 +715,12 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: src/Admin.php:71
+#: src/Admin.php:43
+#: build/barrio-admin.js:70
+msgid "Editor"
+msgstr ""
+
+#: src/Admin.php:83
 msgid "This page has not been built: run npm run build."
 msgstr ""
 
@@ -765,7 +819,12 @@ msgid "You are editing the %1$s texts: an empty text shows the %2$s one. The set
 msgstr ""
 
 #: build/barrio-admin.js:3
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:38
+msgid "Sections"
+msgstr ""
+
+#: build/barrio-admin.js:3
+#: build/barrio-admin.js:55
 msgid "Search"
 msgstr ""
 
@@ -990,7 +1049,7 @@ msgstr ""
 #: build/barrio-admin.js:10
 #: build/barrio-admin.js:26
 #: build/barrio-admin.js:48
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Remove"
@@ -1213,14 +1272,14 @@ msgid "Shortcode copied."
 msgstr ""
 
 #: build/barrio-admin.js:20
-#: build/barrio-admin.js:57
+#: build/barrio-admin.js:50
 msgid "Preview"
 msgstr ""
 
 #: build/barrio-admin.js:20
 #: build/barrio-admin.js:26
 #: build/barrio-admin.js:48
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 #: build/barrio-admin.js:70
 msgid "Saving…"
 msgstr ""
@@ -1228,7 +1287,7 @@ msgstr ""
 #: build/barrio-admin.js:20
 #: build/barrio-admin.js:26
 #: build/barrio-admin.js:48
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 #: build/barrio-admin.js:70
 msgid "Save"
 msgstr ""
@@ -1259,8 +1318,8 @@ msgid "Email preview"
 msgstr ""
 
 #: build/barrio-admin.js:20
-#: build/barrio-admin.js:53
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:49
+#: build/barrio-admin.js:58
 msgid "To"
 msgstr ""
 
@@ -1346,7 +1405,7 @@ msgstr ""
 
 #: build/barrio-admin.js:20
 #: build/barrio-admin.js:30
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 msgid "Name"
 msgstr ""
 
@@ -1436,8 +1495,8 @@ msgstr ""
 
 #: build/barrio-admin.js:23
 #: build/barrio-admin.js:31
-#: build/barrio-admin.js:51
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:54
+#: build/barrio-admin.js:58
 msgid "Actions"
 msgstr ""
 
@@ -1448,7 +1507,7 @@ msgid "Actions for entry #%d"
 msgstr ""
 
 #: build/barrio-admin.js:24
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "View"
 msgstr ""
 
@@ -1464,7 +1523,7 @@ msgstr ""
 #: build/barrio-admin.js:24
 #: build/barrio-admin.js:25
 #: build/barrio-admin.js:32
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 #: build/barrio-admin.js:67
 msgid "Delete"
 msgstr ""
@@ -1498,7 +1557,7 @@ msgstr ""
 
 #: build/barrio-admin.js:24
 #: build/barrio-admin.js:32
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "All languages"
 msgstr ""
 
@@ -1507,8 +1566,8 @@ msgid "Export CSV"
 msgstr ""
 
 #: build/barrio-admin.js:24
-#: build/barrio-admin.js:53
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:49
+#: build/barrio-admin.js:58
 msgid "Note"
 msgstr ""
 
@@ -1574,8 +1633,8 @@ msgid "Add note"
 msgstr ""
 
 #: build/barrio-admin.js:26
-#: build/barrio-admin.js:53
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:49
+#: build/barrio-admin.js:52
 msgid "Logo"
 msgstr ""
 
@@ -1636,7 +1695,7 @@ msgid "See and manage entries"
 msgstr ""
 
 #: build/barrio-admin.js:26
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 #: build/barrio-admin.js:70
 msgid "Settings saved."
 msgstr ""
@@ -1674,7 +1733,7 @@ msgid "Delete all entries"
 msgstr ""
 
 #: build/barrio-admin.js:28
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:52
 msgid "Permissions"
 msgstr ""
 
@@ -1730,13 +1789,13 @@ msgid "Translations"
 msgstr ""
 
 #: build/barrio-admin.js:31
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:58
 msgid "Last modified"
 msgstr ""
 
 #. translators: %s: name of the row: a form, a page, a post or a term.
 #: build/barrio-admin.js:32
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 #, js-format
 msgid "Actions for \"%s\""
 msgstr ""
@@ -1755,13 +1814,9 @@ msgid "Delete permanently"
 msgstr ""
 
 #: build/barrio-admin.js:32
-#: build/barrio-admin.js:52
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:55
+#: build/barrio-admin.js:59
 msgid "Edit"
-msgstr ""
-
-#: build/barrio-admin.js:32
-msgid "Duplicate"
 msgstr ""
 
 #: build/barrio-admin.js:32
@@ -1856,11 +1911,6 @@ msgstr[1] ""
 
 #: build/barrio-admin.js:38
 msgid "New form"
-msgstr ""
-
-#: build/barrio-admin.js:38
-#: build/barrio-admin.js:59
-msgid "Sections"
 msgstr ""
 
 #: build/barrio-admin.js:38
@@ -1964,14 +2014,14 @@ msgid "Removed from the head"
 msgstr ""
 
 #: build/barrio-admin.js:39
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:49
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "Generating…"
 msgstr ""
 
 #: build/barrio-admin.js:39
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:49
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "Generate with AI"
@@ -2202,7 +2252,7 @@ msgid "Failed:"
 msgstr ""
 
 #: build/barrio-admin.js:48
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:53
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "SEO title"
@@ -2252,22 +2302,22 @@ msgstr ""
 
 #: build/barrio-admin.js:48
 #: build/barrio-admin.js:50
-#: build/barrio-admin.js:52
-#: build/barrio-admin.js:57
+#: build/barrio-admin.js:53
+#: build/barrio-admin.js:55
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Indexing"
 msgstr ""
 
 #: build/barrio-admin.js:48
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:49
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Show in search results"
 msgstr ""
 
 #: build/barrio-admin.js:48
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:49
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Follow the links"
@@ -2319,7 +2369,7 @@ msgid "Discard the changes?"
 msgstr ""
 
 #: build/barrio-admin.js:48
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:49
 #: build/barrio-admin.js:70
 msgid "Cancel"
 msgstr ""
@@ -2331,357 +2381,547 @@ msgid "SEO of “%s”"
 msgstr ""
 
 #: build/barrio-admin.js:49
+msgid "Province or region"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "State"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Other place"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Not specified"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Available"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Limited availability"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Pre-order"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Not available"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Discontinued"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Structured data"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "What search engines read about the business, in JSON-LD: it is in every indexed page, with the site and the page."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Business"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "The business behind the site, for search engines: Google can show it in the results and on Maps."
+msgstr ""
+
+#: build/barrio-admin.js:49
+#: build/barrio-admin.js:58
+#: build/barrio-admin.js:59
+msgid "Type"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "The schema.org type that best describes the business."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Without a name, the name of the site is used."
+msgstr ""
+
+#: build/barrio-admin.js:49
+#: build/barrio-admin.js:53
+#: build/barrio-admin.js:55
+msgid "Description"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "At least 112 pixels wide, on a plain background."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Image"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "A photo of the place or of the business."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "VAT number"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Address"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Street and number"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Two-letter code, such as IT."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Latitude"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "In Google Maps, right-click the place: the first number is the latitude, the second the longitude."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Longitude"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Areas served"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "The cities or regions where the business works, if it goes to its customers."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Add area"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Kind of area"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Name of the area"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Expertise"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "What the business knows best, such as “Neapolitan pizza” or “wood-fired oven”."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Add topic"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Topic"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Profiles"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Social profiles and listings of the business, such as Facebook, Instagram, LinkedIn or Google Business Profile."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Add profile"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Full address of a profile, such as https://www.instagram.com/…"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Offers"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Add offer"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Catalog name"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Currency"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Three-letter code, such as EUR."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "New offer"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Service"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Product"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Category"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Price"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Leave empty if the price depends on the request."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Availability"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Remove offer"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "301 Moved permanently"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "302 Found"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "307 Temporary redirect"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "308 Permanent redirect"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "410 Content deleted"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Edit redirect"
+msgstr ""
+
+#: build/barrio-admin.js:49
+#: build/barrio-admin.js:59
+msgid "Add redirect"
+msgstr ""
+
+#: build/barrio-admin.js:49
+#: build/barrio-admin.js:58
+msgid "From"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "The old address, such as /old-page. A full URL works too: only the path is kept."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Tells search engines that the page was removed on purpose and has no replacement."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "301 for a page that moved for good, the usual choice; 302 or 307 for a temporary move."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "A path of this site, such as /new-page/, or the full URL of another site."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Use Contents and Redirects"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Edit the SEO of the contents they can edit"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Include, with the text"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Links only"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Leave out"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Default description"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "For the pages without a description, an excerpt or a text of their own. Search engines show about 160 characters."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Default sharing image"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "Shown when a page without an image of its own is shared on Facebook, LinkedIn, WhatsApp or X. 1200 × 630 pixels is best."
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "not in the sitemap"
+msgstr ""
+
+#: build/barrio-admin.js:49
+msgid "in the sitemap after saving"
+msgstr ""
+
+#. translators: %d: number of addresses.
+#: build/barrio-admin.js:50
+#, js-format
+msgid "%d address in the sitemap"
+msgid_plural "%d addresses in the sitemap"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/barrio-admin.js:50
+#: build/barrio-admin.js:69
+msgid "Content types"
+msgstr ""
+
+#: build/barrio-admin.js:50
+#: build/barrio-admin.js:69
+msgid "Taxonomies"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Titles and meta"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "How the pages of the site look in search results and when they are shared. Each page can change its own in its SEO panel."
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Site name"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Site icon"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "In the browser tabs and next to the site in Google. Square, at least 512 pixels wide."
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Title separator"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Title order"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Page title, then site name"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Site name, then page title"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Page title"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "What search engines may show and whose links they may follow. Each page can change it in its SEO panel; what is not shown is left out of the sitemap."
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Archives"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Authors"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Dates"
+msgstr ""
+
+#: build/barrio-admin.js:50
+msgid "Sitemap"
+msgstr ""
+
+#. translators: %d: number of addresses.
+#: build/barrio-admin.js:51
+#, js-format
+msgid "%d address in all."
+msgid_plural "%d addresses in all."
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/barrio-admin.js:51
+msgid "WordPress publishes it with only what is indexed and lists it in robots.txt: submit it in Google Search Console."
+msgstr ""
+
+#: build/barrio-admin.js:51
+msgid "WordPress does not publish it while the site asks search engines not to index it (Settings → Reading)."
+msgstr ""
+
+#. translators: %s: line to add to robots.txt, with the address of the sitemap.
+#: build/barrio-admin.js:52
+#, js-format
+msgid "The folder of the site has a robots.txt file: the server sends it instead of the one of WordPress, which lists the sitemap. Add the line \"%s\" to it, or delete it."
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "AI assistants"
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "Two files that tell AI assistants such as ChatGPT, Gemini and Claude what the site is: llms.txt with a summary and the links, llms-full.txt also with the text of the pages. They are built from the contents, and what is not indexed is never included."
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "Introduction"
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "At the beginning of both files, after the name of the site."
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "Files"
+msgstr ""
+
+#: build/barrio-admin.js:52
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
+msgid "Redirects"
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "Create a redirect when an address changes"
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "When the address of a published page or of a category changes, also by moving it under another one, the old address leads to the new one, with the pages below it. Useful above all with a headless frontend: WordPress alone already does it for posts."
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "What each role can do in SEO. Administrators can always do everything; only administrators change these settings."
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "What search engines and social networks show for the pages without texts and images of their own, and the business behind the site."
+msgstr ""
+
+#: build/barrio-admin.js:52
+msgid "Name of the business"
+msgstr ""
+
+#: build/barrio-admin.js:52
+#: build/barrio-admin.js:59
+msgid "Contents"
+msgstr ""
+
+#: build/barrio-admin.js:52
 msgid "(no title)"
 msgstr ""
 
 #. translators: %d: number of pages, posts or terms.
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:53
 #, js-format
 msgid "%d item updated."
 msgid_plural "%d items updated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:53
 msgid "Indexed"
 msgstr ""
 
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:53
 msgid "Not indexed"
 msgstr ""
 
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:53
 msgid "Title"
 msgstr ""
 
-#: build/barrio-admin.js:50
-#: build/barrio-admin.js:52
-#: build/barrio-admin.js:53
-msgid "Description"
-msgstr ""
-
 #. translators: %s: Indexed or Not indexed.
-#: build/barrio-admin.js:51
+#: build/barrio-admin.js:54
 #, js-format
 msgid "%s (default)"
 msgstr ""
 
-#: build/barrio-admin.js:51
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:54
+#: build/barrio-admin.js:55
 msgid "Score"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "Edit SEO"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "Content type"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "Nothing found."
 msgstr ""
 
-#: build/barrio-admin.js:52
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:55
+#: build/barrio-admin.js:59
 msgid "All"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 #: build/barrio-admin.js:59
 msgid "Without description"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "Index"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "Do not index"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "Use the default"
 msgstr ""
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:55
 msgid "Generate with AI, empty fields only"
 msgstr ""
 
 #. translators: 1: number of the item being generated, 2: number of selected items.
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:56
 #, js-format
 msgid "Generating %1$d of %2$d…"
 msgstr ""
 
-#: build/barrio-admin.js:53
-msgid "Province or region"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "State"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Other place"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Not specified"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Available"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Limited availability"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Pre-order"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Not available"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Discontinued"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Structured data"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "What search engines read about the business, in JSON-LD: it is in every indexed page, with the site and the page."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Business"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "The business behind the site, for search engines: Google can show it in the results and on Maps."
-msgstr ""
-
-#: build/barrio-admin.js:53
-#: build/barrio-admin.js:55
-#: build/barrio-admin.js:56
-msgid "Type"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "The schema.org type that best describes the business."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Without a name, the name of the site is used."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "At least 112 pixels wide, on a plain background."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Image"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "A photo of the place or of the business."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "VAT number"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Address"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Street and number"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Two-letter code, such as IT."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Latitude"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "In Google Maps, right-click the place: the first number is the latitude, the second the longitude."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Longitude"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Areas served"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "The cities or regions where the business works, if it goes to its customers."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Add area"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Kind of area"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Name of the area"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Expertise"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "What the business knows best, such as “Neapolitan pizza” or “wood-fired oven”."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Add topic"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Topic"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Profiles"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Social profiles and listings of the business, such as Facebook, Instagram, LinkedIn or Google Business Profile."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Add profile"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Full address of a profile, such as https://www.instagram.com/…"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Offers"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Add offer"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Catalog name"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Currency"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Three-letter code, such as EUR."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "New offer"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Service"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Product"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Category"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Price"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Leave empty if the price depends on the request."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Availability"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Remove offer"
-msgstr ""
-
-#: build/barrio-admin.js:53
-#: build/barrio-admin.js:59
-msgid "Organization"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "301 Moved permanently"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "302 Found"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "307 Temporary redirect"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "308 Permanent redirect"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "410 Content deleted"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Edit redirect"
-msgstr ""
-
-#: build/barrio-admin.js:53
-#: build/barrio-admin.js:56
-msgid "Add redirect"
-msgstr ""
-
-#: build/barrio-admin.js:53
-#: build/barrio-admin.js:55
-msgid "From"
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "The old address, such as /old-page. A full URL works too: only the path is kept."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "Tells search engines that the page was removed on purpose and has no replacement."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "301 for a page that moved for good, the usual choice; 302 or 307 for a temporary move."
-msgstr ""
-
-#: build/barrio-admin.js:53
-msgid "A path of this site, such as /new-page/, or the full URL of another site."
-msgstr ""
-
 #. translators: %d: number of redirects to delete.
-#: build/barrio-admin.js:54
+#: build/barrio-admin.js:57
 #, js-format
 msgid "Delete %d redirect?"
 msgid_plural "Delete %d redirects?"
@@ -2689,240 +2929,53 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of redirects deleted.
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:58
 #, js-format
 msgid "%d redirect deleted."
 msgid_plural "%d redirects deleted."
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:58
 msgid "Automatic"
 msgstr ""
 
 #. translators: %s: the source address of a redirect, such as /old-page.
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 #, js-format
 msgid "Actions for %s"
 msgstr ""
 
-#: build/barrio-admin.js:56
 #: build/barrio-admin.js:59
-msgid "Redirects"
-msgstr ""
-
-#: build/barrio-admin.js:56
 msgid "Search redirects"
 msgstr ""
 
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 msgid "No redirects found."
 msgstr ""
 
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 msgid "Created"
 msgstr ""
 
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 msgid "Automatically, when an address changed"
 msgstr ""
 
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 msgid "By hand"
 msgstr ""
 
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 msgid "Redirect saved."
 msgstr ""
 
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:59
 msgid "Redirect added."
 msgstr ""
 
-#: build/barrio-admin.js:56
-msgid "Use Contents and Redirects"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "Edit the SEO of the contents they can edit"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "Include, with the text"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "Links only"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "Leave out"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "Default description"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "For the pages without a description, an excerpt or a text of their own. Search engines show about 160 characters."
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "Default sharing image"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "Shown when a page without an image of its own is shared on Facebook, LinkedIn, WhatsApp or X. 1200 × 630 pixels is best."
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "not in the sitemap"
-msgstr ""
-
-#: build/barrio-admin.js:56
-msgid "in the sitemap after saving"
-msgstr ""
-
-#. translators: %d: number of addresses.
-#: build/barrio-admin.js:57
-#, js-format
-msgid "%d address in the sitemap"
-msgid_plural "%d addresses in the sitemap"
-msgstr[0] ""
-msgstr[1] ""
-
-#: build/barrio-admin.js:57
-msgid "Content types"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Taxonomies"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Titles and meta"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "How the pages of the site look in search results and when they are shared. Each page can change its own in its SEO panel."
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Site name"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Site icon"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "In the browser tabs and next to the site in Google. Square, at least 512 pixels wide."
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Title separator"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Title order"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Page title, then site name"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Site name, then page title"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Page title"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "What search engines may show and whose links they may follow. Each page can change it in its SEO panel; what is not shown is left out of the sitemap."
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Archives"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Authors"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Dates"
-msgstr ""
-
-#: build/barrio-admin.js:57
-msgid "Sitemap"
-msgstr ""
-
-#. translators: %d: number of addresses.
-#: build/barrio-admin.js:58
-#, js-format
-msgid "%d address in all."
-msgid_plural "%d addresses in all."
-msgstr[0] ""
-msgstr[1] ""
-
-#: build/barrio-admin.js:58
-msgid "WordPress publishes it with only what is indexed and lists it in robots.txt: submit it in Google Search Console."
-msgstr ""
-
-#: build/barrio-admin.js:58
-msgid "WordPress does not publish it while the site asks search engines not to index it (Settings → Reading)."
-msgstr ""
-
-#. translators: %s: line to add to robots.txt, with the address of the sitemap.
 #: build/barrio-admin.js:59
-#, js-format
-msgid "The folder of the site has a robots.txt file: the server sends it instead of the one of WordPress, which lists the sitemap. Add the line \"%s\" to it, or delete it."
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "AI assistants"
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "Two files that tell AI assistants such as ChatGPT, Gemini and Claude what the site is: llms.txt with a summary and the links, llms-full.txt also with the text of the pages. They are built from the contents, and what is not indexed is never included."
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "Introduction"
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "At the beginning of both files, after the name of the site."
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "Files"
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "Create a redirect when an address changes"
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "When the address of a published page or of a category changes, also by moving it under another one, the old address leads to the new one, with the pages below it. Useful above all with a headless frontend: WordPress alone already does it for posts."
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "What each role can do in SEO. Administrators can always do everything; only administrators change these settings."
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "What search engines and social networks show for the pages without texts and images of their own, and the business behind the site."
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "Name of the business"
-msgstr ""
-
-#: build/barrio-admin.js:59
-msgid "Contents"
+msgid "Organization"
 msgstr ""
 
 #: build/barrio-admin.js:59
@@ -3204,6 +3257,18 @@ msgid "Continue"
 msgstr ""
 
 #: build/barrio-admin.js:69
+msgid "Duplication"
+msgstr ""
+
+#: build/barrio-admin.js:69
+msgid "A Duplicate link for contents and terms, in the lists and in the editor."
+msgstr ""
+
+#: build/barrio-admin.js:69
+msgid "Duplicate appears in the lists, in the bulk actions and in the editor of these types. The copy is a draft of whoever duplicates it, with the content, the custom fields and the terms of the original."
+msgstr ""
+
+#: build/barrio-admin.js:69
 msgid "No service account yet"
 msgstr ""
 
@@ -3331,6 +3396,10 @@ msgstr ""
 
 #: build/barrio-admin.js:70
 msgid "Forms, entries with their files, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first."
+msgstr ""
+
+#: build/barrio-admin.js:70
+msgid "Tools for whoever writes and manages the contents of the site."
 msgstr ""
 
 #: build/barrio-admin.js:70

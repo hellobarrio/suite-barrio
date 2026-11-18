@@ -27,6 +27,8 @@ And an SEO module: titles and meta descriptions, Open Graph, JSON-LD (organizati
 
 And a Performance module, with what WordPress already provides and no external services: the sizes of new JPEG images in WebP or AVIF (the uploaded file is kept as it is), speculative loading of the next page (prefetch or prerender, with the eagerness you choose) and a lighter page head, without the emoji script and styles, the generator tag, the RSD link and the shortlink.
 
+And a Duplication module: a Duplicate link in the lists of contents and terms, in the bulk actions and in the block and classic editors. The copy is a draft of whoever duplicates it, with the content, the custom fields (ACF included) and the terms of the original, and only those who can edit the original can duplicate it. Choose the content types and taxonomies in Barrio → Editor.
+
 Every module can be turned off in Barrio → Settings: it disappears from the menu and from the site, and its data is kept.
 
 Integrations with other plugins and services are separate extensions, so the core contains no code for third parties. Barrio → Extensions installs them with one click.
