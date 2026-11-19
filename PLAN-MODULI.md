@@ -229,9 +229,10 @@ banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
   - Scegliere Google, o un altro Place ID, li prende subito, al salvataggio. Le note dei giorni speciali di Google
     restano vuote.
 - **Nel sito**: il blocco `barrio/hours` (dinamico) e lo shortcode `[barrio_hours]`, con lo stesso render. Tre forme:
-  - la settimana: una tabella, con i giorni uguali raggruppati se si sceglie ("Lun–Ven");
+  - la settimana: una tabella, con i giorni uguali raggruppati se si sceglie ("Lun–Ven"), una fascia per riga, e sotto
+    i giorni speciali in una tabella uguale, con la data breve senza l'anno ("24 dic – 26 dic") e la nota;
   - oggi;
-  - lo stato ("Aperto · chiude alle 19:00").
+  - lo stato ("Aperto · chiude alle 19:00"), una pastiglia verde o rossa con i colori del testo del tema.
 
   I nomi dei giorni e il formato dell'ora seguono la lingua della pagina (`WP_Locale`, `time_format`); la settimana
   parte dal primo giorno del sito (`start_of_week`). Oggi e lo stato li scrive il server e li riscrive il browser:

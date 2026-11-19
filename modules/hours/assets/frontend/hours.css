@@ -1,57 +1,92 @@
-/* Gli orari nel sito: pochi stili, il resto è del tema. */
+/*
+ * Gli orari nel sito: caratteri e colori del tema, le linee e gli sfondi dal
+ * colore del testo, così stanno bene anche su un tema scuro.
+ */
 
+/*
+ * Lo stato: una pastiglia con il punto, verde se aperto. Sullo span, così il
+ * paragrafo resta largo come il contenuto e i temi non lo centrano.
+ */
+.barrio-hours.is-status span {
+	display: inline-flex;
+	gap: 0.5em;
+	align-items: center;
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+	background: color-mix(in srgb, #d63638 12%, transparent);
+	font-weight: 500;
+}
+
+.barrio-hours.is-status span::before {
+	content: "";
+	flex: none;
+	width: 0.5em;
+	height: 0.5em;
+	border-radius: 50%;
+	background: #d63638;
+}
+
+.barrio-hours.is-status.is-open span {
+	background: color-mix(in srgb, #00a32a 12%, transparent);
+}
+
+.barrio-hours.is-status.is-open span::before {
+	background: #00a32a;
+}
+
+/* La settimana e i giorni speciali: il giorno a sinistra, una fascia a riga. */
 .barrio-hours__week {
 	width: 100%;
 	border-collapse: collapse;
+	font-variant-numeric: tabular-nums;
 }
 
 .barrio-hours__week th,
 .barrio-hours__week td {
-	padding: 0.4em 0;
-	border-bottom: 1px solid currentcolor;
-	border-bottom-color: color-mix(in srgb, currentcolor 15%, transparent);
+	padding: 0.6em 0;
+	border: 0;
+	border-bottom: 1px solid color-mix(in srgb, currentcolor 12%, transparent);
 	text-align: start;
 	vertical-align: top;
 }
 
+.barrio-hours__week tr:last-child > * {
+	border-bottom: 0;
+}
+
+/* Uguale nelle due tabelle, così le ore sono in colonna. */
 .barrio-hours__week th {
-	padding-inline-end: 1em;
-	font-weight: 600;
+	width: 40%;
+	padding-inline-end: 1.5em;
+	font-weight: 500;
 	white-space: nowrap;
 }
 
-/* Una fascia non va a capo a metà: solo tra una fascia e l'altra. */
-.barrio-hours__week td span {
-	white-space: nowrap;
-}
-
-/* WordPress scrive i giorni in minuscolo in molte lingue. */
+/* WordPress scrive i giorni e i mesi in minuscolo in molte lingue. */
 .barrio-hours__week th::first-letter {
 	text-transform: uppercase;
 }
 
-.barrio-hours__special p {
-	margin: 1em 0 0.25em;
+.barrio-hours__week td span {
+	display: block;
+	white-space: nowrap;
+}
+
+.barrio-hours__note {
+	opacity: 0.7;
+}
+
+.barrio-hours__special {
+	margin-top: 1.5em;
+}
+
+.barrio-hours__special caption {
+	padding-bottom: 0.25em;
 	font-weight: 600;
+	text-align: start;
 }
 
-.barrio-hours__special ul {
-	margin: 0;
-	padding-inline-start: 1.2em;
-}
-
-/* Lo stato con un punto colorato: il testo dice già aperto o chiuso. */
-.barrio-hours.is-status::before {
-	content: "";
-	display: inline-block;
-	width: 0.6em;
-	height: 0.6em;
-	margin-inline-end: 0.5em;
-	border-radius: 50%;
-	background: #b32d2e;
-	vertical-align: 0.05em;
-}
-
-.barrio-hours.is-status.is-open::before {
-	background: #00a32a;
+/* Le date sono più lunghe dei giorni: vanno a capo. */
+.barrio-hours__special th {
+	white-space: normal;
 }

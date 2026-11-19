@@ -420,7 +420,8 @@
  */
 .barrio-card__body > .barrio-toggle + .barrio-toggle,
 .barrio-fixed > .barrio-toggle + .barrio-toggle,
-.barrio-stack > .barrio-toggle + .barrio-toggle {
+.barrio-stack > .barrio-toggle + .barrio-toggle,
+.barrio-modal__body > .barrio-toggle + .barrio-toggle {
 	padding-top: 16px;
 	border-top: 1px solid var(--barrio-line);
 }
@@ -952,8 +953,16 @@
 	min-height: 0;
 }
 
+/*
+ * Il corpo è una pila, come barrio-stack: i campi di ogni modale hanno lo
+ * spazio delle card anche senza un contenitore.
+ */
 .barrio-modal__body {
+	display: grid;
 	flex: 1 1 auto;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--barrio-gap);
+	align-content: start;
 	min-height: 0;
 	padding: var(--barrio-gap) var(--barrio-modal-padding) var(--barrio-modal-padding);
 	overflow-x: hidden;
@@ -1642,6 +1651,11 @@ button.barrio-table__title {
 	background: #fff;
 }
 
+/* Senza la maniglia il testo si stacca dal bordo come le card. */
+.barrio-order__row:not(:has(.barrio-handle)) {
+	padding-inline-start: 12px;
+}
+
 .barrio-order__title {
 	flex: 1;
 	min-width: 0;
@@ -2169,4 +2183,14 @@ a.barrio-badge {
 
 .barrio-admin .barrio-hours-slots .barrio-input {
 	width: auto;
+}
+
+/* L'anteprima degli orari: l'HTML del sito, con lo spazio delle card. */
+.barrio-hours-preview {
+	display: grid;
+	gap: 16px;
+}
+
+.barrio-hours-preview p {
+	margin: 0;
 }

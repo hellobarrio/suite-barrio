@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-19T13:32:53+00:00\n"
+"POT-Creation-Date: 2026-11-19T13:50:07+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -729,54 +729,59 @@ msgid "A special period cannot end before it starts."
 msgstr ""
 
 #. translators: %s: today's opening hours, like 9:00–13:00, or Closed.
-#: modules/hours/src/Render.php:91
+#: modules/hours/src/Render.php:92
 #, php-format
 msgid "Today: %s"
 msgstr ""
 
-#: modules/hours/src/Render.php:115
-#: modules/hours/src/Render.php:284
+#: modules/hours/src/Render.php:116
+#: modules/hours/src/Render.php:313
 msgid "Open 24 hours"
 msgstr ""
 
 #. translators: %s: closing time.
-#: modules/hours/src/Render.php:117
+#: modules/hours/src/Render.php:118
 #, php-format
 msgid "Open · closes at %s"
 msgstr ""
 
 #. translators: 1: day of the week; 2: closing time.
-#: modules/hours/src/Render.php:119
+#: modules/hours/src/Render.php:120
 #, php-format
 msgid "Open · closes %1$s at %2$s"
 msgstr ""
 
-#: modules/hours/src/Render.php:120
-#: modules/hours/src/Render.php:281
+#: modules/hours/src/Render.php:121
+#: modules/hours/src/Render.php:310
 #: build/barrio-admin.js:40
 msgid "Closed"
 msgstr ""
 
 #. translators: %s: opening time.
-#: modules/hours/src/Render.php:122
+#: modules/hours/src/Render.php:123
 #, php-format
 msgid "Closed · opens at %s"
 msgstr ""
 
 #. translators: %s: opening time.
-#: modules/hours/src/Render.php:124
+#: modules/hours/src/Render.php:125
 #, php-format
 msgid "Closed · opens tomorrow at %s"
 msgstr ""
 
 #. translators: 1: day of the week; 2: opening time.
-#: modules/hours/src/Render.php:126
+#: modules/hours/src/Render.php:127
 #, php-format
 msgid "Closed · opens %1$s at %2$s"
 msgstr ""
 
-#: modules/hours/src/Render.php:256
+#: modules/hours/src/Render.php:265
 msgid "Special opening hours"
+msgstr ""
+
+#. translators: short date format without the year, for the special days of this year: see https://www.php.net/manual/datetime.format.php
+#: modules/hours/src/Render.php:273
+msgid "M j"
 msgstr ""
 
 #. translators: %s: name of the content type or taxonomy, such as Pages.
@@ -2214,14 +2219,6 @@ msgstr ""
 
 #: build/barrio-admin.js:40
 msgid "Closes"
-msgstr ""
-
-#: build/barrio-admin.js:40
-msgid "24 hours"
-msgstr ""
-
-#: build/barrio-admin.js:40
-msgid "the next day"
 msgstr ""
 
 #: build/barrio-admin.js:40

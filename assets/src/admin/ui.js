@@ -514,7 +514,8 @@ export function Permissions( { description, caps, names, roles, onChange } ) {
 
 /**
  * Ogni modale del plugin: l'intestazione resta in alto, sempre separata dal contenuto da una linea, e i bottoni
- * (footer) restano in fondo. Scorre solo il corpo, così la scrollbar non passa sui bottoni. WordPress la mette in fondo alla pagina, fuori da
+ * (footer) restano in fondo. Scorre solo il corpo, così la scrollbar non passa sui bottoni. Il corpo è una pila
+ * (admin.css): i campi hanno già lo spazio tra loro. WordPress la mette in fondo alla pagina, fuori da
  * .barrio-admin: la classe la porta anche qui, con gli stili dei campi. Le altre props sono quelle di Modal.
  *
  * @param {Object} props

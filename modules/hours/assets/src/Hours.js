@@ -126,13 +126,6 @@ function Slots( { slots, onChange, actions } ) {
 					>
 						<Icon name="trash" />
 					</button>
-					{ slot.close <= slot.open && (
-						<span className="barrio-field__help">
-							{ slot.close === slot.open
-								? __( '24 hours', 'barrio-suite' )
-								: __( 'the next day', 'barrio-suite' ) }
-						</span>
-					) }
 				</div>
 			) ) }
 			<div className="barrio-row">
@@ -218,7 +211,11 @@ function WeekCard( { week, disabled, onChange } ) {
 
 // Data, fasce e nota di un giorno speciale. Nelle altre lingue solo la nota.
 function SpecialModal( { special, lang, onSave, onClose } ) {
-	const [ value, setValue ] = useState( special );
+	// Al vuoto: un giorno solo, che segue Dal.
+	const [ value, setValue ] = useState( {
+		...special,
+		to: special.to === special.from ? '' : special.to,
+	} );
 	const [ notice, setNotice ] = useState( null );
 	const set = ( name ) => ( next ) =>
 		setValue( ( now ) => ( { ...now, [ name ]: next } ) );
@@ -279,7 +276,7 @@ function SpecialModal( { special, lang, onSave, onClose } ) {
 					label={ __( 'To', 'barrio-suite' ) }
 					help={ __( 'Empty for a single day.', 'barrio-suite' ) }
 					min={ value.from }
-					value={ value.to === value.from ? '' : value.to }
+					value={ value.to }
 					onChange={ set( 'to' ) }
 				/>
 				<Toggle
@@ -700,7 +697,7 @@ export const hoursSection = {
 	Cards: HoursCards,
 };
 
-// La scheda Impostazioni, agli amministratori: la fonte, come mostrarli e i Permessi, con un solo Salva.
+// La scheda Impostazioni, agli amministratori: come mostrarli, la fonte e i Permessi, con un solo Salva.
 export const hoursSettingsSection = {
 	id: 'hours-settings',
 	load: () => apiFetch( { path: '/barrio/v1/hours' } ),
@@ -713,6 +710,7 @@ export const hoursSettingsSection = {
 		apiFetch( { path: '/barrio/v1/hours', method: 'PUT', data: draft } ),
 	Cards: ( { data, draft, set, onData, onNotice } ) => (
 		<>
+			<HowTo />
 			<SourceCard
 				data={ data }
 				draft={ draft }
@@ -720,7 +718,6 @@ export const hoursSettingsSection = {
 				onData={ onData }
 				onNotice={ onNotice }
 			/>
-			<HowTo />
 			<Permissions
 				description={ __(
 					'Who can edit the opening hours and the special days. Administrators can always do everything; only administrators choose the source and change these settings.',
