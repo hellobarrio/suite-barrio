@@ -3993,53 +3993,53 @@ msgid "A special period cannot end before it starts."
 msgstr "Un periodo speciale non può finire prima di iniziare."
 
 #. translators: %s: today's opening hours, like 9:00–13:00, or Closed.
-#: modules/hours/src/Render.php:91
+#: modules/hours/src/Render.php:92
 #, php-format
 msgid "Today: %s"
 msgstr "Oggi: %s"
 
-#: modules/hours/src/Render.php:115
-#: modules/hours/src/Render.php:284
+#: modules/hours/src/Render.php:116
+#: modules/hours/src/Render.php:313
 msgid "Open 24 hours"
 msgstr "Aperto 24 ore su 24"
 
 #. translators: %s: closing time.
-#: modules/hours/src/Render.php:117
+#: modules/hours/src/Render.php:118
 #, php-format
 msgid "Open · closes at %s"
 msgstr "Aperto · chiude alle %s"
 
 #. translators: 1: day of the week; 2: closing time.
-#: modules/hours/src/Render.php:119
+#: modules/hours/src/Render.php:120
 #, php-format
 msgid "Open · closes %1$s at %2$s"
 msgstr "Aperto · chiude %1$s alle %2$s"
 
-#: modules/hours/src/Render.php:120
-#: modules/hours/src/Render.php:281
+#: modules/hours/src/Render.php:121
+#: modules/hours/src/Render.php:310
 #: build/barrio-admin.js:40
 msgid "Closed"
 msgstr "Chiuso"
 
 #. translators: %s: opening time.
-#: modules/hours/src/Render.php:122
+#: modules/hours/src/Render.php:123
 #, php-format
 msgid "Closed · opens at %s"
 msgstr "Chiuso · apre alle %s"
 
 #. translators: %s: opening time.
-#: modules/hours/src/Render.php:124
+#: modules/hours/src/Render.php:125
 #, php-format
 msgid "Closed · opens tomorrow at %s"
 msgstr "Chiuso · apre domani alle %s"
 
 #. translators: 1: day of the week; 2: opening time.
-#: modules/hours/src/Render.php:126
+#: modules/hours/src/Render.php:127
 #, php-format
 msgid "Closed · opens %1$s at %2$s"
 msgstr "Chiuso · apre %1$s alle %2$s"
 
-#: modules/hours/src/Render.php:256
+#: modules/hours/src/Render.php:265
 msgid "Special opening hours"
 msgstr "Orari speciali"
 
@@ -4050,14 +4050,6 @@ msgstr "Apre"
 #: build/barrio-admin.js:40
 msgid "Closes"
 msgstr "Chiude"
-
-#: build/barrio-admin.js:40
-msgid "24 hours"
-msgstr "24 ore"
-
-#: build/barrio-admin.js:40
-msgid "the next day"
-msgstr "il giorno dopo"
 
 #: build/barrio-admin.js:40
 msgid "Add hours"
@@ -4252,3 +4244,8 @@ msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui scegli la 
 #: build/barrio-admin.js:41
 msgid "The opening hours come from Google, every night: to change them here, an administrator has to choose the manual source."
 msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui un amministratore deve scegliere la fonte manuale."
+
+#. translators: short date format without the year, for the special days of this year: see https://www.php.net/manual/datetime.format.php
+#: modules/hours/src/Render.php:273
+msgid "M j"
+msgstr "j M"

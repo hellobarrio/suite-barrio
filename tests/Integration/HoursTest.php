@@ -117,17 +117,19 @@ final class HoursTest extends WP_UnitTestCase {
 		$this->assertSame( [ $this->slot( '09:00', '13:00' ), $this->slot( '15:00', '19:00' ) ], $saved['week'][1], 'The hours of a day in order.' );
 
 		$week = do_blocks( '<!-- wp:barrio/hours {"group":true} /-->' );
-		$this->assertStringContainsString( '<tr><th scope="row">Mon–Tue</th><td><span>09:00–13:00</span>, <span>15:00–19:00</span></td></tr>', $week );
+		$this->assertStringContainsString( '<tr><th scope="row">Mon–Tue</th><td><span>09:00–13:00</span><span>15:00–19:00</span></td></tr>', $week );
 		$this->assertStringContainsString( '<tr><th scope="row">Wed–Thu</th><td><span>Closed</span></td></tr>', $week );
 		$this->assertStringContainsString( '<tr><th scope="row">Fri</th><td><span>20:00–02:00</span></td></tr>', $week );
 		$this->assertStringContainsString( '<tr><th scope="row">Sun</th><td><span>Open 24 hours</span></td></tr>', $week );
-		$this->assertStringContainsString( '24 December 2099 – 26 December 2099: Closed · Christmas</li>', $week );
+		$this->assertMatchesRegularExpression( '#<caption>Special opening hours</caption><tbody><tr data-until="\d+"><th scope="row">24 December 2099 – 26 December 2099</th><td><span>Closed</span><span class="barrio-hours__note">Christmas</span></td></tr></tbody>#', $week, 'Another year: the date format of the site.' );
 		$this->assertSame( $week, do_shortcode( '[barrio_hours group="1"]' ), 'The shortcode is the same as the block.' );
 		$this->assertStringContainsString( '<th scope="row">Monday</th>', do_shortcode( '[barrio_hours]' ) );
 		$this->assertTrue( wp_style_is( 'barrio-hours' ) );
 		$card = apply_filters( 'barrio_admin_data', [] )['hours'];
-		$this->assertSame( '24 Dec – 26 Dec', $card['next'], 'Short, to fit in one row of the dashboard card.' );
+		$this->assertSame( '24 December 2099 – 26 December 2099', $card['next'] );
 		$this->assertSame( 'manual', $card['source'] );
+		$today = current_datetime()->format( 'Y-m-d' );
+		$this->assertSame( wp_date( 'M j' ), Render::dates( $this->special( $today, $today ), Render::short_date() ), 'This year without the year, to fit in one row.' );
 
 		// La pagina scritta un venerdì, letta dal browser nei giorni dopo, come con la cache.
 		$friday = new DateTimeImmutable( '2099-12-18', wp_timezone() );
@@ -138,7 +140,7 @@ final class HoursTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'Open · closes at 02:00', 'Open · closes at 02:00', 'Closed · opens tomorrow at 00:00', 'Open · closes at 00:00', 'Closed · opens Sunday at 00:00' ], array_column( array_map( static fn( string $time ): ?array => Render::status( $data, $at( $time ) ), [ '2099-12-18 21:00', '2099-12-19 01:59', '2099-12-19 03:00', '2099-12-20 12:00', '2099-12-23 20:00' ] ), 'text' ) );
 
 		$status = do_shortcode( '[barrio_hours show="status"]' );
-		$this->assertMatchesRegularExpression( '#^<p class="barrio-hours is-status is-(open|closed)" data-hours="[^"]+">(Open|Closed)#', $status );
+		$this->assertMatchesRegularExpression( '#^<p class="barrio-hours is-status is-(open|closed)" data-hours="[^"]+"><span>(Open|Closed)#', $status );
 		$this->assertStringContainsString( 'modules/hours/assets/frontend/hours.js', get_echo( [ wp_script_modules(), 'print_enqueued_script_modules' ] ) );
 	}
 

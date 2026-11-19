@@ -63,7 +63,7 @@ if ( typeof document !== 'undefined' ) {
 		if ( element.classList.contains( 'is-status' ) ) {
 			const result = status( data, now );
 			if ( result ) {
-				element.textContent = result.text;
+				element.firstElementChild.textContent = result.text;
 				element.classList.toggle( 'is-open', result.open );
 				element.classList.toggle( 'is-closed', ! result.open );
 			}
@@ -81,11 +81,11 @@ if ( typeof document !== 'undefined' ) {
 			item.remove();
 		}
 	}
-	for ( const list of document.querySelectorAll(
+	for ( const table of document.querySelectorAll(
 		'.barrio-hours__special'
 	) ) {
-		if ( ! list.querySelector( 'li' ) ) {
-			list.remove();
+		if ( ! table.querySelector( 'tr' ) ) {
+			table.remove();
 		}
 	}
 }

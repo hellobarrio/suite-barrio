@@ -66,7 +66,8 @@ final class Render {
 			'open' => false,
 			'text' => '',
 		];
-		return sprintf( '<p class="barrio-hours is-status %s" data-hours="%s">%s</p>', $status['open'] ? 'is-open' : 'is-closed', esc_attr( (string) wp_json_encode( $data ) ), esc_html( $status['text'] ) );
+		// Lo stile è sullo span: il paragrafo resta largo come il contenuto, e i temi non lo centrano.
+		return sprintf( '<p class="barrio-hours is-status %s" data-hours="%s"><span>%s</span></p>', $status['open'] ? 'is-open' : 'is-closed', esc_attr( (string) wp_json_encode( $data ) ), esc_html( $status['text'] ) );
 	}
 
 	/**
@@ -208,19 +209,21 @@ final class Render {
 	}
 
 	/**
-	 * Le date di un giorno speciale, nel formato del sito o in $pattern: una, o la prima e l'ultima.
+	 * Le date di un giorno speciale: una, o la prima e l'ultima. Nell'anno in corso in $short, senza l'anno; negli altri
+	 * nel formato del sito.
 	 *
 	 * @param Special $special
 	 */
-	public static function dates( array $special, string $pattern = '' ): string {
-		$pattern = $pattern ?: (string) get_option( 'date_format' );
-		$format  = static fn( string $date ): string => (string) mysql2date( $pattern, $date );
+	public static function dates( array $special, string $short ): string {
+		$year   = current_datetime()->format( 'Y' );
+		$format = static fn( string $date ): string => (string) mysql2date( str_starts_with( $date, $year ) ? $short : (string) get_option( 'date_format' ), $date );
 		return $special['from'] === $special['to'] ? $format( $special['from'] ) : $format( $special['from'] ) . ' – ' . $format( $special['to'] );
 	}
 
 	/**
 	 * Una riga per giorno dal primo della settimana del sito, o i giorni di seguito uguali in una ("Lun–Ven"), e sotto i
-	 * giorni speciali: lo script toglie quelli passati.
+	 * giorni speciali in una tabella uguale: lo script toglie quelli passati. Ogni fascia è uno span, che va a capo
+	 * intero.
 	 *
 	 * @param Settings $settings
 	 */
@@ -233,7 +236,7 @@ final class Render {
 			$day  = ( $first + $i ) % 7;
 			$name = $wp_locale->get_weekday( $day );
 			$name = $group ? $wp_locale->get_weekday_abbrev( $name ) : $name;
-			$text = implode( ', ', array_map( static fn( string $range ): string => '<span>' . esc_html( $range ) . '</span>', self::ranges( $settings['week'][ $day ?: 7 ] ) ) );
+			$text = self::spans( self::ranges( $settings['week'][ $day ?: 7 ] ) );
 			$last = array_key_last( $rows );
 			if ( $group && null !== $last && $rows[ $last ][2] === $text ) {
 				$rows[ $last ][1] = $name;
@@ -243,25 +246,51 @@ final class Render {
 		}
 		$html = '';
 		foreach ( $rows as [ $from, $to, $text ] ) {
-			// Ogni fascia in uno span, che non va a capo a metà.
 			$html .= sprintf( '<tr><th scope="row">%s</th><td>%s</td></tr>', esc_html( '' === $to ? $from : "{$from}–{$to}" ), $text );
 		}
 		$html     = '<table class="barrio-hours__week"><tbody>' . $html . '</tbody></table>';
 		$specials = '';
 		foreach ( $settings['exceptions'] as $special ) {
 			$until     = ( new DateTimeImmutable( $special['to'], wp_timezone() ) )->modify( '+1 day' )->getTimestamp();
-			$specials .= sprintf( '<li data-until="%d">%s</li>', $until, esc_html( self::dates( $special ) . ': ' . self::special_text( $special ) ) );
+			$note      = self::note( $special );
+			$specials .= sprintf(
+				'<tr data-until="%d"><th scope="row">%s</th><td>%s%s</td></tr>',
+				$until,
+				esc_html( self::dates( $special, self::short_date() ) ),
+				self::spans( self::ranges( $special['hours'] ) ),
+				'' === $note ? '' : '<span class="barrio-hours__note">' . esc_html( $note ) . '</span>'
+			);
 		}
 		if ( '' !== $specials ) {
-			$html .= sprintf( '<div class="barrio-hours__special"><p>%s</p><ul>%s</ul></div>', esc_html__( 'Special opening hours', 'barrio-suite' ), $specials );
+			$html .= sprintf( '<table class="barrio-hours__week barrio-hours__special"><caption>%s</caption><tbody>%s</tbody></table>', esc_html__( 'Special opening hours', 'barrio-suite' ), $specials );
 		}
 		return '<div class="barrio-hours is-week">' . $html . '</div>';
 	}
 
+	// La data breve dei giorni speciali di quest'anno, nel sito e nella Bacheca: sta in una riga anche su un telefono.
+	public static function short_date(): string {
+		/* translators: short date format without the year, for the special days of this year: see https://www.php.net/manual/datetime.format.php */
+		return __( 'M j', 'barrio-suite' );
+	}
+
+	/** @param list<string> $texts */
+	private static function spans( array $texts ): string {
+		return implode( '', array_map( static fn( string $text ): string => '<span>' . esc_html( $text ) . '</span>', $texts ) );
+	}
+
+	/**
+	 * La nota di un giorno speciale nella lingua della pagina, o in quella principale.
+	 *
+	 * @param Special $special
+	 */
+	private static function note( array $special ): string {
+		$note = $special['note'];
+		return (string) ( ( $note[ I18n::current() ] ?? '' ) ?: ( $note[ I18n::languages()[0] ] ?? '' ) );
+	}
+
 	/** @param Special $special */
 	private static function special_text( array $special ): string {
-		$note = $special['note'];
-		$note = (string) ( ( $note[ I18n::current() ] ?? '' ) ?: ( $note[ I18n::languages()[0] ] ?? '' ) );
+		$note = self::note( $special );
 		return self::slots_text( $special['hours'] ) . ( '' === $note ? '' : " · {$note}" );
 	}
 
