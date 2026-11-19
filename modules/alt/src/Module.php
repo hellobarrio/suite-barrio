@@ -278,7 +278,8 @@ final class Module {
 			'label' => '',
 			'input' => 'html',
 			'html'  => sprintf(
-				'<button type="button" class="button barrio-alt-generate" data-id="%d"%s>%s</button><p class="help barrio-alt-status" aria-live="polite">%s</p>',
+				// Largo quanto i campi sopra.
+				'<button type="button" class="button barrio-alt-generate" style="width: 100%%" data-id="%d"%s>%s</button><p class="help barrio-alt-status" aria-live="polite">%s</p>',
 				$post->ID,
 				disabled( $ready, false, false ),
 				esc_html__( 'Generate alt text with AI', 'barrio-suite' ),

@@ -22,7 +22,7 @@ import {
 	errorMessage,
 	langOption,
 } from '../../../../../assets/src/admin/ui.js';
-import { AI_SETUP, LEVELS, Panel, analyze, generate } from '../editor/Panel.js';
+import { LEVELS, Panel, analyze, generate } from '../editor/Panel.js';
 import '../editor/editor.css';
 import { level } from '../score.js';
 import { text } from '../title.js';
@@ -560,7 +560,6 @@ export function Contents() {
 									),
 									icon: 'lightbulb',
 									disabled: ! ai || generating,
-									info: ai ? undefined : AI_SETUP,
 									onClick: () => fill( ids ),
 								},
 							]

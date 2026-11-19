@@ -3132,7 +3132,7 @@ msgstr "WordPress non la pubblica finché il sito chiede ai motori di ricerca di
 msgid "The folder of the site has a robots.txt file: the server sends it instead of the one of WordPress, which lists the sitemap. Add the line \"%s\" to it, or delete it."
 msgstr "Nella cartella del sito c'è un file robots.txt: il server manda quello al posto di quello di WordPress, che indica la sitemap. Aggiungigli la riga \"%s\" oppure eliminalo."
 
-#: modules/alt/src/Module.php:334
+#: modules/alt/src/Module.php:335
 #: modules/seo/src/Api/RestGenerate.php:83
 msgid "The answer of Google is not valid. Try again, or choose another model."
 msgstr "La risposta di Google non è valida. Riprova o scegli un altro modello."
@@ -3171,7 +3171,7 @@ msgstr "Aggiungi il service account di Google in Barrio → Impostazioni."
 msgid "Google did not accept the service account. %s"
 msgstr "Google non ha accettato il service account. %s"
 
-#: modules/alt/src/Module.php:296
+#: modules/alt/src/Module.php:297
 #: build/barrio-admin.js:40
 #: build/barrio-admin.js:50
 #: build/barrio-admin.js:61
@@ -3188,7 +3188,7 @@ msgstr "Generazione in corso…"
 msgid "Generate with AI"
 msgstr "Genera con AI"
 
-#: modules/alt/src/Module.php:285
+#: modules/alt/src/Module.php:286
 #: build/barrio-admin.js:40
 #: build/barrio-admin.js:60
 #: build/seo-form.js:2
@@ -3698,19 +3698,19 @@ msgstr "Cosa offre l'inseritore dell'editor da altri servizi, per chiunque scriv
 msgid "What the users with the role chosen at the top find in the editor. Administrators always have everything, and nothing changes on the site."
 msgstr "Cosa trovano nell'editor gli utenti con il ruolo scelto in alto. Gli amministratori hanno sempre tutto, e nel sito non cambia niente."
 
-#: modules/alt/src/Module.php:284
+#: modules/alt/src/Module.php:285
 msgid "Generate alt text with AI"
 msgstr "Genera il testo alternativo con AI"
 
-#: modules/alt/src/Module.php:308
+#: modules/alt/src/Module.php:309
 msgid "This is not an image."
 msgstr "Questo non è un'immagine."
 
-#: modules/alt/src/Module.php:441
+#: modules/alt/src/Module.php:442
 msgid "The image file is missing."
 msgstr "Manca il file dell'immagine."
 
-#: modules/alt/src/Module.php:459
+#: modules/alt/src/Module.php:460
 msgid "This image format cannot be sent to Google."
 msgstr "Questo formato di immagine non si può mandare a Google."
 
@@ -3812,3 +3812,7 @@ msgstr "Genera tutti quelli mancanti"
 #: build/barrio-admin.js:75
 msgid "Images without alt text"
 msgstr "Immagini senza testo alternativo"
+
+#: build/barrio-admin.js:75
+msgid "To generate the alt text, set up Google AI in Barrio → Settings."
+msgstr "Per generare il testo alternativo, configura l'AI di Google in Barrio → Impostazioni."

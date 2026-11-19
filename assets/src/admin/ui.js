@@ -690,7 +690,8 @@ function useSearch( items ) {
  * @param {string}  props.className Del bottone con il testo.
  * @param {boolean} props.inBar     Aperto dalla barra sticky. Gli altri, scorrendo, passano sotto
  *                                  la barra e sotto quella di WordPress (i popover sono nel body).
- * @param {Array}   props.items     { label, icon?, onClick?, href?, danger?, disabled?, info? }; i falsy si saltano.
+ * @param {Array}   props.items     { label, icon?, onClick?, href?, danger?, disabled? }; i falsy si saltano. Niente
+ *                                  descrizioni: il motivo di una voce spenta lo dice la pagina.
  */
 export function Menu( {
 	label,
@@ -750,7 +751,6 @@ function MenuItems( { label, items, onClose } ) {
 						href={ item.href }
 						isDestructive={ item.danger }
 						disabled={ item.disabled }
-						info={ item.info }
 						onClick={ () => {
 							onClose();
 							item.onClick?.();

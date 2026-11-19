@@ -243,25 +243,29 @@ function SettingsModal( { onClose } ) {
 			title={ __( 'Alt text settings', 'barrio-suite' ) }
 			onRequestClose={ onClose }
 		>
-			<Notice notice={ notice } />
-			<Toggle
-				label={ __( 'Generate after the upload', 'barrio-suite' ) }
-				help={ __(
-					'For new images without alt text. Google is called in the background, so the upload does not wait.',
-					'barrio-suite'
-				) }
-				checked={ draft.on_upload }
-				onChange={ ( on ) => setDraft( { ...draft, on_upload: on } ) }
-			/>
-			<Toggle
-				label={ __( 'Generate the title too', 'barrio-suite' ) }
-				help={ __(
-					'The Generate buttons suggest a title as well. After the upload and in bulk it replaces only a title that is still the file name.',
-					'barrio-suite'
-				) }
-				checked={ draft.title }
-				onChange={ ( title ) => setDraft( { ...draft, title } ) }
-			/>
+			<div className="barrio-stack">
+				<Notice notice={ notice } />
+				<Toggle
+					label={ __( 'Generate after the upload', 'barrio-suite' ) }
+					help={ __(
+						'For new images without alt text. Google is called in the background, so the upload does not wait.',
+						'barrio-suite'
+					) }
+					checked={ draft.on_upload }
+					onChange={ ( on ) =>
+						setDraft( { ...draft, on_upload: on } )
+					}
+				/>
+				<Toggle
+					label={ __( 'Generate the title too', 'barrio-suite' ) }
+					help={ __(
+						'The Generate buttons suggest a title as well. After the upload and in bulk it replaces only a title that is still the file name.',
+						'barrio-suite'
+					) }
+					checked={ draft.title }
+					onChange={ ( title ) => setDraft( { ...draft, title } ) }
+				/>
+			</div>
 		</Dialog>
 	);
 }
@@ -445,7 +449,6 @@ export function AltText() {
 								label: __( 'Generate', 'barrio-suite' ),
 								icon: 'lightbulb',
 								disabled: ! ready || ! row.supported,
-								info: altData.ai ? undefined : AI_SETUP,
 								onClick: () =>
 									setEditing( { row, start: true } ),
 							},
@@ -467,6 +470,17 @@ export function AltText() {
 
 	return (
 		<div className="barrio-stack">
+			{ ! altData.ai && (
+				<Notice
+					notice={ {
+						status: 'info',
+						message: __(
+							'To generate the alt text, set up Google AI in Barrio → Settings.',
+							'barrio-suite'
+						),
+					} }
+				/>
+			) }
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<Table
 				columns={ columns }
@@ -508,7 +522,6 @@ export function AltText() {
 						),
 						icon: 'lightbulb',
 						disabled: ! ready,
-						info: altData.ai ? undefined : AI_SETUP,
 						// Le immagini che chi guarda non può modificare, o in un formato che Google non legge, si saltano.
 						onClick: () =>
 							run(
@@ -541,7 +554,6 @@ export function AltText() {
 							type="button"
 							className="barrio-button is-primary"
 							disabled={ ! ready }
-							title={ altData.ai ? undefined : AI_SETUP }
 							onClick={ all }
 						>
 							<Icon name="lightbulb" />
