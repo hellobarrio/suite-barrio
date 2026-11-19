@@ -17,7 +17,7 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 | Database | **Come sempre, il database è il centro dello sviluppo**: ogni modulo parte dai dati, e ogni fase si apre con schema, migrazioni e i test che dimostrano ogni vincolo su MariaDB 10.5 e MySQL 8.0, prima di REST e interfaccia. Valgono tutte le regole di PLAN.md §2: InnoDB, foreign key, CHECK per gli insiemi chiusi, `utf8mb4_bin` per gli identificatori, date UTC scritte da PHP, NULL solo per "non applicabile", un enum PHP per ogni CHECK, solo i Repository usano `$wpdb`, transazioni sulle scritture su più tabelle, migrazioni numerate con il lock. Le raccolte di record (popup, banner) sono tabelle con i testi in tabelle `_i18n`. I record unici sono opzioni con JSON Schema. I dati di un contenuto di WordPress (l'ordine dei termini) sono suoi meta. `docs/database.md` documenta le tabelle nuove |
 | Moduli | Sette voci nuove nella card Moduli: `popups` (Popup), `banners` (Banner), `hours` (Orari), `blocks` (Blocchi), `ordering` (Ordinamento), `duplicate` (Duplicazione), `alt` (Testi alternativi). Namespace `BarrioSuite\Popups`, `\Banners`, `\Hours`, `\Blocks`, `\Ordering`, `\Duplicate`, `\Alt` |
 | Accesi di default | Come tutti i moduli, ma **un modulo acceso non cambia niente finché non lo si configura**: nessun popup o banner, nessun orario, nessun blocco disattivato, nessun tipo in ordine manuale, nessuna generazione al caricamento. L'unica cosa che si vede subito è il link "Duplica" nelle liste. Sui siti del prototipo l'estensione di migrazione tiene spenti i moduli che il prototipo ha accesi, fino alla migrazione (come per il SEO) |
-| Popup e Banner separati | Due moduli, come nel prototipo, per accenderli, gestirli e dare i permessi separatamente: ognuno ha le sue tabelle, la sua pagina, la sua capability e la sua card. Le regole del §1 (dove, chi, frequenza) sono del Popup: il Banner, deciso in M6, è quello del prototipo, una scritta che scorre in cima a tutte le pagine, con solo il periodo |
+| Popup e Banner separati | Due moduli, come nel prototipo, per accenderli, gestirli e dare i permessi separatamente: ognuno ha le sue tabelle, la sua pagina, la sua capability e la sua card. Le regole del §1 (periodo, frequenza, lingue) sono del Popup: il Banner, deciso in M6, è quello del prototipo, una scritta che scorre in cima a tutte le pagine, con solo il periodo. Dove, Chi e Aspetto sono stati tolti a tutti e due (M6 e M7): un solo popup e un solo banner in tutte le pagine |
 | Tabelle e non CPT | Popup e banner sono raccolte di record con testi per lingua, come i form: tabella più tabella `_i18n`, con la lingua scelta nella barra dell'editor e i componenti dei testi tradotti del builder (`TextIn`, `Fixed`, `fillTranslations`). Così funzionano senza WPML e il GraphQL resta con i campi del prototipo. Un CPT con l'editor a blocchi lascerebbe le traduzioni a WPML, e per il banner (una riga di testo) aprirebbe un editor a blocchi intero |
 | Impostazioni | Orari, Blocchi, Ordinamento, Duplicazione e Testi alternativi hanno un solo record ciascuno: un'opzione con JSON Schema (`barrio_hours`, `barrio_blocks`, `barrio_ordering`, `barrio_duplicate`, `barrio_alt`), scritta solo dalla sua rotta REST. In autoload solo quelle lette nel sito (`barrio_hours`, `barrio_ordering`) |
 | Admin | Quattro pagine nuove nel menu Barrio: **Testi alternativi**, **Popup**, **Banner** e **Orari**, perché ci lavora chi gestisce i contenuti; Testi alternativi come il SEO, con le schede Immagini e Impostazioni. Blocchi, Ordinamento e Duplicazione sono strumenti per i contenuti con poche impostazioni: invece di tre voci, una pagina **Contenuti** con una scheda per modulo acceso (la pagina sparisce con tutti e tre spenti), solo per gli amministratori. Ordinamento e Duplicazione si usano dove si lavora, nelle liste di WordPress: Riordina accanto ad Aggiungi, Duplica tra le azioni. Menu: Bacheca, Form, SEO, Testi alternativi, Popup, Banner, Orari, Contenuti, Prestazioni, Estensioni, Impostazioni |
@@ -28,55 +28,42 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 
 ## 1. Regole di visualizzazione (per i Popup)
 
-Dove, a chi e quando compare un popup. In M6 il Banner le aveva, e sono state tolte: è una scritta in cima a tutte le
-pagine, con solo il periodo (§3). Servono solo al Popup, quindi in M7 sono nel suo modulo (`Popups\Rules` e le card
-Dove e Chi di `Rules.js`). Del core è solo ciò che Popup e Banner hanno in comune: il periodo e lo stato
-(`src/Period.php`, `assets/src/admin/period.js`, con la card Periodo e le righe di testo complete).
+Quando e per quanto compare un popup. In M6 il Banner aveva anche dove, a chi, posizione e colori, e sono stati tolti:
+è una scritta in cima a tutte le pagine, con solo il periodo (§3). In M7 il Popup li aveva (con le card Dove, Chi e
+Aspetto e il filtro `barrio_main_language_id` per WPML), e dopo la prova sono stati tolti anche a lui: un modale in
+tutte le pagine. Del core è solo ciò che Popup e Banner hanno in comune: il periodo e lo stato (`src/Period.php`,
+`assets/src/admin/period.js`, con la card Periodo e le righe di testo complete).
 
-- **Dove**: tutto il sito, solo in, o ovunque tranne. Le scelte possibili sono:
-  - la home;
-  - contenuti scelti;
-  - tutti i contenuti di un tipo;
-  - un termine (i contenuti che lo hanno e il suo archivio).
-- **Chi**: dispositivo (tutti, desktop, telefoni) e utenti (tutti, solo i visitatori, solo chi ha fatto l'accesso).
 - **Periodo**: inizio e fine facoltativi. Lo stato si calcola: Spento, Programmato, Attivo, Scaduto.
 - **Frequenza**: chiuso, non torna per N giorni (0: torna a ogni pagina, come `days="0"` nel prototipo). Si ricorda
-  in `localStorage` (`barrio_popups_{id}`, la data di chiusura; `Infinity` dopo un form inviato). Non è un cookie: non va al server e non serve
-  consenso, perché ricorda solo una scelta di chi visita.
-- **Più attivi insieme**, come in Popup Maker. In una pagina compare al più un popup: tra quelli che valgono per la
-  pagina, il più recente. Una promozione con un periodo creata dopo vince su quella di sempre, senza un campo
-  priorità. Si sceglie per dispositivo: se il più recente è solo per i telefoni, sui desktop resta quello di sempre.
+  in `localStorage` (`barrio_popups_{id}`, la data di chiusura; `Infinity` dopo un form inviato). Non è un cookie: non
+  va al server e non serve consenso, perché ricorda solo una scelta di chi visita.
+- **Più accesi insieme**, come in Popup Maker. In una pagina compare al più un popup: tra gli accesi nel loro periodo,
+  il più recente. Una promozione con un periodo creata dopo vince su quella di sempre, senza un campo priorità.
 - **Lingue**: come nei form, ogni lingua ha la sua riga di testi completa. Nell'editor un testo non tradotto è quello
   della lingua principale, e al salvataggio la riga si completa (`fillTranslations`). Nel sito e in GraphQL si legge
   la riga della lingua, o quella principale se la lingua non ne ha una: la stessa regola ovunque.
-- **ID nella lingua principale**: le regole salvano gli ID dei contenuti e dei termini nella lingua principale. Nel
-  sito l'ID della pagina si porta alla lingua principale con il filtro nuovo `barrio_main_language_id`, a cui
-  risponde l'estensione WPML (`wpml_object_id`): una regola sulla pagina "Chi siamo" vale anche per "About us".
-- **Nel sito**: il server valuta pagina, utente e periodo e stampa l'elemento. Il JavaScript controlla dispositivo
-  (`matchMedia`), periodo e frequenza: con la cache di pagina l'HTML può essere vecchio, il browser no.
-- **Niente query a ogni pagina**: gli elementi accesi e non scaduti di un modulo, con i loro testi, stanno in un
-  transient senza scadenza (`barrio_popups_live`, come `barrio_banners_live`) che ogni scrittura elimina; con zero
-  elementi è un array vuoto. CSS e JS solo nelle pagine con un popup.
-- **JSON Schema**: le regole sono una parte delle impostazioni JSON di ogni popup,
-  validate prima di ogni scrittura.
+- **Nel sito**: il server valuta il periodo e stampa il popup. Il JavaScript ricontrolla periodo e frequenza: con la
+  cache di pagina l'HTML può essere vecchio, il browser no.
+- **Niente query a ogni pagina**: gli accesi e non scaduti, con i loro testi, stanno in un transient senza scadenza
+  (`barrio_popups_live`, come `barrio_banners_live`) che ogni scrittura elimina; con zero popup è un array vuoto. CSS
+  e JS solo con un popup.
 
 ## 2. Popup (`popups`)
 
 ### 2.1 Cosa fa
 
 - **Contenuto**: titolo, testo formattato, immagine e un pulsante (testo, link, nuova scheda).
-- **Posizione**: al centro con lo sfondo scuro (modale), oppure in basso a destra senza sfondo (non modale, non
-  prende il focus).
-- **Aspetto**: colore di sfondo e del testo. Senza una scelta valgono le custom property del CSS, che il tema può
-  sovrascrivere come per i form. Niente template da sovrascrivere nel tema.
+- **Nel sito**: al centro con lo sfondo scuro (modale), in tutte le pagine. I colori sono custom property del CSS, che
+  il tema può sovrascrivere come per i form. Niente template da sovrascrivere nel tema.
 - **Quando si apre**: dopo N secondi, dopo lo scroll di una percentuale della pagina, oppure all'uscita (il mouse che
   lascia la finestra, solo desktop). Si apre sempre anche con un link a `#barrio-popup-{id}` o un elemento con
   `data-barrio-popup="{id}"`, anche senza le altre regole (il trigger "clic" di Popup Maker).
 - **Form**: basta lo shortcode `[barrio_form]` nel testo. Un form inviato dentro il popup (`barrio:success`) lo chiude
   4 secondi dopo il messaggio e non lo ripropone più. Con Forms spento lo shortcode non stampa niente. L'HTML del popup
   si scrive su `wp_enqueue_scripts`, così il form carica i suoi asset in tempo anche con i temi a blocchi.
-- **Il link** apre il popup stampato nella pagina: se le regole ne hanno scelto un altro, il link non fa niente.
-- **Dove, chi, periodo, frequenza, lingue**: §1.
+- **Il link** apre il popup stampato nella pagina: se ce n'è uno più recente acceso, il link non fa niente.
+- **Periodo, frequenza, lingue**: §1.
 
 ### 2.2 Dati (migrazione `0001`)
 
@@ -91,9 +78,8 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 ```
 
 - `settings` si legge e si scrive sempre intero e non si interroga in SQL, quindi è JSON (regola 4 di PLAN.md),
-  validato con il suo schema. Contiene `position` (`center`|`corner`), `colors`, `trigger` (`{type: delay|scroll|exit,
-  delay: secondi, scroll: per cento}`: i due valori restano, così cambiando apertura non si perdono), `new_tab` e le
-  regole del §1.
+  validato con il suo schema. Contiene `trigger` (`{type: delay|scroll|exit, delay: secondi, scroll: per cento}`: i
+  due valori restano, così cambiando apertura non si perdono), `new_tab` e `days` (§1).
 - `image_id` non ha una foreign key verso `wp_posts` (regola 9), ma un CHECK `> 0`. Un'immagine eliminata si ignora: il
   popup esce senza. Il titolo non è mai vuoto (CHECK), ed è il nome del `<dialog>`.
 - Un pulsante con il link e senza testo usa il testo standard della lingua ("Scopri di più"); un testo senza link non
@@ -106,12 +92,12 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 
 | Problema | Nel nuovo modulo |
 |---|---|
-| Un solo popup attivo, senza regole: compare solo dove si mette lo shortcode | Regole di pagina, dispositivo, utenti e periodo, e l'inserimento automatico in `wp_footer` |
+| Un solo popup attivo, senza periodo: compare solo dove si mette lo shortcode | Il periodo, il più recente tra gli accesi e l'inserimento automatico in `wp_footer` |
 | Il popup chiuso resta nella pagina con la sola opacità a 0: gli screen reader lo leggono al caricamento, e pulsante e link restano raggiungibili col Tab. Aperto, il focus non entra, non resta dentro e non torna | `<dialog>` nativo: `showModal()` rende inerte il resto della pagina, Esc chiude, il browser rimette il focus dove era. Nascosto finché non si apre |
 | Gli editor (menu di primo livello) non hanno il JavaScript della pagina: salvare, attivare, eliminare e scegliere l'immagine non fanno niente | L'app React del plugin, una pagina per chi ha `barrio_manage_popups` |
 | XSS salvato nell'admin: il titolo letto con `textContent` e riscritto con `innerHTML` | React, che non scrive HTML dai dati |
 | Cambiando lingua nell'editor tornano i valori letti all'apertura: risalvando si perde la modifica appena salvata. Nei primi 600 ms la traduzione può finire nella lingua principale | I testi di tutte le lingue nello stato dell'editor e un solo Salva, come nel builder |
-| Il limite di popup c'è solo nell'interfaccia | Niente limite: le regole decidono cosa compare |
+| Il limite di popup c'è solo nell'interfaccia | Niente limite: compare il più recente nel suo periodo |
 | Shortcode e GraphQL usano regole diverse per le traduzioni (campo per campo nel sito, riga intera in GraphQL), per l'immagine (URL o ID) e per il testo (`wpautop` solo nel sito) | Una funzione sola (`Popups::live()`), usata dal sito e da GraphQL; righe di testo complete (§1); l'immagine è sempre un ID |
 | `CREATE TABLE` e `SHOW COLUMNS` a ogni richiesta; CSS in linea in ogni pagina, anche senza popup; due query per pagina | Migrazioni del Migrator; transient e asset solo dove serve (§1) |
 | `LONGTEXT NOT NULL DEFAULT ''`, nessuna foreign key tra popup e traduzioni, nessun CHECK | Lo schema del §2.2 |
@@ -126,17 +112,18 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
   (`strip_shortcodes`), perché un frontend headless non saprebbe mostrarli. Gli shortcode del prototipo
   (`[suite_barrio_popup]`, `[wpb_popup]`) li tiene l'estensione di migrazione come alias vuoti.
 - **Popup** (`barrio_manage_popups`), schede Popup e Impostazioni (Permessi, `manage_options`):
-  - la tabella del plugin con colonne titolo, stato, dove (le regole in breve), periodo e lingue (con più lingue).
+  - la tabella del plugin con colonne titolo, stato, periodo e lingue (con più lingue).
     Filtri: stato, lingua. Nel menu ⋯: Modifica, Duplica, Accendi/Spegni, Elimina. Azioni di massa: accendi, spegni,
     elimina;
   - "Nuovo popup" nella barra.
 - **Editor** (`?popup=ID`): nella barra il ritorno, il titolo, la lingua (con più lingue) e Salva.
-  - A sinistra, in card: Contenuto (per lingua), Aspetto, Apertura, poi Dove, Chi e Periodo (le card del core).
+  - Due schede, come il builder dei form: Contenuto (per lingua) e Opzioni (Apertura e Periodo). Le stesse due schede
+    nell'editor dei banner, con Periodo nelle Opzioni.
   - A destra, sticky, l'anteprima: l'HTML del sito in un iframe con CSS e JS del frontend, come l'anteprima dei form
     (`POST /popups/preview`).
   - Il testo formattato è l'editor classico di WordPress (`wp.oldEditor`, TinyMCE ridotto come nel prototipo:
     grassetto, corsivo, link, elenchi), l'immagine dalla libreria dei media.
-  - Nelle altre lingue si cambiano solo i testi; immagine, aspetto e regole restano visibili ma disattivati
+  - Nelle altre lingue si cambiano solo i testi; immagine e opzioni restano visibili ma disattivate
     (`Fixed`).
 - **REST** (`barrio_manage_popups`): `GET`/`POST /popups`, `GET`/`PUT`/`DELETE /popups/{id}`,
   `POST /popups/{id}/duplicate`, `POST /popups/bulk`, `POST /popups/preview`. Nessuna rotta pubblica: il sito
@@ -145,13 +132,13 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 
 ### 2.5 Da Popup Maker
 
-- **Presi**: modale e angolo; apertura dopo un tempo, allo scroll, all'uscita e al clic su un link; frequenza dopo la
-  chiusura; chiusura dopo l'invio di un form; regole di pagina, dispositivo e utente; programmazione; Esc e sfondo
-  che chiudono; anteprima.
+- **Presi**: modale; apertura dopo un tempo, allo scroll, all'uscita e al clic su un link; frequenza dopo la chiusura;
+  chiusura dopo l'invio di un form; programmazione; Esc e sfondo che chiudono; anteprima.
 - **Lasciati**:
   - statistiche di aperture e conversioni: ogni apertura è un dato in più da conservare (privacy by default);
   - test A/B;
-  - temi ed editor visuale: bastano colori e custom property;
+  - temi, editor visuale, colori e posizione in angolo: bastano le custom property (tolti in M7);
+  - regole di pagina, dispositivo e utente (tolte in M7);
   - regole su referrer, parametri dell'URL e carrello WooCommerce: estensioni, se un sito le chiede;
   - più popup nella stessa pagina e popup dentro popup;
   - animazioni a scelta: una sola, spenta con `prefers-reduced-motion`.
@@ -570,17 +557,15 @@ blocco dei form:
 
 | Estensione | Cosa cambia |
 |---|---|
-| `barrio-suite-wpgraphql` | `popups.php`, `banners.php` e `hours.php`, ognuno solo con il suo modulo acceso e con priorità 9, come per form e SEO.<br>• `hbPopup(lang): HBPopup` (`id`, `title`, `content`, `link: HBPopupCta {url, title, target}`, `image: HBPopupImage {node: MediaItem}`).<br>• `hbBanner(lang): HBBanner` (`id`, `title` = il testo, `link: HBBannerCta {url, target}`).<br>• `hbOrari(lang): HBOrari` (`ultimoAggiornamento` d/m/Y H:i, `displayName`, `settimana [HBOrariGiorno {giorno, slots, chiuso}]` da lunedì, `slots` in 12 ore per l'inglese).<br>Popup e banner sono quelli di `live()` del modulo con le regole "tutto il sito" (i frontend non mandano la pagina) |
-| `barrio-suite-wpml` | Il filtro `barrio_main_language_id` (`wpml_object_id`) per le regole dei popup. Nulla in `wpml-config.xml`: i testi di popup e banner e le note degli orari sono nel plugin |
+| `barrio-suite-wpgraphql` | `popups.php`, `banners.php` e `hours.php`, ognuno solo con il suo modulo acceso e con priorità 9, come per form e SEO.<br>• `hbPopup(lang): HBPopup` (`id`, `title`, `content`, `link: HBPopupCta {url, title, target}`, `image: HBPopupImage {node: MediaItem}`).<br>• `hbBanner(lang): HBBanner` (`id`, `title` = il testo, `link: HBBannerCta {url, target}`).<br>• `hbOrari(lang): HBOrari` (`ultimoAggiornamento` d/m/Y H:i, `displayName`, `settimana [HBOrariGiorno {giorno, slots, chiuso}]` da lunedì, `slots` in 12 ore per l'inglese).<br>Popup e banner sono quelli di `shown()` del modulo, gli stessi del sito |
+| `barrio-suite-wpml` | Niente di nuovo. Nulla in `wpml-config.xml`: i testi di popup e banner e le note degli orari sono nel plugin |
 | `barrio-suite-migration` | Un file per modulo, con il suo comando `wp barrio <modulo> migrate [--dry-run]`, e il ponte di revalidation (dettagli in §11, M9) |
 
 Hook nuovi, solo quelli che un'estensione usa:
 - `barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded` (su `init`, priorità 5): per l'estensione
   WPGraphQL;
 - `barrio_popups_changed`, `barrio_banners_changed`, `barrio_hours_changed`, `barrio_ordering_changed` (il tipo o la
-  tassonomia): per il ponte di revalidation;
-- `barrio_main_language_id` (filtro: l'ID di un contenuto o di un termine nella lingua principale): per l'estensione
-  WPML.
+  tassonomia): per il ponte di revalidation.
 
 Blocchi, Duplicazione e Testi alternativi non hanno hook: nessuna estensione ne ha bisogno oggi.
 
@@ -610,10 +595,9 @@ Blocchi, Duplicazione e Testi alternativi non hanno hook: nessuna estensione ne 
 - **Nomi dei giorni in `hbOrari`**: con `switch_to_locale()` servono i pacchetti di lingua installati. Una lingua
   chiesta dal frontend senza pacchetto avrebbe i giorni in inglese, mentre il prototipo aveva 12 lingue scritte a
   mano.
-- **`<dialog>`** (provato in M7 su Chrome): il focus torna dove era, la pagina non scorre, Tab resta nel popup. Il
-  popup in angolo si apre con l'attributo `open` e non con `show()`, che sposterebbe il focus; Esc lo chiude dal
-  JavaScript. Da provare su Safari e con VoiceOver: l'albero di accessibilità di Chrome è dialog con il titolo come
-  nome, poi Chiudi, il testo, il form e il pulsante.
+- **`<dialog>`** (provato in M7 su Chrome): il focus torna dove era, la pagina non scorre, Tab resta nel popup. Da
+  provare su Safari e con VoiceOver: l'albero di accessibilità di Chrome è dialog con il titolo come nome, poi Chiudi,
+  il testo, il form e il pulsante.
 - **TinyMCE in React** (provato in M7): `wp.oldEditor.initialize` va chiamato dopo `DOMContentLoaded`, perché WordPress
   stampa le impostazioni in fondo alla pagina. Ogni lingua ha il suo editor (`key`), distrutto allo smontaggio.
 - **Banner e temi classici**: serve `wp_body_open`, che i temi chiamano dal 2019; controllare quelli dei clienti. Sui
@@ -635,7 +619,7 @@ Ogni fase si apre dai dati e si chiude con:
 - lo stesso commit su `con-updater` e `senza-updater`;
 - le traduzioni rigenerate (PLAN.md §8).
 
-Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti, il Popup le regole del §1.
+Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti.
 
 | # | Fase | Pronta quando |
 |---|---|---|
@@ -645,7 +629,7 @@ Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti
 | M4 | **Testi alternativi** e `Ai::generate()` con le immagini | Alt generato al caricamento (dopo l'upload), dal pulsante e in massa, con Google simulato (`pre_http_request`): l'immagine mandata è la `large`; un alt presente non si tocca; un autore non genera su un allegato altrui |
 | M5 | **Orari**: opzione e schema, manuale, Google, blocco e shortcode, schema SEO, card | Una settimana con una chiusura dopo mezzanotte e un giorno speciale si vede giusta nel blocco e nello stato "aperto ora" con la cache di pagina; lo schema passa il Rich Results Test; la sincronizzazione Google simulata scrive settimana ed eccezioni, e un errore arriva nella Bacheca. Lo schema JSON rifiuta ore, giorni e date non validi |
 | M6 | **Banner**: migrazioni, `BannerRepository`, editor con l'anteprima del prototipo, sito, card | Ogni vincolo delle tabelle dimostrato; la riga della lingua principale sempre presente. Un banner in due lingue compare solo quando deve, anche con la cache di pagina, e il più recente vince; scorre e si ferma col mouse e col focus, resta fermo con `prefers-reduced-motion`, lo screen reader legge il testo una volta. Con il modulo spento nessuna query e nessun asset |
-| M7 | **Popup** e le **regole del §1**: migrazioni, `PopupRepository`, editor con anteprima, sito, card | Ogni vincolo delle tabelle dimostrato. Il popup compare solo dove e quando deve, si apre da tastiera e da un link, si chiude con Esc e rimette il focus, non ritorna per N giorni; un form inviato nel popup lo chiude. Controllo con lo screen reader (VoiceOver) e a 360px |
+| M7 | **Popup** e le **regole del §1**: migrazioni, `PopupRepository`, editor con anteprima, sito, card | Ogni vincolo delle tabelle dimostrato. Il popup compare solo quando deve e il più recente vince, si apre da tastiera e da un link, si chiude con Esc e rimette il focus, non ritorna per N giorni; un form inviato nel popup lo chiude. Controllo con lo screen reader (VoiceOver) e a 360px |
 | M8 | **GraphQL** in `barrio-suite-wpgraphql` | Lo snapshot dello schema di `hbPopup`, `hbBanner` e `hbOrari` coincide con il prototipo; `hello_standard` (`getPopup`, `getBanner`, `getOrari`) funziona senza modifiche contro wp-env |
 | M9 | **Migrazione dal prototipo** in `barrio-suite-migration` | Su wp-env con il prototipo e i suoi dati: prova a vuoto e migrazione con gli stessi conteggi; popup, banner, orari e GraphQL uguali prima e dopo, tranne le correzioni previste |
 
@@ -653,14 +637,14 @@ Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti
 
 - **Popup**: `wpb_popups` e `wpb_popups_translations` diventano righe di `popups` e `popups_i18n`, in una
   transazione per popup.
-  - Quello attivo resta acceso, con "tutto il sito", apertura dopo 2 secondi e 7 giorni (i valori di default del
+  - Quello attivo resta acceso, con apertura dopo 2 secondi e 7 giorni (i valori di default del
     prototipo); gli altri restano spenti.
   - `image_url` senza `image_id` diventa un ID con `attachment_url_to_postid()`; il testo passa da `wpautop`.
   - Un campo tradotto vuoto prende quello della lingua principale, come le righe complete del §1.
 - **Banner**: `wpb_banners` e `wpb_banners_translations` diventano `banners` e `banners_i18n`. Il titolo diventa il
   testo; quello attivo resta acceso.
-- **Shortcode**: il comando elenca i contenuti con gli shortcode del prototipo e i loro attributi, per rifare le
-  regole a mano dove serve.
+- **Shortcode**: il comando elenca i contenuti con gli shortcode del prototipo e i loro attributi, che spariscono:
+  popup e banner sono in tutte le pagine.
 - **Orari**: il Place ID passa e la fonte diventa Google; la settimana parte dagli ultimi dati salvati, con
   `synced_at`. La chiave API non passa, con un avviso se manca il service account.
 - **Blocchi**: con la restrizione accesa, per ogni ruolo tranne gli amministratori:

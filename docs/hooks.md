@@ -148,7 +148,6 @@ le aspetta.
 | `barrio_hours_changed` | azione | — | Sono cambiati gli orari (`barrio_hours`): un salvataggio, o la sincronizzazione con Google, anche quella di ogni notte. Per svuotare la cache di un frontend |
 | `barrio_popups_changed` | azione | — | È cambiato un popup: creato, modificato, acceso, spento, duplicato o eliminato. Per svuotare la cache di un frontend |
 | `barrio_banners_changed` | azione | — | È cambiato un banner: creato, modificato, acceso, spento, duplicato o eliminato. Per svuotare la cache di un frontend |
-| `barrio_main_language_id` | filtro | `int $id`, `string $type` | L'ID di un contenuto o di un termine nella lingua principale; `$type` è il tipo di contenuto o la tassonomia. Le regole dei popup (`modules/popups/src/Rules.php`) salvano gli ID della lingua principale: con questo filtro una pagina tradotta vale come l'originale. Lo usa `barrio-suite-wpml` (`wpml_object_id`) |
 | `barrio_ordering_changed` | azione | `string $kind`, `string $name` | È cambiato l'ordine manuale di un tipo di contenuto (`'post'`, `'page'`) o di una tassonomia (`'term'`, `'category'`): un nuovo ordine salvato, o l'ordine manuale acceso o spento. Per svuotare la cache di un frontend |
 
 ## Nel browser

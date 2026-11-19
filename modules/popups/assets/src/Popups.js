@@ -1,6 +1,7 @@
 // La pagina Barrio → Popup (modules/popups/src/Module.php): l'elenco o, con ?popup=ID (o new), l'editor con l'anteprima;
 // agli amministratori la scheda Impostazioni con i Permessi. E la card della Bacheca.
 import apiFetch from '@wordpress/api-fetch';
+import { TabPanel } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
@@ -44,14 +45,13 @@ import {
 } from '../../../forms/assets/src/builder/model.js';
 import { TextIn } from '../../../forms/assets/src/builder/Texts.js';
 import { MediaField } from '../../../seo/assets/src/seo/ui.js';
-import { WhereCard, WhoCard, whereText } from './Rules.js';
 
 // Anche nella card Moduli di Barrio → Impostazioni.
 export const POPUPS = {
 	icon: 'format-chat',
 	title: __( 'Popups', 'barrio-suite' ),
 	description: __(
-		'Windows that open on the pages, with rules',
+		'A window in the middle of every page',
 		'barrio-suite'
 	),
 	color: 'linear-gradient(135deg, #701a75, #a21caf)',
@@ -70,19 +70,15 @@ const CAPS = { barrio_manage_popups: __( 'Manage', 'barrio-suite' ) };
 const pageUrl = ( params = {} ) =>
 	'?' + new URLSearchParams( { page: 'barrio-popups', ...params } );
 
-// Un popup nuovo: al centro, dopo 2 secondi, in tutto il sito, e chi lo chiude non lo rivede per una settimana.
+// Un popup nuovo: dopo 2 secondi, e chi lo chiude non lo rivede per una settimana.
 const blank = () => ( {
 	is_enabled: true,
 	starts_at: null,
 	ends_at: null,
 	image_id: null,
 	settings: {
-		position: 'center',
-		colors: { background: '', text: '' },
 		trigger: { type: 'delay', delay: 2, scroll: 50 },
 		new_tab: false,
-		where: { mode: 'all', home: false, posts: [], types: [], terms: [] },
-		who: { device: 'all', users: 'all' },
 		days: 7,
 	},
 	i18n: {
@@ -94,8 +90,6 @@ const blank = () => ( {
 		},
 	},
 } );
-
-const NO_LABELS = { posts: {}, terms: {} };
 
 const titleOf = ( popup ) =>
 	( popup.i18n[ main ] ?? Object.values( popup.i18n )[ 0 ] )?.title ?? '';
@@ -202,11 +196,6 @@ function PopupList() {
 	const all = popups.map( ( popup ) => ( {
 		...popup,
 		title: titleOf( popup ),
-		where: whereText(
-			popup.settings.where,
-			popup.labels,
-			popupsData.types
-		),
 		period: periodText( popup.starts_at, popup.ends_at ),
 		// Per ordinare: gli stati nell'ordine di STATUS, il periodo dall'inizio.
 		order: Object.keys( STATUS ).indexOf( popup.status ),
@@ -233,7 +222,7 @@ function PopupList() {
 			} )
 		),
 		query,
-		[ 'title', 'where', 'period' ]
+		[ 'title', 'period' ]
 	);
 
 	const columns = [
@@ -262,12 +251,6 @@ function PopupList() {
 					{ STATUS[ popup.status ][ 0 ] }
 				</span>
 			),
-		},
-		{
-			key: 'where',
-			label: __( 'Where', 'barrio-suite' ),
-			sort: 'where',
-			hideable: true,
 		},
 		{
 			key: 'period',
@@ -611,18 +594,16 @@ function Preview( { popup, lang } ) {
 function PopupEditor( { id } ) {
 	const [ popup, setPopup ] = useState( id ? null : blank );
 	const [ saved, setSaved ] = useState( popup );
-	const [ labels, setLabels ] = useState( NO_LABELS );
 	const [ lang, setLang ] = useState( main );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
 
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
-	const load = ( { status, labels: names, ...data } ) => {
+	const load = ( { status, ...data } ) => {
 		const loaded = trimTexts( data );
 		setSaved( loaded );
 		setPopup( loaded );
-		setLabels( names );
 	};
 	useEffect( () => {
 		if ( id ) {
@@ -687,7 +668,7 @@ function PopupEditor( { id } ) {
 			.finally( () => setBusy( false ) );
 	};
 	const texts = { item: popup, lang, onChange: setPopup };
-	const { trigger, colors } = settings;
+	const { trigger } = settings;
 
 	return (
 		<div className="barrio-stack">
@@ -726,298 +707,247 @@ function PopupEditor( { id } ) {
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<LangNotice lang={ lang } />
-			<div className="barrio-fields">
-				<div>
-					<Card icon="text" title={ __( 'Content', 'barrio-suite' ) }>
-						<TextIn
-							{ ...texts }
-							name="title"
-							label={ __( 'Title', 'barrio-suite' ) }
-							maxLength={ 255 }
-						/>
-						<ContentIn
-							popup={ popup }
-							lang={ lang }
-							onChange={ setPopup }
-						/>
-						<Fixed lang={ lang }>
-							<MediaField
-								label={ __( 'Image', 'barrio-suite' ) }
-								help={ __(
-									'Optional, above the title.',
-									'barrio-suite'
-								) }
-								value={ popup.image_id ?? 0 }
-								onChange={ ( image ) =>
-									set( { image_id: image || null } )
-								}
-							/>
-						</Fixed>
-						<TextIn
-							{ ...texts }
-							name="link_url"
-							optional
-							label={ __( 'Button link', 'barrio-suite' ) }
-							help={ __(
-								'Optional: with a link the popup has a button. A path like /contacts/ or a full address.',
-								'barrio-suite'
-							) }
-							spellCheck={ false }
-						/>
-						<TextIn
-							{ ...texts }
-							name="button_label"
-							optional
-							label={ __( 'Button text', 'barrio-suite' ) }
-							help={ __(
-								'Leave empty for "Learn more".',
-								'barrio-suite'
-							) }
-							maxLength={ 255 }
-						/>
-						<Fixed lang={ lang }>
-							<Toggle
-								label={ __(
-									'Open the link in a new tab',
-									'barrio-suite'
-								) }
-								checked={ settings.new_tab }
-								onChange={ ( on ) =>
-									setSettings( { new_tab: on } )
-								}
-							/>
-						</Fixed>
-					</Card>
-					<Fixed lang={ lang }>
-						<Card
-							icon="art"
-							title={ __( 'Appearance', 'barrio-suite' ) }
-						>
-							<Select
-								label={ __( 'Position', 'barrio-suite' ) }
-								value={ settings.position }
-								options={ [
-									{
-										value: 'center',
-										label: __(
-											'In the middle, over a dark background',
-											'barrio-suite'
-										),
-									},
-									{
-										value: 'corner',
-										label: __(
-											'In the bottom corner, without a background',
-											'barrio-suite'
-										),
-									},
-								] }
-								help={
-									'corner' === settings.position &&
-									__(
-										'The page stays usable, and the popup does not take the focus.',
-										'barrio-suite'
-									)
-								}
-								onChange={ ( position ) =>
-									setSettings( { position } )
-								}
-							/>
-							<Toggle
-								label={ __( 'Own colors', 'barrio-suite' ) }
-								help={ __(
-									'Without, those of the popup style, which the theme can change.',
-									'barrio-suite'
-								) }
-								checked={ !! colors.background }
-								onChange={ ( on ) =>
-									setSettings( {
-										colors: on
-											? {
-													background: '#ffffff',
-													text: '#1e1e1e',
-												}
-											: { background: '', text: '' },
-									} )
-								}
-							/>
-							{ !! colors.background && (
-								<div className="barrio-row is-fill">
-									<Text
-										type="color"
+			<TabPanel
+				tabs={ [
+					{ name: 'content', title: __( 'Content', 'barrio-suite' ) },
+					{ name: 'options', title: __( 'Options', 'barrio-suite' ) },
+				] }
+			>
+				{ ( tab ) => (
+					<div className="barrio-fields">
+						<div>
+							{ 'content' === tab.name ? (
+								<Card
+									icon="text"
+									title={ __( 'Content', 'barrio-suite' ) }
+								>
+									<TextIn
+										{ ...texts }
+										name="title"
+										label={ __( 'Title', 'barrio-suite' ) }
+										maxLength={ 255 }
+									/>
+									<ContentIn
+										popup={ popup }
+										lang={ lang }
+										onChange={ setPopup }
+									/>
+									<Fixed lang={ lang }>
+										<MediaField
+											label={ __(
+												'Image',
+												'barrio-suite'
+											) }
+											help={ __(
+												'Optional, above the title.',
+												'barrio-suite'
+											) }
+											value={ popup.image_id ?? 0 }
+											onChange={ ( image ) =>
+												set( {
+													image_id: image || null,
+												} )
+											}
+										/>
+									</Fixed>
+									<TextIn
+										{ ...texts }
+										name="link_url"
+										optional
 										label={ __(
-											'Background',
+											'Button link',
 											'barrio-suite'
 										) }
-										value={ colors.background }
-										onChange={ ( background ) =>
-											setSettings( {
-												colors: {
-													...colors,
-													background,
-												},
-											} )
-										}
+										help={ __(
+											'Optional: with a link the popup has a button. A path like /contacts/ or a full address.',
+											'barrio-suite'
+										) }
+										spellCheck={ false }
 									/>
-									<Text
-										type="color"
-										label={ __( 'Text', 'barrio-suite' ) }
-										value={ colors.text }
-										onChange={ ( color ) =>
-											setSettings( {
-												colors: {
-													...colors,
-													text: color,
-												},
-											} )
-										}
+									<TextIn
+										{ ...texts }
+										name="button_label"
+										optional
+										label={ __(
+											'Button text',
+											'barrio-suite'
+										) }
+										help={ __(
+											'Leave empty for "Learn more".',
+											'barrio-suite'
+										) }
+										maxLength={ 255 }
 									/>
-								</div>
-							) }
-						</Card>
-						<Card
-							icon="external"
-							title={ __( 'Opening', 'barrio-suite' ) }
-							description={
-								popup.id
-									? sprintf(
-											/* translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12". */
-											__(
-												'It also opens, always, from a link to %1$s or a button with %2$s.',
+									<Fixed lang={ lang }>
+										<Toggle
+											label={ __(
+												'Open the link in a new tab',
 												'barrio-suite'
-											),
-											`#barrio-popup-${ popup.id }`,
-											`data-barrio-popup="${ popup.id }"`
-										)
-									: __(
-											'Once saved, it can also open from a link.',
+											) }
+											checked={ settings.new_tab }
+											onChange={ ( on ) =>
+												setSettings( { new_tab: on } )
+											}
+										/>
+									</Fixed>
+								</Card>
+							) : (
+								<Fixed lang={ lang }>
+									<Card
+										icon="external"
+										title={ __(
+											'Opening',
 											'barrio-suite'
-										)
-							}
-						>
-							<Select
-								label={ __( 'Opens', 'barrio-suite' ) }
-								value={ trigger.type }
-								options={ [
-									{
-										value: 'delay',
-										label: __(
-											'After some seconds',
+										) }
+										description={
+											popup.id
+												? sprintf(
+														/* translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12". */
+														__(
+															'It also opens, always, from a link to %1$s or a button with %2$s.',
+															'barrio-suite'
+														),
+														`#barrio-popup-${ popup.id }`,
+														`data-barrio-popup="${ popup.id }"`
+													)
+												: __(
+														'Once saved, it can also open from a link.',
+														'barrio-suite'
+													)
+										}
+									>
+										<Select
+											label={ __(
+												'Opens',
+												'barrio-suite'
+											) }
+											value={ trigger.type }
+											options={ [
+												{
+													value: 'delay',
+													label: __(
+														'After some seconds',
+														'barrio-suite'
+													),
+												},
+												{
+													value: 'scroll',
+													label: __(
+														'After scrolling the page',
+														'barrio-suite'
+													),
+												},
+												{
+													value: 'exit',
+													label: __(
+														'When the mouse leaves the page',
+														'barrio-suite'
+													),
+												},
+											] }
+											help={
+												'exit' === trigger.type &&
+												__(
+													'Only on computers: phones have no mouse.',
+													'barrio-suite'
+												)
+											}
+											onChange={ ( type ) =>
+												setSettings( {
+													trigger: {
+														...trigger,
+														type,
+													},
+												} )
+											}
+										/>
+										{ 'delay' === trigger.type && (
+											<Text
+												type="number"
+												min={ 0 }
+												max={ 600 }
+												label={ __(
+													'Seconds',
+													'barrio-suite'
+												) }
+												value={ String(
+													trigger.delay
+												) }
+												onChange={ ( value ) =>
+													setSettings( {
+														trigger: {
+															...trigger,
+															delay: number(
+																value,
+																600
+															),
+														},
+													} )
+												}
+											/>
+										) }
+										{ 'scroll' === trigger.type && (
+											<Text
+												type="number"
+												min={ 0 }
+												max={ 100 }
+												label={ __(
+													'Page scrolled (%)',
+													'barrio-suite'
+												) }
+												value={ String(
+													trigger.scroll
+												) }
+												onChange={ ( value ) =>
+													setSettings( {
+														trigger: {
+															...trigger,
+															scroll: number(
+																value,
+																100
+															),
+														},
+													} )
+												}
+											/>
+										) }
+										<Text
+											type="number"
+											min={ 0 }
+											max={ 365 }
+											label={ __(
+												'Back after (days)',
+												'barrio-suite'
+											) }
+											help={ __(
+												'Once closed, it opens again for the same visitor after these days; with 0, on the next page. The date stays only in their browser.',
+												'barrio-suite'
+											) }
+											value={ String( settings.days ) }
+											onChange={ ( value ) =>
+												setSettings( {
+													days: number( value, 365 ),
+												} )
+											}
+										/>
+									</Card>
+									<PeriodCard
+										item={ popup }
+										description={ __(
+											'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more popups on, the most recent one opens.',
 											'barrio-suite'
-										),
-									},
-									{
-										value: 'scroll',
-										label: __(
-											'After scrolling the page',
-											'barrio-suite'
-										),
-									},
-									{
-										value: 'exit',
-										label: __(
-											'When the mouse leaves the page',
-											'barrio-suite'
-										),
-									},
-								] }
-								help={
-									'exit' === trigger.type &&
-									__(
-										'Only on computers: phones have no mouse.',
-										'barrio-suite'
-									)
-								}
-								onChange={ ( type ) =>
-									setSettings( {
-										trigger: { ...trigger, type },
-									} )
-								}
-							/>
-							{ 'delay' === trigger.type && (
-								<Text
-									type="number"
-									min={ 0 }
-									max={ 600 }
-									label={ __( 'Seconds', 'barrio-suite' ) }
-									value={ String( trigger.delay ) }
-									onChange={ ( value ) =>
-										setSettings( {
-											trigger: {
-												...trigger,
-												delay: number( value, 600 ),
-											},
-										} )
-									}
-								/>
+										) }
+										onChange={ set }
+									/>
+								</Fixed>
 							) }
-							{ 'scroll' === trigger.type && (
-								<Text
-									type="number"
-									min={ 0 }
-									max={ 100 }
-									label={ __(
-										'Page scrolled (%)',
-										'barrio-suite'
-									) }
-									value={ String( trigger.scroll ) }
-									onChange={ ( value ) =>
-										setSettings( {
-											trigger: {
-												...trigger,
-												scroll: number( value, 100 ),
-											},
-										} )
-									}
-								/>
-							) }
-							<Text
-								type="number"
-								min={ 0 }
-								max={ 365 }
-								label={ __(
-									'Back after (days)',
-									'barrio-suite'
-								) }
-								help={ __(
-									'Once closed, it opens again for the same visitor after these days; with 0, on the next page. The date stays only in their browser.',
-									'barrio-suite'
-								) }
-								value={ String( settings.days ) }
-								onChange={ ( value ) =>
-									setSettings( {
-										days: number( value, 365 ),
-									} )
-								}
-							/>
-						</Card>
-						<WhereCard
-							where={ settings.where }
-							labels={ labels }
-							types={ popupsData.types }
-							onChange={ ( where, next ) => {
-								setSettings( { where } );
-								setLabels( next );
-							} }
-						/>
-						<WhoCard
-							who={ settings.who }
-							onChange={ ( who ) => setSettings( { who } ) }
-						/>
-						<PeriodCard
-							item={ popup }
-							description={ __(
-								'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. When more popups apply to a page, the most recent one opens.',
-								'barrio-suite'
-							) }
-							onChange={ set }
-						/>
-					</Fixed>
-				</div>
-				<div className="barrio-panel">
-					<Preview popup={ popup } lang={ lang } />
-				</div>
-			</div>
+						</div>
+						<div className="barrio-panel">
+							<Preview popup={ popup } lang={ lang } />
+						</div>
+					</div>
+				) }
+			</TabPanel>
 		</div>
 	);
 }

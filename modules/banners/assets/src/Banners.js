@@ -2,6 +2,7 @@
 // l'anteprima; agli amministratori la scheda Impostazioni con i Permessi. E la card della Bacheca. I testi si traducono
 // come nel builder dei form (TextIn): nelle altre lingue un testo vuoto vale quello della lingua principale.
 import apiFetch from '@wordpress/api-fetch';
+import { TabPanel } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
@@ -563,56 +564,73 @@ function BannerEditor( { id } ) {
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<LangNotice lang={ lang } />
-			<div className="barrio-fields">
-				<div>
-					<Card icon="text" title={ __( 'Content', 'barrio-suite' ) }>
-						<TextIn
-							item={ banner }
-							lang={ lang }
-							name="text"
-							label={ __( 'Text', 'barrio-suite' ) }
-							maxLength={ 255 }
-							onChange={ setBanner }
-						/>
-						<TextIn
-							item={ banner }
-							lang={ lang }
-							name="link_url"
-							optional
-							label={ __( 'Link', 'barrio-suite' ) }
-							help={ __(
-								'Optional: the whole banner leads here. A path like /contacts/ or a full address.',
-								'barrio-suite'
+			<TabPanel
+				tabs={ [
+					{ name: 'content', title: __( 'Content', 'barrio-suite' ) },
+					{ name: 'options', title: __( 'Options', 'barrio-suite' ) },
+				] }
+			>
+				{ ( tab ) => (
+					<div className="barrio-fields">
+						<div>
+							{ 'content' === tab.name ? (
+								<Card
+									icon="text"
+									title={ __( 'Content', 'barrio-suite' ) }
+								>
+									<TextIn
+										item={ banner }
+										lang={ lang }
+										name="text"
+										label={ __( 'Text', 'barrio-suite' ) }
+										maxLength={ 255 }
+										onChange={ setBanner }
+									/>
+									<TextIn
+										item={ banner }
+										lang={ lang }
+										name="link_url"
+										optional
+										label={ __( 'Link', 'barrio-suite' ) }
+										help={ __(
+											'Optional: the whole banner leads here. A path like /contacts/ or a full address.',
+											'barrio-suite'
+										) }
+										spellCheck={ false }
+										onChange={ setBanner }
+									/>
+									<Fixed lang={ lang }>
+										<Toggle
+											label={ __(
+												'Open the link in a new tab',
+												'barrio-suite'
+											) }
+											checked={ banner.new_tab }
+											onChange={ ( on ) =>
+												set( { new_tab: on } )
+											}
+										/>
+									</Fixed>
+								</Card>
+							) : (
+								<Fixed lang={ lang }>
+									<PeriodCard
+										item={ banner }
+										description={ __(
+											'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up.',
+											'barrio-suite'
+										) }
+										onChange={ set }
+									/>
+								</Fixed>
 							) }
-							spellCheck={ false }
-							onChange={ setBanner }
-						/>
-						<Fixed lang={ lang }>
-							<Toggle
-								label={ __(
-									'Open the link in a new tab',
-									'barrio-suite'
-								) }
-								checked={ banner.new_tab }
-								onChange={ ( on ) => set( { new_tab: on } ) }
-							/>
-						</Fixed>
-					</Card>
-					<Fixed lang={ lang }>
-						<PeriodCard
-							item={ banner }
-							description={ __(
-								'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up.',
-								'barrio-suite'
-							) }
-							onChange={ set }
-						/>
-					</Fixed>
-				</div>
-				<div className="barrio-panel">
-					<Preview banner={ banner } lang={ lang } />
-				</div>
-			</div>
+						</div>
+						<div className="barrio-panel">
+							<Preview banner={ banner } lang={ lang } />
+						</div>
+					</div>
+				) }
+			</TabPanel>
 		</div>
 	);
 }

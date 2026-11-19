@@ -1,9 +1,8 @@
-// I popup nel sito (modules/popups/src/Module.php). Il server ha già scelto pagina, utente e periodo; qui si
-// ricontrollano dispositivo e periodo, perché con la cache di pagina l'HTML può essere vecchio, e la chiusura, che sta
-// solo nel browser: la data in localStorage non va al server e non è un cookie.
+// Il popup nel sito (modules/popups/src/Module.php). Il server l'ha già scelto per il periodo; qui si ricontrollano il
+// periodo, perché con la cache di pagina l'HTML può essere vecchio, e la chiusura, che sta solo nel browser: la data in
+// localStorage non va al server e non è un cookie.
 
 const DAY = 86400000;
-const PHONE = '(max-width: 767px)';
 
 /**
  * Se il popup si apre da solo adesso. Senza WordPress: lo prova tests/js/popup.test.js.
@@ -36,17 +35,11 @@ function remember( key, value ) {
 	} catch {}
 }
 
-// Al centro è modale: showModal() rende inerte il resto della pagina e il browser rimette il focus dove era. In
-// angolo non prende il focus: show() lo sposterebbe nel popup.
+// showModal() rende inerte il resto della pagina, Esc chiude e il browser rimette il focus dove era.
 function open( dialog ) {
-	if ( dialog.open ) {
-		return;
-	}
-	dialog.dataset.barrioOpened = '';
-	if ( dialog.classList.contains( 'is-center' ) ) {
+	if ( ! dialog.open ) {
+		dialog.dataset.barrioOpened = '';
 		dialog.showModal();
-	} else {
-		dialog.setAttribute( 'open', '' );
 	}
 }
 
@@ -55,12 +48,7 @@ function setup( dialog ) {
 	const { trigger } = rules;
 	let sent = false;
 	const show = () => {
-		const device =
-			'all' === dialog.dataset.device ||
-			( 'mobile' === dialog.dataset.device ) ===
-				window.matchMedia( PHONE ).matches;
 		if (
-			device &&
 			! ( 'barrioOpened' in dialog.dataset ) &&
 			allowed( rules, Date.now(), closedAt( rules.key ) )
 		) {
@@ -74,12 +62,6 @@ function setup( dialog ) {
 	// Un clic sullo sfondo arriva al dialog, non al suo contenuto.
 	dialog.addEventListener( 'click', ( event ) => {
 		if ( event.target === dialog ) {
-			dialog.close();
-		}
-	} );
-	// Esc chiude da solo solo il modale.
-	dialog.addEventListener( 'keydown', ( event ) => {
-		if ( 'Escape' === event.key && ! dialog.matches( ':modal' ) ) {
 			dialog.close();
 		}
 	} );

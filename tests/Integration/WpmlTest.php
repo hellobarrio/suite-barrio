@@ -53,20 +53,6 @@ final class WpmlTest extends WP_UnitTestCase {
 		$this->assertSame( 'it', I18n::current() );
 	}
 
-	public function test_the_rules_of_the_popups_see_a_translation_as_its_original(): void {
-		$this->assertSame( 12, apply_filters( 'barrio_main_language_id', 12, 'page' ), 'Without WPML the ID stays.' );
-		add_filter( 'wpml_default_language', static fn(): string => 'it' );
-		add_filter(
-			'wpml_object_id',
-			static fn( int $id, string $type, bool $original, string $lang ): int => 12 === $id && 'page' === $type && $original && 'it' === $lang ? 7 : $id,
-			10,
-			4
-		);
-
-		$this->assertSame( 7, apply_filters( 'barrio_main_language_id', 12, 'page' ) );
-		$this->assertSame( 12, apply_filters( 'barrio_main_language_id', 12, 'category' ) );
-	}
-
 	public function test_the_wpml_language_switcher_is_hidden_only_on_the_barrio_pages(): void {
 		$show = static fn(): mixed => apply_filters( 'wpml_show_admin_language_switcher', true );
 		$this->assertTrue( $show() );
