@@ -35,19 +35,19 @@ final class Admin {
 	}
 
 	/**
-	 * Barrio → Editor: gli strumenti dell'editor (Blocchi, Ordinamento, Duplicazione, Testi alternativi) in una
+	 * Barrio → Contenuti: gli strumenti per i contenuti (Blocchi, Ordinamento, Duplicazione, Testi alternativi) in una
 	 * pagina sola, con una scheda per modulo acceso. Ogni modulo la chiede su admin_menu con la capability della
 	 * sua scheda: la pagina si aggiunge una volta, con la prima che chi guarda ha, e il JavaScript mostra solo le
 	 * schede che può aprire. Con tutti e quattro spenti non c'è.
 	 */
-	public static function editor_tab( string $capability ): void {
-		if ( current_user_can( $capability ) && ! get_plugin_page_hook( 'barrio-editor', self::PAGE ) ) {
-			self::add_page( 'barrio-editor', __( 'Editor', 'barrio-suite' ), $capability );
+	public static function contents_tab( string $capability ): void {
+		if ( current_user_can( $capability ) && ! get_plugin_page_hook( 'barrio-contents', self::PAGE ) ) {
+			self::add_page( 'barrio-contents', __( 'Contents', 'barrio-suite' ), $capability );
 		}
 	}
 
 	/**
-	 * I tipi di contenuto e le tassonomie degli strumenti dell'editor: quelli con l'interfaccia di WordPress, senza
+	 * I tipi di contenuto e le tassonomie degli strumenti di Contenuti: quelli con l'interfaccia di WordPress, senza
 	 * gli allegati. Le tassonomie solo di quei tipi (non le categorie dei link), con i nomi dei tipi che le usano:
 	 * due possono chiamarsi entrambe "Categorie".
 	 *

@@ -1,6 +1,6 @@
-// Ordinamento (modules/ordering/src/Module.php): la scheda di Barrio → Editor che sceglie i tipi di contenuto e le
+// Ordinamento (modules/ordering/src/Module.php): la scheda di Barrio → Contenuti che sceglie i tipi di contenuto e le
 // tassonomie in ordine manuale, e la pagina "Riordina …" che ognuno ha nel suo menu, dopo Aggiungi. E i suoi numeri
-// nella card Editor della Bacheca.
+// nella card Contenuti della Bacheca.
 import { arrayMove } from '@dnd-kit/sortable';
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
@@ -13,6 +13,7 @@ import {
 	Loading,
 	Lucide,
 	Notice,
+	Permissions,
 	TypeCards,
 	errorMessage,
 	useUnsavedWarning,
@@ -50,7 +51,10 @@ const CARDS = {
 	},
 };
 
-// Per la card Editor della Bacheca, dalle impostazioni salvate.
+// La capability del modulo, nei Permessi (Module::CAP).
+const CAPS = { barrio_reorder: __( 'Reorder', 'barrio-suite' ) };
+
+// Per la card Contenuti della Bacheca, dalle impostazioni salvate.
 export const orderingStats = () => [
 	[
 		__( 'Lists in manual order', 'barrio-suite' ),
@@ -71,26 +75,40 @@ export const orderingSection = {
 	id: 'ordering',
 	reload: true,
 	load: () => apiFetch( { path: '/barrio/v1/ordering/settings' } ),
-	value: ( settings ) => settings,
+	value: ( { role_names: names, ...settings } ) => settings,
 	save: ( draft ) =>
 		apiFetch( {
 			path: '/barrio/v1/ordering/settings',
 			method: 'PUT',
 			data: draft,
 		} ),
-	Cards: ( { draft, set } ) => (
-		<TypeCards
-			cards={ CARDS }
-			checked={ ( group, name ) => draft[ group ].includes( name ) }
-			onChange={ ( group, name, on ) =>
-				set( {
-					...draft,
-					[ group ]: on
-						? [ ...draft[ group ], name ]
-						: draft[ group ].filter( ( item ) => item !== name ),
-				} )
-			}
-		/>
+	Cards: ( { data, draft, set } ) => (
+		<>
+			<TypeCards
+				cards={ CARDS }
+				checked={ ( group, name ) => draft[ group ].includes( name ) }
+				onChange={ ( group, name, on ) =>
+					set( {
+						...draft,
+						[ group ]: on
+							? [ ...draft[ group ], name ]
+							: draft[ group ].filter(
+									( item ) => item !== name
+								),
+					} )
+				}
+			/>
+			<Permissions
+				description={ __(
+					'Who can reorder the lists in manual order. They also need to be able to edit the contents of others, or the terms: authors and contributors cannot. Administrators can always do everything; only administrators change these settings.',
+					'barrio-suite'
+				) }
+				caps={ CAPS }
+				names={ data.role_names }
+				roles={ draft.roles }
+				onChange={ ( roles ) => set( { ...draft, roles } ) }
+			/>
+		</>
 	),
 };
 

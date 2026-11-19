@@ -11,8 +11,8 @@ import {
 	performanceSection,
 } from '../../../modules/performance/assets/src/Performance.js';
 import { seoPage } from '../../../modules/seo/assets/src/seo/Seo.js';
+import { contentsPage } from '../contents/Contents.js';
 import { Dashboard } from '../dashboard/Dashboard.js';
-import { editorPage } from '../editor/Editor.js';
 import { Extensions } from '../extensions/Extensions.js';
 import { General } from '../general/General.js';
 import { Launch } from '../launch/Launch.js';
@@ -32,7 +32,7 @@ const PAGES = {
 	},
 	'barrio-forms': formsPage,
 	'barrio-seo': seoPage,
-	'barrio-editor': editorPage,
+	'barrio-contents': contentsPage,
 	'barrio-performance': {
 		title: PERFORMANCE.title,
 		description: __(

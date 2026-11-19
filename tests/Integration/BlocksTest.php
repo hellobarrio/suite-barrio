@@ -70,7 +70,7 @@ final class BlocksTest extends WP_UnitTestCase {
 		$this->assertNotContains( 'core/list-item', $names, 'A block that exists only inside another follows it.' );
 		$this->assertNotContains( 'core/missing', $names, 'A block that cannot be inserted is there to open the contents.' );
 		$this->assertContains( 'text', array_column( $available['categories'], 'slug' ) );
-		$this->assertArrayNotHasKey( 'administrator', $available['roles'] );
+		$this->assertSame( 'Administrator', array_values( $available['roles'] )[0], 'First, for the settings of every role.' );
 		$this->assertSame( 'Editor', $available['roles']['editor'] );
 		$this->assertSame(
 			[

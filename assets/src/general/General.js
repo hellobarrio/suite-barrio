@@ -131,6 +131,8 @@ const same = ( a, b ) => JSON.stringify( a ) === JSON.stringify( b );
 
 /**
  * Anche per la pagina di un modulo che ha solo impostazioni, come Prestazioni: le sue sezioni con la stessa barra.
+ * Tools di una sezione va nella barra, prima di Salva; view è ciò che Tools e Cards scelgono e non si salva (il ruolo
+ * di Blocchi).
  *
  * @param {Object}   props
  * @param {string}   props.title
@@ -145,6 +147,7 @@ export function General( {
 	const [ draft, setDraft ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
+	const [ view, setView ] = useState( {} );
 
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
@@ -227,6 +230,18 @@ export function General( {
 	return (
 		<div className="barrio-stack">
 			<Bar title={ title }>
+				{ sections.map(
+					( { id, Tools } ) =>
+						Tools &&
+						data[ id ] && (
+							<Tools
+								key={ id }
+								data={ data[ id ] }
+								view={ view }
+								setView={ setView }
+							/>
+						)
+				) }
 				<button
 					type="button"
 					className="barrio-button is-primary"
@@ -265,6 +280,8 @@ export function General( {
 								} ) )
 							}
 							onNotice={ setNotice }
+							view={ view }
+							setView={ setView }
 						/>
 					)
 			) }

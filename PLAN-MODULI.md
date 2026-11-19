@@ -20,8 +20,8 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 | Popup e Banner separati | Due moduli, come nel prototipo, per accenderli, gestirli e dare i permessi separatamente: ognuno ha le sue tabelle, la sua pagina, la sua capability e la sua card. Ciò che hanno uguale sta nel core e si scrive una volta (§1): dove, chi e quando compaiono, il periodo, la frequenza, la lingua. Nel prototipo quella parte è copiata da un modulo all'altro, con gli stessi bug |
 | Tabelle e non CPT | Popup e banner sono raccolte di record con testi per lingua, come i form: tabella più tabella `_i18n`, con la lingua scelta nella barra dell'editor e i componenti dei testi tradotti del builder (`TextIn`, `Fixed`, `fillTranslations`). Così funzionano senza WPML e il GraphQL resta con i campi del prototipo. Un CPT con l'editor a blocchi lascerebbe le traduzioni a WPML, e per il banner (una riga di testo) aprirebbe un editor a blocchi intero |
 | Impostazioni | Orari, Blocchi, Ordinamento, Duplicazione e Testi alternativi hanno un solo record ciascuno: un'opzione con JSON Schema (`barrio_hours`, `barrio_blocks`, `barrio_ordering`, `barrio_duplicate`, `barrio_alt`), scritta solo dalla sua rotta REST. In autoload solo quelle lette nel sito (`barrio_hours`, `barrio_ordering`) |
-| Admin | Tre pagine nuove nel menu Barrio: **Popup**, **Banner** e **Orari**, perché ci lavora chi gestisce i contenuti. Blocchi, Ordinamento, Duplicazione e Testi alternativi sono strumenti dell'editor con poche impostazioni: invece di quattro voci, una pagina **Editor** con una scheda per modulo acceso (la pagina sparisce con tutti e quattro spenti). Menu: Bacheca, Form, SEO, Popup, Banner, Orari, Editor, Prestazioni, Estensioni, Impostazioni |
-| Capability | Nuove solo dove WordPress non ne ha una adatta: `barrio_manage_popups`, `barrio_manage_banners` e `barrio_manage_hours` (admin ed editor, dalla migrazione `0002` di ogni modulo), con la card Permessi nelle impostazioni del modulo. Ordinamento, Duplicazione e Testi alternativi usano quelle del core sul singolo contenuto (`edit_post`, `edit_others_posts`, `edit_terms`, `upload_files`); Blocchi e le impostazioni chiedono `manage_options` |
+| Admin | Tre pagine nuove nel menu Barrio: **Popup**, **Banner** e **Orari**, perché ci lavora chi gestisce i contenuti. Blocchi, Ordinamento, Duplicazione e Testi alternativi sono strumenti per i contenuti con poche impostazioni: invece di quattro voci, una pagina **Contenuti** con una scheda per modulo acceso (la pagina sparisce con tutti e quattro spenti). Menu: Bacheca, Form, SEO, Popup, Banner, Orari, Contenuti, Prestazioni, Estensioni, Impostazioni |
+| Capability | Nuove solo dove WordPress non ne ha una adatta: `barrio_manage_popups`, `barrio_manage_banners` e `barrio_manage_hours` (admin ed editor, dalla migrazione `0002` di ogni modulo), con la card Permessi nelle impostazioni del modulo. Anche Ordinamento e Duplicazione hanno i Permessi, per spegnerli a un ruolo: `barrio_reorder` e `barrio_duplicate` (dalla migrazione `0001`, a chi poteva già usarli), in più a quelle del core sul singolo contenuto (`edit_post`, `edit_others_posts`, `edit_terms`). Testi alternativi usa solo `upload_files`; Blocchi e le impostazioni chiedono `manage_options` |
 | Google | Orari e Testi alternativi usano il **service account di Google del core** (Barrio → Impostazioni), come l'AI del SEO: nessuna chiave API nei moduli. Places API (New) accetta i token OAuth dei service account (scope `cloud-platform`, progetto con fatturazione in `X-Goog-User-Project`). Le chiamate partono da un clic in admin o dalla sincronizzazione notturna degli orari, che il readme dichiara |
 | Headless | `hbPopup`, `hbBanner` e `hbOrari` restano con i nomi e le forme del prototipo nell'estensione `barrio-suite-wpgraphql`, un file per modulo. Ordinamento non ha GraphQL suo: `menuOrder` e `orderby: MENU_ORDER` sono già di WPGraphQL |
 | Revalidation | Come `barrio_seo_changed`: `barrio_popups_changed`, `barrio_banners_changed`, `barrio_hours_changed` e `barrio_ordering_changed`, usati dal ponte dell'estensione di migrazione verso la revalidation del prototipo (tag `wp:popup`, `wp:banner`, `wp:orari`, `wp:type:{tipo}`) e, più avanti, dall'estensione di revalidation |
@@ -332,8 +332,11 @@ blocco dei form:
 
 ### 5.4 Admin
 
-- **Editor → Blocchi** (`manage_options`), un solo Salva:
-  - card Blocchi e restrizioni, con il ruolo scelto nell'intestazione (`Picker`);
+- **Contenuti → Blocchi** (`manage_options`), un solo Salva:
+  - card Blocchi e restrizioni, per il ruolo scelto nella barra in alto (`Picker`, `Tools` della sezione). Il primo
+    ruolo è Amministratore, come la lingua principale: la sua card è tutta accesa e fissa, e solo con lui si cambiano
+    le due card sotto, uguali per tutti i ruoli. Con gli altri ruoli quelle card sono grigie (`Fixed`) e un avviso
+    dice perché, come nelle lingue diverse dalla principale;
   - card Editor per tipo di contenuto;
   - card Contenuti esterni.
 
@@ -354,7 +357,7 @@ blocco dei form:
 ### 6.1 Cosa fa
 
 - **Per tipo di contenuto e tassonomia** (quelli con interfaccia, allegati esclusi), l'interruttore "Ordine manuale"
-  in Editor → Ordinamento (`manage_options`), con due card come Duplicazione.
+  in Contenuti → Ordinamento (`manage_options`), con due card come Duplicazione.
 - **Riordina** è una voce del menu di ogni elenco in ordine manuale, dopo Tutte le pagine e Aggiungi pagina
   (Pagine → Riordina Pagine); quella di una tassonomia è nel menu del suo primo tipo (Articoli → Riordina
   Categorie). La vede solo chi può riordinare:
@@ -383,6 +386,7 @@ blocco dei form:
   - Per i termini, `DELETE` e `INSERT` dei meta in una transazione: `update_term_meta()` termine per termine
     lascerebbe un ordine a metà se una scrittura fallisce.
 - **Opzione `barrio_ordering`** (autoload): `post_types` e `taxonomies` in ordine manuale.
+- **Migrazione `0001`**: `barrio_reorder` ai ruoli con `edit_others_posts` o `manage_categories`.
 
 ### 6.3 Problemi del prototipo da non ripetere
 
@@ -399,7 +403,8 @@ blocco dei form:
 - **REST**:
   - `GET /ordering/{post|term}/{nome}` (l'albero con ID, titolo, stato, genitore);
   - `PUT` dello stesso percorso con gli ID nell'ordine;
-  - `GET`/`PUT /ordering/settings`.
+  - `GET`/`PUT /ordering/settings`, con i ruoli (`src/Roles.php`).
+- **Contenuti → Ordinamento**: le card dei tipi e delle tassonomie e la card Permessi.
 - `barrio_ordering_changed` (tipo o tassonomia) dopo ogni salvataggio.
 - `// ponytail: tutto l'elenco in una richiesta e in una pagina; oltre ~2000 voci per tipo servono pagine o il trascinamento nella lista nativa`.
 
@@ -431,7 +436,7 @@ blocco dei form:
   `_wp_desired_post_slug`. Lo slug lo calcola WordPress.
 - **I termini**: nome con " (copia)", poi " (copia 2)" se esiste già; descrizione, genitore, meta tranne
   `_barrio_order`. La copia va in fondo all'ordine.
-- **Dove compare**: tutti i tipi e le tassonomie con interfaccia, allegati esclusi; si tolgono in Editor →
+- **Dove compare**: tutti i tipi e le tassonomie con interfaccia, allegati esclusi; si tolgono in Contenuti →
   Duplicazione (`manage_options`).
 
 ### 7.2 Dati
@@ -440,6 +445,7 @@ blocco dei form:
   Niente transazione, perché le tabelle del core possono non essere InnoDB (regola 9 di PLAN.md): se un passo
   fallisce, la copia a metà si elimina (`wp_delete_post`, `wp_delete_term`).
 - **Opzione `barrio_duplicate`**: `post_types` e `taxonomies` spenti (una chiave assente vale acceso).
+- **Migrazione `0001`**: `barrio_duplicate` ai ruoli con `edit_posts`.
 
 ### 7.3 Problemi del prototipo da non ripetere
 
@@ -455,7 +461,8 @@ blocco dei form:
 
 - L'azione è un link con nonce a `admin-post.php` (`barrio_duplicate`), più `handle_bulk_actions-edit-{tipo}` per la
   massa.
-- **Editor → Duplicazione**: una card con due elenchi di interruttori; `GET`/`PUT /duplicate` (`manage_options`).
+- **Contenuti → Duplicazione**: le card dei tipi e delle tassonomie e la card Permessi; `GET`/`PUT /duplicate`
+  (`manage_options`), con i ruoli (`src/Roles.php`).
 
 **Da Yoast Duplicate Post**:
 - presi: copia da riga, di massa e dall'editor; meta con `wp_slash`; titolo con un suffisso;
@@ -482,7 +489,7 @@ blocco dei form:
     L'upload non aspetta Google. Scrive solo se l'alt è vuoto;
   - **"Genera con AI"** nei dettagli dell'allegato (finestra dei media e schermata di modifica): riempie il campo
     senza ricaricare la pagina. Si salva come ogni modifica dell'alt, quindi si vede prima;
-  - **Editor → Testi alternativi**: la tabella del plugin con le immagini (miniatura, file, alt, contenuto a cui è
+  - **Contenuti → Testi alternativi**: la tabella del plugin con le immagini (miniatura, file, alt, contenuto a cui è
     allegata). Il filtro di partenza è "senza testo alternativo"; nel menu ⋯ Genera e Modifica (una modale). Le
     azioni di massa e "Genera per tutte quelle senza" lavorano nel browser, un'immagine alla volta, con
     l'avanzamento e Interrompi, e si fermano al primo errore come le azioni di massa del SEO.
@@ -513,7 +520,8 @@ blocco dei form:
   - `GET /alt/images` (`upload_files`; pagine, ricerca e filtro sul server, come le Registrazioni);
   - `POST /alt/{id}` (`edit_post`; genera e, con `save`, scrive);
   - `GET`/`PUT /alt/settings` (`manage_options`).
-- **Bacheca**: card con le immagini senza testo alternativo e il link alla tabella.
+- **Bacheca**: le immagini senza testo alternativo nella card Contenuti, che ha al massimo tre numeri (uno per
+  strumento): con il quarto strumento si sceglie quale numero togliere.
 
 **Da Alt Text AI e simili**:
 - presi: generazione al caricamento, in massa e per immagine; contesto dal contenuto;
@@ -584,12 +592,12 @@ Ogni fase si apre dai dati e si chiude con:
 - lo stesso commit su `con-updater` e `senza-updater`;
 - le traduzioni rigenerate (PLAN.md §8).
 
-Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Editor, il Banner costruisce le regole del core
+Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti, il Banner costruisce le regole del core
 che il Popup riusa.
 
 | # | Fase | Pronta quando |
 |---|---|---|
-| M1 | **Duplicazione** e la pagina **Editor** con le schede dei moduli accesi | Copia di pagina, articolo, CPT e categoria con:<br>• blocchi con attributi JSON intatti (confronto del `post_content`);<br>• meta serializzati e JSON intatti, ACF compreso;<br>• la seconda copia di un termine riuscita.<br>Un collaboratore non duplica il contenuto privato di un altro |
+| M1 | **Duplicazione** e la pagina **Contenuti** con le schede dei moduli accesi | Copia di pagina, articolo, CPT e categoria con:<br>• blocchi con attributi JSON intatti (confronto del `post_content`);<br>• meta serializzati e JSON intatti, ACF compreso;<br>• la seconda copia di un termine riuscita.<br>Un collaboratore non duplica il contenuto privato di un altro |
 | M2 | **Ordinamento**: `OrderRepository`, impostazioni, albero trascinabile, query di contenuti e termini | La data di modifica non cambia riordinando; una scrittura fallita non lascia un ordine a metà. L'ordine vale:<br>• nell'archivio, nell'admin, in REST e nel Query Loop;<br>• non nella ricerca né con un ordine esplicito.<br>Spegnere non cancella niente. Un autore non riordina |
 | M3 | **Blocchi**: per ruolo, per tipo, contenuti esterni | Un editor:<br>• non trova i blocchi disattivati, ma un elenco ha ancora le sue voci;<br>• non sceglie H1;<br>• apre un contenuto colorato da un amministratore senza "contenuto inatteso".<br>Con "nessun editor" `content` resta in REST. Senza scelte l'editor è quello di WordPress |
 | M4 | **Testi alternativi** e `Ai::generate()` con le immagini | Alt generato al caricamento (dopo l'upload), dal pulsante e in massa, con Google simulato (`pre_http_request`): l'immagine mandata è la `large`; un alt presente non si tocca; un autore non genera su un allegato altrui |

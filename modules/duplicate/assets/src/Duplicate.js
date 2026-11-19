@@ -1,9 +1,9 @@
-// La scheda Duplicazione di Barrio → Editor (modules/duplicate/src/Module.php): su quali tipi di contenuto e
-// tassonomie compare Duplica. E i suoi numeri nella card Editor della Bacheca.
+// La scheda Duplicazione di Barrio → Contenuti (modules/duplicate/src/Module.php): su quali tipi di contenuto e
+// tassonomie compare Duplica, e quali ruoli possono duplicare. E i suoi numeri nella card Contenuti della Bacheca.
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 
-import { TypeCards } from '../../../../assets/src/admin/ui.js';
+import { Permissions, TypeCards } from '../../../../assets/src/admin/ui.js';
 
 // Anche nella card Moduli di Barrio → Impostazioni.
 export const DUPLICATE = {
@@ -40,44 +40,57 @@ const CARDS = {
 	},
 };
 
+// La capability del modulo, nei Permessi (Module::CAP).
+const CAPS = { barrio_duplicate: __( 'Duplicate', 'barrio-suite' ) };
+
 const enabled = ( group, disabled ) =>
 	contentTypes[ group ].filter( ( { name } ) => ! disabled.includes( name ) );
 
-// Per la card Editor della Bacheca, dalle impostazioni salvate.
+// Per la card Contenuti della Bacheca, dalle impostazioni salvate: un numero per strumento.
 export const duplicateStats = () => [
 	[
-		__( 'Content types with Duplicate', 'barrio-suite' ),
-		enabled( 'post_types', duplicateData.disabled.post_types ).length,
-	],
-	[
-		__( 'Taxonomies with Duplicate', 'barrio-suite' ),
-		enabled( 'taxonomies', duplicateData.disabled.taxonomies ).length,
+		__( 'Lists with Duplicate', 'barrio-suite' ),
+		enabled( 'post_types', duplicateData.disabled.post_types ).length +
+			enabled( 'taxonomies', duplicateData.disabled.taxonomies ).length,
 	],
 ];
 
-// GET e PUT /barrio/v1/duplicate, con il Salva della barra (general/General.js). Si salvano i tipi spenti.
+// GET e PUT /barrio/v1/duplicate, con il Salva della barra (general/General.js). Si salvano i tipi spenti e le
+// capability dei ruoli.
 export const duplicateSection = {
 	id: 'duplicate',
 	load: () => apiFetch( { path: '/barrio/v1/duplicate' } ),
-	value: ( settings ) => settings,
+	value: ( { role_names: names, ...settings } ) => settings,
 	save: ( draft ) =>
 		apiFetch( {
 			path: '/barrio/v1/duplicate',
 			method: 'PUT',
 			data: draft,
 		} ),
-	Cards: ( { draft, set } ) => (
-		<TypeCards
-			cards={ CARDS }
-			checked={ ( group, name ) => ! draft[ group ].includes( name ) }
-			onChange={ ( group, name, on ) =>
-				set( {
-					...draft,
-					[ group ]: on
-						? draft[ group ].filter( ( item ) => item !== name )
-						: [ ...draft[ group ], name ],
-				} )
-			}
-		/>
+	Cards: ( { data, draft, set } ) => (
+		<>
+			<TypeCards
+				cards={ CARDS }
+				checked={ ( group, name ) => ! draft[ group ].includes( name ) }
+				onChange={ ( group, name, on ) =>
+					set( {
+						...draft,
+						[ group ]: on
+							? draft[ group ].filter( ( item ) => item !== name )
+							: [ ...draft[ group ], name ],
+					} )
+				}
+			/>
+			<Permissions
+				description={ __(
+					'Who can duplicate, among the contents and terms they can edit. Administrators can always do everything; only administrators change these settings.',
+					'barrio-suite'
+				) }
+				caps={ CAPS }
+				names={ data.role_names }
+				roles={ draft.roles }
+				onChange={ ( roles ) => set( { ...draft, roles } ) }
+			/>
+		</>
 	),
 };

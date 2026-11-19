@@ -61,6 +61,9 @@ final class OrderingTest extends WP_UnitTestCase {
 		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- il server REST di WordPress.
 		set_current_screen( 'front' );
 		parent::tear_down();
+		// I ruoli restano in memoria anche dopo il rollback: si rileggono dal database, non dalla cache.
+		self::flush_cache();
+		wp_roles()->for_site();
 	}
 
 	public function test_reordering_writes_the_order_of_the_tree_without_touching_the_modification_date(): void {
@@ -290,13 +293,29 @@ final class OrderingTest extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->request( 'GET', '/ordering/post/attachment' )->get_status(), 'Not the attachments.' );
 	}
 
+	public function test_only_the_roles_chosen_in_the_permissions_reorder(): void {
+		$this->request( 'PUT', '/ordering/settings', [ 'post_types' => [ 'page' ] ] );
+		$settings = $this->request( 'GET', '/ordering/settings' )->get_data();
+		$this->assertSame( [ 'barrio_reorder' ], $settings['roles']['editor'], 'From migration 0001: whoever edits the contents of others.' );
+		$this->assertSame( [], $settings['roles']['author'] );
+		$this->assertArrayNotHasKey( 'administrator', $settings['roles'] );
+		$this->assertSame( 400, $this->request( 'PUT', '/ordering/settings', [ 'roles' => [ 'editor' => [ 'manage_options' ] ] ] )->get_status() );
+
+		$this->assertSame( [], $this->request( 'PUT', '/ordering/settings', [ 'roles' => [ 'editor' => [] ] ] )->get_data()['roles']['editor'] );
+		$this->assertTrue( get_role( 'administrator' )->has_cap( 'barrio_reorder' ), 'Administrators keep everything.' );
+		wp_set_current_user( $this->editor );
+		$this->assertSame( 403, $this->request( 'GET', '/ordering/post/page' )->get_status() );
+		$this->assertSame( 403, $this->request( 'GET', '/ordering/term/category' )->get_status() );
+		$this->assertSame( [], apply_filters( 'barrio_admin_data', [] )['ordering']['pages'], 'No Reorder page.' );
+	}
+
 	public function test_settings_are_validated_and_turning_off_deletes_nothing(): void {
 		$this->assertSame(
 			[
 				'post_types' => [],
 				'taxonomies' => [],
 			],
-			$this->request( 'GET', '/ordering/settings' )->get_data(),
+			$this->types( $this->request( 'GET', '/ordering/settings' ) ),
 			'Nothing in manual order by default.'
 		);
 		$this->assertSame( 400, $this->request( 'PUT', '/ordering/settings', [ 'post_types' => [ 'Le pagine!' ] ] )->get_status() );
@@ -306,14 +325,16 @@ final class OrderingTest extends WP_UnitTestCase {
 				'post_types' => [ 'book' ],
 				'taxonomies' => [ 'genre' ],
 			],
-			$this->request(
-				'PUT',
-				'/ordering/settings',
-				[
-					'post_types' => [ 'book' ],
-					'taxonomies' => [ 'genre' ],
-				]
-			)->get_data()
+			$this->types(
+				$this->request(
+					'PUT',
+					'/ordering/settings',
+					[
+						'post_types' => [ 'book' ],
+						'taxonomies' => [ 'genre' ],
+					]
+				)
+			)
 		);
 		$this->assertSame( [ [ 'post', 'book' ], [ 'term', 'genre' ] ], $this->changed );
 		$this->assertArrayHasKey( 'barrio_ordering', wp_load_alloptions(), 'Read by the queries of the site.' );
@@ -340,7 +361,7 @@ final class OrderingTest extends WP_UnitTestCase {
 				'post_types' => [],
 				'taxonomies' => [ 'genre' ],
 			],
-			$this->request( 'PUT', '/ordering/settings', [ 'post_types' => [] ] )->get_data(),
+			$this->types( $this->request( 'PUT', '/ordering/settings', [ 'post_types' => [] ] ) ),
 			'A list that is not sent stays.'
 		);
 		$this->assertSame( [ [ 'post', 'book' ] ], $this->changed );
@@ -398,12 +419,17 @@ final class OrderingTest extends WP_UnitTestCase {
 			);
 			$this->assertSame( [ 'barrio-order-term-category' => 'Reorder Categories' ], $items( 'edit.php' ), 'The terms in the menu of their content type.' );
 			$this->assertSame( [ 'barrio-order-post-page', 'barrio-order-post-book', 'barrio-order-term-category', 'barrio-order-term-genre' ], $pages );
-			$this->assertSame( 'administrator' === $role ? [ 'barrio-editor' ] : [], array_values( array_intersect( array_column( $GLOBALS['submenu']['barrio'] ?? [], 2 ), [ 'barrio-editor' ] ) ), 'The settings, in Barrio → Editor, only for administrators.' );
+			$this->assertSame( 'administrator' === $role ? [ 'barrio-contents' ] : [], array_values( array_intersect( array_column( $GLOBALS['submenu']['barrio'] ?? [], 2 ), [ 'barrio-contents' ] ) ), 'The settings, in Barrio → Contents, only for administrators.' );
 		}
 
 		foreach ( $names as $index => $name ) {
 			$GLOBALS[ $name ] = $saved[ $index ]; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- i menu di WordPress.
 		}
+	}
+
+	/** @return array<string, mixed> I tipi e le tassonomie in ordine manuale, senza i ruoli. */
+	private function types( WP_REST_Response $response ): array {
+		return array_intersect_key( $response->get_data(), array_flip( [ 'post_types', 'taxonomies' ] ) );
 	}
 
 	/** @param array<string, mixed> $body */

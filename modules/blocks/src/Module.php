@@ -13,7 +13,7 @@ use WP_Theme_JSON_Data;
 /**
  * Cosa trova nell'editor chi scrive (PLAN-MODULI.md §5): i blocchi e le restrizioni per ruolo, l'editor per tipo di
  * contenuto, i contenuti esterni. Ognuna è un filtro del core, tranne l'H1 (assets/editor/no-h1.js). Nel sito e nei
- * contenuti già salvati non cambia niente. Si sceglie in Barrio → Editor → Blocchi.
+ * contenuti già salvati non cambia niente. Si sceglie in Barrio → Contenuti → Blocchi.
  *
  * @phpstan-type Role array{disabled: list<string>, h1: bool, styles: bool, code: bool, lock: bool, panels: bool}
  * @phpstan-type Settings array{roles: array<string, Role>, editors: array<string, 'blocks'|'classic'|'none'>, remote_patterns: bool, openverse: bool}
@@ -100,11 +100,11 @@ final class Module {
 	public static function uninstall(): void {}
 
 	public static function menu(): void {
-		Admin::editor_tab( 'manage_options' );
+		Admin::contents_tab( 'manage_options' );
 	}
 
 	/**
-	 * In window.barrioAdmin.blocks, per la card Editor della Bacheca. Senza, il JavaScript sa che il modulo è spento.
+	 * In window.barrioAdmin.blocks, per la card Contenuti della Bacheca. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
@@ -300,8 +300,8 @@ final class Module {
 
 	/** @return array<string, mixed> */
 	private static function available(): array {
+		// Anche l'amministratore, che non si salva: nel menu dei ruoli è il primo e cambia ciò che vale per tutti.
 		$roles = wp_roles()->get_names();
-		unset( $roles['administrator'] );
 		// I tipi del core (pattern, menu di navigazione) esistono per l'editor a blocchi.
 		$types  = array_filter(
 			Admin::content_types()['post_types'],

@@ -222,4 +222,10 @@ scrive:
 Nelle query l'ordine è un `LEFT JOIN` su `termmeta` (`terms_clauses`) e `orderby` di `WP_Query` (`pre_get_posts`):
 nessuna query in più. L'opzione `barrio_ordering` (in autoload, la leggono le query del sito) elenca i tipi e le
 tassonomie in ordine manuale; spegnerli lascia `menu_order` e i meta. La disinstallazione con i dati elimina i meta
-`_barrio_order`; `menu_order` resta, perché è del core.
+`_barrio_order`; `menu_order` resta, perché è del core. L'unica migrazione, la `0001`, assegna `barrio_reorder` ai
+ruoli che modificano i contenuti degli altri o gestiscono le categorie.
+
+## Modulo Duplicazione
+
+Nessuna tabella: la copia passa dalle funzioni del core. L'opzione `barrio_duplicate` (non in autoload) elenca i tipi
+e le tassonomie spenti; l'unica migrazione, la `0001`, assegna `barrio_duplicate` ai ruoli con `edit_posts`.

@@ -1,13 +1,16 @@
-// La scheda Blocchi di Barrio → Editor (modules/blocks/src/Module.php): blocchi e restrizioni per ruolo, l'editor
-// per tipo di contenuto e i contenuti esterni. E i suoi numeri nella card Editor della Bacheca.
+// La scheda Blocchi di Barrio → Contenuti (modules/blocks/src/Module.php): blocchi e restrizioni per ruolo, l'editor
+// per tipo di contenuto e i contenuti esterni. E i suoi numeri nella card Contenuti della Bacheca.
 import apiFetch from '@wordpress/api-fetch';
-import { useId, useState } from '@wordpress/element';
-import { __, _x } from '@wordpress/i18n';
+import { useState } from '@wordpress/element';
+import { __, _x, sprintf } from '@wordpress/i18n';
 
 import {
 	Card,
+	Fixed,
 	Group,
+	Notice,
 	Picker,
+	Search,
 	SectionHead,
 	Select,
 	Toggle,
@@ -71,21 +74,16 @@ const restricted = ( role ) =>
 	role.disabled.length > 0 ||
 	Object.keys( RESTRICTIONS ).some( ( key ) => role[ key ] );
 
-// Per la card Editor della Bacheca, dalle impostazioni salvate.
+// Per la card Contenuti della Bacheca, dalle impostazioni salvate: un numero per strumento.
 export const blocksStats = () => [
 	[
 		__( 'Roles with restrictions', 'barrio-suite' ),
 		Object.keys( blocksData.roles ).length,
 	],
-	[
-		__( 'Content types with a chosen editor', 'barrio-suite' ),
-		Object.keys( blocksData.editors ).length,
-	],
 ];
 
 // I blocchi di un ruolo, per categoria. Tutti e Nessuno valgono per quelli trovati dalla ricerca.
 function BlockList( { blocks, categories, disabled, onChange } ) {
-	const id = useId();
 	const [ search, setSearch ] = useState( '' );
 	const term = search.trim().toLowerCase();
 	const found = blocks.filter( ( block ) =>
@@ -111,13 +109,10 @@ function BlockList( { blocks, categories, disabled, onChange } ) {
 				title={ __( 'Available blocks', 'barrio-suite' ) }
 				level={ 3 }
 			>
-				<input
-					type="search"
-					className="barrio-input"
-					placeholder={ __( 'Search blocks', 'barrio-suite' ) }
-					aria-label={ __( 'Search blocks', 'barrio-suite' ) }
+				<Search
+					label={ __( 'Search blocks', 'barrio-suite' ) }
 					value={ search }
-					onChange={ ( event ) => setSearch( event.target.value ) }
+					onChange={ setSearch }
 				/>
 				<button
 					type="button"
@@ -144,30 +139,21 @@ function BlockList( { blocks, categories, disabled, onChange } ) {
 				<Group key={ title } label={ title }>
 					<div className="barrio-blocks">
 						{ list.map( ( block ) => (
-							<label
+							<Toggle
 								key={ block.name }
-								className="barrio-choice"
-								htmlFor={ `${ id }-${ block.name }` }
-							>
-								<input
-									type="checkbox"
-									id={ `${ id }-${ block.name }` }
-									checked={
-										! disabled.includes( block.name )
-									}
-									onChange={ ( event ) =>
-										change(
-											event.target.checked
-												? disabled.filter(
-														( name ) =>
-															name !== block.name
-													)
-												: [ ...disabled, block.name ]
-										)
-									}
-								/>
-								{ block.title }
-							</label>
+								label={ block.title }
+								checked={ ! disabled.includes( block.name ) }
+								onChange={ ( on ) =>
+									change(
+										on
+											? disabled.filter(
+													( name ) =>
+														name !== block.name
+												)
+											: [ ...disabled, block.name ]
+									)
+								}
+							/>
 						) ) }
 					</div>
 				</Group>
@@ -179,14 +165,21 @@ function BlockList( { blocks, categories, disabled, onChange } ) {
 	);
 }
 
-function RolesCard( { available, draft, set } ) {
-	const names = Object.keys( available.roles );
-	const [ role, setRole ] = useState(
-		names.includes( 'editor' ) ? 'editor' : names[ 0 ]
-	);
+// Come la lingua principale: ha sempre tutto, e con lui si cambiano le impostazioni uguali per tutti i ruoli.
+const ADMIN = 'administrator';
+
+// Il ruolo scelto nella barra (Tools); all'inizio l'amministratore.
+const roleOf = ( { roles }, view ) =>
+	view.role ?? ( roles[ ADMIN ] ? ADMIN : Object.keys( roles )[ 0 ] );
+
+// Le card uguali per tutti i ruoli si cambiano con l'amministratore; un sito senza quel ruolo le cambia con tutti.
+const shared = ( { roles }, role ) => role === ADMIN || ! roles[ ADMIN ];
+
+function RolesCard( { available, role, draft, set } ) {
 	if ( ! role ) {
 		return null;
 	}
+	const names = Object.keys( available.roles );
 	const current = draft.roles[ role ] ?? NONE;
 	// Nell'ordine dei ruoli e senza quelli senza restrizioni, come li salva il server.
 	const change = ( values ) => {
@@ -206,54 +199,71 @@ function RolesCard( { available, draft, set } ) {
 		<Card
 			className="barrio-wide"
 			icon="block-default"
-			title={ __( 'Blocks and restrictions', 'barrio-suite' ) }
+			title={ sprintf(
+				/* translators: %s: role name, such as Editor. */
+				__( 'Blocks and restrictions for %s', 'barrio-suite' ),
+				available.roles[ role ]
+			) }
 			description={ __(
-				'What the users with this role find in the editor. Administrators always have everything, and nothing changes on the site.',
+				'What the users with the role chosen at the top find in the editor. Administrators always have everything, and nothing changes on the site.',
 				'barrio-suite'
 			) }
-			actions={
-				<Picker
-					label={ __( 'Role', 'barrio-suite' ) }
-					text={ available.roles[ role ] }
-					options={ names.map( ( name ) => ( {
-						value: name,
-						label: available.roles[ name ],
-					} ) ) }
-					value={ role }
-					onChange={ setRole }
-				/>
-			}
 		>
-			{ Object.entries( RESTRICTIONS ).map(
-				( [ key, [ label, help ] ] ) => (
-					<Toggle
-						key={ key }
-						label={ label }
-						help={ help }
-						checked={ current[ key ] }
-						onChange={ ( on ) => change( { [ key ]: on } ) }
-					/>
-				)
-			) }
-			<BlockList
-				blocks={ available.blocks }
-				categories={ available.categories }
-				disabled={ current.disabled }
-				onChange={ ( disabled ) => change( { disabled } ) }
-			/>
+			{ /* Gli amministratori non si salvano: tutto acceso e fisso. */ }
+			<Fixed disabled={ ADMIN === role }>
+				{ Object.entries( RESTRICTIONS ).map(
+					( [ key, [ label, help ] ] ) => (
+						<Toggle
+							key={ key }
+							label={ label }
+							help={ help }
+							checked={ current[ key ] }
+							onChange={ ( on ) => change( { [ key ]: on } ) }
+						/>
+					)
+				) }
+				<BlockList
+					blocks={ available.blocks }
+					categories={ available.categories }
+					disabled={ current.disabled }
+					onChange={ ( disabled ) => change( { disabled } ) }
+				/>
+			</Fixed>
 		</Card>
 	);
 }
 
-// GET e PUT /barrio/v1/blocks, con il Salva della barra (general/General.js).
+// GET e PUT /barrio/v1/blocks, con il Salva della barra (general/General.js), e nella barra il ruolo della prima card.
 export const blocksSection = {
 	id: 'blocks',
 	load: () => apiFetch( { path: '/barrio/v1/blocks' } ),
 	value: ( { available, ...settings } ) => settings,
 	save: ( draft ) =>
 		apiFetch( { path: '/barrio/v1/blocks', method: 'PUT', data: draft } ),
-	Cards: ( { data, draft, set } ) => {
+	Tools: ( { data, view, setView } ) => {
+		const { roles } = data.available;
+		const role = roleOf( data.available, view );
+		if ( ! role ) {
+			return null;
+		}
+		return (
+			<Picker
+				icon="groups"
+				label={ __( 'Role', 'barrio-suite' ) }
+				text={ roles[ role ] }
+				active={ ! shared( data.available, role ) }
+				options={ Object.keys( roles ).map( ( name ) => ( {
+					value: name,
+					label: roles[ name ],
+				} ) ) }
+				value={ role }
+				onChange={ ( value ) => setView( { ...view, role: value } ) }
+			/>
+		);
+	},
+	Cards: ( { data, draft, set, view } ) => {
 		const { available } = data;
+		const role = roleOf( available, view );
 		const setEditor = ( type, editor ) =>
 			set( {
 				...draft,
@@ -268,90 +278,115 @@ export const blocksSection = {
 			} );
 		return (
 			<>
+				<Notice
+					notice={
+						! shared( available, role ) && {
+							status: 'info',
+							message: sprintf(
+								/* translators: 1: role being edited, such as Editor; 2: name of the administrator role. */
+								__(
+									'You are editing the %1$s role. The settings in grey are the same for every role: change them with %2$s.',
+									'barrio-suite'
+								),
+								available.roles[ role ],
+								available.roles[ ADMIN ]
+							),
+						}
+					}
+				/>
 				<RolesCard
 					available={ available }
+					role={ role }
 					draft={ draft }
 					set={ set }
 				/>
-				<Card
-					className="barrio-wide"
-					icon="edit"
-					title={ __( 'Editor by content type', 'barrio-suite' ) }
-					description={ __(
-						'With No editor the screen keeps the title and the other fields, and the content stays in the REST API and in GraphQL.',
-						'barrio-suite'
-					) }
-				>
-					{ available.types.map( ( type ) => (
-						<Select
-							key={ type.name }
-							label={ type.label }
-							value={ draft.editors[ type.name ] ?? '' }
-							options={ [
-								{
-									value: '',
-									label: __(
-										'WordPress default',
-										'barrio-suite'
-									),
-								},
-								type.blocks && {
-									value: 'blocks',
-									label: __( 'Block editor', 'barrio-suite' ),
-								},
-								{
-									value: 'classic',
-									label: __(
-										'Classic editor',
-										'barrio-suite'
-									),
-								},
-								{
-									value: 'none',
-									label: __( 'No editor', 'barrio-suite' ),
-								},
-							].filter( Boolean ) }
-							onChange={ ( editor ) =>
-								setEditor( type.name, editor )
+				<Fixed disabled={ ! shared( available, role ) }>
+					<Card
+						className="barrio-wide"
+						icon="edit"
+						title={ __( 'Editor by content type', 'barrio-suite' ) }
+						description={ __(
+							'With No editor the screen keeps the title and the other fields, and the content stays in the REST API and in GraphQL.',
+							'barrio-suite'
+						) }
+					>
+						{ available.types.map( ( type ) => (
+							<Select
+								key={ type.name }
+								label={ type.label }
+								value={ draft.editors[ type.name ] ?? '' }
+								options={ [
+									{
+										value: '',
+										label: __(
+											'WordPress default',
+											'barrio-suite'
+										),
+									},
+									type.blocks && {
+										value: 'blocks',
+										label: __(
+											'Block editor',
+											'barrio-suite'
+										),
+									},
+									{
+										value: 'classic',
+										label: __(
+											'Classic editor',
+											'barrio-suite'
+										),
+									},
+									{
+										value: 'none',
+										label: __(
+											'No editor',
+											'barrio-suite'
+										),
+									},
+								].filter( Boolean ) }
+								onChange={ ( editor ) =>
+									setEditor( type.name, editor )
+								}
+							/>
+						) ) }
+					</Card>
+					<Card
+						className="barrio-wide"
+						icon="cloud"
+						title={ __( 'External content', 'barrio-suite' ) }
+						description={ __(
+							'What the inserter of the editor offers from other services, for everyone who writes.',
+							'barrio-suite'
+						) }
+					>
+						<Toggle
+							label={ __(
+								'Patterns from WordPress.org',
+								'barrio-suite'
+							) }
+							help={ __(
+								'The patterns of the WordPress.org directory, downloaded by the site.',
+								'barrio-suite'
+							) }
+							checked={ draft.remote_patterns }
+							onChange={ ( on ) =>
+								set( { ...draft, remote_patterns: on } )
 							}
 						/>
-					) ) }
-				</Card>
-				<Card
-					className="barrio-wide"
-					icon="cloud"
-					title={ __( 'External content', 'barrio-suite' ) }
-					description={ __(
-						'What the inserter of the editor offers from other services, for everyone who writes.',
-						'barrio-suite'
-					) }
-				>
-					<Toggle
-						label={ __(
-							'Patterns from WordPress.org',
-							'barrio-suite'
-						) }
-						help={ __(
-							'The patterns of the WordPress.org directory, downloaded by the site.',
-							'barrio-suite'
-						) }
-						checked={ draft.remote_patterns }
-						onChange={ ( on ) =>
-							set( { ...draft, remote_patterns: on } )
-						}
-					/>
-					<Toggle
-						label={ __( 'Openverse images', 'barrio-suite' ) }
-						help={ __(
-							'Free images to search in the Media tab: the browser of whoever writes asks Openverse.',
-							'barrio-suite'
-						) }
-						checked={ draft.openverse }
-						onChange={ ( on ) =>
-							set( { ...draft, openverse: on } )
-						}
-					/>
-				</Card>
+						<Toggle
+							label={ __( 'Openverse images', 'barrio-suite' ) }
+							help={ __(
+								'Free images to search in the Media tab: the browser of whoever writes asks Openverse.',
+								'barrio-suite'
+							) }
+							checked={ draft.openverse }
+							onChange={ ( on ) =>
+								set( { ...draft, openverse: on } )
+							}
+						/>
+					</Card>
+				</Fixed>
 			</>
 		);
 	},

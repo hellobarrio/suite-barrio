@@ -1,5 +1,5 @@
-// La pagina Barrio → Editor (Admin::editor_tab() in src/Admin.php), con una scheda per ogni strumento dell'editor
-// acceso che chi guarda può aprire, e la sua card nella Bacheca.
+// La pagina Barrio → Contenuti (Admin::contents_tab() in src/Admin.php), con una scheda per ogni strumento acceso
+// che chi guarda può aprire, e la sua card nella Bacheca.
 import { __ } from '@wordpress/i18n';
 
 import {
@@ -25,9 +25,9 @@ import { General } from '../general/General.js';
 
 const { canManageOptions } = window.barrioAdmin;
 
-const EDITOR = {
+const CONTENTS = {
 	icon: 'edit-page',
-	title: __( 'Editor', 'barrio-suite' ),
+	title: __( 'Contents', 'barrio-suite' ),
 	description: __(
 		'Tools for writing and managing the contents',
 		'barrio-suite'
@@ -86,28 +86,28 @@ const TOOLS = [
 		},
 ].filter( Boolean );
 
-export const editorPage = {
-	title: EDITOR.title,
+export const contentsPage = {
+	title: CONTENTS.title,
 	description: __(
 		'Tools for whoever writes and manages the contents of the site.',
 		'barrio-suite'
 	),
 	page: (
-		<Tabs page="barrio-editor" tabs={ TOOLS.map( ( { tab } ) => tab ) } />
+		<Tabs page="barrio-contents" tabs={ TOOLS.map( ( { tab } ) => tab ) } />
 	),
 };
 
 // Tra SEO e Prestazioni, come nel menu.
-export function EditorCard() {
+export function ContentsCard() {
 	if ( ! TOOLS.length ) {
 		return null;
 	}
 	return (
 		<ModuleCard
-			module={ EDITOR }
+			module={ CONTENTS }
 			stats={ TOOLS.flatMap( ( { stats } ) => stats() ) }
 			actions={ [
-				[ __( 'Settings', 'barrio-suite' ), '?page=barrio-editor' ],
+				[ __( 'Settings', 'barrio-suite' ), '?page=barrio-contents' ],
 			] }
 		/>
 	);

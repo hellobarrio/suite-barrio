@@ -51,6 +51,9 @@ final class DuplicateTest extends WP_UnitTestCase {
 		$GLOBALS['wp_filter']      = $this->hooks; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- gli hook di prima del test.
 		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- il server REST di WordPress.
 		parent::tear_down();
+		// I ruoli restano in memoria anche dopo il rollback: si rileggono dal database, non dalla cache.
+		self::flush_cache();
+		wp_roles()->for_site();
 	}
 
 	public function test_a_page_a_post_and_a_custom_type_are_copied_with_content_meta_and_terms(): void {
@@ -323,7 +326,7 @@ final class DuplicateTest extends WP_UnitTestCase {
 				'post_types' => [],
 				'taxonomies' => [],
 			],
-			rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/duplicate' ) )->get_data(),
+			$this->types( rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/duplicate' ) ) ),
 			'Everywhere by default.'
 		);
 		$this->assertSame( 400, $this->put( [ 'post_types' => [ 'Le pagine!' ] ] )->get_status() );
@@ -335,7 +338,7 @@ final class DuplicateTest extends WP_UnitTestCase {
 				'post_types' => [ 'page' ],
 				'taxonomies' => [ 'post_tag' ],
 			],
-			$this->put( [ 'taxonomies' => [ 'post_tag' ] ] )->get_data(),
+			$this->types( $this->put( [ 'taxonomies' => [ 'post_tag' ] ] ) ),
 			'A list that is not sent stays.'
 		);
 		$this->assertArrayNotHasKey( 'barrio_duplicate', wp_load_alloptions(), 'Read only in the admin.' );
@@ -353,17 +356,41 @@ final class DuplicateTest extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->put( [ 'post_types' => [] ] )->get_status() );
 	}
 
-	public function test_the_editor_page_has_the_tab_for_administrators(): void {
+	public function test_only_the_roles_chosen_in_the_permissions_duplicate(): void {
+		$settings = rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/duplicate' ) )->get_data();
+		$this->assertSame( [ 'barrio_duplicate' ], $settings['roles']['contributor'], 'From migration 0001: whoever writes contents.' );
+		$this->assertSame( [], $settings['roles']['subscriber'] );
+		$this->assertArrayNotHasKey( 'administrator', $settings['roles'] );
+		$this->assertSame( 'Administrator', $settings['role_names']['administrator'] );
+
+		$response = $this->put( [ 'roles' => [ 'editor' => [] ] ] );
+		$this->assertSame( [], $response->get_data()['roles']['editor'] );
+		$this->assertSame( [ 'barrio_duplicate' ], $response->get_data()['roles']['author'], 'Roles not sent stay as they are.' );
+		$this->assertTrue( get_role( 'administrator' )->has_cap( 'barrio_duplicate' ), 'Administrators keep everything.' );
+		$this->assertSame( 400, $this->put( [ 'roles' => [ 'editor' => [ 'manage_options' ] ] ] )->get_status(), 'Only the capability of the module.' );
+
+		$post = get_post( self::factory()->post->create( [ 'post_author' => $this->editor ] ) );
+		$term = get_term( self::factory()->tag->create() );
+		wp_set_current_user( $this->editor );
+		$this->assertSame( [], Module::post_row_actions( [], $post ) );
+		$this->assertSame( [], Module::term_row_actions( [], $term ) );
+		$this->assertSame( [], Module::bulk_actions( [] ) );
+		$this->assertInstanceOf( WP_Error::class, Module::post( $post->ID ) );
+		$this->assertInstanceOf( WP_Error::class, Module::term( $term->term_id ) );
+		$this->assertSame( 403, $this->put( [ 'roles' => [ 'editor' => [ 'barrio_duplicate' ] ] ] )->get_status() );
+	}
+
+	public function test_the_contents_page_has_the_tab_for_administrators(): void {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		$names = [ 'menu', 'submenu', '_registered_pages', '_parent_pages', 'admin_page_hooks', '_wp_submenu_nopriv' ];
 		$saved = array_map( static fn( string $name ): mixed => $GLOBALS[ $name ] ?? null, $names );
-		$pages = static fn(): array => array_values( array_filter( array_column( $GLOBALS['submenu']['barrio'] ?? [], 2 ), static fn( string $slug ): bool => 'barrio-editor' === $slug ) );
+		$pages = static fn(): array => array_values( array_filter( array_column( $GLOBALS['submenu']['barrio'] ?? [], 2 ), static fn( string $slug ): bool => 'barrio-contents' === $slug ) );
 
 		Admin::menu();
 		Module::menu();
 		// Un altro modulo della pagina la chiede di nuovo.
-		Admin::editor_tab( 'edit_posts' );
-		$this->assertSame( [ 'barrio-editor' ], $pages() );
+		Admin::contents_tab( 'edit_posts' );
+		$this->assertSame( [ 'barrio-contents' ], $pages() );
 		$types = Admin::content_types();
 		$this->assertContains(
 			[
@@ -411,11 +438,16 @@ final class DuplicateTest extends WP_UnitTestCase {
 		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- il server REST di WordPress.
 		Plugin::boot();
 
-		$this->assertArrayNotHasKey( 'duplicate', apply_filters( 'barrio_admin_data', [] ), 'No tab in Barrio → Editor.' );
+		$this->assertArrayNotHasKey( 'duplicate', apply_filters( 'barrio_admin_data', [] ), 'No tab in Barrio → Contents.' );
 		$this->assertFalse( has_filter( 'post_row_actions', [ Module::class, 'post_row_actions' ] ) );
 		$this->assertFalse( has_action( 'admin_post_barrio_duplicate' ) );
 		$this->assertFalse( has_action( 'admin_menu', [ Module::class, 'menu' ] ) );
 		$this->assertSame( 404, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/duplicate' ) )->get_status() );
+	}
+
+	/** @return array<string, mixed> I tipi e le tassonomie spenti, senza i ruoli. */
+	private function types( WP_REST_Response $response ): array {
+		return array_intersect_key( $response->get_data(), array_flip( [ 'post_types', 'taxonomies' ] ) );
 	}
 
 	/** @param array<string, mixed> $body */

@@ -9,6 +9,7 @@ import {
 	Fixed,
 	Group,
 	Notice,
+	Permissions,
 	SectionHead,
 	Select,
 	Text,
@@ -165,14 +166,6 @@ function SettingsCards( {
 		}
 		setSeo( 'llms' )( { ...seo.llms, [ type.group ]: next } );
 	};
-	// Nell'ordine di CAPS, così il confronto con quelle salvate non dipende dall'ordine dei clic.
-	const setCap = ( role, cap ) => ( on ) =>
-		setSeo( 'roles' )( {
-			...seo.roles,
-			[ role ]: Object.keys( CAPS ).filter( ( name ) =>
-				name === cap ? on : seo.roles[ role ].includes( name )
-			),
-		} );
 	const robotsOf = ( index, group, name ) => ( {
 		index: true,
 		follow: true,
@@ -513,43 +506,18 @@ function SettingsCards( {
 				</Fixed>
 			</Card>
 
-			<Card
-				className="barrio-wide"
-				icon="groups"
-				title={ __( 'Permissions', 'barrio-suite' ) }
-				description={ __(
-					'What each role can do in SEO. Administrators can always do everything; only administrators change these settings.',
-					'barrio-suite'
-				) }
-			>
-				{ /* Gli amministratori non sono in roles: tutto spuntato e fisso. */ }
-				<Fixed lang={ lang }>
-					{ Object.entries( saved.seo.role_names ).map(
-						( [ role, name ] ) => (
-							<Group key={ role } label={ name }>
-								<div className="barrio-checks">
-									{ Object.entries( CAPS ).map(
-										( [ cap, label ] ) => (
-											<Toggle
-												key={ cap }
-												label={ label }
-												disabled={ ! seo.roles[ role ] }
-												checked={
-													! seo.roles[ role ] ||
-													seo.roles[ role ].includes(
-														cap
-													)
-												}
-												onChange={ setCap( role, cap ) }
-											/>
-										)
-									) }
-								</div>
-							</Group>
-						)
+			<Fixed lang={ lang }>
+				<Permissions
+					description={ __(
+						'What each role can do in SEO. Administrators can always do everything; only administrators change these settings.',
+						'barrio-suite'
 					) }
-				</Fixed>
-			</Card>
+					caps={ CAPS }
+					names={ saved.seo.role_names }
+					roles={ seo.roles }
+					onChange={ setSeo( 'roles' ) }
+				/>
+			</Fixed>
 		</>
 	);
 }

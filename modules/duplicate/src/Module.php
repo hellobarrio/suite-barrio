@@ -3,6 +3,7 @@
 namespace BarrioSuite\Duplicate;
 
 use BarrioSuite\Admin;
+use BarrioSuite\Roles;
 use WP_Error;
 use WP_Post;
 use WP_REST_Request;
@@ -12,11 +13,14 @@ use WP_Term;
 /**
  * Duplica contenuti e termini (PLAN-MODULI.md §7): tra le azioni di riga delle liste, tra le azioni di massa dei
  * contenuti e nel pannello dello stato dell'editor. La copia è una bozza di chi duplica, con i meta e i termini
- * dell'originale. Si toglie per tipo e per tassonomia in Barrio → Editor → Duplicazione.
+ * dell'originale. Si toglie per tipo e per tassonomia in Barrio → Contenuti → Duplicazione.
  *
  * @phpstan-type Settings array{post_types: list<string>, taxonomies: list<string>}
  */
 final class Module {
+
+	// Chi può duplicare (Permessi), oltre ai permessi di WordPress sull'originale. Dalla migrazione 0001.
+	public const CAP = 'barrio_duplicate';
 
 	// Non in autoload: si legge solo nell'admin. Salva i tipi e le tassonomie spenti, così uno nuovo ha Duplica.
 	private const OPTION = 'barrio_duplicate';
@@ -53,14 +57,18 @@ final class Module {
 	public static function deactivate(): void {}
 
 	// L'opzione la elimina il core (src/Uninstall.php).
-	public static function uninstall(): void {}
+	public static function uninstall(): void {
+		foreach ( wp_roles()->role_objects as $role ) {
+			$role->remove_cap( self::CAP );
+		}
+	}
 
 	public static function menu(): void {
-		Admin::editor_tab( 'manage_options' );
+		Admin::contents_tab( 'manage_options' );
 	}
 
 	/**
-	 * In window.barrioAdmin.duplicate, per la scheda di Barrio → Editor e la card della Bacheca, con i tipi di
+	 * In window.barrioAdmin.duplicate, per la scheda di Barrio → Contenuti e la card della Bacheca, con i tipi di
 	 * window.barrioAdmin.contentTypes. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
@@ -110,6 +118,7 @@ final class Module {
 					'args'                => [
 						'post_types' => $names,
 						'taxonomies' => $names,
+						'roles'      => Roles::schema( [ self::CAP ] ),
 					],
 				],
 			]
@@ -123,12 +132,15 @@ final class Module {
 	}
 
 	public static function get(): WP_REST_Response {
-		return new WP_REST_Response( self::settings() );
+		return new WP_REST_Response( self::settings() + Roles::get( [ self::CAP ] ) );
 	}
 
 	// Un elenco assente resta com'è. Un tipo che non c'è più resta spento, se torna.
 	public static function put( WP_REST_Request $request ): WP_REST_Response {
 		update_option( self::OPTION, array_intersect_key( $request->get_params(), self::DEFAULTS ) + self::settings(), false );
+		if ( is_array( $request['roles'] ) ) {
+			Roles::save( [ self::CAP ], $request['roles'] );
+		}
 		return self::get();
 	}
 
@@ -161,7 +173,7 @@ final class Module {
 	 * @return array<string, string>
 	 */
 	public static function bulk_actions( array $actions ): array {
-		if ( 'trash' !== get_query_var( 'post_status' ) ) {
+		if ( 'trash' !== get_query_var( 'post_status' ) && current_user_can( self::CAP ) ) {
 			$actions[ self::ACTION ] = __( 'Duplicate', 'barrio-suite' );
 		}
 		return $actions;
@@ -346,16 +358,16 @@ final class Module {
 		return in_array( $name, array_column( Admin::content_types()[ $group ], 'name' ), true ) && ! in_array( $name, self::settings()[ $group ], true );
 	}
 
-	// Chi duplica deve poter modificare l'originale (un collaboratore non legge così il privato di un altro) e
-	// creare contenuti del tipo.
+	// Chi duplica, oltre a CAP, deve poter modificare l'originale (un collaboratore non legge così il privato di un
+	// altro) e creare contenuti del tipo.
 	private static function can_post( WP_Post $post ): bool {
 		$type = get_post_type_object( $post->post_type );
-		return $type && self::enabled( 'post_types', $post->post_type ) && current_user_can( 'edit_post', $post->ID ) && current_user_can( $type->cap->create_posts );
+		return $type && current_user_can( self::CAP ) && self::enabled( 'post_types', $post->post_type ) && current_user_can( 'edit_post', $post->ID ) && current_user_can( $type->cap->create_posts );
 	}
 
 	// edit_term vale edit_terms della tassonomia, che serve anche per aggiungere un termine.
 	private static function can_term( WP_Term $term ): bool {
-		return self::enabled( 'taxonomies', $term->taxonomy ) && current_user_can( 'edit_term', $term->term_id );
+		return current_user_can( self::CAP ) && self::enabled( 'taxonomies', $term->taxonomy ) && current_user_can( 'edit_term', $term->term_id );
 	}
 
 	private static function skip_meta( string $key ): bool {

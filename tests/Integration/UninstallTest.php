@@ -71,6 +71,9 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertContains( $wpdb->prefix . 'barrio_redirects', $this->dropped );
 		$this->assertFalse( get_role( 'administrator' )->has_cap( 'barrio_manage_seo' ) );
 		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_edit_seo' ) );
+		$this->assertFalse( get_role( 'contributor' )->has_cap( 'barrio_duplicate' ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_reorder' ) );
+		$this->assertFalse( get_option( 'barrio_ordering_db_version' ) );
 		$this->assertFalse( metadata_exists( 'post', $post, '_barrio_seo_title' ) );
 		$this->assertFalse( metadata_exists( 'term', $term, '_barrio_seo_index' ) );
 		$this->assertDirectoryDoesNotExist( FileStore::dir() );

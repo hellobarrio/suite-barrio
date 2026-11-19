@@ -3,6 +3,7 @@
 namespace BarrioSuite\Ordering;
 
 use BarrioSuite\Admin;
+use BarrioSuite\Roles;
 use RuntimeException;
 use WP_Error;
 use WP_Query;
@@ -10,7 +11,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * L'ordine manuale di contenuti e termini (PLAN-MODULI.md §6): si accende per tipo e per tassonomia in Barrio → Editor
+ * L'ordine manuale di contenuti e termini (PLAN-MODULI.md §6): si accende per tipo e per tassonomia in Barrio → Contenuti
  * → Ordinamento, si riordina trascinando nella pagina "Riordina …" del menu di ogni elenco e vale in ogni query che
  * non chiede un altro ordine. Spegnerlo toglie l'ordine dalle query e lascia menu_order e i meta dei termini.
  *
@@ -18,6 +19,9 @@ use WP_REST_Response;
  * @phpstan-type Settings array{post_types: list<string>, taxonomies: list<string>}
  */
 final class Module {
+
+	// Chi può riordinare (Permessi), oltre ai permessi di WordPress sull'elenco. Dalla migrazione 0001.
+	public const CAP = 'barrio_reorder';
 
 	// In autoload: lo leggono le query del sito. Salva i tipi e le tassonomie in ordine manuale.
 	private const OPTION = 'barrio_ordering';
@@ -45,19 +49,22 @@ final class Module {
 
 	// L'opzione la elimina il core (src/Uninstall.php), che non vede i meta; menu_order è del core e resta.
 	public static function uninstall(): void {
+		foreach ( wp_roles()->role_objects as $role ) {
+			$role->remove_cap( self::CAP );
+		}
 		delete_metadata( 'term', 0, OrderRepository::TERM_META, '', true );
 	}
 
-	// La scheda delle impostazioni in Barrio → Editor, e "Riordina …" nel menu di ogni elenco in ordine manuale.
+	// La scheda delle impostazioni in Barrio → Contenuti, e "Riordina …" nel menu di ogni elenco in ordine manuale.
 	public static function menu(): void {
-		Admin::editor_tab( 'manage_options' );
+		Admin::contents_tab( 'manage_options' );
 		foreach ( self::pages() as $slug => $page ) {
 			Admin::add_page( $slug, $page['title'], $page['capability'], $page['parent'] );
 		}
 	}
 
 	/**
-	 * In window.barrioAdmin.ordering, per la scheda di Barrio → Editor, le pagine Riordina e la card della Bacheca,
+	 * In window.barrioAdmin.ordering, per la scheda di Barrio → Contenuti, le pagine Riordina e la card della Bacheca,
 	 * con i tipi di window.barrioAdmin.contentTypes. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
@@ -104,6 +111,7 @@ final class Module {
 					'args'                => [
 						'post_types' => $names,
 						'taxonomies' => $names,
+						'roles'      => Roles::schema( [ self::CAP ] ),
 					],
 				],
 			]
@@ -145,7 +153,7 @@ final class Module {
 	}
 
 	public static function get_settings(): WP_REST_Response {
-		return new WP_REST_Response( self::settings() );
+		return new WP_REST_Response( self::settings() + Roles::get( [ self::CAP ] ) );
 	}
 
 	// Un elenco assente resta com'è. Un tipo che non c'è più resta in ordine manuale, se torna.
@@ -153,6 +161,9 @@ final class Module {
 		$before = self::settings();
 		$after  = array_intersect_key( $request->get_params(), self::DEFAULTS ) + $before;
 		update_option( self::OPTION, $after, true );
+		if ( is_array( $request['roles'] ) ) {
+			Roles::save( [ self::CAP ], $request['roles'] );
+		}
 		foreach ( self::KINDS as $kind => $group ) {
 			foreach ( [ ...array_diff( $after[ $group ], $before[ $group ] ), ...array_diff( $before[ $group ], $after[ $group ] ) ] as $name ) {
 				do_action( 'barrio_ordering_changed', $kind, $name );
@@ -293,7 +304,7 @@ final class Module {
 				$object     = $taxonomy ?? get_post_type_object( $name );
 				$capability = self::capability( $kind, $name );
 				$parents    = array_filter( array_map( [ self::class, 'parent' ], $taxonomy ? $taxonomy->object_type : [ $name ] ) );
-				if ( $object && $capability && $parents && current_user_can( $capability ) ) {
+				if ( $object && $capability && $parents && current_user_can( $capability ) && current_user_can( self::CAP ) ) {
 					$pages[ "barrio-order-{$kind}-{$name}" ] = [
 						'list'       => "{$kind}/{$name}",
 						/* translators: %s: name of the content type or taxonomy, such as Pages. */
@@ -316,10 +327,11 @@ final class Module {
 		return is_string( $menu ) && '' !== $menu ? $menu : null;
 	}
 
-	// Chi riordina deve poter modificare i contenuti degli altri (un autore no) o i termini della tassonomia.
+	// Chi riordina, oltre a CAP, deve poter modificare i contenuti degli altri (un autore no) o i termini della
+	// tassonomia.
 	private static function can( string $kind, string $name ): bool {
 		$capability = self::capability( $kind, $name );
-		return $capability && current_user_can( $capability );
+		return $capability && current_user_can( $capability ) && current_user_can( self::CAP );
 	}
 
 	private static function capability( string $kind, string $name ): ?string {
