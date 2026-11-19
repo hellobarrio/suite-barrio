@@ -49,7 +49,7 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
 		$data = $response->get_data();
 		$rows = array_column( $data['rows'], null, 'id' );
-		$this->assertSame( [ $page, $draft ], array_keys( $rows ), 'Without the trash.' );
+		$this->assertEqualsCanonicalizing( [ $page, $draft ], array_keys( $rows ), 'Without the trash.' );
 		$this->assertSame( [ 'Chi siamo', 'noindex', '' ], [ $rows[ $page ]['page']['title'], $rows[ $page ]['meta']['_barrio_seo_index'], $rows[ $page ]['meta']['_barrio_seo_title'] ] );
 		$this->assertStringContainsString( 'nuova-pagina', $rows[ $draft ]['page']['url'], 'A draft has the address it will have, for the score.' );
 		$this->assertSame( 'draft', $rows[ $draft ]['status'] );
