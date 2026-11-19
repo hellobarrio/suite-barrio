@@ -3140,7 +3140,7 @@ msgstr "WordPress non la pubblica finché il sito chiede ai motori di ricerca di
 msgid "The folder of the site has a robots.txt file: the server sends it instead of the one of WordPress, which lists the sitemap. Add the line \"%s\" to it, or delete it."
 msgstr "Nella cartella del sito c'è un file robots.txt: il server manda quello al posto di quello di WordPress, che indica la sitemap. Aggiungigli la riga \"%s\" oppure eliminalo."
 
-#: modules/alt/src/Module.php:363
+#: modules/alt/src/Module.php:373
 #: modules/seo/src/Api/RestGenerate.php:83
 msgid "The answer of Google is not valid. Try again, or choose another model."
 msgstr "La risposta di Google non è valida. Riprova o scegli un altro modello."
@@ -3179,7 +3179,7 @@ msgstr "Aggiungi il service account di Google in Barrio → Impostazioni."
 msgid "Google did not accept the service account. %s"
 msgstr "Google non ha accettato il service account. %s"
 
-#: modules/alt/src/Module.php:325
+#: modules/alt/src/Module.php:335
 #: build/barrio-admin.js:9
 #: build/barrio-admin.js:41
 #: build/barrio-admin.js:51
@@ -3196,7 +3196,7 @@ msgstr "Generazione in corso…"
 msgid "Generate with AI"
 msgstr "Genera con AI"
 
-#: modules/alt/src/Module.php:316
+#: modules/alt/src/Module.php:326
 #: build/barrio-admin.js:8
 #: build/barrio-admin.js:41
 #: build/seo-form.js:2
@@ -3698,23 +3698,23 @@ msgstr "Cosa offre l'inseritore dell'editor da altri servizi, per chiunque scriv
 msgid "What the users with the role chosen at the top find in the editor. Administrators always have everything, and nothing changes on the site."
 msgstr "Cosa trovano nell'editor gli utenti con il ruolo scelto in alto. Gli amministratori hanno sempre tutto, e nel sito non cambia niente."
 
-#: modules/alt/src/Module.php:315
+#: modules/alt/src/Module.php:325
 msgid "Generate alt text with AI"
 msgstr "Genera il testo alternativo con AI"
 
-#: modules/alt/src/Module.php:337
+#: modules/alt/src/Module.php:347
 msgid "This is not an image."
 msgstr "Questo non è un'immagine."
 
-#: modules/alt/src/Module.php:470
+#: modules/alt/src/Module.php:499
 msgid "The image file is missing."
 msgstr "Manca il file dell'immagine."
 
-#: modules/alt/src/Module.php:488
+#: modules/alt/src/Module.php:517
 msgid "This image format cannot be sent to Google."
 msgstr "Questo formato di immagine non si può mandare a Google."
 
-#: modules/alt/src/Module.php:71
+#: modules/alt/src/Module.php:72
 #: build/barrio-admin.js:8
 msgctxt "module name"
 msgid "Alt text"
@@ -3808,10 +3808,6 @@ msgstr "Genera tutti quelli mancanti"
 msgid "To generate the alt text, set up Google AI in Barrio → Settings."
 msgstr "Per generare il testo alternativo, configura l'AI di Google in Barrio → Impostazioni."
 
-#: build/barrio-admin.js:8
-msgid "The alternative text of the images, written by Google AI"
-msgstr "Il testo alternativo delle immagini, scritto dall'AI di Google"
-
 #: build/barrio-admin.js:9
 msgid "Generation"
 msgstr "Generazione"
@@ -3831,3 +3827,11 @@ msgstr "In ordine manuale, la lista del tipo ha un pulsante Riordina accanto ad 
 #: build/barrio-admin.js:63
 msgid "In manual order, the list of the terms has a Reorder button. A new term goes to the end; turned off, the terms are in alphabetical order again, and the saved order is kept."
 msgstr "In ordine manuale, la lista dei termini ha un pulsante Riordina. Un termine nuovo va in fondo; spento, i termini tornano in ordine alfabetico, e l'ordine salvato resta."
+
+#: build/barrio-admin.js:8
+msgid "Alternative text of the images, generated with AI"
+msgstr "Testo alternativo delle immagini, generato con l'AI"
+
+#: build/barrio-admin.js:9
+msgid "With alt text"
+msgstr "Con testo alternativo"

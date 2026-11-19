@@ -66,7 +66,7 @@ final class RestRedirects {
 						'auto'   => [ 'type' => 'boolean' ],
 						'sort'   => [
 							'type'    => 'string',
-							'enum'    => [ 'source', 'target', 'code', 'updated_at' ],
+							'enum'    => [ 'source', 'target', 'code', 'note', 'updated_at' ],
 							'default' => 'updated_at',
 						],
 						'order'  => [

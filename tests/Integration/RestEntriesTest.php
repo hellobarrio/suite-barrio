@@ -121,6 +121,10 @@ final class RestEntriesTest extends WP_UnitTestCase {
 			)[0]
 		);
 		$this->assertSame( 400, $this->request( 'GET', "/forms/{$this->form->id}/entries", query: [ 'sort' => 'value' ] )->get_status() );
+		// Un campo file, sul nome del primo file; senza file in fondo, scendendo.
+		$this->entry( [ 'name' => 'Con B' ], files: [ $this->file( 'b.pdf' ) ] );
+		$this->entry( [ 'name' => 'Con A' ], files: [ $this->file( 'c.pdf' ), $this->file( 'a.pdf' ) ] );
+		$this->assertSame( [ 'Con B', 'Con A' ], array_slice( $this->names( [ 'sort' => 'field:cv' ] ), 0, 2 ) );
 		$this->assertSame( 404, $this->request( 'GET', '/forms/999999/entries' )->get_status() );
 	}
 

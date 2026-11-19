@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-19T12:02:45+00:00\n"
+"POT-Creation-Date: 2026-11-19T12:20:49+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -30,17 +30,17 @@ msgstr ""
 msgid "Hellobarrio"
 msgstr ""
 
-#: modules/alt/src/Module.php:71
+#: modules/alt/src/Module.php:72
 #: build/barrio-admin.js:8
 msgctxt "module name"
 msgid "Alt text"
 msgstr ""
 
-#: modules/alt/src/Module.php:315
+#: modules/alt/src/Module.php:325
 msgid "Generate alt text with AI"
 msgstr ""
 
-#: modules/alt/src/Module.php:316
+#: modules/alt/src/Module.php:326
 #: build/barrio-admin.js:8
 #: build/barrio-admin.js:41
 #: build/seo-form.js:2
@@ -48,7 +48,7 @@ msgstr ""
 msgid "To use it, set up Google AI in Barrio → Settings."
 msgstr ""
 
-#: modules/alt/src/Module.php:325
+#: modules/alt/src/Module.php:335
 #: build/barrio-admin.js:9
 #: build/barrio-admin.js:41
 #: build/barrio-admin.js:51
@@ -57,20 +57,20 @@ msgstr ""
 msgid "Generating…"
 msgstr ""
 
-#: modules/alt/src/Module.php:337
+#: modules/alt/src/Module.php:347
 msgid "This is not an image."
 msgstr ""
 
-#: modules/alt/src/Module.php:363
+#: modules/alt/src/Module.php:373
 #: modules/seo/src/Api/RestGenerate.php:83
 msgid "The answer of Google is not valid. Try again, or choose another model."
 msgstr ""
 
-#: modules/alt/src/Module.php:470
+#: modules/alt/src/Module.php:499
 msgid "The image file is missing."
 msgstr ""
 
-#: modules/alt/src/Module.php:488
+#: modules/alt/src/Module.php:517
 msgid "This image format cannot be sent to Google."
 msgstr ""
 
@@ -975,7 +975,7 @@ msgid "Next page"
 msgstr ""
 
 #: build/barrio-admin.js:8
-msgid "The alternative text of the images, written by Google AI"
+msgid "Alternative text of the images, generated with AI"
 msgstr ""
 
 #: build/barrio-admin.js:8
@@ -1071,6 +1071,10 @@ msgstr ""
 #: build/barrio-admin.js:9
 #: build/barrio-admin.js:77
 msgid "Without alt text"
+msgstr ""
+
+#: build/barrio-admin.js:9
+msgid "With alt text"
 msgstr ""
 
 #. translators: %s: form shortcode.

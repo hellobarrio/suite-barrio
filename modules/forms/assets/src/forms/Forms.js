@@ -164,7 +164,13 @@ function FormList() {
 				: f.languages.includes( lang )
 		);
 	const { rows, total } = localQuery(
-		query.lang ? inLanguage( query.lang ) : visible,
+		( query.lang ? inLanguage( query.lang ) : visible ).map( ( f ) => ( {
+			...f,
+			// Per ordinare la colonna delle traduzioni.
+			translations: translations.filter( ( lang ) =>
+				f.languages.includes( lang )
+			).length,
+		} ) ),
 		query,
 		[ 'id', 'title' ]
 	);
@@ -236,6 +242,7 @@ function FormList() {
 		translations.length > 0 && {
 			key: 'languages',
 			label: __( 'Translations', 'barrio-suite' ),
+			sort: 'translations',
 			hideable: true,
 			render: ( form ) => {
 				const done = translations.filter( ( lang ) =>

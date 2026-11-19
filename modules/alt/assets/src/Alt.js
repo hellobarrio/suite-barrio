@@ -29,7 +29,7 @@ export const ALT = {
 	icon: 'format-image',
 	title: _x( 'Alt text', 'module name', 'barrio-suite' ),
 	description: __(
-		'The alternative text of the images, written by Google AI',
+		'Alternative text of the images, generated with AI',
 		'barrio-suite'
 	),
 	color: 'linear-gradient(135deg, #831843, #be185d)',
@@ -247,7 +247,7 @@ export const altSection = {
 	),
 };
 
-// Nella Bacheca: tutte le immagini e quelle senza testo alternativo, dai conteggi della tabella.
+// Nella Bacheca: tutte le immagini, quelle senza testo alternativo e quelle con, dai conteggi della tabella.
 export function AltCard() {
 	const [ counts, setCounts ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
@@ -278,6 +278,10 @@ export function AltCard() {
 					[
 						__( 'Without alt text', 'barrio-suite' ),
 						counts.missing,
+					],
+					[
+						__( 'With alt text', 'barrio-suite' ),
+						counts.all - counts.missing,
 					],
 				]
 			}
@@ -426,6 +430,7 @@ export function AltText() {
 		{
 			key: 'alt',
 			label: __( 'Alt text', 'barrio-suite' ),
+			sort: 'alt',
 			className: 'is-truncate',
 			hideable: true,
 			render: ( row ) => row.alt || '—',
@@ -433,6 +438,7 @@ export function AltText() {
 		{
 			key: 'file',
 			label: __( 'File', 'barrio-suite' ),
+			sort: 'file',
 			className: 'is-truncate',
 			hideable: true,
 			hidden: true,
@@ -440,6 +446,7 @@ export function AltText() {
 		{
 			key: 'parent',
 			label: __( 'Attached to', 'barrio-suite' ),
+			sort: 'parent',
 			className: 'is-truncate',
 			hideable: true,
 			render: ( row ) => row.parent || '—',

@@ -125,6 +125,16 @@ final class SeoAdminTest extends WP_UnitTestCase {
 			]
 		)->get_data();
 		$this->assertSame( [ '/chiuso', '/vecchia-pagina' ], array_column( $list['rows'], 'source' ) );
+		$this->redirect( 'PUT', "/barrio/v1/seo/redirects/{$id}", '/vecchia-pagina', 'https://example.org/', 308, 'Campagna 2025' );
+		$list = $this->rest(
+			'GET',
+			'/barrio/v1/seo/redirects',
+			[
+				'sort'  => 'note',
+				'order' => 'desc',
+			]
+		)->get_data();
+		$this->assertSame( [ '/vecchia-pagina', '/chiuso' ], array_column( $list['rows'], 'source' ), 'Every column sorts, the note too.' );
 
 		$deleted = $this->rest(
 			'POST',
@@ -136,7 +146,7 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		);
 		$this->assertSame( 2, $deleted->get_data()['deleted'] );
 		$this->assertSame( 0, RedirectRepository::count() );
-		$this->assertSame( 4, $changed, 'Two added, one edited, one bulk delete.' );
+		$this->assertSame( 5, $changed, 'Two added, two edited, one bulk delete.' );
 
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 		$this->assertSame( 403, $this->rest( 'GET', '/barrio/v1/seo/redirects' )->get_status() );

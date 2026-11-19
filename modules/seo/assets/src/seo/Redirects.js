@@ -300,6 +300,7 @@ export function Redirects() {
 		{
 			key: 'note',
 			label: __( 'Note', 'barrio-suite' ),
+			sort: 'note',
 			className: 'is-truncate',
 			hideable: true,
 			render: ( row ) => row.note || '—',

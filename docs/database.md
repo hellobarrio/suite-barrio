@@ -126,7 +126,7 @@ generate da `npm run seed -- --entries=100000`. `EXPLAIN` su MariaDB 12.3:
 | Campi e testi | `WHERE version_id = ? ORDER BY position`, JOIN `form_fields_i18n` | `version_position`, `PRIMARY` |
 | Elenco registrazioni | `WHERE form_id = ? ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?` | `form_created`, senza filesort |
 | Ricerca libera | `EXISTS (SELECT 1 FROM entry_values WHERE entry_id = e.id AND value LIKE '%…%')` | `PRIMARY` di `entry_values` per registrazione: ~100 ms a query su 20k registrazioni (il totale e la pagina sono due query) |
-| Ordinamento per campo | `LEFT JOIN entry_values` sui `field_id` della chiave in tutte le versioni, `position = 0`, `ORDER BY value` | `PRIMARY` + filesort, ~130 ms su 20k registrazioni |
+| Ordinamento per campo | `LEFT JOIN entry_values` sui `field_id` della chiave in tutte le versioni, `position = 0`; per un campo file `LEFT JOIN` sul primo `original_name` di `entry_files` (`GROUP BY entry_id`); `ORDER BY COALESCE(value, nome del file)` | `PRIMARY` + filesort, ~130 ms su 20k registrazioni |
 | Badge "non lette" | `COUNT(*) WHERE form_id = ? AND is_read = 0` | `form_read` (coprente) |
 | Dettaglio | `entry_values WHERE entry_id = ?` JOIN `form_fields` | `PRIMARY`, `PRIMARY` |
 | Filtro per valore | `WHERE field_id IN (…) AND value = ?` | `field_value` |

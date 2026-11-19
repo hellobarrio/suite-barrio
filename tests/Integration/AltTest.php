@@ -273,7 +273,28 @@ final class AltTest extends WP_UnitTestCase {
 		);
 		$this->assertSame( [ $lake ], array_column( $search['rows'], 'id' ) );
 		$this->assertSame( 1, $search['total'] );
-		$this->assertSame( 400, $this->request( 'GET', '/barrio/v1/alt/images', [ 'sort' => 'alt' ] )->get_status() );
+		$this->assertSame( 400, $this->request( 'GET', '/barrio/v1/alt/images', [ 'sort' => 'size' ] )->get_status() );
+		// Ogni colonna si ordina: anche alt, file (senza la cartella) e contenuto a cui è allegata.
+		$sorted = fn( string $sort ): array => array_column(
+			$this->request(
+				'GET',
+				'/barrio/v1/alt/images',
+				[
+					'sort'  => $sort,
+					'order' => 'desc',
+				]
+			)->get_data()['rows'],
+			'id'
+		);
+		$this->assertSame( $done, $sorted( 'alt' )[0] );
+		$this->assertSame( [ $lake, $done, $forest ], $sorted( 'file' ) );
+		wp_update_post(
+			[
+				'ID'          => $forest,
+				'post_parent' => self::factory()->post->create( [ 'post_title' => 'Zaini' ] ),
+			]
+		);
+		$this->assertSame( $forest, $sorted( 'parent' )[0] );
 	}
 
 	public function test_the_settings_are_validated_and_a_missing_value_stays_as_it_is(): void {

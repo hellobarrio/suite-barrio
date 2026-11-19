@@ -6,6 +6,7 @@ use BarrioSuite\Admin;
 use BarrioSuite\Ai;
 use BarrioSuite\I18n;
 use BarrioSuite\Roles;
+use Closure;
 use WP_Error;
 use WP_Post;
 use WP_Query;
@@ -105,7 +106,7 @@ final class Module {
 					],
 					'sort'   => [
 						'type'    => 'string',
-						'enum'    => [ 'date', 'title' ],
+						'enum'    => [ 'date', 'title', 'alt', 'file', 'parent' ],
 						'default' => 'date',
 					],
 					'order'  => [
@@ -193,17 +194,26 @@ final class Module {
 	// Le immagini, una pagina alla volta, con ricerca, filtro e ordinamento sul server, come le registrazioni.
 	public static function images( WP_REST_Request $request ): WP_REST_Response {
 		$ids   = 'ids' === $request['fields'];
+		$sort  = (string) $request['sort'];
+		$order = strtoupper( (string) $request['order'] );
+		$by    = self::order_by( $sort, $order );
+		if ( $by ) {
+			add_filter( 'posts_clauses', $by );
+		}
 		$query = new WP_Query(
 			self::query( 'missing' === $request['alt'] ) + [
 				's'                      => (string) $request['search'],
-				'orderby'                => (string) $request['sort'],
-				'order'                  => strtoupper( (string) $request['order'] ),
+				'orderby'                => $by ? 'ID' : $sort,
+				'order'                  => $order,
 				'posts_per_page'         => $ids ? -1 : self::PER_PAGE,
 				'paged'                  => (int) $request['page'],
 				'fields'                 => $ids ? 'ids' : 'all',
 				'update_post_term_cache' => false,
 			]
 		);
+		if ( $by ) {
+			remove_filter( 'posts_clauses', $by );
+		}
 		if ( $ids ) {
 			// ponytail: un controllo per immagine; con decine di migliaia di immagini senza alt, a pagine.
 			$can = static fn( int|WP_Post $id ): bool => is_int( $id ) && self::supported( (string) get_post_mime_type( $id ) ) && current_user_can( 'edit_post', $id );
@@ -412,6 +422,25 @@ final class Module {
 			];
 		}
 		return $args;
+	}
+
+	// Le colonne che WP_Query non sa ordinare: l'alt, il nome del file senza la cartella dell'anno e del mese, il titolo
+	// del contenuto a cui è allegata. In ordine crescente i vuoti vengono prima.
+	private static function order_by( string $sort, string $order ): ?Closure {
+		global $wpdb;
+		$by = [
+			'alt'    => [ $wpdb->prepare( ' LEFT JOIN %i AS barrio_sort ON barrio_sort.post_id = %i.ID AND barrio_sort.meta_key = %s', $wpdb->postmeta, $wpdb->posts, self::META ), 'barrio_sort.meta_value' ],
+			'file'   => [ $wpdb->prepare( ' LEFT JOIN %i AS barrio_sort ON barrio_sort.post_id = %i.ID AND barrio_sort.meta_key = %s', $wpdb->postmeta, $wpdb->posts, '_wp_attached_file' ), "SUBSTRING_INDEX(barrio_sort.meta_value, '/', -1)" ],
+			'parent' => [ $wpdb->prepare( ' LEFT JOIN %i AS barrio_sort ON barrio_sort.ID = %i.post_parent', $wpdb->posts, $wpdb->posts ), 'barrio_sort.post_title' ],
+		][ $sort ] ?? null;
+		if ( null === $by ) {
+			return null;
+		}
+		return static function ( array $clauses ) use ( $by, $order, $wpdb ): array {
+			$clauses['join']   .= $by[0];
+			$clauses['orderby'] = "{$by[1]} {$order}, {$wpdb->posts}.ID {$order}";
+			return $clauses;
+		};
 	}
 
 	private static function count( bool $missing ): int {

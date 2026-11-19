@@ -905,9 +905,9 @@
 
 /*
  * Le modali (Dialog in ui.js). WordPress mostra la linea sotto l'intestazione
- * solo dopo aver scorso: qui c'è sempre, con il suo colore. I bottoni stanno
- * in un piede che resta in fondo al contenuto che scorre, largo quanto la
- * modale: bottom negativo perché lo sticky rispetta il padding del contenuto.
+ * solo dopo aver scorso: qui c'è sempre, con il suo colore. Il contenuto di
+ * WordPress non scorre: scorre solo il corpo, tra l'intestazione e il piede con
+ * i bottoni, così la scrollbar non passa sui bottoni.
  */
 .barrio-modal {
 	--barrio-modal-padding: 24px;
@@ -918,20 +918,41 @@
 	border-bottom-color: var(--barrio-modal-line);
 }
 
+/*
+ * Base auto: la modale è alta quanto il contenuto, e il corpo si stringe solo
+ * all'altezza massima.
+ */
 .barrio-modal .components-modal__content {
-	padding-top: var(--barrio-gap);
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+.barrio-modal .components-modal__children-container {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.barrio-modal__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: var(--barrio-gap) var(--barrio-modal-padding) var(--barrio-modal-padding);
+	overflow-x: hidden;
+	overflow-y: auto;
 	overscroll-behavior: none;
 }
 
 .barrio-modal__footer {
 	display: flex;
-	position: sticky;
-	bottom: calc(-1 * var(--barrio-modal-padding));
-	z-index: 1;
+	flex: none;
 	flex-wrap: wrap;
 	gap: 8px;
 	justify-content: flex-end;
-	margin: var(--barrio-modal-padding) calc(-1 * var(--barrio-modal-padding)) calc(-1 * var(--barrio-modal-padding));
 	padding: 16px var(--barrio-modal-padding);
 	border-top: 1px solid var(--barrio-modal-line);
 	background: #fff;
@@ -1643,10 +1664,6 @@ button.barrio-table__title {
 
 .barrio-logo {
 	height: 48px;
-}
-
-.barrio-preview-modal .components-modal__content {
-	overflow-x: hidden;
 }
 
 .barrio-preview-modal .barrio-stack > * {
