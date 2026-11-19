@@ -1,0 +1,120 @@
+/*
+ * Il banner nel sito. Il tema può cambiare le custom property di
+ * .barrio-banner; i colori scelti nell'admin arrivano nell'attributo style.
+ * --barrio-banner-height (su :root, dal JavaScript) è l'altezza del banner
+ * mostrato, per i temi con l'header fisso.
+ */
+
+.barrio-banner {
+	--barrio-banner-background: #1e1e1e;
+	--barrio-banner-color: #fff;
+	--barrio-banner-gap: 3rem;
+
+	display: flex;
+	box-sizing: border-box;
+	align-items: center;
+	min-height: 2.75rem;
+	overflow: hidden;
+	background: var(--barrio-banner-background);
+	color: var(--barrio-banner-color);
+	font-size: 0.9375rem;
+	line-height: 1.4;
+}
+
+.barrio-banner.is-bottom {
+	position: fixed;
+	z-index: 99999;
+	right: 0;
+	bottom: 0;
+	left: 0;
+}
+
+.barrio-banner-bottom body {
+	padding-bottom: var(--barrio-banner-height, 0);
+}
+
+/* Lo spazio ai lati del testo, e dove la scritta che scorre si taglia. */
+.barrio-banner__body {
+	flex: 1;
+	min-width: 0;
+	padding: 0.625rem 1rem;
+	overflow: hidden;
+	color: inherit;
+	text-align: center;
+	text-decoration: none;
+}
+
+a.barrio-banner__body:hover .barrio-banner__text,
+a.barrio-banner__body:focus-visible .barrio-banner__text {
+	text-decoration: underline;
+}
+
+a.barrio-banner__body:focus-visible,
+.barrio-banner__close:focus-visible {
+	outline: 2px solid currentcolor;
+	outline-offset: -4px;
+}
+
+.barrio-banner__track {
+	display: block;
+}
+
+/*
+ * Le copie una dopo l'altra, ognuna con il suo spazio: il giro dura quanto
+ * una copia e non salta.
+ */
+.barrio-banner.is-scroll .barrio-banner__track {
+	display: flex;
+	width: max-content;
+	white-space: nowrap;
+}
+
+.barrio-banner.is-scroll .barrio-banner__text {
+	padding-inline-end: var(--barrio-banner-gap);
+}
+
+.barrio-banner__close {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 2.75rem;
+	height: 2.75rem;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	cursor: pointer;
+}
+
+/* Ferma: il testo va a capo come quello di un banner fermo. */
+@media (prefers-reduced-motion: reduce) {
+
+	.barrio-banner.is-scroll .barrio-banner__track {
+		display: block;
+		width: auto;
+		white-space: normal;
+	}
+
+	.barrio-banner.is-scroll .barrio-banner__text {
+		padding: 0;
+	}
+}
+
+/*
+ * Il dispositivo (Visibility::pick()): senza JavaScript, quindi senza scatti
+ * al caricamento.
+ */
+@media (min-width: 768px) {
+
+	.barrio-banner[data-device="mobile"] {
+		display: none;
+	}
+}
+
+@media (max-width: 767px) {
+
+	.barrio-banner[data-device="desktop"] {
+		display: none;
+	}
+}

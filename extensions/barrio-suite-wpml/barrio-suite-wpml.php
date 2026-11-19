@@ -78,6 +78,15 @@ add_action(
 	}
 );
 
+// Le regole di popup e banner salvano gli ID nella lingua principale: una pagina tradotta vale come l'originale. Senza
+// traduzione l'ID resta com'è.
+add_filter(
+	'barrio_main_language_id',
+	static fn( int $id, string $type ): int => (int) apply_filters( 'wpml_object_id', $id, $type, true, apply_filters( 'wpml_default_language', null ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtri di WPML.
+	10,
+	2
+);
+
 add_filter(
 	'barrio_language_flags',
 	static fn( array $flags ): array => array_filter( array_map( static fn( array $language ): string => (string) ( $language['country_flag_url'] ?? '' ), barrio_wpml_languages() ) ) + $flags

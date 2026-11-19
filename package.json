@@ -8,6 +8,7 @@
 		"languages",
 		"src",
 		"assets/src",
+		"assets/frontend",
 		"build",
 		"modules/*/src",
 		"modules/*/functions.php",

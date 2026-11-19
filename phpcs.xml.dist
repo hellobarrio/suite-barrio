@@ -38,6 +38,7 @@
 				<element value="barrio_edit_seo"/>
 				<element value="barrio_generate_alt"/>
 				<element value="barrio_manage_hours"/>
+				<element value="barrio_manage_banners"/>
 				<element value="barrio_reorder"/>
 				<element value="barrio_duplicate"/>
 			</property>

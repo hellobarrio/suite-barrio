@@ -9,6 +9,11 @@ import {
 	AltText,
 	altSection,
 } from '../../../modules/alt/assets/src/Alt.js';
+import {
+	BANNERS,
+	BannersTab,
+	bannersSettingsSection,
+} from '../../../modules/banners/assets/src/Banners.js';
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
 import {
 	HOURS,
@@ -32,6 +37,7 @@ const params = new URLSearchParams( window.location.search );
 
 // Costante: General ricarica le sezioni quando cambia l'array.
 const ALT_SECTIONS = [ altSection ];
+const BANNERS_SETTINGS = [ bannersSettingsSection ];
 const HOURS_SECTIONS = [ hoursSection ];
 const HOURS_SETTINGS = [ hoursSettingsSection ];
 
@@ -95,6 +101,31 @@ const PAGES = {
 							<General
 								title={ __( 'Settings', 'barrio-suite' ) }
 								sections={ ALT_SECTIONS }
+							/>
+						),
+					],
+				].filter( Boolean ) }
+			/>
+		),
+	},
+	'barrio-banners': {
+		title: BANNERS.title,
+		description: __(
+			'Announcements in a line at the top or at the bottom of the pages, with where, to whom and when they show up.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-banners"
+				tabs={ [
+					[ '', BANNERS.title, BannersTab ],
+					window.barrioAdmin.canManageOptions && [
+						'settings',
+						__( 'Settings', 'barrio-suite' ),
+						() => (
+							<General
+								title={ __( 'Settings', 'barrio-suite' ) }
+								sections={ BANNERS_SETTINGS }
 							/>
 						),
 					],

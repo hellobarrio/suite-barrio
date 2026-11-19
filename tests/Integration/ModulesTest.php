@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Tests\Integration;
 
+use BarrioSuite\Banners\BannerRepository;
 use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Privacy;
 use BarrioSuite\Forms\Repository\FormRepository;
@@ -46,6 +47,7 @@ final class ModulesTest extends WP_UnitTestCase {
 				'forms'       => true,
 				'seo'         => true,
 				'alt'         => true,
+				'banners'     => true,
 				'hours'       => true,
 				'blocks'      => true,
 				'ordering'    => true,
@@ -66,6 +68,7 @@ final class ModulesTest extends WP_UnitTestCase {
 				'forms'       => false,
 				'seo'         => true,
 				'alt'         => true,
+				'banners'     => true,
 				'hours'       => true,
 				'blocks'      => true,
 				'ordering'    => true,
@@ -105,6 +108,54 @@ final class ModulesTest extends WP_UnitTestCase {
 		$this->boot();
 		$this->assertSame( 'Title', get_post_meta( $post, '_barrio_seo_title', true ) );
 		$this->assertSame( '/new', RedirectRepository::find( '/old' )['target'] ?? null );
+	}
+
+	public function test_the_banners_module_turned_off_registers_nothing_and_keeps_its_data(): void {
+		$id = BannerRepository::save(
+			null,
+			[
+				'is_enabled' => true,
+				'starts_at'  => null,
+				'ends_at'    => null,
+				'settings'   => [
+					'position' => 'top',
+					'scroll'   => false,
+					'closable' => false,
+					'new_tab'  => false,
+					'colors'   => [
+						'background' => '',
+						'text'       => '',
+					],
+					'where'    => [
+						'mode'  => 'all',
+						'home'  => false,
+						'posts' => [],
+						'types' => [],
+						'terms' => [],
+					],
+					'who'      => [
+						'device' => 'all',
+						'users'  => 'all',
+					],
+					'days'     => 0,
+				],
+				'i18n'       => [
+					'en' => [
+						'text'     => 'Sale',
+						'link_url' => null,
+					],
+				],
+			]
+		);
+
+		$this->put( [ 'banners' => false ] );
+		$this->boot();
+		$this->assertSame( [], $this->callbacks( 'banners' ), 'No query and no asset in the site, no page and no route.' );
+		$this->assertSame( [], preg_grep( '#^/barrio/v1/banners#', array_keys( rest_get_server()->get_routes( 'barrio/v1' ) ) ) );
+
+		$this->put( [ 'banners' => true ] );
+		$this->boot();
+		$this->assertSame( 'Sale', BannerRepository::get( (int) $id )['i18n']['en']['text'] ?? null );
 	}
 
 	public function test_only_administrators_switch_modules(): void {
