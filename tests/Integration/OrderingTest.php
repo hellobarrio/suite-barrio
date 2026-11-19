@@ -2,7 +2,6 @@
 
 namespace BarrioSuite\Tests\Integration;
 
-use BarrioSuite\Admin;
 use BarrioSuite\Modules;
 use BarrioSuite\Ordering\Module;
 use BarrioSuite\Plugin;
@@ -306,7 +305,10 @@ final class OrderingTest extends WP_UnitTestCase {
 		wp_set_current_user( $this->editor );
 		$this->assertSame( 403, $this->request( 'GET', '/ordering/post/page' )->get_status() );
 		$this->assertSame( 403, $this->request( 'GET', '/ordering/term/category' )->get_status() );
-		$this->assertSame( [], apply_filters( 'barrio_admin_data', [] )['ordering']['pages'], 'No Reorder page.' );
+		set_current_screen( 'edit-page' );
+		Module::list_screen();
+		set_current_screen( 'front' );
+		$this->assertFalse( wp_script_is( 'barrio-reorder' ), 'No Reorder button.' );
 	}
 
 	public function test_settings_are_validated_and_turning_off_deletes_nothing(): void {
@@ -383,48 +385,37 @@ final class OrderingTest extends WP_UnitTestCase {
 		$this->assertSame( 1, get_post_field( 'menu_order', $old ), 'menu_order is of WordPress.' );
 	}
 
-	public function test_reorder_is_in_the_menu_of_the_list_for_who_can_reorder_it(): void {
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		$names = [ 'menu', 'submenu', '_registered_pages', '_parent_pages', 'admin_page_hooks', '_wp_submenu_nopriv' ];
-		$saved = array_map( static fn( string $name ): mixed => $GLOBALS[ $name ] ?? null, $names );
-		// Le voci di un menu: slug => titolo.
-		$items = static fn( string $menu ): array => array_column( $GLOBALS['submenu'][ $menu ] ?? [], 0, 2 );
+	public function test_reorder_is_in_the_list_for_who_can_reorder_it(): void {
 		$this->request(
 			'PUT',
 			'/ordering/settings',
 			[
 				'post_types' => [ 'page', 'book' ],
-				'taxonomies' => [ 'category', 'genre' ],
+				'taxonomies' => [ 'genre' ],
 			]
 		);
+		// Il pulsante della lista: lo script con l'elenco che riordina, o null.
+		$button = static function ( string $screen ): ?string {
+			wp_dequeue_script( 'barrio-reorder' );
+			wp_deregister_script( 'barrio-reorder' );
+			set_current_screen( $screen );
+			Module::list_screen();
+			return wp_script_is( 'barrio-reorder' ) ? (string) wp_scripts()->get_data( 'barrio-reorder', 'before' )[1] : null;
+		};
 
 		foreach ( [ 'administrator', 'editor', 'author' ] as $role ) {
-			$GLOBALS['submenu'] = []; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			wp_set_current_user( self::factory()->user->create( [ 'role' => $role ] ) );
-			Admin::menu();
-			Module::menu();
-			$pages = array_keys( apply_filters( 'barrio_admin_data', [] )['ordering']['pages'] ?? [] );
 			if ( 'author' === $role ) {
-				$this->assertSame( [], $items( 'edit.php?post_type=page' ) + $items( 'edit.php' ), 'An author does not reorder.' );
-				$this->assertSame( [], $pages );
+				$this->assertNull( $button( 'edit-page' ), 'An author does not reorder.' );
 				continue;
 			}
-			$this->assertSame( [ 'barrio-order-post-page' => 'Reorder Pages' ], $items( 'edit.php?post_type=page' ), "After All Pages and Add Page ({$role})." );
-			$this->assertSame(
-				[
-					'barrio-order-post-book'  => 'Reorder Books',
-					'barrio-order-term-genre' => 'Reorder Genres',
-				],
-				$items( 'edit.php?post_type=book' )
-			);
-			$this->assertSame( [ 'barrio-order-term-category' => 'Reorder Categories' ], $items( 'edit.php' ), 'The terms in the menu of their content type.' );
-			$this->assertSame( [ 'barrio-order-post-page', 'barrio-order-post-book', 'barrio-order-term-category', 'barrio-order-term-genre' ], $pages );
-			$this->assertSame( 'administrator' === $role ? [ 'barrio-contents' ] : [], array_values( array_intersect( array_column( $GLOBALS['submenu']['barrio'] ?? [], 2 ), [ 'barrio-contents' ] ) ), 'The settings, in Barrio → Contents, only for administrators.' );
+			$this->assertStringContainsString( '"list":"post\/page","title":"Reorder Pages"', (string) $button( 'edit-page' ), $role );
+			$this->assertStringContainsString( '"list":"term\/genre","title":"Reorder Genres"', (string) $button( 'edit-genre' ) );
+			$this->assertNull( $button( 'edit-post' ), 'Not in manual order.' );
+			$this->assertNull( $button( 'edit-category' ) );
+			$this->assertTrue( wp_style_is( 'barrio-admin' ), 'The modal has the styles of the Barrio pages.' );
 		}
-
-		foreach ( $names as $index => $name ) {
-			$GLOBALS[ $name ] = $saved[ $index ]; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- i menu di WordPress.
-		}
+		set_current_screen( 'front' );
 	}
 
 	/** @return array<string, mixed> I tipi e le tassonomie in ordine manuale, senza i ruoli. */

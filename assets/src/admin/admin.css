@@ -328,7 +328,7 @@
 	object-fit: cover;
 }
 
-/* Contenuti → Testi alternativi: la miniatura nella riga e nella modale. */
+/* Testi alternativi: la miniatura nella riga e nella modale. */
 .barrio-alt-thumb {
 	flex: none;
 	width: 32px;
@@ -1141,11 +1141,11 @@
  * Pagina a tutta altezza, come un'app: senza il footer di WordPress il pannello
  * del builder arriva a 20px dal fondo anche a fine pagina.
  */
-.wp-admin #wpbody-content {
+body:has(#barrio-admin) #wpbody-content {
 	padding-bottom: var(--barrio-gap);
 }
 
-#wpfooter {
+body:has(#barrio-admin) #wpfooter {
 	display: none;
 }
 

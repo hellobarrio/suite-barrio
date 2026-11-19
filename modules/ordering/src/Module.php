@@ -12,8 +12,8 @@ use WP_REST_Response;
 
 /**
  * L'ordine manuale di contenuti e termini (PLAN-MODULI.md §6): si accende per tipo e per tassonomia in Barrio → Contenuti
- * → Ordinamento, si riordina trascinando nella pagina "Riordina …" del menu di ogni elenco e vale in ogni query che
- * non chiede un altro ordine. Spegnerlo toglie l'ordine dalle query e lascia menu_order e i meta dei termini.
+ * → Ordinamento, si riordina trascinando nella modale di Riordina, accanto ad Aggiungi nella lista di ogni elenco, e
+ * vale in ogni query che non chiede un altro ordine. Spegnerlo toglie l'ordine dalle query e lascia menu_order e i meta dei termini.
  *
  * @phpstan-import-type Item from OrderRepository
  * @phpstan-type Settings array{post_types: list<string>, taxonomies: list<string>}
@@ -31,7 +31,7 @@ final class Module {
 		'taxonomies' => [],
 	];
 
-	// Gli elenchi nella REST e nella pagina: post/page, term/category.
+	// Gli elenchi nella REST e nella modale: post/page, term/category.
 	private const KINDS = [
 		'post' => 'post_types',
 		'term' => 'taxonomies',
@@ -41,6 +41,7 @@ final class Module {
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'admin_menu', [ self::class, 'menu' ] );
 		add_filter( 'barrio_admin_data', [ self::class, 'admin_data' ] );
+		add_action( 'admin_enqueue_scripts', [ self::class, 'list_screen' ] );
 		add_action( 'pre_get_posts', [ self::class, 'posts' ] );
 		add_filter( 'terms_clauses', [ self::class, 'terms' ], 10, 3 );
 	}
@@ -55,34 +56,46 @@ final class Module {
 		delete_metadata( 'term', 0, OrderRepository::TERM_META, '', true );
 	}
 
-	// La scheda delle impostazioni in Barrio → Contenuti, e "Riordina …" nel menu di ogni elenco in ordine manuale.
 	public static function menu(): void {
 		Admin::contents_tab( 'manage_options' );
-		foreach ( self::pages() as $slug => $page ) {
-			Admin::add_page( $slug, $page['title'], $page['capability'], $page['parent'] );
-		}
 	}
 
 	/**
-	 * In window.barrioAdmin.ordering, per la scheda di Barrio → Contenuti, le pagine Riordina e la card della Bacheca,
-	 * con i tipi di window.barrioAdmin.contentTypes. Senza, il JavaScript sa che il modulo è spento.
+	 * In window.barrioAdmin.ordering, per la scheda di Barrio → Contenuti e la card della Bacheca, con i tipi di
+	 * window.barrioAdmin.contentTypes. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
 	 */
 	public static function admin_data( array $data ): array {
-		return $data + [
-			'ordering' => [
-				'manual' => self::settings(),
-				'pages'  => array_map(
-					static fn( array $page ): array => [
-						'list'  => $page['list'],
-						'title' => $page['title'],
-					],
-					self::pages()
-				),
-			],
+		return $data + [ 'ordering' => [ 'manual' => self::settings() ] ];
+	}
+
+	// Riordina nella lista di un elenco in ordine manuale (edit.php, edit-tags.php), a chi può riordinarlo: lo script
+	// aggiunge il pulsante accanto ad Aggiungi e apre la modale con l'elenco intero.
+	public static function list_screen(): void {
+		$screen = get_current_screen();
+		$kind   = [
+			'edit'      => 'post',
+			'edit-tags' => 'term',
+		][ $screen->base ?? '' ] ?? '';
+		$name   = (string) ( 'term' === $kind ? $screen?->taxonomy : $screen?->post_type );
+		$object = 'term' === $kind ? get_taxonomy( $name ) : get_post_type_object( $name );
+		$dir    = dirname( __DIR__, 3 );
+		if ( ! $object || ! in_array( $name, self::settings()[ self::KINDS[ $kind ] ?? 'post_types' ], true ) || ! self::can( $kind, $name ) || ! is_file( "{$dir}/build/barrio-reorder.asset.php" ) ) {
+			return;
+		}
+		/** @var array{dependencies: list<non-empty-string>, version: string} $asset */
+		$asset = require "{$dir}/build/barrio-reorder.asset.php";
+		wp_enqueue_script( 'barrio-reorder', plugins_url( 'build/barrio-reorder.js', "{$dir}/barrio-suite.php" ), $asset['dependencies'], $asset['version'], true );
+		$data = [
+			'list'  => "{$kind}/{$name}",
+			/* translators: %s: name of the content type or taxonomy, such as Pages. */
+			'title' => sprintf( __( 'Reorder %s', 'barrio-suite' ), $object->labels->name ),
 		];
+		wp_add_inline_script( 'barrio-reorder', 'window.barrioReorder = ' . wp_json_encode( $data ) . ';', 'before' );
+		wp_set_script_translations( 'barrio-reorder', 'barrio-suite', "{$dir}/languages" );
+		Admin::style();
 	}
 
 	public static function register(): void {
@@ -287,44 +300,6 @@ final class Module {
 			],
 			$rows
 		);
-	}
-
-	/**
-	 * Le pagine "Riordina …" che chi guarda può aprire, per slug: una per elenco in ordine manuale, nel menu del tipo
-	 * di contenuto dopo Tutte le pagine e Aggiungi pagina, o del primo tipo della tassonomia. Un tipo senza menu non
-	 * ne ha una.
-	 *
-	 * @return array<string, array{list: string, title: string, parent: string, capability: string}>
-	 */
-	private static function pages(): array {
-		$pages = [];
-		foreach ( self::KINDS as $kind => $group ) {
-			foreach ( self::settings()[ $group ] as $name ) {
-				$taxonomy   = 'term' === $kind ? ( get_taxonomy( $name ) ?: null ) : null;
-				$object     = $taxonomy ?? get_post_type_object( $name );
-				$capability = self::capability( $kind, $name );
-				$parents    = array_filter( array_map( [ self::class, 'parent' ], $taxonomy ? $taxonomy->object_type : [ $name ] ) );
-				if ( $object && $capability && $parents && current_user_can( $capability ) && current_user_can( self::CAP ) ) {
-					$pages[ "barrio-order-{$kind}-{$name}" ] = [
-						'list'       => "{$kind}/{$name}",
-						/* translators: %s: name of the content type or taxonomy, such as Pages. */
-						'title'      => sprintf( __( 'Reorder %s', 'barrio-suite' ), $object->labels->name ),
-						'parent'     => reset( $parents ),
-						'capability' => $capability,
-					];
-				}
-			}
-		}
-		return $pages;
-	}
-
-	// Il menu di un tipo di contenuto, come lo costruisce WordPress con show_in_menu; null senza menu.
-	private static function parent( string $type ): ?string {
-		$menu = 'attachment' === $type ? false : get_post_type_object( $type )?->show_in_menu;
-		if ( true === $menu ) {
-			return 'post' === $type ? 'edit.php' : "edit.php?post_type={$type}";
-		}
-		return is_string( $menu ) && '' !== $menu ? $menu : null;
 	}
 
 	// Chi riordina, oltre a CAP, deve poter modificare i contenuti degli altri (un autore no) o i termini della

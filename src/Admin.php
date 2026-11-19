@@ -35,10 +35,10 @@ final class Admin {
 	}
 
 	/**
-	 * Barrio → Contenuti: gli strumenti per i contenuti (Blocchi, Ordinamento, Duplicazione, Testi alternativi) in una
-	 * pagina sola, con una scheda per modulo acceso. Ogni modulo la chiede su admin_menu con la capability della
-	 * sua scheda: la pagina si aggiunge una volta, con la prima che chi guarda ha, e il JavaScript mostra solo le
-	 * schede che può aprire. Con tutti e quattro spenti non c'è.
+	 * Barrio → Contenuti: gli strumenti per i contenuti (Blocchi, Ordinamento, Duplicazione) in una pagina sola, con
+	 * una scheda per modulo acceso. Ogni modulo la chiede su admin_menu con la capability della sua scheda: la pagina
+	 * si aggiunge una volta, con la prima che chi guarda ha, e il JavaScript mostra solo le schede che può aprire. Con
+	 * tutti e tre spenti non c'è.
 	 */
 	public static function contents_tab( string $capability ): void {
 		if ( current_user_can( $capability ) && ! get_plugin_page_hook( 'barrio-contents', self::PAGE ) ) {
@@ -82,10 +82,9 @@ final class Admin {
 		];
 	}
 
-	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla. Di solito nel menu
-	// Barrio; in un altro menu per gli strumenti di una lista di WordPress (Pagine → Riordina Pagine).
-	public static function add_page( string $slug, string $title, string $capability, string $menu = self::PAGE ): string|false {
-		$hook = add_submenu_page( $menu, $title, $title, $capability, $slug, [ self::class, 'page' ] );
+	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla.
+	public static function add_page( string $slug, string $title, string $capability ): string|false {
+		$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );
 		if ( $hook ) {
 			add_action( "load-{$hook}", [ self::class, 'enqueue' ] );
 		}
@@ -103,13 +102,23 @@ final class Admin {
 		wp_enqueue_script( 'barrio-admin', plugins_url( 'build/barrio-admin.js', $root ), $asset['dependencies'], $asset['version'], true );
 		wp_add_inline_script( 'barrio-admin', 'window.barrioAdmin = ' . wp_json_encode( self::data() ) . ';', 'before' );
 		wp_set_script_translations( 'barrio-admin', 'barrio-suite', dirname( __DIR__ ) . '/languages' );
-		wp_enqueue_style( 'barrio-admin', plugins_url( 'build/barrio-admin.css', $root ), [ 'wp-components' ], $asset['version'] );
-		wp_style_add_data( 'barrio-admin', 'rtl', 'replace' );
+		self::style();
 		// Le immagini (il logo delle email…) si scelgono nelle impostazioni dei moduli e nella messa online.
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- solo quale pagina caricare.
 		if ( 'settings' === sanitize_key( wp_unslash( $_GET['tab'] ?? '' ) ) || isset( $_GET['launch'] ) ) {
 			// phpcs:enable
 			wp_enqueue_media();
+		}
+	}
+
+	// Gli stili delle pagine Barrio, anche per una modale fuori da queste (Riordina nella lista di un tipo).
+	public static function style(): void {
+		$asset_file = dirname( __DIR__ ) . '/build/barrio-admin.asset.php';
+		if ( is_file( $asset_file ) ) {
+			/** @var array{version: string} $asset */
+			$asset = require $asset_file;
+			wp_enqueue_style( 'barrio-admin', plugins_url( 'build/barrio-admin.css', dirname( __DIR__ ) . '/barrio-suite.php' ), [ 'wp-components' ], $asset['version'] );
+			wp_style_add_data( 'barrio-admin', 'rtl', 'replace' );
 		}
 	}
 

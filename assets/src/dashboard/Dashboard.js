@@ -4,6 +4,7 @@
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 
+import { AltCard } from '../../../modules/alt/assets/src/Alt.js';
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { PerformanceCard } from '../../../modules/performance/assets/src/Performance.js';
 import { SeoCard } from '../../../modules/seo/assets/src/seo/SeoCard.js';
@@ -33,6 +34,7 @@ export function Dashboard() {
 			<div className="barrio-modules">
 				<FormsCard />
 				<SeoCard />
+				<AltCard />
 				<ContentsCard />
 				<PerformanceCard />
 			</div>

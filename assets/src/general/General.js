@@ -37,9 +37,9 @@ const MODULES = {
 			'barrio-suite'
 		),
 	},
+	alt: ALT,
 	blocks: BLOCKS,
 	ordering: ORDERING,
-	alt: ALT,
 	duplicate: DUPLICATE,
 	performance: {
 		title: PERFORMANCE.title,

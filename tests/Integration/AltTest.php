@@ -42,6 +42,9 @@ final class AltTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- il server REST di WordPress.
 		parent::tear_down();
+		// I ruoli restano in memoria anche dopo il rollback: si rileggono dal database, non dalla cache.
+		self::flush_cache();
+		wp_roles()->for_site();
 	}
 
 	/** @param array<string, mixed> $args */
@@ -176,6 +179,7 @@ final class AltTest extends WP_UnitTestCase {
 		$author = self::factory()->user->create( [ 'role' => 'author' ] );
 		wp_set_current_user( $author );
 		$own = $this->image( 'canola.jpg' );
+		$this->assertTrue( current_user_can( 'barrio_generate_alt' ), 'From migration 0001: whoever uploads files.' );
 
 		$this->assertSame( 403, $this->request( 'POST', "/barrio/v1/alt/{$others}", [ 'save' => true ] )->get_status() );
 		$this->assertSame( 200, $this->request( 'POST', "/barrio/v1/alt/{$own}" )->get_status() );
@@ -183,7 +187,6 @@ final class AltTest extends WP_UnitTestCase {
 		$this->assertSame( [ $own => true ], array_filter( $rows ) );
 		$this->assertFalse( $rows[ $others ] );
 		$this->assertSame( [ $own ], $this->request( 'GET', '/barrio/v1/alt/images', [ 'fields' => 'ids' ] )->get_data()['ids'] );
-		$this->assertNull( Module::admin_data( [] )['alt']['settings'] );
 		$this->assertSame( 403, $this->request( 'PUT', '/barrio/v1/alt/settings', [ 'on_upload' => true ] )->get_status() );
 		$this->assertStringNotContainsString( 'barrio-alt-generate', $this->button( $others ) );
 		$this->assertStringContainsString( 'barrio-alt-generate', $this->button( $own ) );
@@ -192,6 +195,38 @@ final class AltTest extends WP_UnitTestCase {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'contributor' ] ) );
 		$this->assertSame( 403, $this->request( 'GET', '/barrio/v1/alt/images' )->get_status() );
 		$this->assertArrayNotHasKey( 'alt', Module::admin_data( [] ) );
+	}
+
+	public function test_only_the_roles_chosen_in_the_permissions_generate(): void {
+		$settings = $this->request( 'GET', '/barrio/v1/alt/settings' )->get_data();
+		$this->assertSame( [ 'barrio_generate_alt' ], $settings['roles']['author'] );
+		$this->assertSame( [], $settings['roles']['contributor'] );
+		$this->assertArrayNotHasKey( 'administrator', $settings['roles'] );
+		$this->assertSame( 400, $this->request( 'PUT', '/barrio/v1/alt/settings', [ 'roles' => [ 'author' => [ 'upload_files' ] ] ] )->get_status() );
+
+		$this->request( 'PUT', '/barrio/v1/alt/settings', [ 'roles' => [ 'author' => [] ] ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'author' ] ) );
+		$own = $this->image( 'canola.jpg' );
+
+		$this->assertSame( 403, $this->request( 'GET', '/barrio/v1/alt/images' )->get_status() );
+		$this->assertSame( 403, $this->request( 'POST', "/barrio/v1/alt/{$own}" )->get_status() );
+		$this->assertArrayNotHasKey( 'alt', Module::admin_data( [] ) );
+		$this->assertStringNotContainsString( 'barrio-alt-generate', $this->button( $own ) );
+		$this->assertTrue( get_role( 'administrator' )->has_cap( 'barrio_generate_alt' ), 'Administrators keep everything.' );
+	}
+
+	public function test_in_the_edit_screen_the_button_is_after_the_fields_of_wordpress(): void {
+		$image = $this->image( 'canola.jpg' );
+		$post  = self::factory()->post->create();
+
+		ob_start();
+		Module::edit_screen( get_post( $image ) );
+		Module::edit_screen( get_post( $post ) );
+		$html = (string) ob_get_clean();
+
+		$this->assertSame( 1, substr_count( $html, 'barrio-alt-generate' ) );
+		$this->assertStringContainsString( 'width: 100%', $html );
+		$this->assertStringNotContainsString( 'barrio-alt-generate', (string) get_compat_media_markup( $image )['item'], 'Not in the narrow table of the fields of the plugins.' );
 	}
 
 	public function test_the_list_shows_the_images_without_alt_with_search_and_counts(): void {
@@ -238,7 +273,6 @@ final class AltTest extends WP_UnitTestCase {
 		);
 		$this->assertSame( [ $lake ], array_column( $search['rows'], 'id' ) );
 		$this->assertSame( 1, $search['total'] );
-		$this->assertSame( 2, Module::admin_data( [] )['alt']['missing'] );
 		$this->assertSame( 400, $this->request( 'GET', '/barrio/v1/alt/images', [ 'sort' => 'alt' ] )->get_status() );
 	}
 
@@ -252,7 +286,7 @@ final class AltTest extends WP_UnitTestCase {
 				'on_upload' => true,
 				'title'     => true,
 			],
-			$this->request( 'GET', '/barrio/v1/alt/settings' )->get_data()
+			array_intersect_key( $this->request( 'GET', '/barrio/v1/alt/settings' )->get_data(), array_flip( [ 'on_upload', 'title' ] ) )
 		);
 	}
 

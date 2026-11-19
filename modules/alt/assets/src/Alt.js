@@ -1,19 +1,23 @@
-// La scheda Testi alternativi di Barrio → Contenuti (modules/alt/src/Module.php): le immagini della libreria dei
-// media, con ricerca, filtro e pagine sul server (GET /alt/images), all'inizio quelle senza testo alternativo. Genera
-// e Modifica nel menu ⋯ di ogni riga aprono la modale, che salva con la REST del core. La massa e "Genera tutti"
-// lavorano nel browser, un'immagine alla volta: il server scrive solo dove manca, quindi si riprende da dove si era.
+// La pagina Barrio → Testi alternativi (modules/alt/src/Module.php). Immagini: la libreria dei media, con ricerca,
+// filtro e pagine sul server (GET /alt/images), all'inizio quelle senza testo alternativo. Genera e Modifica nel menu ⋯
+// di ogni riga aprono la modale, che salva con la REST del core. La massa e "Genera tutti" lavorano nel browser,
+// un'immagine alla volta: il server scrive solo dove manca, quindi si riprende da dove si era. Impostazioni, agli
+// amministratori: la generazione e i Permessi. E la card della Bacheca.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _x, sprintf } from '@wordpress/i18n';
 
 import { initialQuery } from '../../../../assets/src/admin/query.js';
 import {
+	Card,
 	Dialog,
 	Icon,
 	Loading,
 	Lucide,
 	Menu,
+	ModuleCard,
 	Notice,
+	Permissions,
 	Table,
 	Text,
 	Toggle,
@@ -22,20 +26,20 @@ import {
 
 // Anche nella card Moduli di Barrio → Impostazioni.
 export const ALT = {
+	icon: 'format-image',
 	title: _x( 'Alt text', 'module name', 'barrio-suite' ),
 	description: __(
-		'The alternative text of the images, written by Google AI looking at each image: from the image details, in bulk or after the upload.',
+		'The alternative text of the images, written by Google AI',
 		'barrio-suite'
 	),
+	color: 'linear-gradient(135deg, #831843, #be185d)',
 };
 
-// Module::admin_data(), a chi carica i media. Con il modulo spento manca.
+// Module::admin_data(), a chi genera. Con il modulo spento manca.
 export const altData = window.barrioAdmin.alt;
 
-// Per la card Contenuti della Bacheca.
-export const altStats = () => [
-	[ __( 'Images without alt text', 'barrio-suite' ), altData.missing ],
-];
+// La capability del modulo, nei Permessi (Module::CAP).
+const CAPS = { barrio_generate_alt: __( 'Generate', 'barrio-suite' ) };
 
 const AI_SETUP = __(
 	'To use it, set up Google AI in Barrio → Settings.',
@@ -192,69 +196,32 @@ function AltModal( { row, start, onSaved, onClose } ) {
 	);
 }
 
-// Le impostazioni, agli amministratori: dalla barra, perché la scheda è una tabella.
-function SettingsModal( { onClose } ) {
-	const [ draft, setDraft ] = useState( altData.settings );
-	const [ busy, setBusy ] = useState( false );
-	const [ notice, setNotice ] = useState( null );
-	const dirty =
-		JSON.stringify( draft ) !== JSON.stringify( altData.settings );
-	const save = () => {
-		setBusy( true );
+// GET e PUT /barrio/v1/alt/settings, con il Salva della barra (general/General.js): la generazione e i ruoli.
+export const altSection = {
+	id: 'alt',
+	load: () => apiFetch( { path: '/barrio/v1/alt/settings' } ),
+	value: ( { role_names: names, ...settings } ) => settings,
+	save: ( draft ) =>
 		apiFetch( {
 			path: '/barrio/v1/alt/settings',
 			method: 'PUT',
 			data: draft,
-		} )
-			.then( ( settings ) => {
-				altData.settings = settings;
-				onClose();
-			} )
-			.catch( ( error ) =>
-				setNotice( { status: 'error', message: errorMessage( error ) } )
-			)
-			.finally( () => setBusy( false ) );
-	};
-	return (
-		<Dialog
-			footer={
-				<>
-					<button
-						type="button"
-						className="barrio-button"
-						onClick={ onClose }
-					>
-						{ __( 'Cancel', 'barrio-suite' ) }
-					</button>
-					<button
-						type="button"
-						className="barrio-button is-primary"
-						disabled={ busy || ! dirty }
-						onClick={ save }
-					>
-						<Lucide name="save" />
-						<span className="barrio-button__text">
-							{ __( 'Save', 'barrio-suite' ) }
-						</span>
-					</button>
-				</>
-			}
-			size="medium"
-			title={ __( 'Alt text settings', 'barrio-suite' ) }
-			onRequestClose={ onClose }
-		>
-			<div className="barrio-stack">
-				<Notice notice={ notice } />
+		} ),
+	Cards: ( { data, draft, set } ) => (
+		<>
+			<Card
+				className="barrio-wide"
+				icon="format-image"
+				title={ __( 'Generation', 'barrio-suite' ) }
+			>
 				<Toggle
 					label={ __( 'Generate after the upload', 'barrio-suite' ) }
 					help={ __(
-						'For new images without alt text. Google is called in the background, so the upload does not wait.',
+						'For new images without alt text, whoever uploads them. Google is called in the background, so the upload does not wait.',
 						'barrio-suite'
 					) }
 					checked={ draft.on_upload }
-					onChange={ ( on ) =>
-						setDraft( { ...draft, on_upload: on } )
-					}
+					onChange={ ( on ) => set( { ...draft, on_upload: on } ) }
 				/>
 				<Toggle
 					label={ __( 'Generate the title too', 'barrio-suite' ) }
@@ -263,10 +230,65 @@ function SettingsModal( { onClose } ) {
 						'barrio-suite'
 					) }
 					checked={ draft.title }
-					onChange={ ( title ) => setDraft( { ...draft, title } ) }
+					onChange={ ( title ) => set( { ...draft, title } ) }
 				/>
-			</div>
-		</Dialog>
+			</Card>
+			<Permissions
+				description={ __(
+					'Who can generate, in this page and in the image details, for the images they can edit. They also need to be able to upload files: contributors cannot. Administrators can always do everything; only administrators change these settings.',
+					'barrio-suite'
+				) }
+				caps={ CAPS }
+				names={ data.role_names }
+				roles={ draft.roles }
+				onChange={ ( roles ) => set( { ...draft, roles } ) }
+			/>
+		</>
+	),
+};
+
+// Nella Bacheca: tutte le immagini e quelle senza testo alternativo, dai conteggi della tabella.
+export function AltCard() {
+	const [ counts, setCounts ] = useState( null );
+	const [ notice, setNotice ] = useState( null );
+
+	useEffect( () => {
+		if ( altData ) {
+			apiFetch( { path: '/barrio/v1/alt/images?alt=missing' } )
+				.then( ( result ) => setCounts( result.counts ) )
+				.catch( ( error ) =>
+					setNotice( {
+						status: 'error',
+						message: errorMessage( error ),
+					} )
+				);
+		}
+	}, [] );
+
+	if ( ! altData ) {
+		return null;
+	}
+	return (
+		<ModuleCard
+			module={ ALT }
+			notice={ notice }
+			stats={
+				counts && [
+					[ __( 'Images', 'barrio-suite' ), counts.all ],
+					[
+						__( 'Without alt text', 'barrio-suite' ),
+						counts.missing,
+					],
+				]
+			}
+			actions={ [
+				[ __( 'Images', 'barrio-suite' ), '?page=barrio-alt' ],
+				window.barrioAdmin.canManageOptions && [
+					__( 'Settings', 'barrio-suite' ),
+					'?page=barrio-alt&tab=settings',
+				],
+			].filter( Boolean ) }
+		/>
 	);
 }
 
@@ -275,7 +297,6 @@ export function AltText() {
 	const [ data, setData ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 	const [ editing, setEditing ] = useState( null );
-	const [ settings, setSettings ] = useState( false );
 	const [ running, setRunning ] = useState( false );
 	// Cambia dopo ogni scrittura: ricarica la pagina e i conteggi.
 	const [ reload, setReload ] = useState( 0 );
@@ -489,7 +510,7 @@ export function AltText() {
 				query={ query }
 				initial={ INITIAL }
 				onQuery={ setQuery }
-				title={ ALT.title }
+				title={ __( 'Images', 'barrio-suite' ) }
 				search={ __( 'Search images', 'barrio-suite' ) }
 				empty={
 					'missing' === query.alt && ! query.search
@@ -537,31 +558,17 @@ export function AltText() {
 					},
 				] }
 				toolbar={
-					<>
-						{ altData.settings && (
-							<button
-								type="button"
-								className="barrio-button"
-								onClick={ () => setSettings( true ) }
-							>
-								<Icon name="admin-generic" />
-								<span className="barrio-button__text">
-									{ __( 'Settings', 'barrio-suite' ) }
-								</span>
-							</button>
-						) }
-						<button
-							type="button"
-							className="barrio-button is-primary"
-							disabled={ ! ready }
-							onClick={ all }
-						>
-							<Icon name="lightbulb" />
-							<span className="barrio-button__text">
-								{ __( 'Generate all missing', 'barrio-suite' ) }
-							</span>
-						</button>
-					</>
+					<button
+						type="button"
+						className="barrio-button is-primary"
+						disabled={ ! ready }
+						onClick={ all }
+					>
+						<Icon name="lightbulb" />
+						<span className="barrio-button__text">
+							{ __( 'Generate all missing', 'barrio-suite' ) }
+						</span>
+					</button>
 				}
 			/>
 			{ editing && (
@@ -571,9 +578,6 @@ export function AltText() {
 					onSaved={ () => setReload( ( n ) => n + 1 ) }
 					onClose={ () => setEditing( null ) }
 				/>
-			) }
-			{ settings && (
-				<SettingsModal onClose={ () => setSettings( false ) } />
 			) }
 		</div>
 	);

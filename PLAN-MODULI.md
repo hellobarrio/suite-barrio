@@ -20,8 +20,8 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 | Popup e Banner separati | Due moduli, come nel prototipo, per accenderli, gestirli e dare i permessi separatamente: ognuno ha le sue tabelle, la sua pagina, la sua capability e la sua card. Ciò che hanno uguale sta nel core e si scrive una volta (§1): dove, chi e quando compaiono, il periodo, la frequenza, la lingua. Nel prototipo quella parte è copiata da un modulo all'altro, con gli stessi bug |
 | Tabelle e non CPT | Popup e banner sono raccolte di record con testi per lingua, come i form: tabella più tabella `_i18n`, con la lingua scelta nella barra dell'editor e i componenti dei testi tradotti del builder (`TextIn`, `Fixed`, `fillTranslations`). Così funzionano senza WPML e il GraphQL resta con i campi del prototipo. Un CPT con l'editor a blocchi lascerebbe le traduzioni a WPML, e per il banner (una riga di testo) aprirebbe un editor a blocchi intero |
 | Impostazioni | Orari, Blocchi, Ordinamento, Duplicazione e Testi alternativi hanno un solo record ciascuno: un'opzione con JSON Schema (`barrio_hours`, `barrio_blocks`, `barrio_ordering`, `barrio_duplicate`, `barrio_alt`), scritta solo dalla sua rotta REST. In autoload solo quelle lette nel sito (`barrio_hours`, `barrio_ordering`) |
-| Admin | Tre pagine nuove nel menu Barrio: **Popup**, **Banner** e **Orari**, perché ci lavora chi gestisce i contenuti. Blocchi, Ordinamento, Duplicazione e Testi alternativi sono strumenti per i contenuti con poche impostazioni: invece di quattro voci, una pagina **Contenuti** con una scheda per modulo acceso (la pagina sparisce con tutti e quattro spenti). Menu: Bacheca, Form, SEO, Popup, Banner, Orari, Contenuti, Prestazioni, Estensioni, Impostazioni |
-| Capability | Nuove solo dove WordPress non ne ha una adatta: `barrio_manage_popups`, `barrio_manage_banners` e `barrio_manage_hours` (admin ed editor, dalla migrazione `0002` di ogni modulo), con la card Permessi nelle impostazioni del modulo. Anche Ordinamento e Duplicazione hanno i Permessi, per spegnerli a un ruolo: `barrio_reorder` e `barrio_duplicate` (dalla migrazione `0001`, a chi poteva già usarli), in più a quelle del core sul singolo contenuto (`edit_post`, `edit_others_posts`, `edit_terms`). Testi alternativi usa solo `upload_files`; Blocchi e le impostazioni chiedono `manage_options` |
+| Admin | Quattro pagine nuove nel menu Barrio: **Testi alternativi**, **Popup**, **Banner** e **Orari**, perché ci lavora chi gestisce i contenuti; Testi alternativi come il SEO, con le schede Immagini e Impostazioni. Blocchi, Ordinamento e Duplicazione sono strumenti per i contenuti con poche impostazioni: invece di tre voci, una pagina **Contenuti** con una scheda per modulo acceso (la pagina sparisce con tutti e tre spenti), solo per gli amministratori. Ordinamento e Duplicazione si usano dove si lavora, nelle liste di WordPress: Riordina accanto ad Aggiungi, Duplica tra le azioni. Menu: Bacheca, Form, SEO, Testi alternativi, Popup, Banner, Orari, Contenuti, Prestazioni, Estensioni, Impostazioni |
+| Capability | Nuove solo dove WordPress non ne ha una adatta: `barrio_manage_popups`, `barrio_manage_banners` e `barrio_manage_hours` (admin ed editor, dalla migrazione `0002` di ogni modulo), con la card Permessi nelle impostazioni del modulo. Anche Ordinamento, Duplicazione e Testi alternativi hanno i Permessi, per spegnerli a un ruolo: `barrio_reorder`, `barrio_duplicate` e `barrio_generate_alt` (dalla migrazione `0001`, a chi poteva già usarli), in più a quelle del core (`edit_post`, `edit_others_posts`, `edit_terms`, `upload_files`). Blocchi e le impostazioni chiedono `manage_options` |
 | Google | Orari e Testi alternativi usano il **service account di Google del core** (Barrio → Impostazioni), come l'AI del SEO: nessuna chiave API nei moduli. Places API (New) accetta i token OAuth dei service account (scope `cloud-platform`, progetto con fatturazione in `X-Goog-User-Project`). Le chiamate partono da un clic in admin o dalla sincronizzazione notturna degli orari, che il readme dichiara |
 | Headless | `hbPopup`, `hbBanner` e `hbOrari` restano con i nomi e le forme del prototipo nell'estensione `barrio-suite-wpgraphql`, un file per modulo. Ordinamento non ha GraphQL suo: `menuOrder` e `orderby: MENU_ORDER` sono già di WPGraphQL |
 | Revalidation | Come `barrio_seo_changed`: `barrio_popups_changed`, `barrio_banners_changed`, `barrio_hours_changed` e `barrio_ordering_changed`, usati dal ponte dell'estensione di migrazione verso la revalidation del prototipo (tag `wp:popup`, `wp:banner`, `wp:orari`, `wp:type:{tipo}`) e, più avanti, dall'estensione di revalidation |
@@ -358,12 +358,12 @@ blocco dei form:
 
 - **Per tipo di contenuto e tassonomia** (quelli con interfaccia, allegati esclusi), l'interruttore "Ordine manuale"
   in Contenuti → Ordinamento (`manage_options`), con due card come Duplicazione.
-- **Riordina** è una voce del menu di ogni elenco in ordine manuale, dopo Tutte le pagine e Aggiungi pagina
-  (Pagine → Riordina Pagine); quella di una tassonomia è nel menu del suo primo tipo (Articoli → Riordina
-  Categorie). La vede solo chi può riordinare:
-  - nella barra il titolo e Salva;
-  - sotto, l'elenco intero trascinabile, anche da tastiera (`@dnd-kit/sortable`, come i campi del builder). Nei tipi
-    e nelle tassonomie gerarchici è un albero e si sposta tra fratelli; il genitore si cambia dal contenuto.
+- **Riordina** è un pulsante accanto ad Aggiungi nella lista di ogni elenco in ordine manuale (Pagine, Categorie),
+  come Duplica sta tra le azioni della lista, e lo vede solo chi può riordinare. Apre una modale (lo script
+  `build/barrio-reorder.js`, con gli stili delle pagine Barrio):
+  - l'elenco intero trascinabile, anche da tastiera (`@dnd-kit/sortable`, come i campi del builder). Nei tipi e
+    nelle tassonomie gerarchici è un albero e si sposta tra fratelli; il genitore si cambia dal contenuto;
+  - Annulla e Salva in fondo; salvato, la lista si ricarica nel nuovo ordine.
 - **Dove vale l'ordine**: in ogni query di un tipo in ordine manuale che non chiede un ordine, o chiede quello
   predefinito (data, decrescente): sito, admin, REST e WPGraphQL. L'ordine è `menu_order` crescente, poi la data.
   - Un ordine esplicito diverso (titolo, più vecchi, casuale, una colonna cliccata nell'admin) resta.
@@ -396,7 +396,7 @@ blocco dei form:
 | Basta `edit_posts`: un collaboratore riordina i contenuti degli altri, e l'elenco mostra bozze e privati di qualsiasi tipo, anche non abilitato | `edit_others_posts` del tipo e `edit_post` su ogni ID; solo contenuti di quel tipo e di quel genitore; per i termini `edit_terms` della tassonomia |
 | Spegnere un tipo azzera `menu_order` di tutti i suoi contenuti (anche l'ordine delle pagine messo da WordPress) e cancella l'ordine dei termini | Spegnere toglie solo l'ordinamento dalle query; gli ordini restano |
 | L'ordine vale solo per la query principale, anche nella ricerca e sopra un ordine scelto; quello dei termini sopra ogni `orderby` | §6.1 |
-| Gerarchia appiattita; jQuery UI senza tastiera; un menu "Riordina Categorie" solo per i non amministratori | Albero tra fratelli, `@dnd-kit` accessibile, una pagina Riordina nel menu di ogni elenco per chi può riordinarlo |
+| Gerarchia appiattita; jQuery UI senza tastiera; un menu "Riordina Categorie" solo per i non amministratori | Albero tra fratelli, `@dnd-kit` accessibile, Riordina nella lista di ogni elenco per chi può riordinarlo |
 
 ### 6.4 Admin
 
@@ -406,7 +406,7 @@ blocco dei form:
   - `GET`/`PUT /ordering/settings`, con i ruoli (`src/Roles.php`).
 - **Contenuti → Ordinamento**: le card dei tipi e delle tassonomie e la card Permessi.
 - `barrio_ordering_changed` (tipo o tassonomia) dopo ogni salvataggio.
-- `// ponytail: tutto l'elenco in una richiesta e in una pagina; oltre ~2000 voci per tipo servono pagine o il trascinamento nella lista nativa`.
+- `// ponytail: tutto l'elenco in una richiesta e in una modale; oltre ~2000 voci per tipo servono pagine o il trascinamento nella lista nativa`.
 
 **Da Simple Page Ordering, Post Types Order e Intuitive Custom Post Order**:
 - presi: ordine dei termini, gerarchia, ordine applicato alle query senza ordine esplicito (admin compreso);
@@ -492,12 +492,17 @@ blocco dei form:
     L'upload non aspetta Google. Scrive solo se l'alt è vuoto;
   - **"Genera con AI"** nei dettagli dell'allegato (finestra dei media e schermata di modifica): riempie il campo
     senza ricaricare la pagina. Si salva come ogni modifica dell'alt, quindi si vede prima;
-  - **Contenuti → Testi alternativi**: la tabella del plugin con le immagini (miniatura, file, alt, contenuto a cui è
-    allegata). Il filtro di partenza è "senza testo alternativo"; nel menu ⋯ Genera e Modifica aprono la stessa
-    modale (Genera la apre generando), che salva con `/wp/v2/media`. Le azioni di massa e "Genera tutti" (gli ID da
-    `GET /alt/images?alt=missing&fields=ids`) lavorano nel browser, un'immagine alla volta, con l'avanzamento e
-    Interrompi, e si fermano al primo errore come le azioni di massa del SEO. Le impostazioni sono una modale dalla
-    barra, solo per gli amministratori, perché la scheda è una tabella.
+  - **Barrio → Testi alternativi → Immagini**: la tabella del plugin con le immagini (miniatura, file, alt, contenuto
+    a cui è allegata). Il filtro di partenza è "senza testo alternativo"; nel menu ⋯ Genera e Modifica aprono la
+    stessa modale (Genera la apre generando), che salva con `/wp/v2/media`. Le azioni di massa e "Genera tutti" (gli
+    ID da `GET /alt/images?alt=missing&fields=ids`) lavorano nel browser, un'immagine alla volta, con l'avanzamento
+    e Interrompi, e si fermano al primo errore come le azioni di massa del SEO.
+- **Barrio → Testi alternativi → Impostazioni**, per gli amministratori: la card Generazione e i Permessi, con il
+  Salva della barra. I Permessi scelgono chi genera (la pagina e il pulsante nei dettagli); la generazione al
+  caricamento vale per le immagini di chiunque.
+- **Il pulsante nei dettagli**: nella finestra dei media è un campo dei plugin (`attachment_fields_to_edit`); nella
+  schermata di modifica, dove quei campi stanno in una tabella stretta, si stampa dopo i campi di WordPress
+  (`edit_form_after_title`), largo come Didascalia e Descrizione.
 - **Nel core**: `Ai::generate()` accetta delle parti in più (`inlineData` con `mimeType` e base64) oltre al testo.
   Il resto (token, modello, istruzioni del sito, risposta JSON) c'è già.
 
@@ -506,6 +511,7 @@ blocco dei form:
 - L'alt è il meta del core `_wp_attachment_image_alt`, il titolo è `post_title` dell'allegato: nessun dato nuovo.
 - L'elenco "senza testo alternativo" è una `meta_query` (assente o vuoto), sull'indice `meta_key` del core.
 - **Opzione `barrio_alt`**: `on_upload` (spento), `title` (spento).
+- **Migrazione `0001`**: `barrio_generate_alt` ai ruoli con `upload_files`.
 - **Il titolo "manca"** quando è ancora quello che WordPress dà caricando l'immagine, il nome del file (anche senza il
   `-2` di un nome già usato): solo quello si sostituisce al caricamento e nella massa.
 
@@ -513,7 +519,7 @@ blocco dei form:
 
 | Problema | Nel nuovo modulo |
 |---|---|
-| Chi ha `upload_files` (gli autori) rigenera e sovrascrive alt e titolo di qualsiasi allegato | `edit_post` sull'allegato |
+| Chi ha `upload_files` (gli autori) rigenera e sovrascrive alt e titolo di qualsiasi allegato | `edit_post` sull'allegato, e i Permessi per ruolo |
 | Chiavi API di Anthropic e Gemini in chiaro, in autoload, nell'HTML della pagina e copiate dalla procedura guidata in altre 4–6 opzioni; il codice dei provider copiato in quattro moduli | Il service account cifrato del core e un solo client AI |
 | Al caricamento la chiamata è sincrona (fino a 80 s nella richiesta di upload) e manda l'originale a piena risoluzione | WP-Cron dopo la creazione delle dimensioni; la dimensione `large` |
 | Ogni percorso tranne uno sovrascrive alt e titolo anche quando ci sono; un titolo vuoto cancella quello esistente; le modifiche nella griglia di revisione non si salvano mai | Al caricamento e nella massa si scrive solo dove manca; dal pulsante si vede prima di salvare; un testo vuoto non si scrive |
@@ -524,13 +530,12 @@ blocco dei form:
 ### 8.4 Admin
 
 - **REST**:
-  - `GET /alt/images` (`upload_files`; pagine, ricerca e filtro sul server, come le Registrazioni; con `fields=ids`
-    tutte quelle trovate che chi chiede può generare);
-  - `POST /alt/{id}` (`edit_post`; genera e, con `save`, scrive);
-  - `GET`/`PUT /alt/settings` (`manage_options`).
-- **Bacheca**: le immagini senza testo alternativo nella card Contenuti, che ha al massimo tre numeri (uno per
-  strumento). Con tutti e quattro gli strumenti resta fuori quello di Duplicazione, che è acceso su ogni elenco:
-  Testi alternativi viene prima nelle schede e nei moduli.
+  - `GET /alt/images` (`upload_files` e `barrio_generate_alt`; pagine, ricerca e filtro sul server, come le
+    Registrazioni; con `fields=ids` tutte quelle trovate che chi chiede può generare);
+  - `POST /alt/{id}` (le stesse e `edit_post`; genera e, con `save`, scrive);
+  - `GET`/`PUT /alt/settings` (`manage_options`; con i ruoli, come Duplicazione).
+- **Bacheca**: una card sua, come il SEO, con le immagini e quelle senza testo alternativo (i conteggi di
+  `GET /alt/images`), i link a Immagini e Impostazioni.
 
 **Da Alt Text AI e simili**:
 - presi: generazione al caricamento, in massa e per immagine; contesto dal contenuto;

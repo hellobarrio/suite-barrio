@@ -4,8 +4,12 @@
 import { createRoot } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
+import {
+	ALT,
+	AltText,
+	altSection,
+} from '../../../modules/alt/assets/src/Alt.js';
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
-import { reorderPages } from '../../../modules/ordering/assets/src/Ordering.js';
 import {
 	PERFORMANCE,
 	performanceSection,
@@ -16,9 +20,13 @@ import { Dashboard } from '../dashboard/Dashboard.js';
 import { Extensions } from '../extensions/Extensions.js';
 import { General } from '../general/General.js';
 import { Launch } from '../launch/Launch.js';
+import { Tabs } from './ui.js';
 import './admin.css';
 
 const params = new URLSearchParams( window.location.search );
+
+// Costante: General ricarica le sezioni quando cambia l'array.
+const ALT_SECTIONS = [ altSection ];
 
 // Il nome della pagina dopo "Barrio Suite" (senza, la Bacheca mostra la versione), la descrizione e
 // il contenuto.
@@ -62,8 +70,31 @@ const PAGES = {
 		),
 		page: <General />,
 	},
-	// Nei menu dei tipi di contenuto, dopo Aggiungi.
-	...reorderPages,
+	'barrio-alt': {
+		title: ALT.title,
+		description: __(
+			'The alternative text of the images, written by Google AI looking at each image: from the image details, in bulk or after the upload.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-alt"
+				tabs={ [
+					[ '', __( 'Images', 'barrio-suite' ), AltText ],
+					window.barrioAdmin.canManageOptions && [
+						'settings',
+						__( 'Settings', 'barrio-suite' ),
+						() => (
+							<General
+								title={ __( 'Settings', 'barrio-suite' ) }
+								sections={ ALT_SECTIONS }
+							/>
+						),
+					],
+				].filter( Boolean ) }
+			/>
+		),
+	},
 };
 // La messa online è una vista della Bacheca: niente voce di menu.
 if ( params.has( 'launch' ) ) {

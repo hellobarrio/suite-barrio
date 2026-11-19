@@ -5,6 +5,7 @@ namespace BarrioSuite\Alt;
 use BarrioSuite\Admin;
 use BarrioSuite\Ai;
 use BarrioSuite\I18n;
+use BarrioSuite\Roles;
 use WP_Error;
 use WP_Post;
 use WP_Query;
@@ -13,13 +14,16 @@ use WP_REST_Response;
 
 /**
  * Testi alternativi (PLAN-MODULI.md §8): l'alt delle immagini, e a scelta il titolo, scritti dall'AI del core
- * (src/Ai.php) guardando l'immagine. Dal pulsante nei dettagli dell'allegato, dalla scheda di Barrio → Contenuti e,
- * se acceso, dopo il caricamento. Nessun dato nuovo: l'alt è il meta del core, il titolo è post_title.
+ * (src/Ai.php) guardando l'immagine. Dal pulsante nei dettagli dell'allegato, dalla pagina Barrio → Testi alternativi
+ * e, se acceso, dopo il caricamento. Nessun dato nuovo: l'alt è il meta del core, il titolo è post_title.
  *
  * @phpstan-type Settings array{on_upload: bool, title: bool}
  * @phpstan-type Text array{alt: string, title: string}
  */
 final class Module {
+
+	// Chi genera (Permessi), oltre a upload_files e a edit_post sull'immagine. Dalla migrazione 0001.
+	public const CAP = 'barrio_generate_alt';
 
 	// Non in autoload: si legge nell'admin e dopo un caricamento.
 	private const OPTION = 'barrio_alt';
@@ -47,6 +51,8 @@ final class Module {
 		add_action( self::CRON, [ self::class, 'cron' ] );
 		add_filter( 'attachment_fields_to_edit', [ self::class, 'fields' ], 10, 2 );
 		add_action( 'wp_enqueue_media', [ self::class, 'enqueue' ] );
+		// Dopo i campi dell'immagine, che WordPress stampa con la priorità di default.
+		add_action( 'edit_form_after_title', [ self::class, 'edit_screen' ], 11 );
 	}
 
 	public static function deactivate(): void {
@@ -54,30 +60,27 @@ final class Module {
 	}
 
 	// L'opzione la elimina il core (src/Uninstall.php); gli alt sono del core e restano.
-	public static function uninstall(): void {}
+	public static function uninstall(): void {
+		foreach ( wp_roles()->role_objects as $role ) {
+			$role->remove_cap( self::CAP );
+		}
+	}
 
 	public static function menu(): void {
-		Admin::contents_tab( 'upload_files' );
+		if ( self::can() ) {
+			Admin::add_page( 'barrio-alt', _x( 'Alt text', 'module name', 'barrio-suite' ), self::CAP );
+		}
 	}
 
 	/**
-	 * In window.barrioAdmin.alt, per la scheda di Barrio → Contenuti e la card della Bacheca, a chi carica i media.
-	 * Le impostazioni solo agli amministratori.
+	 * In window.barrioAdmin.alt, per la pagina e la card della Bacheca, a chi genera. Senza, il JavaScript sa che il
+	 * modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
 	 */
 	public static function admin_data( array $data ): array {
-		if ( ! current_user_can( 'upload_files' ) ) {
-			return $data;
-		}
-		return $data + [
-			'alt' => [
-				'ai'       => Ai::is_ready(),
-				'missing'  => self::count( true ),
-				'settings' => current_user_can( 'manage_options' ) ? self::settings() : null,
-			],
-		];
+		return self::can() ? $data + [ 'alt' => [ 'ai' => Ai::is_ready() ] ] : $data;
 	}
 
 	public static function register(): void {
@@ -88,7 +91,7 @@ final class Module {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ self::class, 'images' ],
-				'permission_callback' => static fn(): bool => current_user_can( 'upload_files' ),
+				'permission_callback' => [ self::class, 'can' ],
 				'args'                => [
 					'search' => [
 						'type'    => 'string',
@@ -130,7 +133,7 @@ final class Module {
 			[
 				'methods'             => 'POST',
 				'callback'            => [ self::class, 'generate_route' ],
-				'permission_callback' => static fn( WP_REST_Request $request ): bool => current_user_can( 'edit_post', (int) $request['id'] ),
+				'permission_callback' => static fn( WP_REST_Request $request ): bool => self::can() && current_user_can( 'edit_post', (int) $request['id'] ),
 				'args'                => [
 					// Scrive i testi generati, solo dove mancano.
 					'save' => [
@@ -156,6 +159,7 @@ final class Module {
 					'args'                => [
 						'on_upload' => [ 'type' => 'boolean' ],
 						'title'     => [ 'type' => 'boolean' ],
+						'roles'     => Roles::schema( [ self::CAP ] ),
 					],
 				],
 			]
@@ -169,13 +173,21 @@ final class Module {
 	}
 
 	public static function get(): WP_REST_Response {
-		return new WP_REST_Response( self::settings() );
+		return new WP_REST_Response( self::settings() + Roles::get( [ self::CAP ] ) );
 	}
 
 	// Un valore assente resta com'è.
 	public static function put( WP_REST_Request $request ): WP_REST_Response {
 		update_option( self::OPTION, array_intersect_key( $request->get_params(), self::DEFAULTS ) + self::settings(), false );
+		if ( is_array( $request['roles'] ) ) {
+			Roles::save( [ self::CAP ], $request['roles'] );
+		}
 		return self::get();
+	}
+
+	// La pagina, la sua REST e i pulsanti: chi carica i media, tra i ruoli scelti nei Permessi.
+	public static function can(): bool {
+		return current_user_can( 'upload_files' ) && current_user_can( self::CAP );
 	}
 
 	// Le immagini, una pagina alla volta, con ricerca, filtro e ordinamento sul server, come le registrazioni.
@@ -261,36 +273,52 @@ final class Module {
 	}
 
 	/**
-	 * "Genera con AI" nei dettagli di un'immagine, nella finestra dei media e nella schermata di modifica, a chi può
-	 * modificarla. Lo script riempie i campi dell'alt e del titolo.
+	 * "Genera con AI" nei dettagli di un'immagine nella finestra dei media. Nella schermata di modifica i campi dei
+	 * plugin stanno in una tabella stretta: lì lo stampa edit_screen().
 	 *
 	 * @param array<string, array<string, mixed>> $fields
 	 * @return array<string, array<string, mixed>>
 	 */
 	public static function fields( array $fields, WP_Post $post ): array {
-		if ( ! wp_attachment_is_image( $post ) || ! self::supported( $post->post_mime_type ) || ! current_user_can( 'edit_post', $post->ID ) ) {
-			return $fields;
+		$button = self::button( $post );
+		if ( '' !== $button ) {
+			$fields['barrio_alt'] = [
+				'label'        => '',
+				'input'        => 'html',
+				'html'         => $button,
+				'show_in_edit' => false,
+			];
 		}
-		// La schermata di modifica non carica la finestra dei media: lo script si aggiunge qui.
-		self::enqueue();
-		$ready                = Ai::is_ready();
-		$fields['barrio_alt'] = [
-			'label' => '',
-			'input' => 'html',
-			'html'  => sprintf(
-				// Largo quanto i campi sopra.
-				'<button type="button" class="button barrio-alt-generate" style="width: 100%%" data-id="%d"%s>%s</button><p class="help barrio-alt-status" aria-live="polite">%s</p>',
-				$post->ID,
-				disabled( $ready, false, false ),
-				esc_html__( 'Generate alt text with AI', 'barrio-suite' ),
-				$ready ? '' : esc_html__( 'To use it, set up Google AI in Barrio → Settings.', 'barrio-suite' )
-			),
-		];
 		return $fields;
 	}
 
+	// Nella schermata di modifica di un'immagine, sotto la descrizione e largo come i campi di WordPress.
+	public static function edit_screen( WP_Post $post ): void {
+		if ( 'attachment' === $post->post_type ) {
+			echo self::button( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escape in button().
+		}
+	}
+
+	// Il pulsante, largo quanto i campi sopra, a chi può generare per questa immagine; '' agli altri. Lo script
+	// riempie i campi dell'alt e del titolo.
+	private static function button( WP_Post $post ): string {
+		if ( ! wp_attachment_is_image( $post ) || ! self::supported( $post->post_mime_type ) || ! self::can() || ! current_user_can( 'edit_post', $post->ID ) ) {
+			return '';
+		}
+		// La schermata di modifica non carica la finestra dei media: lo script si aggiunge qui.
+		self::enqueue();
+		$ready = Ai::is_ready();
+		return sprintf(
+			'<div class="barrio-alt-field"><button type="button" class="button barrio-alt-generate" style="width: 100%%" data-id="%d"%s>%s</button><p class="help description barrio-alt-status" aria-live="polite">%s</p></div>',
+			$post->ID,
+			disabled( $ready, false, false ),
+			esc_html__( 'Generate alt text with AI', 'barrio-suite' ),
+			$ready ? '' : esc_html__( 'To use it, set up Google AI in Barrio → Settings.', 'barrio-suite' )
+		);
+	}
+
 	public static function enqueue(): void {
-		if ( wp_script_is( 'barrio-alt' ) || ! current_user_can( 'upload_files' ) ) {
+		if ( wp_script_is( 'barrio-alt' ) || ! self::can() ) {
 			return;
 		}
 		wp_enqueue_script( 'barrio-alt', plugins_url( 'assets/editor/alt.js', __DIR__ ), [ 'wp-api-fetch' ], BARRIO_SUITE_VERSION, true );

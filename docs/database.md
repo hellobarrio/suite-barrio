@@ -231,7 +231,8 @@ Nessuna tabella e nessun dato nuovo: l'alt è il meta del core `_wp_attachment_i
 dell'allegato. "Senza testo alternativo" è il meta assente o vuoto, una `meta_query` sull'indice `meta_key` del core.
 L'opzione `barrio_alt` (non in autoload: si legge nell'admin e dopo un caricamento) ha `on_upload` e `title`, spenti
 di default, validati dallo schema della rotta `PUT /alt/settings`. Dopo un caricamento resta, fino alla sua
-esecuzione, un evento singolo di WP-Cron (`barrio_alt_generate`), che spegnere il modulo elimina.
+esecuzione, un evento singolo di WP-Cron (`barrio_alt_generate`), che spegnere il modulo elimina. L'unica migrazione,
+la `0001`, assegna `barrio_generate_alt` ai ruoli con `upload_files`.
 
 ## Modulo Duplicazione
 
