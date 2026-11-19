@@ -3999,7 +3999,7 @@ msgid "Today: %s"
 msgstr "Oggi: %s"
 
 #: modules/hours/src/Render.php:116
-#: modules/hours/src/Render.php:313
+#: modules/hours/src/Render.php:299
 msgid "Open 24 hours"
 msgstr "Aperto 24 ore su 24"
 
@@ -4016,7 +4016,7 @@ msgid "Open · closes %1$s at %2$s"
 msgstr "Aperto · chiude %1$s alle %2$s"
 
 #: modules/hours/src/Render.php:121
-#: modules/hours/src/Render.php:310
+#: modules/hours/src/Render.php:296
 #: build/barrio-admin.js:40
 msgid "Closed"
 msgstr "Chiuso"
@@ -4039,7 +4039,7 @@ msgstr "Chiuso · apre domani alle %s"
 msgid "Closed · opens %1$s at %2$s"
 msgstr "Chiuso · apre %1$s alle %2$s"
 
-#: modules/hours/src/Render.php:265
+#: modules/hours/src/Render.php:266
 msgid "Special opening hours"
 msgstr "Orari speciali"
 
@@ -4152,18 +4152,6 @@ msgid "How to show them"
 msgstr "Come mostrarli"
 
 #: build/barrio-admin.js:41
-msgid "In the block editor: the Opening hours block, with the week, today or open now."
-msgstr "Nell'editor a blocchi: il blocco Orari, con la settimana, oggi o aperto ora."
-
-#: build/barrio-admin.js:41
-msgid "Elsewhere, a shortcode:"
-msgstr "Altrove, uno shortcode:"
-
-#: build/barrio-admin.js:41
-msgid "With the SEO module, also in the schema of the organization, for Google."
-msgstr "Con il modulo SEO, anche nello schema dell'organizzazione, per Google."
-
-#: build/barrio-admin.js:41
 msgid "Who can edit the opening hours and the special days. Administrators can always do everything; only administrators choose the source and change these settings."
 msgstr "Chi può modificare gli orari e i giorni speciali. Gli amministratori possono sempre fare tutto; solo gli amministratori scelgono la fonte e cambiano queste impostazioni."
 
@@ -4245,7 +4233,11 @@ msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui scegli la 
 msgid "The opening hours come from Google, every night: to change them here, an administrator has to choose the manual source."
 msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui un amministratore deve scegliere la fonte manuale."
 
-#. translators: short date format without the year, for the special days of this year: see https://www.php.net/manual/datetime.format.php
-#: modules/hours/src/Render.php:273
+#. translators: short date format without the year, for the special days within a year: see https://www.php.net/manual/datetime.format.php
+#: modules/hours/src/Render.php:220
 msgid "M j"
 msgstr "j M"
+
+#: build/barrio-admin.js:41
+msgid "In the block editor, the Opening hours block: the week, today or open now. Elsewhere, a shortcode. With the SEO module the hours are also in the schema of the organization, for Google."
+msgstr "Nell'editor a blocchi, il blocco Orari: la settimana, oggi o aperto ora. Altrove, uno shortcode. Con il modulo SEO gli orari sono anche nello schema dell'organizzazione, per Google."
