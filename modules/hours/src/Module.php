@@ -325,7 +325,7 @@ final class Module {
 		return is_wp_error( $synced ) ? $synced : self::get();
 	}
 
-	// Come appaiono nel sito lo stato e la settimana non ancora salvati, nella lingua scelta.
+	// Come appare nel sito la settimana non ancora salvata, con i giorni speciali, nella lingua scelta.
 	public static function preview( WP_REST_Request $request ): WP_REST_Response {
 		/** @var Settings $settings */
 		$settings = array_replace(
@@ -335,7 +335,7 @@ final class Module {
 				'exceptions' => self::sort( (array) $request['exceptions'] ),
 			]
 		);
-		$html     = I18n::in( I18n::resolve( $request['lang'] ), static fn(): string => Render::html( $settings, 'status' ) . Render::html( $settings, 'week' ) );
+		$html     = I18n::in( I18n::resolve( $request['lang'] ), static fn(): string => Render::html( $settings, 'week' ) );
 		return new WP_REST_Response( [ 'html' => $html ] );
 	}
 

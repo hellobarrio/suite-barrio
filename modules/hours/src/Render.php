@@ -252,13 +252,11 @@ final class Render {
 		$specials = '';
 		foreach ( $settings['exceptions'] as $special ) {
 			$until     = ( new DateTimeImmutable( $special['to'], wp_timezone() ) )->modify( '+1 day' )->getTimestamp();
-			$note      = self::note( $special );
 			$specials .= sprintf(
-				'<tr data-until="%d"><th scope="row">%s</th><td>%s%s</td></tr>',
+				'<tr data-until="%d"><th scope="row">%s</th><td>%s</td></tr>',
 				$until,
 				esc_html( self::dates( $special, self::short_date() ) ),
-				self::spans( self::ranges( $special['hours'] ) ),
-				'' === $note ? '' : '<span class="barrio-hours__note">' . esc_html( $note ) . '</span>'
+				self::spans( self::ranges( $special['hours'] ) )
 			);
 		}
 		if ( '' !== $specials ) {

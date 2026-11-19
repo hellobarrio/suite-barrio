@@ -2185,6 +2185,12 @@ a.barrio-badge {
 	width: auto;
 }
 
+/* Nella modale del giorno speciale l'orario sta tra due linee. */
+.barrio-modal__body .barrio-hours-day {
+	padding-block: 16px;
+	border-block: 1px solid var(--barrio-line);
+}
+
 /* L'anteprima degli orari: l'HTML del sito, con lo spazio delle card. */
 .barrio-hours-preview {
 	display: grid;

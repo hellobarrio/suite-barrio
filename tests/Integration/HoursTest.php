@@ -121,7 +121,7 @@ final class HoursTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<tr><th scope="row">Wed–Thu</th><td><span>Closed</span></td></tr>', $week );
 		$this->assertStringContainsString( '<tr><th scope="row">Fri</th><td><span>20:00–02:00</span></td></tr>', $week );
 		$this->assertStringContainsString( '<tr><th scope="row">Sun</th><td><span>Open 24 hours</span></td></tr>', $week );
-		$this->assertMatchesRegularExpression( '#<caption>Special opening hours</caption><tbody><tr data-until="\d+"><th scope="row">24 December 2099 – 26 December 2099</th><td><span>Closed</span><span class="barrio-hours__note">Christmas</span></td></tr></tbody>#', $week, 'Another year: the date format of the site.' );
+		$this->assertMatchesRegularExpression( '#<caption>Special opening hours</caption><tbody><tr data-until="\d+"><th scope="row">24 December 2099 – 26 December 2099</th><td><span>Closed</span></td></tr></tbody>#', $week, 'Another year: the date format of the site.' );
 		$this->assertSame( $week, do_shortcode( '[barrio_hours group="1"]' ), 'The shortcode is the same as the block.' );
 		$this->assertStringContainsString( '<th scope="row">Monday</th>', do_shortcode( '[barrio_hours]' ) );
 		$this->assertTrue( wp_style_is( 'barrio-hours' ) );
@@ -384,7 +384,7 @@ final class HoursTest extends WP_UnitTestCase {
 			]
 		)->get_data()['html'];
 
-		$this->assertStringContainsString( 'is-status', $html );
+		$this->assertStringNotContainsString( 'is-status', $html );
 		$this->assertStringContainsString( '<tr><th scope="row">Thursday</th><td><span>08:30–12:30</span></td></tr>', $html );
 		$this->assertSame( [], array_filter( Module::settings()['week'] ) );
 	}

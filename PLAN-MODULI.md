@@ -230,7 +230,8 @@ banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
     restano vuote.
 - **Nel sito**: il blocco `barrio/hours` (dinamico) e lo shortcode `[barrio_hours]`, con lo stesso render. Tre forme:
   - la settimana: una tabella, con i giorni uguali raggruppati se si sceglie ("Lun–Ven"), una fascia per riga, e sotto
-    i giorni speciali in una tabella uguale, con la data breve senza l'anno ("24 dic – 26 dic") e la nota;
+    i giorni speciali in una tabella uguale, con la data breve senza l'anno ("24 dic – 26 dic") e senza la nota, che
+    si legge in "oggi" quel giorno;
   - oggi;
   - lo stato ("Aperto · chiude alle 19:00"), una pastiglia verde o rossa con i colori del testo del tema.
 
@@ -273,8 +274,8 @@ che si potano da sole. Lo schema fa i controlli che in una tabella farebbero i C
 - **Orari** (`barrio_manage_hours`), un solo Salva:
   - card Settimana: una riga per giorno, l'interruttore Aperto, le fasce;
   - card Giorni speciali: "Aggiungi" nell'intestazione, una modale per data, fasce e nota;
-  - colonna destra, ferma mentre si scorre: come appare nel sito (lo stato e la settimana, anche non salvati, resi
-    dal server come il blocco);
+  - colonna destra, ferma mentre si scorre: come appare nel sito la settimana con i giorni speciali, anche non
+    salvata, resa dal server come il blocco;
   - con la fonte Google un avviso, con il collegamento a Impostazioni per gli amministratori, e l'errore di Google;
   - la lingua nella barra serve solo alle note.
 - **Impostazioni** (`manage_options`), un solo Salva:

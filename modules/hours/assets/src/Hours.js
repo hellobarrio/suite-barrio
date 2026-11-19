@@ -83,7 +83,8 @@ const AddButton = ( { text, onClick } ) => (
 );
 
 /**
- * Le fasce di un giorno: apertura e chiusura, una chiusura non dopo l'apertura vale il giorno dopo.
+ * Le fasce di un giorno: apertura e chiusura, una chiusura non dopo l'apertura vale il giorno dopo. I bottoni sotto
+ * sono larghi quanto la card e se la dividono.
  *
  * @param {Object}                 props
  * @param {Array}                  props.slots
@@ -128,7 +129,7 @@ function Slots( { slots, onChange, actions } ) {
 					</button>
 				</div>
 			) ) }
-			<div className="barrio-row">
+			<div className="barrio-row is-fill">
 				<AddButton
 					text={ __( 'Add hours', 'barrio-suite' ) }
 					onClick={ () =>
@@ -194,10 +195,13 @@ function WeekCard( { week, disabled, onChange } ) {
 											)
 										}
 									>
-										{ __(
-											'Copy to all days',
-											'barrio-suite'
-										) }
+										<Icon name="admin-page" />
+										<span className="barrio-button__text">
+											{ __(
+												'Copy to all days',
+												'barrio-suite'
+											) }
+										</span>
 									</button>
 								}
 							/>
@@ -279,20 +283,26 @@ function SpecialModal( { special, lang, onSave, onClose } ) {
 					value={ value.to }
 					onChange={ set( 'to' ) }
 				/>
-				<Toggle
-					label={ __( 'Open', 'barrio-suite' ) }
-					help={
-						! value.hours.length &&
-						__( 'Closed all day.', 'barrio-suite' )
-					}
-					checked={ value.hours.length > 0 }
-					onChange={ ( open ) =>
-						set( 'hours' )( open ? [ SLOT ] : [] )
-					}
-				/>
-				{ value.hours.length > 0 && (
-					<Slots slots={ value.hours } onChange={ set( 'hours' ) } />
-				) }
+				{ /* Come un giorno della Settimana, tra due linee. */ }
+				<div className="barrio-hours-day">
+					<Toggle
+						label={ __( 'Open', 'barrio-suite' ) }
+						help={
+							! value.hours.length &&
+							__( 'Closed all day.', 'barrio-suite' )
+						}
+						checked={ value.hours.length > 0 }
+						onChange={ ( open ) =>
+							set( 'hours' )( open ? [ SLOT ] : [] )
+						}
+					/>
+					{ value.hours.length > 0 && (
+						<Slots
+							slots={ value.hours }
+							onChange={ set( 'hours' ) }
+						/>
+					) }
+				</div>
 			</Fixed>
 			<Text
 				label={ __( 'Note', 'barrio-suite' ) }
@@ -542,7 +552,7 @@ function SourceCard( { data, draft, set, onData, onNotice } ) {
 	);
 }
 
-// Come appaiono nel sito lo stato e la settimana, anche non salvati: li scrive il server, come il blocco.
+// Come appare nel sito la settimana, anche non salvata: la scrive il server, come il blocco.
 function Preview( { week, exceptions, lang } ) {
 	const [ html, setHtml ] = useState( null );
 	useEffect( () => {
@@ -583,33 +593,23 @@ function Preview( { week, exceptions, lang } ) {
 	);
 }
 
+// Gli shortcode come i merge tag delle email: etichette che si selezionano e si copiano.
 const HowTo = () => (
 	<Card
 		className="barrio-wide"
 		icon="editor-code"
 		title={ __( 'How to show them', 'barrio-suite' ) }
+		description={ __(
+			'In the block editor, the Opening hours block: the week, today or open now. Elsewhere, a shortcode. With the SEO module the hours are also in the schema of the organization, for Google.',
+			'barrio-suite'
+		) }
 	>
-		<ul className="barrio-howto">
-			<li>
-				{ __(
-					'In the block editor: the Opening hours block, with the week, today or open now.',
-					'barrio-suite'
-				) }
-			</li>
-			<li>
-				{ __( 'Elsewhere, a shortcode:', 'barrio-suite' ) }{ ' ' }
-				<code>[barrio_hours]</code>,{ ' ' }
-				<code>[barrio_hours group=&quot;1&quot;]</code>,{ ' ' }
-				<code>[barrio_hours show=&quot;today&quot;]</code>,{ ' ' }
-				<code>[barrio_hours show=&quot;status&quot;]</code>
-			</li>
-			<li>
-				{ __(
-					'With the SEO module, also in the schema of the organization, for Google.',
-					'barrio-suite'
-				) }
-			</li>
-		</ul>
+		<div className="barrio-merge-tags">
+			<code>[barrio_hours]</code>
+			<code>[barrio_hours group=&quot;1&quot;]</code>
+			<code>[barrio_hours show=&quot;today&quot;]</code>
+			<code>[barrio_hours show=&quot;status&quot;]</code>
+		</div>
 	</Card>
 );
 
