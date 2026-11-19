@@ -13,7 +13,7 @@ use WP_UnitTestCase;
 // Nel SQL {tabella} diventa il nome completo, {nome} l'id creato in set_up, {p} il prefisso.
 final class SchemaTest extends WP_UnitTestCase {
 
-	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_integrations', 'form_integrations_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes', 'redirects' ];
+	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_integrations', 'form_integrations_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes', 'redirects', 'banners', 'banners_i18n' ];
 
 	/** @var array<string, int> */
 	private array $id = [];
@@ -55,6 +55,21 @@ final class SchemaTest extends WP_UnitTestCase {
 				'source' => '/old',
 				'target' => '/new',
 				'code'   => 301,
+			]
+		);
+		$this->id['banner']   = $this->insert(
+			'banners',
+			[
+				'is_enabled' => 1,
+				'settings'   => '{}',
+			]
+		);
+		$this->insert(
+			'banners_i18n',
+			[
+				'banner_id' => $this->id['banner'],
+				'lang'      => 'it',
+				'text'      => 'Saldi',
 			]
 		);
 	}
@@ -114,6 +129,14 @@ final class SchemaTest extends WP_UnitTestCase {
 			'301 without a target'                   => [ 'UPDATE {redirects} SET target = NULL WHERE id = {redirect}', '{p}br_target_chk' ],
 			'redirect target with javascript'        => [ "UPDATE {redirects} SET target = 'javascript:alert(1)' WHERE id = {redirect}", '{p}br_url_chk' ],
 			'redirect is_auto not 0 or 1'            => [ 'UPDATE {redirects} SET is_auto = 2 WHERE id = {redirect}', '{p}br_auto_chk' ],
+			'banner is_enabled not 0 or 1'           => [ 'UPDATE {banners} SET is_enabled = 2 WHERE id = {banner}', '{p}bb_enabled_chk' ],
+			'banner ending before it starts'         => [ "UPDATE {banners} SET starts_at = '2030-02-01', ends_at = '2030-01-01' WHERE id = {banner}", '{p}bb_period_chk' ],
+			'banner ending when it starts'           => [ "UPDATE {banners} SET starts_at = '2030-01-01', ends_at = '2030-01-01' WHERE id = {banner}", '{p}bb_period_chk' ],
+			'banner settings a list'                 => [ "UPDATE {banners} SET settings = '[]' WHERE id = {banner}", '{p}bb_settings_chk' ],
+			'banner text lang uppercase'             => [ "UPDATE {banners_i18n} SET lang = 'IT' WHERE banner_id = {banner}", '{p}bbi_lang_chk' ],
+			'empty banner text'                      => [ "UPDATE {banners_i18n} SET text = '' WHERE banner_id = {banner}", '{p}bbi_text_chk' ],
+			'banner link without a scheme'           => [ "UPDATE {banners_i18n} SET link_url = 'example.com/saldi' WHERE banner_id = {banner}", '{p}bbi_url_chk' ],
+			'banner link with javascript'            => [ "UPDATE {banners_i18n} SET link_url = 'javascript:alert(1)' WHERE banner_id = {banner}", '{p}bbi_url_chk' ],
 
 			// FOREIGN KEY: righe figlie senza padre.
 			'texts of a missing form'                => [ "INSERT INTO {form_i18n} (form_id, lang, submit_label) VALUES (999999, 'it', 'Invia')", '{p}bfi_form_fk' ],
@@ -129,6 +152,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'value of a missing field'               => [ "INSERT INTO {entry_values} (entry_id, field_id, value) VALUES ({entry}, 999999, 'x')", '{p}bev_field_fk' ],
 			'file of a missing entry'                => [ sprintf( $file, 999999, '{cv}', 'new1' ), '{p}befi_entry_fk' ],
 			'file of a missing field'                => [ sprintf( $file, '{entry}', 999999, 'new2' ), '{p}befi_field_fk' ],
+			'texts of a missing banner'              => [ "INSERT INTO {banners_i18n} (banner_id, lang, text) VALUES (999999, 'it', 'Saldi')", '{p}bbi_banner_fk' ],
 			'note of a missing entry'                => [ "INSERT INTO {entry_notes} (entry_id, source, level, message, created_at) VALUES (999999, 'admin', 'info', 'x', '2026-01-01')", '{p}ben_entry_fk' ],
 
 			// FOREIGN KEY RESTRICT: i padri con dati storici o file non si cancellano.
@@ -150,6 +174,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'two field texts, same lang'             => [ "INSERT INTO {form_fields_i18n} (field_id, lang, label) VALUES ({email}, 'pt-br', 'X')", 'PRIMARY' ],
 			'two values in the same position'        => [ "INSERT INTO {entry_values} (entry_id, field_id, position, value) VALUES ({entry}, {email}, 0, 'b')", 'PRIMARY' ],
 			'two files with the same path'           => [ sprintf( $file, '{entry}', '{cv}', 'a1b2c3' ), 'stored_path' ],
+			'two banner texts, same lang'            => [ "INSERT INTO {banners_i18n} (banner_id, lang, text) VALUES ({banner}, 'it', 'Saldi')", 'PRIMARY' ],
 			'two redirects from the same source'     => [ "INSERT INTO {redirects} (source, target, code, created_at, updated_at) VALUES ('/old', '/other', 302, '2026-01-01', '2026-01-01')", "source'" ],
 		];
 	}
@@ -186,6 +211,10 @@ final class SchemaTest extends WP_UnitTestCase {
 			'sources differ by case'     => [ "INSERT INTO {redirects} (source, target, code, created_at, updated_at) VALUES ('/Old', '/new', 301, '2026-01-01', '2026-01-01')" ],
 			'410 without a target'       => [ 'UPDATE {redirects} SET code = 410, target = NULL WHERE id = {redirect}' ],
 			'absolute redirect target'   => [ "UPDATE {redirects} SET code = 308, target = 'https://example.com/new?a=1' WHERE id = {redirect}" ],
+			'banner with only an end'    => [ "UPDATE {banners} SET starts_at = NULL, ends_at = '2030-01-01' WHERE id = {banner}" ],
+			'banner with a period'       => [ "UPDATE {banners} SET starts_at = '2030-01-01', ends_at = '2030-01-01 00:00:01' WHERE id = {banner}" ],
+			'relative banner link'       => [ "UPDATE {banners_i18n} SET link_url = '/saldi/' WHERE banner_id = {banner}" ],
+			'banner text in emoji'       => [ "UPDATE {banners_i18n} SET text = '🎉' WHERE banner_id = {banner}" ],
 		];
 	}
 
@@ -218,6 +247,12 @@ final class SchemaTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $this->rows( 'form_notifications_i18n', 'notification_id', $this->id['other_notif'] ) );
 		$this->assertSame( 0, $this->rows( 'form_integrations', 'form_id', $this->id['other_form'] ) );
 		$this->assertSame( 0, $this->rows( 'form_integrations_i18n', 'integration_id', $this->id['other_integ'] ) );
+	}
+
+	public function test_deleting_a_banner_cascades_to_its_texts(): void {
+		$this->query( 'DELETE FROM {banners} WHERE id = {banner}' );
+
+		$this->assertSame( 0, $this->rows( 'banners_i18n', 'banner_id', $this->id['banner'] ) );
 	}
 
 	/** @return array<string, array{string, list<string>}> */
@@ -280,6 +315,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'entry_files'   => [ 'created_at' ],
 			'entry_notes'   => [ 'created_at' ],
 			'redirects'     => [ 'created_at', 'updated_at' ],
+			'banners'       => [ 'created_at', 'updated_at' ],
 		];
 		foreach ( $dates[ $table ] ?? [] as $column ) {
 			$row[ $column ] = '2026-01-01 00:00:00';

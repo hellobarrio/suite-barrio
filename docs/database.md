@@ -234,6 +234,32 @@ di default, validati dallo schema della rotta `PUT /alt/settings`. Dopo un caric
 esecuzione, un evento singolo di WP-Cron (`barrio_alt_generate`), che spegnere il modulo elimina. L'unica migrazione,
 la `0001`, assegna `barrio_generate_alt` ai ruoli con `upload_files`.
 
+## Modulo Banner
+
+Due tabelle ([`modules/banners/migrations/0001_banners.php`](../modules/banners/migrations/0001_banners.php); la `0002`
+assegna `barrio_manage_banners` agli amministratori e agli editor), con le regole sopra. I vincoli sono in `SchemaTest`.
+
+```mermaid
+erDiagram
+  BANNERS ||--|{ BANNERS_I18N : "testi"
+```
+
+- **`banners`**: `is_enabled` (`bb_enabled_chk`), il periodo in UTC, `starts_at` ed `ends_at` (NULL: senza inizio o
+  senza fine; la fine dopo l'inizio, `bb_period_chk`), e `settings`, JSON letto e scritto intero (`bb_settings_chk`):
+  posizione, scorrimento, chiusura, colori, nuova scheda e le regole di `Visibility` (dove, chi, giorni dopo la
+  chiusura). Lo stato (spento, programmato, attivo, scaduto) si calcola dal periodo e non si salva. L'indice
+  `enabled_ends` serve agli accesi non scaduti.
+- **`banners_i18n`**: una riga completa per lingua, compresa la principale (`bbi_lang_chk`), con il testo, mai vuoto
+  (`bbi_text_chk`), e il link, un percorso o un URL `http(s)` (`bbi_url_chk`); NULL vuol dire che il banner non è un
+  link. CASCADE dal banner.
+- Solo `BannerRepository` legge e scrive. Valida ogni scrittura con il suo schema JSON (anche `settings`, che il
+  database vede solo come oggetto) e garantisce la riga della lingua principale, che nessun vincolo SQL impone (test
+  in `BannersTest`). Testi e banner si scrivono in una transazione.
+- **Nel sito nessuna query**: gli accesi non scaduti, con i testi, stanno nel transient `barrio_banners_live`, senza
+  scadenza e quindi in autoload (vuoto con zero banner). Ogni scrittura lo elimina e fa partire
+  `barrio_banners_changed`; quelli che scadono dopo li scarta PHP. La disinstallazione con i dati lo elimina con le
+  tabelle.
+
 ## Modulo Orari
 
 Nessuna tabella: un solo record, letto intero da ogni blocco. L'opzione `barrio_hours` (in autoload: la leggono il

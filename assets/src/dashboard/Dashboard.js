@@ -5,6 +5,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 
 import { AltCard } from '../../../modules/alt/assets/src/Alt.js';
+import { BannersCard } from '../../../modules/banners/assets/src/Banners.js';
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { HoursCard } from '../../../modules/hours/assets/src/Hours.js';
 import { PerformanceCard } from '../../../modules/performance/assets/src/Performance.js';
@@ -36,6 +37,7 @@ export function Dashboard() {
 				<FormsCard />
 				<SeoCard />
 				<AltCard />
+				<BannersCard />
 				<HoursCard />
 				<ContentsCard />
 				<PerformanceCard />

@@ -7,6 +7,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { ALT } from '../../../modules/alt/assets/src/Alt.js';
+import { BANNERS } from '../../../modules/banners/assets/src/Banners.js';
 import { BLOCKS } from '../../../modules/blocks/assets/src/Blocks.js';
 import { DUPLICATE } from '../../../modules/duplicate/assets/src/Duplicate.js';
 import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
@@ -39,6 +40,7 @@ const MODULES = {
 		),
 	},
 	alt: ALT,
+	banners: BANNERS,
 	hours: HOURS,
 	blocks: BLOCKS,
 	ordering: ORDERING,
@@ -113,7 +115,7 @@ const uninstallSection = {
 					'barrio-suite'
 				) }
 				help={ __(
-					'Forms, entries with their files, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first.',
+					'Forms, entries with their files, banners, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first.',
 					'barrio-suite'
 				) }
 				checked={ draft }

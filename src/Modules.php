@@ -17,6 +17,7 @@ final class Modules {
 		'forms'       => Forms\Module::class,
 		'seo'         => Seo\Module::class,
 		'alt'         => Alt\Module::class,
+		'banners'     => Banners\Module::class,
 		'hours'       => Hours\Module::class,
 		// Prima di Prestazioni: l'ordine dei moduli è quello del menu, con la pagina Contenuti e le sue schede.
 		'blocks'      => Blocks\Module::class,

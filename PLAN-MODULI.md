@@ -44,15 +44,18 @@ acceso.
   consenso, perché ricorda solo una scelta di chi visita.
 - **Più attivi insieme**, come in Popup Maker. In una pagina compaiono al più un popup e un banner: tra quelli che
   valgono per la pagina, il più recente. Una promozione con un periodo creata dopo vince su quella di sempre, senza
-  un campo priorità.
+  un campo priorità. Si sceglie per dispositivo (fatto in M6): se il più recente è solo per i telefoni, sui desktop
+  resta quello di sempre, e la pagina ha i due elementi (`Visibility::pick()`).
 - **Lingue**: come nei form, ogni lingua ha la sua riga di testi completa. Nell'editor un testo non tradotto è quello
   della lingua principale, e al salvataggio la riga si completa (`fillTranslations`). Nel sito e in GraphQL si legge
   la riga della lingua, o quella principale se la lingua non ne ha una: la stessa regola ovunque.
 - **ID nella lingua principale**: le regole salvano gli ID dei contenuti e dei termini nella lingua principale. Nel
   sito l'ID della pagina si porta alla lingua principale con il filtro nuovo `barrio_main_language_id`, a cui
   risponde l'estensione WPML (`wpml_object_id`): una regola sulla pagina "Chi siamo" vale anche per "About us".
-- **Nel sito**: il server valuta pagina, utente e periodo e stampa l'elemento. Il JavaScript controlla dispositivo
-  (`matchMedia`), periodo e frequenza: con la cache di pagina l'HTML può essere vecchio, il browser no.
+- **Nel sito**: il server valuta pagina, utente e periodo e stampa l'elemento. Il JavaScript controlla periodo e
+  frequenza: con la cache di pagina l'HTML può essere vecchio, il browser no. Il dispositivo del banner lo sceglie il
+  CSS (`data-device`, 768px), senza scatti al caricamento (fatto in M6); il popup, che si apre dopo, potrà usare
+  `matchMedia`.
 - **Niente query a ogni pagina**: gli elementi accesi e non scaduti di un modulo, con i loro testi, stanno in un
   transient senza scadenza (`barrio_popups_live`, `barrio_banners_live`) che ogni scrittura elimina; con zero
   elementi è un array vuoto. CSS e JS solo nelle pagine con un popup o un banner.
