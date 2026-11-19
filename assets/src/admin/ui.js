@@ -199,12 +199,14 @@ export function LangNotice( { lang } ) {
 	);
 }
 
-// Impostazioni uguali in tutte le lingue: nelle altre lingue il fieldset le disattiva tutte.
-export const Fixed = ( { lang, children } ) => (
-	<fieldset
-		className="barrio-fixed"
-		disabled={ lang !== window.barrioAdmin.languages[ 0 ] }
-	>
+// Impostazioni uguali in tutte le lingue: nelle altre lingue il fieldset le disattiva tutte. Con disabled invece
+// della lingua, quelle uguali per tutti i ruoli di Blocchi.
+export const Fixed = ( {
+	lang,
+	disabled = lang !== window.barrioAdmin.languages[ 0 ],
+	children,
+} ) => (
+	<fieldset className="barrio-fixed" disabled={ disabled }>
 		{ children }
 	</fieldset>
 );
@@ -425,8 +427,94 @@ export function Card( {
 }
 
 /**
+ * Le card dei tipi di contenuto e delle tassonomie degli strumenti di Contenuti (Admin::content_types()), con un
+ * interruttore per tipo. Sotto ogni tassonomia i tipi che la usano: due possono chiamarsi entrambe "Categorie".
+ *
+ * @param {Object}                                             props
+ * @param {Object}                                             props.cards    { post_types, taxonomies }: icon, title e description di ogni card.
+ * @param {(group: string, name: string) => boolean}           props.checked
+ * @param {(group: string, name: string, on: boolean) => void} props.onChange
+ */
+export const TypeCards = ( { cards, checked, onChange } ) =>
+	Object.entries( cards ).map( ( [ group, card ] ) => (
+		<Card key={ group } className="barrio-wide" { ...card }>
+			{ window.barrioAdmin.contentTypes[ group ].map( ( type ) => (
+				<Toggle
+					key={ type.name }
+					label={ type.label }
+					help={
+						type.types &&
+						sprintf(
+							/* translators: %s: content types, separated by commas. */
+							__( 'Used by %s', 'barrio-suite' ),
+							type.types.join( ', ' )
+						)
+					}
+					checked={ checked( group, type.name ) }
+					onChange={ ( on ) => onChange( group, type.name, on ) }
+				/>
+			) ) }
+		</Card>
+	) );
+
+/**
+ * La card Permessi di un modulo (src/Roles.php): per ogni ruolo un interruttore per capability. Con una capability
+ * sola ogni riga è il ruolo e il suo interruttore: cosa permette lo dice la descrizione. Gli amministratori non sono
+ * in roles: tutto acceso e fisso.
+ *
+ * @param {Object}                  props
+ * @param {string}                  props.description
+ * @param {Object}                  props.caps        { capability: etichetta }, nell'ordine in cui si salvano.
+ * @param {Object}                  props.names       I nomi tradotti di tutti i ruoli (role_names).
+ * @param {Object}                  props.roles       Per ruolo le capability che ha.
+ * @param {(roles: Object) => void} props.onChange
+ */
+export function Permissions( { description, caps, names, roles, onChange } ) {
+	const keys = Object.keys( caps );
+	const toggle = ( role, cap, label ) => (
+		<Toggle
+			key={ `${ role }-${ cap }` }
+			label={ label }
+			disabled={ ! roles[ role ] }
+			checked={ ! roles[ role ] || roles[ role ].includes( cap ) }
+			// Nell'ordine di caps, così il confronto con quelle salvate non dipende dall'ordine dei clic.
+			onChange={ ( on ) =>
+				onChange( {
+					...roles,
+					[ role ]: keys.filter( ( key ) =>
+						key === cap ? on : roles[ role ].includes( key )
+					),
+				} )
+			}
+		/>
+	);
+	return (
+		<Card
+			className="barrio-wide barrio-permissions"
+			icon="groups"
+			title={ __( 'Permissions', 'barrio-suite' ) }
+			description={ description }
+		>
+			{ Object.entries( names ).map( ( [ role, name ] ) =>
+				1 === keys.length ? (
+					toggle( role, keys[ 0 ], name )
+				) : (
+					<Group key={ role } label={ name }>
+						<div className="barrio-checks">
+							{ keys.map( ( cap ) =>
+								toggle( role, cap, caps[ cap ] )
+							) }
+						</div>
+					</Group>
+				)
+			) }
+		</Card>
+	);
+}
+
+/**
  * Ogni modale del plugin: l'intestazione resta in alto, sempre separata dal contenuto da una linea, e i bottoni
- * (footer) restano in fondo mentre il contenuto scorre. WordPress la mette in fondo alla pagina, fuori da
+ * (footer) restano in fondo. Scorre solo il corpo, così la scrollbar non passa sui bottoni. WordPress la mette in fondo alla pagina, fuori da
  * .barrio-admin: la classe la porta anche qui, con gli stili dei campi. Le altre props sono quelle di Modal.
  *
  * @param {Object} props
@@ -439,7 +527,7 @@ export const Dialog = ( { className = '', footer, children, ...props } ) => (
 		className={ `barrio-admin barrio-modal ${ className }` }
 		{ ...props }
 	>
-		{ children }
+		<div className="barrio-modal__body">{ children }</div>
 		{ footer && <div className="barrio-modal__footer">{ footer }</div> }
 	</Modal>
 );
@@ -456,11 +544,11 @@ export const Details = ( { title, children } ) => (
 );
 
 /**
- * Nella Bacheca, la card di un modulo acceso.
+ * Nella Bacheca, la card di un modulo acceso, con al massimo tre numeri: le card restano alte uguali.
  *
  * @param {Object}                       props
  * @param {Object}                       props.module   icon, title, description e color del modulo.
- * @param {Array<[string, number]>|null} props.stats    [ etichetta, numero ]; null mentre si caricano.
+ * @param {Array<[string, number]>|null} props.stats    [ etichetta, numero ]; null mentre si caricano. Oltre il terzo non si mostrano.
  * @param {Array<[string, string]>}      props.actions  [ testo, link ], la prima è la principale.
  * @param {Object}                       [props.notice] Un errore nel caricare i numeri.
  */
@@ -482,7 +570,7 @@ export const ModuleCard = ( { module, stats, actions, notice } ) => (
 			<Notice notice={ notice } />
 			{ stats ? (
 				<dl className="barrio-module__stats">
-					{ stats.map( ( [ label, value ] ) => (
+					{ stats.slice( 0, 3 ).map( ( [ label, value ] ) => (
 						<div key={ label }>
 							<dt>{ label }</dt>
 							<dd>{ value.toLocaleString() }</dd>
@@ -520,6 +608,54 @@ export function SectionHead( { title, level = 2, children } ) {
 	);
 }
 
+/**
+ * Le schede di una pagina e il contenuto di quella aperta. Ogni scheda è un URL (&tab=): link normali, niente
+ * router. Senza tab, o con una che chi guarda non ha, si apre la prima.
+ *
+ * @param {Object} props
+ * @param {string} props.page Il ?page= della pagina.
+ * @param {Array}  props.tabs [ tab, nome, componente ]; '' per un URL senza tab.
+ */
+export function Tabs( { page, tabs } ) {
+	const tab = new URLSearchParams( window.location.search ).get( 'tab' );
+	const [ current, , Content ] =
+		tabs.find( ( [ value ] ) => value === tab ) ?? tabs[ 0 ];
+	return (
+		<>
+			<nav
+				className="barrio-nav"
+				aria-label={ __( 'Sections', 'barrio-suite' ) }
+			>
+				{ tabs.map( ( [ value, label ] ) => (
+					<a
+						key={ value }
+						href={
+							'?' +
+							new URLSearchParams(
+								value ? { page, tab: value } : { page }
+							)
+						}
+						aria-current={ value === current ? 'page' : undefined }
+						// Sugli schermi stretti le schede scorrono: quella aperta resta in vista.
+						ref={
+							value === current
+								? ( link ) =>
+										link?.scrollIntoView( {
+											block: 'nearest',
+											inline: 'nearest',
+										} )
+								: undefined
+						}
+					>
+						{ label }
+					</a>
+				) ) }
+			</nav>
+			<Content />
+		</>
+	);
+}
+
 // Oltre quante voci compare la ricerca, nelle scelte e nei menu.
 const SEARCH_ABOVE = 5;
 
@@ -554,7 +690,8 @@ function useSearch( items ) {
  * @param {string}  props.className Del bottone con il testo.
  * @param {boolean} props.inBar     Aperto dalla barra sticky. Gli altri, scorrendo, passano sotto
  *                                  la barra e sotto quella di WordPress (i popover sono nel body).
- * @param {Array}   props.items     { label, icon?, onClick?, href?, danger?, disabled?, info? }; i falsy si saltano.
+ * @param {Array}   props.items     { label, icon?, onClick?, href?, danger?, disabled? }; i falsy si saltano. Niente
+ *                                  descrizioni: il motivo di una voce spenta lo dice la pagina.
  */
 export function Menu( {
 	label,
@@ -614,7 +751,6 @@ function MenuItems( { label, items, onClose } ) {
 						href={ item.href }
 						isDestructive={ item.danger }
 						disabled={ item.disabled }
-						info={ item.info }
 						onClick={ () => {
 							onClose();
 							item.onClick?.();
@@ -736,8 +872,8 @@ export function Bar( { title, children } ) {
 }
 
 /**
- * La ricerca nella barra, dentro .barrio-bar__tools. Quando la barra è stretta diventa un bottone
- * che la apre in un menu: vedi fit().
+ * La ricerca nella barra, dentro .barrio-bar__tools, o in un SectionHead. Quando la barra è stretta
+ * diventa un bottone che la apre in un menu: vedi fit().
  *
  * @param {Object}                  props
  * @param {string}                  props.label    Anche il segnaposto.
@@ -793,6 +929,7 @@ export function Search( { label, value, onChange } ) {
  * @param {Object}                  props
  * @param {string}                  props.label     Il nome dell'elenco.
  * @param {string}                  props.text      Sul pulsante (di default label): l'opzione scelta.
+ * @param {string}                  props.icon      Prima del testo: nella barra stretta resta solo lei (il ruolo di Blocchi).
  * @param {string}                  props.image     Prima del testo: la bandiera della lingua scelta.
  * @param {boolean}                 props.active    Diverso dal default.
  * @param {string}                  props.className Del pulsante, oltre a barrio-button.
@@ -804,6 +941,7 @@ export function Search( { label, value, onChange } ) {
 export function Picker( {
 	label,
 	text = label,
+	icon,
 	image,
 	active,
 	className = '',
@@ -822,6 +960,7 @@ export function Picker( {
 					aria-expanded={ isOpen }
 					onClick={ onToggle }
 				>
+					{ icon && <Icon name={ icon } /> }
 					{ image && (
 						<img className="barrio-flag" src={ image } alt="" />
 					) }

@@ -222,8 +222,8 @@ export function Entries( { form: requested } ) {
 		...data.columns.map( ( column, index ) => ( {
 			key: `field:${ column.key }`,
 			label: column.label,
-			// I file non hanno un valore su cui ordinare.
-			sort: 'file' === column.type ? null : `field:${ column.key }`,
+			// Un campo file per il nome del primo file.
+			sort: `field:${ column.key }`,
 			className: 'is-truncate',
 			// Di default le prime tre, come nel prototipo.
 			hideable: true,

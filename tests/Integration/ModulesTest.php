@@ -45,6 +45,11 @@ final class ModulesTest extends WP_UnitTestCase {
 			[
 				'forms'       => true,
 				'seo'         => true,
+				'alt'         => true,
+				'hours'       => true,
+				'blocks'      => true,
+				'ordering'    => true,
+				'duplicate'   => true,
 				'performance' => true,
 			],
 			rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/modules' ) )->get_data()
@@ -60,6 +65,11 @@ final class ModulesTest extends WP_UnitTestCase {
 			[
 				'forms'       => false,
 				'seo'         => true,
+				'alt'         => true,
+				'hours'       => true,
+				'blocks'      => true,
+				'ordering'    => true,
+				'duplicate'   => true,
 				'performance' => true,
 			],
 			$this->put( [ 'forms' => false ] )->get_data()

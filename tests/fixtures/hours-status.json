@@ -1,0 +1,80 @@
+{
+	"days": [
+		{ "at": 0, "name": "Monday" },
+		{ "at": 86400, "name": "Tuesday" },
+		{ "at": 172800, "name": "Wednesday" },
+		{ "at": 259200, "name": "Thursday" },
+		{ "at": 345600, "name": "Friday" }
+	],
+	"text": {
+		"always": "Open 24 hours",
+		"closes": "Open · closes at %s",
+		"closesOn": "Open · closes %1$s at %2$s",
+		"closed": "Closed",
+		"opens": "Closed · opens at %s",
+		"opensTomorrow": "Closed · opens tomorrow at %s",
+		"opensOn": "Closed · opens %1$s at %2$s"
+	},
+	"cases": [
+		{
+			"name": "before the first day the server text stays",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ] ],
+			"now": -1,
+			"status": null
+		},
+		{
+			"name": "on the last day, which only marks the end, too",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ] ],
+			"now": 345600,
+			"status": null
+		},
+		{
+			"name": "open in the morning",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ], [ 54000, 68400, "15:00", "19:00" ], [ 244800, 345600, "20:00", "0:00" ] ],
+			"now": 36000,
+			"status": { "open": true, "text": "Open · closes at 13:00" }
+		},
+		{
+			"name": "closed at the closing time, opens later today",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ], [ 54000, 68400, "15:00", "19:00" ], [ 244800, 345600, "20:00", "0:00" ] ],
+			"now": 46800,
+			"status": { "open": false, "text": "Closed · opens at 15:00" }
+		},
+		{
+			"name": "closed, opens in two days",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ], [ 54000, 68400, "15:00", "19:00" ], [ 244800, 345600, "20:00", "0:00" ] ],
+			"now": 70000,
+			"status": { "open": false, "text": "Closed · opens Wednesday at 20:00" }
+		},
+		{
+			"name": "closed, opens tomorrow",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ], [ 54000, 68400, "15:00", "19:00" ], [ 244800, 345600, "20:00", "0:00" ] ],
+			"now": 100000,
+			"status": { "open": false, "text": "Closed · opens tomorrow at 20:00" }
+		},
+		{
+			"name": "open in the evening until the day after tomorrow",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ], [ 54000, 68400, "15:00", "19:00" ], [ 244800, 345600, "20:00", "0:00" ] ],
+			"now": 250000,
+			"status": { "open": true, "text": "Open · closes Friday at 0:00" }
+		},
+		{
+			"name": "after midnight still open, closes tonight",
+			"open": [ [ 32400, 46800, "9:00", "13:00" ], [ 54000, 68400, "15:00", "19:00" ], [ 244800, 345600, "20:00", "0:00" ] ],
+			"now": 300000,
+			"status": { "open": true, "text": "Open · closes at 0:00" }
+		},
+		{
+			"name": "always open",
+			"open": [ [ -86400, 432000, "0:00", "0:00" ] ],
+			"now": 100000,
+			"status": { "open": true, "text": "Open 24 hours" }
+		},
+		{
+			"name": "never open",
+			"open": [],
+			"now": 100000,
+			"status": { "open": false, "text": "Closed" }
+		}
+	]
+}

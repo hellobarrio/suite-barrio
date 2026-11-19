@@ -15,6 +15,7 @@
 		"modules/*/templates",
 		"modules/*/assets/frontend",
 		"modules/*/assets/block",
+		"modules/*/assets/editor",
 		"modules/*/assets/src",
 		"modules/*/presets.json"
 	],
@@ -28,8 +29,8 @@
 		"form": "wp-env run cli --env-cwd=wp-content/plugins/barrio-suite wp --require=dev/cli.php --user=admin barrio forms create",
 		"seed": "wp-env run cli --env-cwd=wp-content/plugins/barrio-suite wp --require=dev/cli.php barrio forms seed",
 		"mailpit": "docker run -d --rm --name barrio-mailpit --network $(docker network ls -qf name=wp-env-barrio-suite) -e MP_SMTP_AUTH_ACCEPT_ANY=1 -e MP_SMTP_AUTH_ALLOW_INSECURE=1 -p 127.0.0.1:8025:8025 axllent/mailpit:v1.21.8",
-		"build": "wp-scripts build barrio-admin=./assets/src/admin/index.js seo-sidebar=./modules/seo/assets/src/editor/sidebar.js seo-form=./modules/seo/assets/src/editor/form.js --output-path=build",
-		"start": "wp-scripts start barrio-admin=./assets/src/admin/index.js seo-sidebar=./modules/seo/assets/src/editor/sidebar.js seo-form=./modules/seo/assets/src/editor/form.js --output-path=build",
+		"build": "wp-scripts build barrio-admin=./assets/src/admin/index.js seo-sidebar=./modules/seo/assets/src/editor/sidebar.js seo-form=./modules/seo/assets/src/editor/form.js barrio-reorder=./modules/ordering/assets/src/reorder.js --output-path=build",
+		"start": "wp-scripts start barrio-admin=./assets/src/admin/index.js seo-sidebar=./modules/seo/assets/src/editor/sidebar.js seo-form=./modules/seo/assets/src/editor/form.js barrio-reorder=./modules/ordering/assets/src/reorder.js --output-path=build",
 		"lint:js": "wp-scripts lint-js",
 		"lint:css": "wp-scripts lint-style",
 		"format": "wp-scripts format",

@@ -86,10 +86,13 @@ final class EntryRepository {
 		$join              = '';
 		$column            = 'e.' . ( in_array( $sort, [ 'id', 'lang' ], true ) ? $sort : 'created_at' );
 		if ( is_array( $sort ) ) {
-			// Una registrazione ha i campi di una sola versione: al massimo una riga per registrazione.
+			// Una registrazione ha i campi di una sola versione: al massimo una riga per registrazione. Un campo file non
+			// ha valori: si ordina sul nome del primo file.
 			// ponytail: ordina il testo salvato, quindi i numeri come stringhe e le scelte per valore, non per etichetta.
-			$join   = $wpdb->prepare( ' LEFT JOIN %i s ON s.entry_id = e.id AND s.position = 0 AND s.field_id', Db::table( 'entry_values' ) ) . self::in( $sort );
-			$column = 's.value';
+			$in     = self::in( $sort );
+			$join   = $wpdb->prepare( ' LEFT JOIN %i s ON s.entry_id = e.id AND s.position = 0 AND s.field_id', Db::table( 'entry_values' ) ) . $in
+				. $wpdb->prepare( ' LEFT JOIN (SELECT entry_id, MIN(original_name) AS name FROM %i WHERE field_id', Db::table( 'entry_files' ) ) . $in . ' GROUP BY entry_id) f ON f.entry_id = e.id';
+			$column = 'COALESCE(s.value, f.name)';
 		}
 		$total = (int) Db::var( "SELECT COUNT(*) FROM {$table} WHERE {$where}" );
 		// Oltre l'ultima pagina (per esempio dopo aver eliminato le sue righe) si mostra l'ultima, come localQuery().

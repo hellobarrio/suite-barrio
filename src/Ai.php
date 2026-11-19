@@ -158,11 +158,13 @@ final class Ai {
 
 	/**
 	 * Il testo che il modello scelto scrive per $prompt, con la descrizione del sito in fondo. $config va in
-	 * generationConfig: per esempio la risposta in JSON con il suo schema.
+	 * generationConfig: per esempio la risposta in JSON con il suo schema. $parts va prima del testo: per esempio
+	 * un'immagine, [ 'inlineData' => [ 'mimeType' => 'image/jpeg', 'data' => base64 ] ].
 	 *
-	 * @param array<string, mixed> $config
+	 * @param array<string, mixed>       $config
+	 * @param list<array<string, mixed>> $parts
 	 */
-	public static function generate( string $prompt, array $config = [] ): string|WP_Error {
+	public static function generate( string $prompt, array $config = [], array $parts = [] ): string|WP_Error {
 		$settings = self::settings();
 		$account  = Google::account();
 		if ( null === $account || '' === $settings['model'] ) {
@@ -180,7 +182,7 @@ final class Ai {
 				'contents' => [
 					[
 						'role'  => 'user',
-						'parts' => [ [ 'text' => $prompt ] ],
+						'parts' => [ ...$parts, [ 'text' => $prompt ] ],
 					],
 				],
 			] + ( $config ? [ 'generationConfig' => $config ] : [] )

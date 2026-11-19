@@ -328,6 +328,22 @@
 	object-fit: cover;
 }
 
+/* Testi alternativi: la miniatura nella riga e nella modale. */
+.barrio-alt-thumb {
+	flex: none;
+	width: 32px;
+	height: 32px;
+	border-radius: 4px;
+	object-fit: cover;
+}
+
+.barrio-alt-preview {
+	align-self: flex-start;
+	max-width: 150px;
+	max-height: 150px;
+	border-radius: 6px;
+}
+
 /* Sotto una traduzione, il testo originale con i suoi a capo. */
 .barrio-original {
 	white-space: pre-line;
@@ -398,8 +414,13 @@
 	margin-top: 4px;
 }
 
-/* Più interruttori uno sotto l'altro (i Moduli), divisi da una linea. */
-.barrio-card__body > .barrio-toggle + .barrio-toggle {
+/*
+ * Più interruttori uno sotto l'altro, divisi da una linea: in una card (anche
+ * dentro Fixed) o in una pila. Non nelle colonne (barrio-checks, i blocchi).
+ */
+.barrio-card__body > .barrio-toggle + .barrio-toggle,
+.barrio-fixed > .barrio-toggle + .barrio-toggle,
+.barrio-stack > .barrio-toggle + .barrio-toggle {
 	padding-top: 16px;
 	border-top: 1px solid var(--barrio-line);
 }
@@ -470,6 +491,22 @@
 
 .barrio-wide .barrio-checks {
 	padding-top: 8px;
+}
+
+/* Gli interruttori dei blocchi di un ruolo (modules/blocks), in colonne. */
+.barrio-blocks {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 12px 32px;
+}
+
+.barrio-wide .barrio-blocks {
+	padding-top: 8px;
+}
+
+/* I Permessi: gli interruttori sul bordo destro della card, come gli altri. */
+.barrio-permissions .barrio-checks {
+	justify-content: flex-end;
 }
 
 @media (max-width: 782px) {
@@ -666,6 +703,11 @@
 	margin-left: auto;
 }
 
+/* Un interruttore tra le azioni (Attiva) ha più spazio dai bottoni. */
+.barrio-card__actions > .barrio-toggle + * {
+	margin-left: 8px;
+}
+
 .barrio-card__body {
 	display: grid;
 	gap: 16px;
@@ -774,6 +816,7 @@
 /* Titolo di sezione a sinistra e le sue azioni ("Aggiungi…") a destra. */
 .barrio-section-head {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 12px;
 	align-items: center;
 	justify-content: space-between;
@@ -862,9 +905,9 @@
 
 /*
  * Le modali (Dialog in ui.js). WordPress mostra la linea sotto l'intestazione
- * solo dopo aver scorso: qui c'è sempre, con il suo colore. I bottoni stanno
- * in un piede che resta in fondo al contenuto che scorre, largo quanto la
- * modale: bottom negativo perché lo sticky rispetta il padding del contenuto.
+ * solo dopo aver scorso: qui c'è sempre, con il suo colore. Il contenuto di
+ * WordPress non scorre: scorre solo il corpo, tra l'intestazione e il piede con
+ * i bottoni, così la scrollbar non passa sui bottoni.
  */
 .barrio-modal {
 	--barrio-modal-padding: 24px;
@@ -875,20 +918,41 @@
 	border-bottom-color: var(--barrio-modal-line);
 }
 
+/*
+ * Base auto: la modale è alta quanto il contenuto, e il corpo si stringe solo
+ * all'altezza massima.
+ */
 .barrio-modal .components-modal__content {
-	padding-top: var(--barrio-gap);
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+.barrio-modal .components-modal__children-container {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.barrio-modal__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: var(--barrio-gap) var(--barrio-modal-padding) var(--barrio-modal-padding);
+	overflow-x: hidden;
+	overflow-y: auto;
 	overscroll-behavior: none;
 }
 
 .barrio-modal__footer {
 	display: flex;
-	position: sticky;
-	bottom: calc(-1 * var(--barrio-modal-padding));
-	z-index: 1;
+	flex: none;
 	flex-wrap: wrap;
 	gap: 8px;
 	justify-content: flex-end;
-	margin: var(--barrio-modal-padding) calc(-1 * var(--barrio-modal-padding)) calc(-1 * var(--barrio-modal-padding));
 	padding: 16px var(--barrio-modal-padding);
 	border-top: 1px solid var(--barrio-modal-line);
 	background: #fff;
@@ -1081,8 +1145,11 @@
 	clip-path: none;
 }
 
-/* is-searchless: la ricerca diventa un bottone che la apre in un menu. */
-.barrio-bar .barrio-search-toggle,
+/*
+ * is-searchless: la ricerca diventa un bottone che la apre in un menu. Fuori
+ * dalla barra c'è solo il campo.
+ */
+.barrio-admin .barrio-search-toggle,
 .barrio-bar.is-searchless .barrio-search {
 	display: none;
 }
@@ -1095,11 +1162,11 @@
  * Pagina a tutta altezza, come un'app: senza il footer di WordPress il pannello
  * del builder arriva a 20px dal fondo anche a fine pagina.
  */
-.wp-admin #wpbody-content {
+body:has(#barrio-admin) #wpbody-content {
 	padding-bottom: var(--barrio-gap);
 }
 
-#wpfooter {
+body:has(#barrio-admin) #wpfooter {
 	display: none;
 }
 
@@ -1124,6 +1191,13 @@
 
 .barrio-admin .barrio-search .barrio-input {
 	padding-left: 36px;
+}
+
+/* In un SectionHead (i blocchi) la ricerca si stringe sugli schermi stretti. */
+.barrio-section-head .barrio-search {
+	flex: 0 1 260px;
+	width: auto;
+	min-width: 0;
 }
 
 /*
@@ -1477,9 +1551,8 @@ button.barrio-table__title {
 /*
  * La colonna destra (builder, registrazione) resta visibile mentre si scorre:
  * 20px sotto la barra e 20px sopra il fondo. Se è più lunga scorre dentro,
- * senza barra di scorrimento e senza overscroll, ma solo se scorre davvero:
- * finché non c'è niente da scorrere la timeline è inattiva e la rotella
- * scorre la pagina.
+ * senza barra di scorrimento; arrivati in fondo (o in cima) la rotella passa a
+ * scorrere la pagina.
  */
 .barrio-panel {
 	box-sizing: border-box;
@@ -1488,17 +1561,25 @@ button.barrio-table__title {
 	overflow-x: hidden;
 	overflow-y: auto;
 	max-height: calc(100vh - var(--barrio-below-bar) - var(--barrio-gap));
-	animation: barrio-no-overscroll both;
-	animation-timeline: scroll(self);
 	scrollbar-width: none;
 }
 
-@keyframes barrio-no-overscroll {
+/*
+ * Se è una card (le proprietà del campo) scorre solo il corpo: l'intestazione
+ * resta ferma, e il rimbalzo del Mac in cima o in fondo scopre il bianco del
+ * corpo, non quello sopra l'intestazione grigia.
+ */
+.barrio-card.barrio-panel {
+	display: flex;
+	flex-direction: column;
+	overflow: visible;
+}
 
-	from,
-	to {
-		overscroll-behavior: none;
-	}
+.barrio-card.barrio-panel > .barrio-card__body {
+	min-height: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scrollbar-width: none;
 }
 
 /*
@@ -1523,6 +1604,34 @@ button.barrio-table__title {
 	display: flex;
 	gap: 8px;
 	align-items: center;
+}
+
+/* L'albero di Ordinamento: i figli rientrano sotto il genitore e si spostano
+   con lui. */
+.barrio-order {
+	display: grid;
+	gap: 4px;
+}
+
+.barrio-order .barrio-order {
+	margin-top: 4px;
+	padding-inline-start: 32px;
+}
+
+.barrio-order__row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 4px 12px 4px 4px;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius-small);
+	background: #fff;
+}
+
+.barrio-order__title {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 /* Campo e rimozione sulla prima riga, operatore e valore sulla seconda. */
@@ -1555,10 +1664,6 @@ button.barrio-table__title {
 
 .barrio-logo {
 	height: 48px;
-}
-
-.barrio-preview-modal .components-modal__content {
-	overflow-x: hidden;
 }
 
 .barrio-preview-modal .barrio-stack > * {
@@ -2031,4 +2136,23 @@ a.barrio-badge {
 	font-size: 12px;
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
+}
+
+/*
+ * Orari: un giorno per riga, diviso da una linea come gli interruttori, con le
+ * sue fasce sotto.
+ */
+.barrio-hours-day,
+.barrio-hours-slots {
+	display: grid;
+	gap: 12px;
+}
+
+.barrio-hours-day + .barrio-hours-day {
+	padding-top: 16px;
+	border-top: 1px solid var(--barrio-line);
+}
+
+.barrio-admin .barrio-hours-slots .barrio-input {
+	width: auto;
 }

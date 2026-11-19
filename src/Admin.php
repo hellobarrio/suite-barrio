@@ -2,6 +2,8 @@
 
 namespace BarrioSuite;
 
+use WP_Post_Type;
+
 /**
  * Menu "Barrio" e la sua app React (assets/src, compilata in build/) per tutte le pagine: la Bacheca,
  * una voce per ogni modulo acceso, Estensioni e Impostazioni. Un modulo aggiunge la sua pagina con
@@ -32,6 +34,54 @@ final class Admin {
 		self::add_page( 'barrio-settings', __( 'Settings', 'barrio-suite' ), 'manage_options' );
 	}
 
+	/**
+	 * Barrio → Contenuti: gli strumenti per i contenuti (Blocchi, Ordinamento, Duplicazione) in una pagina sola, con
+	 * una scheda per modulo acceso. Ogni modulo la chiede su admin_menu con la capability della sua scheda: la pagina
+	 * si aggiunge una volta, con la prima che chi guarda ha, e il JavaScript mostra solo le schede che può aprire. Con
+	 * tutti e tre spenti non c'è.
+	 */
+	public static function contents_tab( string $capability ): void {
+		if ( current_user_can( $capability ) && ! get_plugin_page_hook( 'barrio-contents', self::PAGE ) ) {
+			self::add_page( 'barrio-contents', __( 'Contents', 'barrio-suite' ), $capability );
+		}
+	}
+
+	/**
+	 * I tipi di contenuto e le tassonomie degli strumenti di Contenuti: quelli con l'interfaccia di WordPress, senza
+	 * gli allegati. Le tassonomie solo di quei tipi (non le categorie dei link), con i nomi dei tipi che le usano:
+	 * due possono chiamarsi entrambe "Categorie".
+	 *
+	 * @return array{post_types: list<array{name: string, label: string}>, taxonomies: list<array{name: string, label: string, types: list<string>}>}
+	 */
+	public static function content_types(): array {
+		$types = get_post_types( [ 'show_ui' => true ], 'objects' );
+		unset( $types['attachment'] );
+		$label      = static fn( WP_Post_Type $type ): string => $type->labels->name;
+		$taxonomies = [];
+		foreach ( get_taxonomies( [ 'show_ui' => true ], 'objects' ) as $taxonomy ) {
+			$used = array_intersect_key( $types, array_flip( $taxonomy->object_type ) );
+			if ( $used ) {
+				$taxonomies[] = [
+					'name'  => $taxonomy->name,
+					'label' => $taxonomy->labels->name,
+					'types' => array_values( array_map( $label, $used ) ),
+				];
+			}
+		}
+		return [
+			'post_types' => array_values(
+				array_map(
+					static fn( WP_Post_Type $type ): array => [
+						'name'  => $type->name,
+						'label' => $label( $type ),
+					],
+					$types
+				)
+			),
+			'taxonomies' => $taxonomies,
+		];
+	}
+
 	// L'hook della pagina, per caricare altro con load-{$hook}; false se chi guarda non può aprirla.
 	public static function add_page( string $slug, string $title, string $capability ): string|false {
 		$hook = add_submenu_page( self::PAGE, $title, $title, $capability, $slug, [ self::class, 'page' ] );
@@ -52,13 +102,23 @@ final class Admin {
 		wp_enqueue_script( 'barrio-admin', plugins_url( 'build/barrio-admin.js', $root ), $asset['dependencies'], $asset['version'], true );
 		wp_add_inline_script( 'barrio-admin', 'window.barrioAdmin = ' . wp_json_encode( self::data() ) . ';', 'before' );
 		wp_set_script_translations( 'barrio-admin', 'barrio-suite', dirname( __DIR__ ) . '/languages' );
-		wp_enqueue_style( 'barrio-admin', plugins_url( 'build/barrio-admin.css', $root ), [ 'wp-components' ], $asset['version'] );
-		wp_style_add_data( 'barrio-admin', 'rtl', 'replace' );
+		self::style();
 		// Le immagini (il logo delle email…) si scelgono nelle impostazioni dei moduli e nella messa online.
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- solo quale pagina caricare.
 		if ( 'settings' === sanitize_key( wp_unslash( $_GET['tab'] ?? '' ) ) || isset( $_GET['launch'] ) ) {
 			// phpcs:enable
 			wp_enqueue_media();
+		}
+	}
+
+	// Gli stili delle pagine Barrio, anche per una modale fuori da queste (Riordina nella lista di un tipo).
+	public static function style(): void {
+		$asset_file = dirname( __DIR__ ) . '/build/barrio-admin.asset.php';
+		if ( is_file( $asset_file ) ) {
+			/** @var array{version: string} $asset */
+			$asset = require $asset_file;
+			wp_enqueue_style( 'barrio-admin', plugins_url( 'build/barrio-admin.css', dirname( __DIR__ ) . '/barrio-suite.php' ), [ 'wp-components' ], $asset['version'] );
+			wp_style_add_data( 'barrio-admin', 'rtl', 'replace' );
 		}
 	}
 
@@ -83,6 +143,7 @@ final class Admin {
 				// Un oggetto anche se vuoto: [] in JSON sarebbe una lista.
 				'flags'            => (object) I18n::flags(),
 				'canManageOptions' => current_user_can( 'manage_options' ),
+				'contentTypes'     => self::content_types(),
 				'version'          => BARRIO_SUITE_VERSION,
 				// Per i download (file ed export CSV), che sono link e non passano da apiFetch.
 				'rest'             => [

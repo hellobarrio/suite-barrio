@@ -48,7 +48,7 @@ final class RedirectRepository {
 			$like   = '%' . $wpdb->esc_like( $search ) . '%';
 			$where .= $wpdb->prepare( ' AND (source COLLATE utf8mb4_unicode_ci LIKE %s OR target LIKE %s OR note LIKE %s)', $like, $like, $like );
 		}
-		$sort      = in_array( $sort, [ 'source', 'target', 'code', 'updated_at' ], true ) ? $sort : 'updated_at';
+		$sort      = in_array( $sort, [ 'source', 'target', 'code', 'note', 'updated_at' ], true ) ? $sort : 'updated_at';
 		$direction = 'asc' === $order ? 'ASC' : 'DESC';
 		$total     = (int) Db::var( "SELECT COUNT(*) FROM {$table} WHERE {$where}" );
 		// Oltre l'ultima pagina (dopo aver eliminato le sue righe) si mostra l'ultima, come localQuery().

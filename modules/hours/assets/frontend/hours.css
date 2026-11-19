@@ -1,0 +1,57 @@
+/* Gli orari nel sito: pochi stili, il resto è del tema. */
+
+.barrio-hours__week {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.barrio-hours__week th,
+.barrio-hours__week td {
+	padding: 0.4em 0;
+	border-bottom: 1px solid currentcolor;
+	border-bottom-color: color-mix(in srgb, currentcolor 15%, transparent);
+	text-align: start;
+	vertical-align: top;
+}
+
+.barrio-hours__week th {
+	padding-inline-end: 1em;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+/* Una fascia non va a capo a metà: solo tra una fascia e l'altra. */
+.barrio-hours__week td span {
+	white-space: nowrap;
+}
+
+/* WordPress scrive i giorni in minuscolo in molte lingue. */
+.barrio-hours__week th::first-letter {
+	text-transform: uppercase;
+}
+
+.barrio-hours__special p {
+	margin: 1em 0 0.25em;
+	font-weight: 600;
+}
+
+.barrio-hours__special ul {
+	margin: 0;
+	padding-inline-start: 1.2em;
+}
+
+/* Lo stato con un punto colorato: il testo dice già aperto o chiuso. */
+.barrio-hours.is-status::before {
+	content: "";
+	display: inline-block;
+	width: 0.6em;
+	height: 0.6em;
+	margin-inline-end: 0.5em;
+	border-radius: 50%;
+	background: #b32d2e;
+	vertical-align: 0.05em;
+}
+
+.barrio-hours.is-status.is-open::before {
+	background: #00a32a;
+}

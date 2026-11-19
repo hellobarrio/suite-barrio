@@ -126,7 +126,7 @@ generate da `npm run seed -- --entries=100000`. `EXPLAIN` su MariaDB 12.3:
 | Campi e testi | `WHERE version_id = ? ORDER BY position`, JOIN `form_fields_i18n` | `version_position`, `PRIMARY` |
 | Elenco registrazioni | `WHERE form_id = ? ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?` | `form_created`, senza filesort |
 | Ricerca libera | `EXISTS (SELECT 1 FROM entry_values WHERE entry_id = e.id AND value LIKE '%…%')` | `PRIMARY` di `entry_values` per registrazione: ~100 ms a query su 20k registrazioni (il totale e la pagina sono due query) |
-| Ordinamento per campo | `LEFT JOIN entry_values` sui `field_id` della chiave in tutte le versioni, `position = 0`, `ORDER BY value` | `PRIMARY` + filesort, ~130 ms su 20k registrazioni |
+| Ordinamento per campo | `LEFT JOIN entry_values` sui `field_id` della chiave in tutte le versioni, `position = 0`; per un campo file `LEFT JOIN` sul primo `original_name` di `entry_files` (`GROUP BY entry_id`); `ORDER BY COALESCE(value, nome del file)` | `PRIMARY` + filesort, ~130 ms su 20k registrazioni |
 | Badge "non lette" | `COUNT(*) WHERE form_id = ? AND is_read = 0` | `form_read` (coprente) |
 | Dettaglio | `entry_values WHERE entry_id = ?` JOIN `form_fields` | `PRIMARY`, `PRIMARY` |
 | Filtro per valore | `WHERE field_id IN (…) AND value = ?` | `field_value` |
@@ -196,3 +196,59 @@ del sito la legge intera: arriva con le altre opzioni, senza query in più.
 - Solo `RedirectRepository` legge e scrive la tabella; una sorgente già usata diventa un'eccezione di `Db`. La
   tabella di SEO → Redirect cerca anche nella sorgente senza distinguere le maiuscole
   (`COLLATE utf8mb4_unicode_ci` nella query).
+
+## Modulo Blocchi
+
+Nessuna tabella: un solo record, l'opzione `barrio_blocks` (non in autoload: si legge solo nell'editor e nella sua
+REST), validata dallo schema della rotta `PUT /blocks`. `roles` ha per ruolo i blocchi spenti (non quelli ammessi:
+un blocco nuovo resta disponibile) e le restrizioni `h1`, `styles`, `code`, `lock`, `panels`, sempre tutte; un ruolo
+senza restrizioni e `administrator` non si salvano. `editors` ha per tipo di contenuto `blocks`, `classic` o `none`
+(assente: la scelta di WordPress); `remote_patterns` e `openverse` sono accesi di default. Nessun dato nei contenuti:
+spegnere il modulo o una restrizione riporta l'editor com'era.
+
+## Modulo Ordinamento
+
+Nessuna tabella. L'ordine dei contenuti è `menu_order` di `wp_posts`, il campo del core che usano già temi, menu e
+WPGraphQL; quello dei termini è il meta `_barrio_order` (un intero), perché WordPress non ha un ordine dei termini.
+Le posizioni partono da 1 e sono quelle dell'elenco intero, con i genitori prima dei figli: anche una query senza
+gerarchia esce nell'ordine dell'albero, e un contenuto nuovo (`menu_order` 0) va in cima. Solo `OrderRepository` le
+scrive:
+
+- **Contenuti**: un solo `UPDATE … SET menu_order = FIELD(ID, …)`, atomico anche dove `wp_posts` non è InnoDB, che
+  non tocca `post_modified` e non fa partire gli hook di salvataggio. Poi `clean_post_cache()`.
+- **Termini**: `DELETE` e `INSERT` dei meta in una transazione. Dove `termmeta` non è InnoDB un errore tra le due
+  lascia quei termini senza ordine (in fondo, per nome), non con un ordine a metà.
+
+Nelle query l'ordine è un `LEFT JOIN` su `termmeta` (`terms_clauses`) e `orderby` di `WP_Query` (`pre_get_posts`):
+nessuna query in più. L'opzione `barrio_ordering` (in autoload, la leggono le query del sito) elenca i tipi e le
+tassonomie in ordine manuale; spegnerli lascia `menu_order` e i meta. La disinstallazione con i dati elimina i meta
+`_barrio_order`; `menu_order` resta, perché è del core. L'unica migrazione, la `0001`, assegna `barrio_reorder` ai
+ruoli che modificano i contenuti degli altri o gestiscono le categorie.
+
+## Modulo Testi alternativi
+
+Nessuna tabella e nessun dato nuovo: l'alt è il meta del core `_wp_attachment_image_alt`, il titolo è `post_title`
+dell'allegato. "Senza testo alternativo" è il meta assente o vuoto, una `meta_query` sull'indice `meta_key` del core.
+L'opzione `barrio_alt` (non in autoload: si legge nell'admin e dopo un caricamento) ha `on_upload` e `title`, spenti
+di default, validati dallo schema della rotta `PUT /alt/settings`. Dopo un caricamento resta, fino alla sua
+esecuzione, un evento singolo di WP-Cron (`barrio_alt_generate`), che spegnere il modulo elimina. L'unica migrazione,
+la `0001`, assegna `barrio_generate_alt` ai ruoli con `upload_files`.
+
+## Modulo Orari
+
+Nessuna tabella: un solo record, letto intero da ogni blocco. L'opzione `barrio_hours` (in autoload: la leggono il
+blocco e `init`, che programma WP-Cron) ha `source` (`manual` o `google`), `place_id`, `week` (giorni ISO da 1 a 7,
+ognuno con le sue fasce `{open, close}` in `HH:MM`), `exceptions` (`{from, to, hours, note}`, date `Y-m-d`, `note`
+per lingua) e `google` (`synced_at`, timestamp UTC, `name` ed `error`, scritti solo da PHP). Lo schema JSON di
+`Hours\Module::schema()` fa i controlli che in una tabella farebbero i CHECK (ore, giorni, formato delle date); il
+resto (una data che esiste, `to` non prima di `from`) lo controlla `check_dates()`. Valida la REST e anche ciò che
+arriva da Google, prima di scriverlo. Una chiusura non dopo l'apertura vale il giorno dopo: `00:00`–`00:00` è aperto
+tutto il giorno. Le fasce si scrivono in ordine, i giorni speciali per data; quelli passati non si leggono più e
+spariscono dal database alla scrittura dopo. Con la fonte Google resta un evento singolo di WP-Cron
+(`barrio_hours_sync`) alle 3 del fuso del sito, che la fonte manuale e lo spegnimento del modulo eliminano. L'unica
+migrazione, la `0001`, assegna `barrio_manage_hours` agli amministratori e agli editor.
+
+## Modulo Duplicazione
+
+Nessuna tabella: la copia passa dalle funzioni del core. L'opzione `barrio_duplicate` (non in autoload) elenca i tipi
+e le tassonomie spenti; l'unica migrazione, la `0001`, assegna `barrio_duplicate` ai ruoli con `edit_posts`.

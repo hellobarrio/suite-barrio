@@ -13,7 +13,7 @@ import {
 	Loading,
 	Lucide,
 	Notice,
-	Toggle,
+	Permissions,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../../assets/src/admin/ui.js';
@@ -69,14 +69,6 @@ export function Settings() {
 	const { roles, integrations } = draft;
 	const set = ( key ) => ( value ) =>
 		setDraft( { ...draft, [ key ]: value } );
-	// Nell'ordine di CAPS, così il confronto con quelle salvate non dipende dall'ordine dei clic.
-	const setCap = ( role, cap ) => ( on ) =>
-		set( 'roles' )( {
-			...roles,
-			[ role ]: Object.keys( CAPS ).filter( ( key ) =>
-				key === cap ? on : roles[ role ].includes( key )
-			),
-		} );
 	const request = ( kind, options, then ) => {
 		setBusy( kind );
 		setNotice( null );
@@ -238,39 +230,16 @@ export function Settings() {
 				</Group>
 			</Card>
 
-			<Card
-				className="barrio-wide"
-				icon="groups"
-				title={ __( 'Permissions', 'barrio-suite' ) }
+			<Permissions
 				description={ __(
 					'What each role can do in Forms. Administrators can always do everything; only administrators change these settings.',
 					'barrio-suite'
 				) }
-			>
-				{ /* Gli amministratori non sono in roles: tutto spuntato e fisso. */ }
-				{ Object.entries( saved.role_names ).map(
-					( [ role, name ] ) => (
-						<Group key={ role } label={ name }>
-							<div className="barrio-checks">
-								{ Object.entries( CAPS ).map(
-									( [ cap, label ] ) => (
-										<Toggle
-											key={ cap }
-											label={ label }
-											disabled={ ! roles[ role ] }
-											checked={
-												! roles[ role ] ||
-												roles[ role ].includes( cap )
-											}
-											onChange={ setCap( role, cap ) }
-										/>
-									)
-								) }
-							</div>
-						</Group>
-					)
-				) }
-			</Card>
+				caps={ CAPS }
+				names={ saved.role_names }
+				roles={ roles }
+				onChange={ set( 'roles' ) }
+			/>
 
 			{ GLOBAL.map( ( [ slug, definition ] ) => (
 				<Card

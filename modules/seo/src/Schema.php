@@ -2,7 +2,9 @@
 
 namespace BarrioSuite\Seo;
 
+use BarrioSuite\Hours\Module as Hours;
 use BarrioSuite\I18n;
+use BarrioSuite\Modules;
 use WP_Post;
 use WP_Term;
 
@@ -142,6 +144,9 @@ final class Schema {
 						'itemListElement' => $offers,
 					]
 				) : null,
+			] + [
+				// Gli orari del modulo Orari, se acceso: una proprietà delle attività locali, non di Organization.
+				'openingHoursSpecification' => 'Organization' !== $o['type'] && Modules::is_enabled( 'hours' ) ? Hours::specification() : null,
 			]
 		);
 	}

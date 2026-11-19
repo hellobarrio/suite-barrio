@@ -4,19 +4,36 @@
 import { createRoot } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
+import {
+	ALT,
+	AltText,
+	altSection,
+} from '../../../modules/alt/assets/src/Alt.js';
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
+import {
+	HOURS,
+	hoursSection,
+	hoursSettingsSection,
+} from '../../../modules/hours/assets/src/Hours.js';
 import {
 	PERFORMANCE,
 	performanceSection,
 } from '../../../modules/performance/assets/src/Performance.js';
 import { seoPage } from '../../../modules/seo/assets/src/seo/Seo.js';
+import { contentsPage } from '../contents/Contents.js';
 import { Dashboard } from '../dashboard/Dashboard.js';
 import { Extensions } from '../extensions/Extensions.js';
 import { General } from '../general/General.js';
 import { Launch } from '../launch/Launch.js';
+import { Tabs } from './ui.js';
 import './admin.css';
 
 const params = new URLSearchParams( window.location.search );
+
+// Costante: General ricarica le sezioni quando cambia l'array.
+const ALT_SECTIONS = [ altSection ];
+const HOURS_SECTIONS = [ hoursSection ];
+const HOURS_SETTINGS = [ hoursSettingsSection ];
 
 // Il nome della pagina dopo "Barrio Suite" (senza, la Bacheca mostra la versione), la descrizione e
 // il contenuto.
@@ -30,6 +47,7 @@ const PAGES = {
 	},
 	'barrio-forms': formsPage,
 	'barrio-seo': seoPage,
+	'barrio-contents': contentsPage,
 	'barrio-performance': {
 		title: PERFORMANCE.title,
 		description: __(
@@ -58,6 +76,65 @@ const PAGES = {
 			'barrio-suite'
 		),
 		page: <General />,
+	},
+	'barrio-alt': {
+		title: ALT.title,
+		description: __(
+			'The alternative text of the images, written by Google AI looking at each image: from the image details, in bulk or after the upload.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-alt"
+				tabs={ [
+					[ '', __( 'Images', 'barrio-suite' ), AltText ],
+					window.barrioAdmin.canManageOptions && [
+						'settings',
+						__( 'Settings', 'barrio-suite' ),
+						() => (
+							<General
+								title={ __( 'Settings', 'barrio-suite' ) }
+								sections={ ALT_SECTIONS }
+							/>
+						),
+					],
+				].filter( Boolean ) }
+			/>
+		),
+	},
+	'barrio-hours': {
+		title: HOURS.title,
+		description: __(
+			'The opening hours of the business and its special days, for the site, the schema of the organization and the headless frontend.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-hours"
+				tabs={ [
+					[
+						'',
+						HOURS.title,
+						() => (
+							<General
+								title={ HOURS.title }
+								sections={ HOURS_SECTIONS }
+							/>
+						),
+					],
+					window.barrioAdmin.canManageOptions && [
+						'settings',
+						__( 'Settings', 'barrio-suite' ),
+						() => (
+							<General
+								title={ __( 'Settings', 'barrio-suite' ) }
+								sections={ HOURS_SETTINGS }
+							/>
+						),
+					],
+				].filter( Boolean ) }
+			/>
+		),
 	},
 };
 // La messa online è una vista della Bacheca: niente voce di menu.
