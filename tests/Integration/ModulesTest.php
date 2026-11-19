@@ -117,28 +117,7 @@ final class ModulesTest extends WP_UnitTestCase {
 				'is_enabled' => true,
 				'starts_at'  => null,
 				'ends_at'    => null,
-				'settings'   => [
-					'position' => 'top',
-					'scroll'   => false,
-					'closable' => false,
-					'new_tab'  => false,
-					'colors'   => [
-						'background' => '',
-						'text'       => '',
-					],
-					'where'    => [
-						'mode'  => 'all',
-						'home'  => false,
-						'posts' => [],
-						'types' => [],
-						'terms' => [],
-					],
-					'who'      => [
-						'device' => 'all',
-						'users'  => 'all',
-					],
-					'days'     => 0,
-				],
+				'new_tab'    => false,
 				'i18n'       => [
 					'en' => [
 						'text'     => 'Sale',

@@ -57,13 +57,7 @@ final class SchemaTest extends WP_UnitTestCase {
 				'code'   => 301,
 			]
 		);
-		$this->id['banner']   = $this->insert(
-			'banners',
-			[
-				'is_enabled' => 1,
-				'settings'   => '{}',
-			]
-		);
+		$this->id['banner']   = $this->insert( 'banners', [ 'is_enabled' => 1 ] );
 		$this->insert(
 			'banners_i18n',
 			[
@@ -132,7 +126,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'banner is_enabled not 0 or 1'           => [ 'UPDATE {banners} SET is_enabled = 2 WHERE id = {banner}', '{p}bb_enabled_chk' ],
 			'banner ending before it starts'         => [ "UPDATE {banners} SET starts_at = '2030-02-01', ends_at = '2030-01-01' WHERE id = {banner}", '{p}bb_period_chk' ],
 			'banner ending when it starts'           => [ "UPDATE {banners} SET starts_at = '2030-01-01', ends_at = '2030-01-01' WHERE id = {banner}", '{p}bb_period_chk' ],
-			'banner settings a list'                 => [ "UPDATE {banners} SET settings = '[]' WHERE id = {banner}", '{p}bb_settings_chk' ],
+			'banner new_tab not 0 or 1'              => [ 'UPDATE {banners} SET new_tab = 2 WHERE id = {banner}', '{p}bb_tab_chk' ],
 			'banner text lang uppercase'             => [ "UPDATE {banners_i18n} SET lang = 'IT' WHERE banner_id = {banner}", '{p}bbi_lang_chk' ],
 			'empty banner text'                      => [ "UPDATE {banners_i18n} SET text = '' WHERE banner_id = {banner}", '{p}bbi_text_chk' ],
 			'banner link without a scheme'           => [ "UPDATE {banners_i18n} SET link_url = 'example.com/saldi' WHERE banner_id = {banner}", '{p}bbi_url_chk' ],

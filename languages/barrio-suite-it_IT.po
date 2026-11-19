@@ -21,7 +21,7 @@ msgstr "Barrio Suite"
 
 #. Description of the plugin
 #: barrio-suite.php
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "Forms and site tools by Hellobarrio."
 msgstr "Form e strumenti per il sito di Hellobarrio."
 
@@ -31,10 +31,10 @@ msgid "Hellobarrio"
 msgstr "Hellobarrio"
 
 #: modules/forms/src/Admin.php:14
-#: build/barrio-admin.js:36
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:69
 msgid "Forms"
 msgstr "Form"
 
@@ -175,7 +175,7 @@ msgid "Woman"
 msgstr "Donna"
 
 #: modules/forms/src/Admin.php:113
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Other"
 msgstr "Altro"
 
@@ -195,28 +195,28 @@ msgstr "File non trovato."
 #: modules/forms/src/FieldTypes.php:45
 #: modules/forms/src/Privacy.php:71
 #: modules/seo/src/Llms.php:160
-#: build/barrio-admin.js:33
-#: build/barrio-admin.js:35
-#: build/barrio-admin.js:90
+#: build/barrio-admin.js:30
+#: build/barrio-admin.js:32
+#: build/barrio-admin.js:87
 msgid "Date"
 msgstr "Data"
 
 #: modules/forms/src/Api/RestEntries.php:351
 #: build/barrio-admin.js:1
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:33
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:35
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:65
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:30
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:32
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:62
+#: build/barrio-admin.js:63
 msgid "Language"
 msgstr "Lingua"
 
 #: modules/forms/src/Api/RestEntries.php:351
 #: modules/forms/src/Privacy.php:75
-#: build/barrio-admin.js:35
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:32
+#: build/barrio-admin.js:57
 msgid "Page"
 msgstr "Pagina"
 
@@ -247,7 +247,7 @@ msgstr "Notifica non trovata."
 
 #: modules/forms/src/Api/RestPublic.php:74
 #: modules/forms/src/Frontend/Render.php:79
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Submit"
 msgstr "Invia"
 
@@ -256,18 +256,18 @@ msgid "Thank you, your submission has been received."
 msgstr "Grazie, abbiamo ricevuto il tuo messaggio."
 
 #: modules/forms/src/FieldTypes.php:40
-#: build/barrio-admin.js:17
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:14
+#: build/barrio-admin.js:15
 msgid "Text"
 msgstr "Testo"
 
 #: modules/forms/src/FieldTypes.php:41
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Email"
 msgstr "Email"
 
 #: modules/forms/src/FieldTypes.php:42
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Phone"
 msgstr "Telefono"
 
@@ -340,12 +340,12 @@ msgid "Street address"
 msgstr "Indirizzo"
 
 #: modules/forms/src/FieldTypes.php:91
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Postal code"
 msgstr "CAP"
 
 #: modules/forms/src/FieldTypes.php:92
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "City"
 msgstr "Città"
 
@@ -354,7 +354,7 @@ msgid "State or province"
 msgstr "Stato o provincia"
 
 #: modules/forms/src/FieldTypes.php:94
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Country"
 msgstr "Nazione"
 
@@ -375,7 +375,7 @@ msgid "Maximum"
 msgstr "Massimo"
 
 #: modules/forms/src/FieldTypes.php:129
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Choices"
 msgstr "Scelte"
 
@@ -392,8 +392,8 @@ msgid "Leave empty to use the server limit."
 msgstr "Lascia vuoto per usare il limite del server."
 
 #: modules/forms/src/FieldTypes.php:152
-#: build/barrio-admin.js:20
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:17
+#: build/barrio-admin.js:27
 msgid "Value"
 msgstr "Valore"
 
@@ -411,7 +411,7 @@ msgid "This field is required."
 msgstr "Questo campo è obbligatorio."
 
 #: modules/forms/src/FieldTypes.php:270
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "(required)"
 msgstr "(obbligatorio)"
 
@@ -465,7 +465,7 @@ msgid "This form is no longer accepting submissions."
 msgstr "Questo form non accetta più invii."
 
 #: modules/forms/src/Frontend/Render.php:72
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Next"
 msgstr "Avanti"
 
@@ -506,7 +506,7 @@ msgid "Could not send to %1$s: %2$s"
 msgstr "Invio a %1$s non riuscito: %2$s"
 
 #: modules/forms/src/MergeTags.php:113
-#: build/barrio-admin.js:54
+#: build/barrio-admin.js:51
 #: build/seo-form.js:6
 #: build/seo-sidebar.js:5
 msgid "Yes"
@@ -539,8 +539,8 @@ msgid "Form entries"
 msgstr "Registrazioni dei form"
 
 #: modules/forms/src/Privacy.php:67
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:32
 #: modules/forms/assets/block/index.js:31
 #: modules/forms/assets/block/index.js:55
 #: modules/forms/assets/block/index.js:72
@@ -613,7 +613,7 @@ msgstr "Risultati della ricerca per “%s”"
 
 #. translators: %d: page number.
 #: modules/seo/src/Meta.php:116
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:47
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:11
 #, php-format,js-format
@@ -621,26 +621,26 @@ msgid "Page %d"
 msgstr "Pagina %d"
 
 #: src/Admin.php:28
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "Dashboard"
 msgstr "Bacheca"
 
 #: src/Admin.php:33
-#: build/barrio-admin.js:82
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:79
+#: build/barrio-admin.js:85
 msgid "Extensions"
 msgstr "Estensioni"
 
 #: src/Admin.php:34
 #: build/barrio-admin.js:9
-#: build/barrio-admin.js:36
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:49
-#: build/barrio-admin.js:70
-#: build/barrio-admin.js:72
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:46
+#: build/barrio-admin.js:67
+#: build/barrio-admin.js:69
+#: build/barrio-admin.js:83
+#: build/barrio-admin.js:85
 #: build/barrio-admin.js:88
-#: build/barrio-admin.js:91
 msgid "Settings"
 msgstr "Impostazioni"
 
@@ -711,14 +711,12 @@ msgid "Barrio Suite requires the InnoDB storage engine, which is not available o
 msgstr "Barrio Suite richiede lo storage engine InnoDB, che non è disponibile su questo server di database."
 
 #: build/barrio-admin.js:4
-#: build/barrio-admin.js:11
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 msgid "Search"
 msgstr "Cerca"
 
 #: build/barrio-admin.js:4
-#: build/barrio-admin.js:11
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "No results."
 msgstr "Nessun risultato."
 
@@ -784,391 +782,390 @@ msgid "Next page"
 msgstr "Pagina successiva"
 
 #. translators: %s: form shortcode.
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 #, js-format
 msgid "Copy %s"
 msgstr "Copia %s"
 
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 msgid "Conditional logic"
 msgstr "Logica condizionale"
 
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 msgid "Add rule"
 msgstr "Aggiungi regola"
 
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 msgid "Enable conditional logic"
 msgstr "Attiva la logica condizionale"
 
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 msgid "Action"
 msgstr "Azione"
 
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 msgid "Logic"
 msgstr "Logica"
 
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 msgid "if all rules match"
 msgstr "se tutte le regole sono soddisfatte"
 
-#: build/barrio-admin.js:19
+#: build/barrio-admin.js:16
 msgid "if any rule matches"
 msgstr "se almeno una regola è soddisfatta"
 
 #. translators: %s: field key.
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 #, js-format
 msgid "%s (missing field)"
 msgstr "%s (campo mancante)"
 
-#: build/barrio-admin.js:20
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:17
+#: build/barrio-admin.js:21
 msgid "Field"
 msgstr "Campo"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "Remove rule"
 msgstr "Rimuovi regola"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "Operator"
 msgstr "Operatore"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "is"
 msgstr "è"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "is not"
 msgstr "non è"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "is greater than"
 msgstr "è maggiore di"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "is less than"
 msgstr "è minore di"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "contains"
 msgstr "contiene"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "starts with"
 msgstr "inizia con"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "ends with"
 msgstr "finisce con"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "is empty"
 msgstr "è vuoto"
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 msgid "is not empty"
 msgstr "non è vuoto"
 
 #. translators: %s: code of the main language, like IT.
-#: build/barrio-admin.js:13
+#: build/barrio-admin.js:10
 #, js-format
 msgid "Empty in %s, so there is nothing to translate."
 msgstr "Vuoto in %s, quindi non c'è niente da tradurre."
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Services that receive each entry"
 msgstr "Servizi che ricevono ogni registrazione"
 
-#: build/barrio-admin.js:24
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:21
+#: build/barrio-admin.js:27
 msgid "Integrations"
 msgstr "Integrazioni"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Add integration"
 msgstr "Aggiungi integrazione"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Entries are not sent to other services. Integrations come with the Barrio Suite extensions, like Mailchimp."
 msgstr "Le registrazioni non vengono inviate ad altri servizi. Le integrazioni arrivano con le estensioni di Barrio Suite, come Mailchimp."
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "The extension of this integration is not active: its settings are kept, but entries are not sent. Activate it again to change them."
 msgstr "L'estensione di questa integrazione non è attiva: le sue impostazioni sono conservate, ma le registrazioni non vengono inviate. Riattivala per modificarle."
 
-#: build/barrio-admin.js:9
-#: build/barrio-admin.js:24
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:38
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:10
+#: build/barrio-admin.js:21
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:35
+#: build/barrio-admin.js:82
 msgid "Active"
 msgstr "Attivo"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Remove integration"
 msgstr "Rimuovi integrazione"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Send the entry"
 msgstr "Invia la registrazione"
 
-#: build/barrio-admin.js:24
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:21
+#: build/barrio-admin.js:27
 msgid "Do not send it"
 msgstr "Non inviarla"
 
-#: build/barrio-admin.js:24
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:21
+#: build/barrio-admin.js:27
 msgid "Add some fields first."
 msgstr "Prima aggiungi qualche campo."
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Separated by commas, for example pdf, jpg, png."
 msgstr "Separate da virgole, per esempio pdf, jpg, png."
 
-#: build/barrio-admin.js:12
-#: build/barrio-admin.js:24
-#: build/barrio-admin.js:28
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:21
+#: build/barrio-admin.js:25
+#: build/barrio-admin.js:45
 msgid "Add"
 msgstr "Aggiungi"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Name in the service"
 msgstr "Nome nel servizio"
 
-#: build/barrio-admin.js:24
-#: build/barrio-admin.js:36
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:21
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:57
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Remove"
 msgstr "Rimuovi"
 
-#: build/barrio-admin.js:24
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:21
+#: build/barrio-admin.js:25
 msgid "Field properties"
 msgstr "Proprietà del campo"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Select a field to edit its properties."
 msgstr "Seleziona un campo per modificarne le proprietà."
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Form structure · drag to reorder"
 msgstr "Struttura del form · trascina per riordinare"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Option 1"
 msgstr "Opzione 1"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Option 2"
 msgstr "Opzione 2"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "No fields yet: add the first one."
 msgstr "Ancora nessun campo: aggiungi il primo."
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Field types"
 msgstr "Tipi di campo"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Add field"
 msgstr "Aggiungi campo"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Conditional"
 msgstr "Condizionale"
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 msgid "Remove field"
 msgstr "Rimuovi campo"
 
 #. translators: %d: number of choices not shown.
-#: build/barrio-admin.js:25
+#: build/barrio-admin.js:22
 #, js-format
 msgid "+ %d more"
 msgstr "+ altre %d"
 
 #. translators: %s: allowed file extensions.
-#: build/barrio-admin.js:26
+#: build/barrio-admin.js:23
 #, js-format
 msgid "File upload: %s"
 msgstr "Caricamento file: %s"
 
 #. translators: %s: URL parameter.
-#: build/barrio-admin.js:27
+#: build/barrio-admin.js:24
 #, js-format
 msgid "Hidden, from the URL parameter %s"
 msgstr "Nascosto, dal parametro URL %s"
 
-#: build/barrio-admin.js:27
+#: build/barrio-admin.js:24
 msgid "Hidden, with a fixed value"
 msgstr "Nascosto, con un valore fisso"
 
 #. translators: %s: button text.
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 #, js-format
 msgid "Next page · button \"%s\""
 msgstr "Pagina successiva · pulsante \"%s\""
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Consent text"
 msgstr "Testo del consenso"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Next button"
 msgstr "Pulsante Avanti"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Name in the entries"
 msgstr "Nome nelle registrazioni"
 
-#: build/barrio-admin.js:28
-#: build/barrio-admin.js:29
+#: build/barrio-admin.js:25
+#: build/barrio-admin.js:26
 msgid "Label"
 msgstr "Etichetta"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Links are allowed, for example <a href=\"/privacy-policy/\">privacy policy</a>. The text is kept with every entry as proof of consent."
 msgstr "Puoi inserire link, per esempio <a href=\"/privacy-policy/\">privacy policy</a>. Il testo viene salvato con ogni registrazione come prova del consenso."
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Empty option"
 msgstr "Opzione vuota"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Placeholder"
 msgstr "Segnaposto"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Required field"
 msgstr "Campo obbligatorio"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Advanced"
 msgstr "Avanzate"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Key"
 msgstr "Chiave"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores."
 msgstr "Generata dall'etichetta finché non la modifichi o salvi il form. Si usa nei merge tag, come {{email}}, e nelle esportazioni: lettere minuscole, cifre e trattini bassi."
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Error message"
 msgstr "Messaggio di errore"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Shown when the value is missing or not valid. Leave empty for the standard messages."
 msgstr "Mostrato quando il valore manca o non è valido. Lascia vuoto per i messaggi standard."
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Show this field"
 msgstr "Mostra questo campo"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Hide this field"
 msgstr "Nascondi questo campo"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Rules can use only the fields above this one."
 msgstr "Le regole possono usare solo i campi sopra questo."
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Replace the choices with a preset"
 msgstr "Sostituisci le scelte con un preset"
 
-#: build/barrio-admin.js:28
+#: build/barrio-admin.js:25
 msgid "Presets"
 msgstr "Preset"
 
 #. translators: %d: number of the choice.
-#: build/barrio-admin.js:29
+#: build/barrio-admin.js:26
 #, js-format
 msgid "Label of choice %d"
 msgstr "Etichetta della scelta %d"
 
 #. translators: %d: number of the choice.
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 #, js-format
 msgid "Value of choice %d"
 msgstr "Valore della scelta %d"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Remove choice"
 msgstr "Rimuovi scelta"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "The value is what entries and exports save: it stays the same in every language."
 msgstr "Il valore è quello che salvano registrazioni ed esportazioni: resta uguale in ogni lingua."
 
-#: build/barrio-admin.js:20
+#: build/barrio-admin.js:17
 #: build/barrio-reorder.js:1
 msgid "Move"
 msgstr "Sposta"
 
 #. translators: %s: name of the item.
-#: build/barrio-admin.js:21
+#: build/barrio-admin.js:18
 #: build/barrio-reorder.js:2
 #, js-format
 msgid "Picked up %s."
 msgstr "Hai preso %s."
 
 #. translators: 1: name of the item; 2: new position; 3: number of items.
-#: build/barrio-admin.js:22
+#: build/barrio-admin.js:19
 #: build/barrio-reorder.js:3
 #, js-format
 msgid "%1$s moved to position %2$d of %3$d."
 msgstr "Hai spostato %1$s alla posizione %2$d di %3$d."
 
 #. translators: 1: name of the item; 2: new position; 3: number of items.
-#: build/barrio-admin.js:23
+#: build/barrio-admin.js:20
 #: build/barrio-reorder.js:4
 #, js-format
 msgid "%1$s dropped at position %2$d of %3$d."
 msgstr "Hai rilasciato %1$s alla posizione %2$d di %3$d."
 
 #. translators: %s: name of the item.
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 #: build/barrio-reorder.js:5
 #, js-format
 msgid "Moving %s was cancelled."
 msgstr "Spostamento di %s annullato."
 
-#: build/barrio-admin.js:24
+#: build/barrio-admin.js:21
 #: build/barrio-reorder.js:5
 msgid "To move an item, press space or enter, use the arrow keys, then press space or enter again to drop it, or escape to cancel."
 msgstr "Per spostare un elemento premi Spazio o Invio, usa i tasti freccia, poi premi di nuovo Spazio o Invio per rilasciarlo, oppure Esc per annullare."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Form saved."
 msgstr "Form salvato."
 
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:39
 msgid "All forms"
 msgstr "Tutti i form"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Form name"
 msgstr "Nome del form"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Form name (only for the admin)"
 msgstr "Nome del form (visibile solo in bacheca)"
 
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:35
 msgid "Shortcode copied."
 msgstr "Shortcode copiato."
 
@@ -1178,38 +1175,38 @@ msgstr "Shortcode copiato."
 msgid "%s (main language)"
 msgstr "%s (lingua principale)"
 
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:58
 msgid "Preview"
 msgstr "Anteprima"
 
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:36
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:83
 #: build/barrio-reorder.js:5
 msgid "Saving…"
 msgstr "Salvataggio in corso…"
 
 #: build/barrio-admin.js:8
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:36
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:83
 #: build/barrio-reorder.js:5
 msgid "Save"
 msgstr "Salva"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Reload the form"
 msgstr "Ricarica il form"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Save my version anyway"
 msgstr "Salva comunque la mia versione"
 
@@ -1219,181 +1216,181 @@ msgstr "Salva comunque la mia versione"
 msgid "You are editing the %1$s texts: an empty text shows the %2$s one. The settings in grey are the same in every language: change them in %2$s."
 msgstr "Stai modificando i testi in %1$s: un testo vuoto mostra quello in %2$s. Le impostazioni in grigio sono uguali in ogni lingua: modificale in %2$s."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Fields"
 msgstr "Campi"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Options"
 msgstr "Opzioni"
 
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:32
 msgid "Notifications"
 msgstr "Notifiche"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Email preview"
 msgstr "Anteprima email"
 
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:69
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:66
 msgid "To"
 msgstr "A"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Reply to"
 msgstr "Rispondi a"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Subject"
 msgstr "Oggetto"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Conditional logic and steps work as on the site; the form is not sent. The styles of the theme are not loaded."
 msgstr "La logica condizionale e i passaggi funzionano come sul sito; il form non viene inviato. Gli stili del tema non vengono caricati."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "With sample values: the field label in square brackets, or a realistic value for emails, dates and choices."
 msgstr "Con valori di esempio: l'etichetta del campo tra parentesi quadre, o un valore realistico per email, date e scelte."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Submission"
 msgstr "Invio"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Submit button"
 msgstr "Pulsante di invio"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "After sending"
 msgstr "Dopo l'invio"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Show a message"
 msgstr "Mostra un messaggio"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Open another page"
 msgstr "Apri un'altra pagina"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Page to open"
 msgstr "Pagina da aprire"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Like /thank-you/ or https://example.com/thank-you/."
 msgstr "Come /grazie/ o https://example.com/grazie/."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Success message"
 msgstr "Messaggio di conferma"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Leave empty for the standard message."
 msgstr "Lascia vuoto per il messaggio standard."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Emails sent after each entry"
 msgstr "Email inviate dopo ogni registrazione"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Admin notification"
 msgstr "Notifica all'amministratore"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "New entry: {{form_title}}"
 msgstr "Nuova registrazione: {{form_title}}"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Add notification"
 msgstr "Aggiungi notifica"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "No email is sent after a submission: entries are saved anyway."
 msgstr "Dopo un invio non viene spedita nessuna email: le registrazioni vengono salvate comunque."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Notification"
 msgstr "Notifica"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Remove notification"
 msgstr "Rimuovi notifica"
 
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:40
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:37
+#: build/barrio-admin.js:57
 msgid "Name"
 msgstr "Nome"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Only for the admin, for example in the notes of the entries."
 msgstr "Visibile solo in bacheca, per esempio nelle note delle registrazioni."
 
-#: build/barrio-admin.js:30
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:27
+#: build/barrio-admin.js:83
 msgid "Send to"
 msgstr "Invia a"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Addresses separated by commas; merge tags are allowed, like {{admin_email}} or {{email}}."
 msgstr "Indirizzi separati da virgole; puoi usare i merge tag, come {{admin_email}} o {{email}}."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Optional, for example {{email}}."
 msgstr "Facoltativo, per esempio {{email}}."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Heading"
 msgstr "Titolo"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Shown at the top of the email. Leave empty to use the subject."
 msgstr "Mostrato in cima all'email. Lascia vuoto per usare l'oggetto."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Message"
 msgstr "Messaggio"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "HTML is allowed."
 msgstr "Puoi usare l'HTML."
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Merge tags"
 msgstr "Merge tag"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Attach the uploaded files"
 msgstr "Allega i file caricati"
 
-#: build/barrio-admin.js:30
+#: build/barrio-admin.js:27
 msgid "Send it"
 msgstr "Inviala"
 
 #. translators: %s: form name.
-#: build/barrio-admin.js:31
+#: build/barrio-admin.js:28
 #, js-format
 msgid "%s (trash)"
 msgstr "%s (cestino)"
 
-#: build/barrio-admin.js:31
+#: build/barrio-admin.js:28
 msgid "There are no forms yet."
 msgstr "Non ci sono ancora form."
 
-#: build/barrio-admin.js:31
+#: build/barrio-admin.js:28
 msgid "Marked as read."
 msgstr "Segnate come lette."
 
-#: build/barrio-admin.js:31
+#: build/barrio-admin.js:28
 msgid "Marked as unread."
 msgstr "Segnate come da leggere."
 
 #. translators: %d: number of entries to delete.
-#: build/barrio-admin.js:32
+#: build/barrio-admin.js:29
 #, js-format
 msgid "Delete %d entry permanently, with its files?"
 msgid_plural "Delete %d entries permanently, with their files?"
@@ -1401,163 +1398,163 @@ msgstr[0] "Vuoi eliminare definitivamente %d registrazione, con i suoi file?"
 msgstr[1] "Vuoi eliminare definitivamente %d registrazioni, con i loro file?"
 
 #. translators: %d: number of entries deleted.
-#: build/barrio-admin.js:33
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:30
+#: build/barrio-admin.js:35
 #, js-format
 msgid "%d entry deleted."
 msgid_plural "%d entries deleted."
 msgstr[0] "%d registrazione eliminata."
 msgstr[1] "%d registrazioni eliminate."
 
-#: build/barrio-admin.js:33
+#: build/barrio-admin.js:30
 msgid "New"
 msgstr "Nuova"
 
-#: build/barrio-admin.js:17
-#: build/barrio-admin.js:33
-#: build/barrio-admin.js:41
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:65
-#: build/barrio-admin.js:69
-#: build/barrio-admin.js:90
+#: build/barrio-admin.js:14
+#: build/barrio-admin.js:30
+#: build/barrio-admin.js:38
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:62
+#: build/barrio-admin.js:66
+#: build/barrio-admin.js:87
 msgid "Actions"
 msgstr "Azioni"
 
 #. translators: %d: entry number.
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 #, js-format
 msgid "Actions for entry #%d"
 msgstr "Azioni per la registrazione #%d"
 
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:63
 msgid "View"
 msgstr "Visualizza"
 
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:32
 msgid "Mark as unread"
 msgstr "Segna come da leggere"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "Mark as read"
 msgstr "Segna come letta"
 
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:35
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:70
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:32
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:67
+#: build/barrio-admin.js:82
 msgid "Delete"
 msgstr "Elimina"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "Search entries"
 msgstr "Cerca registrazioni"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "No entries found."
 msgstr "Nessuna registrazione trovata."
 
-#: build/barrio-admin.js:17
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:41
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:14
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:38
+#: build/barrio-admin.js:39
 msgid "Status"
 msgstr "Stato"
 
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:33
 msgid "All entries"
 msgstr "Tutte le registrazioni"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "Unread"
 msgstr "Da leggere"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "Read"
 msgstr "Letta"
 
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:63
 msgid "All languages"
 msgstr "Tutte le lingue"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "Export CSV"
 msgstr "Esporta CSV"
 
-#: build/barrio-admin.js:34
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:69
+#: build/barrio-admin.js:31
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:66
 msgid "Note"
 msgstr "Nota"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "Sent"
 msgstr "Inviato"
 
-#: build/barrio-admin.js:34
+#: build/barrio-admin.js:31
 msgid "Error"
 msgstr "Errore"
 
 #. translators: %d: entry number.
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:32
 #, js-format
 msgid "Entry #%d"
 msgstr "Registrazione #%d"
 
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:32
 msgid "Delete this entry permanently, with its files?"
 msgstr "Vuoi eliminare definitivamente questa registrazione, con i suoi file?"
 
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:32
 msgid "Answers"
 msgstr "Risposte"
 
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:32
 msgid "Details"
 msgstr "Dettagli"
 
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:32
 msgid "Form version"
 msgstr "Versione del form"
 
-#: build/barrio-admin.js:35
+#: build/barrio-admin.js:32
 msgid "Resend with the current settings of the notification."
 msgstr "Invia di nuovo con le impostazioni attuali della notifica."
 
 #. translators: %s: notification name.
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 #, js-format
 msgid "Notification \"%s\" sent."
 msgstr "Notifica \"%s\" inviata."
 
-#: build/barrio-admin.js:36
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:83
 msgid "Sending…"
 msgstr "Invio in corso…"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Resend"
 msgstr "Invia di nuovo"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "History"
 msgstr "Cronologia"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Add a note"
 msgstr "Aggiungi una nota"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Add note"
 msgstr "Aggiungi nota"
 
@@ -1571,103 +1568,103 @@ msgstr "Salvata: lascia vuoto per mantenerla."
 msgid "The saved value can no longer be read, probably because the WordPress security keys have changed. Enter it again."
 msgstr "Il valore salvato non è più leggibile, probabilmente perché le chiavi di sicurezza di WordPress sono cambiate. Inseriscilo di nuovo."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:57
 #: build/barrio-admin.js:60
-#: build/barrio-admin.js:63
 msgid "Logo"
 msgstr "Logo"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Shown at the top of form emails, 48 pixels high. Without a logo the site name is shown."
 msgstr "Mostrato in cima alle email dei form, alto 48 pixel. Senza logo viene mostrato il nome del sito."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Replace logo"
 msgstr "Sostituisci logo"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Choose logo"
 msgstr "Scegli logo"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Accent color"
 msgstr "Colore di accento"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Background color"
 msgstr "Colore di sfondo"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Footer"
 msgstr "Piè di pagina"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Shown at the bottom of form emails; links are allowed. Leave empty to show the site name."
 msgstr "Mostrato in fondo alle email dei form; puoi inserire link. Lascia vuoto per mostrare il nome del sito."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Delete entries after (days)"
 msgstr "Elimina le registrazioni dopo (giorni)"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Entries older than this are deleted every day, with their files. Leave 0 to keep them until you delete them."
 msgstr "Le registrazioni più vecchie vengono eliminate ogni giorno, con i loro file. Lascia 0 per conservarle finché non le elimini tu."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "The form emails carry the logo of the site, and the entries are kept only as long as needed, as the GDPR asks."
 msgstr "Le email dei form hanno il logo del sito, e le registrazioni sono conservate solo per il tempo necessario, come chiede il GDPR."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Email template"
 msgstr "Modello email"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Privacy"
 msgstr "Privacy"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Create and edit forms"
 msgstr "Crea e modifica i form"
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "See and manage entries"
 msgstr "Visualizza e gestisci le registrazioni"
 
-#: build/barrio-admin.js:36
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:33
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:83
 msgid "Settings saved."
 msgstr "Impostazioni salvate."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Logo, colors and footer of the form notifications."
 msgstr "Logo, colori e piè di pagina delle notifiche dei form."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Requests to export or erase personal data, from Tools in WordPress, include the form entries that contain the email address in an email field."
 msgstr "Le richieste di esportazione o cancellazione dei dati personali, da Strumenti in WordPress, includono le registrazioni dei form che contengono l'indirizzo email in un campo email."
 
-#: build/barrio-admin.js:36
+#: build/barrio-admin.js:33
 msgid "Deletes the entries of every form, with their files, right away. It cannot be undone. To delete only some, select them in Entries."
 msgstr "Elimina subito le registrazioni di tutti i form, con i loro file. L'operazione non può essere annullata. Per eliminarne solo alcune, selezionale in Registrazioni."
 
 #. translators: %d: number of entries of every form.
-#: build/barrio-admin.js:37
+#: build/barrio-admin.js:34
 #, js-format
 msgid "Delete %d entry permanently, with its files? This cannot be undone."
 msgid_plural "Delete all %d entries of every form permanently, with their files? This cannot be undone."
 msgstr[0] "Vuoi eliminare definitivamente %d registrazione, con i suoi file? L'operazione non può essere annullata."
 msgstr[1] "Vuoi eliminare definitivamente tutte le %d registrazioni di tutti i form, con i loro file? L'operazione non può essere annullata."
 
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:35
 msgid "There are no entries to delete."
 msgstr "Non ci sono registrazioni da eliminare."
 
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:35
 msgid "Deleting…"
 msgstr "Eliminazione in corso…"
 
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:35
 msgid "Delete all entries"
 msgstr "Elimina tutte le registrazioni"
 
@@ -1675,91 +1672,91 @@ msgstr "Elimina tutte le registrazioni"
 msgid "Permissions"
 msgstr "Permessi"
 
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:35
 msgid "What each role can do in Forms. Administrators can always do everything; only administrators change these settings."
 msgstr "Cosa può fare ogni ruolo in Form. Gli amministratori possono sempre fare tutto; solo gli amministratori possono modificare queste impostazioni."
 
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:35
 msgctxt "form status"
 msgid "Closed"
 msgstr "Chiuso"
 
-#: build/barrio-admin.js:38
+#: build/barrio-admin.js:35
 msgid "Trash"
 msgstr "Cestino"
 
 #. translators: 1: form name; 2: number of entries.
-#: build/barrio-admin.js:39
+#: build/barrio-admin.js:36
 #, js-format
 msgid "\"%1$s\" has %2$d entries, so it cannot be deleted: move it to the trash? The entries are kept."
 msgstr "\"%1$s\" ha %2$d registrazioni, quindi non può essere eliminato: vuoi spostarlo nel cestino? Le registrazioni vengono conservate."
 
 #. translators: %s: form name.
-#: build/barrio-admin.js:40
+#: build/barrio-admin.js:37
 #, js-format
 msgid "Delete \"%s\" permanently?"
 msgstr "Vuoi eliminare definitivamente \"%s\"?"
 
-#: build/barrio-admin.js:40
+#: build/barrio-admin.js:37
 msgid "Form moved to the trash."
 msgstr "Form spostato nel cestino."
 
-#: build/barrio-admin.js:40
+#: build/barrio-admin.js:37
 msgid "Form deleted."
 msgstr "Form eliminato."
 
-#: build/barrio-admin.js:40
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:37
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:69
 msgid "Entries"
 msgstr "Registrazioni"
 
 #. translators: %d: number of entries.
-#: build/barrio-admin.js:41
+#: build/barrio-admin.js:38
 #, js-format
 msgid "%d entry"
 msgid_plural "%d entries"
 msgstr[0] "%d registrazione"
 msgstr[1] "%d registrazioni"
 
-#: build/barrio-admin.js:17
-#: build/barrio-admin.js:41
+#: build/barrio-admin.js:14
+#: build/barrio-admin.js:38
 msgid "Translations"
 msgstr "Traduzioni"
 
-#: build/barrio-admin.js:41
-#: build/barrio-admin.js:69
+#: build/barrio-admin.js:38
+#: build/barrio-admin.js:66
 msgid "Last modified"
 msgstr "Ultima modifica"
 
 #. translators: %s: name of the row: a form, a page, a post or a term.
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:66
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:63
+#: build/barrio-admin.js:88
 #, js-format
 msgid "Actions for \"%s\""
 msgstr "Azioni per \"%s\""
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "Restore"
 msgstr "Ripristina"
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "Form restored."
 msgstr "Form ripristinato."
 
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:43
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:40
 msgid "Delete permanently"
 msgstr "Elimina definitivamente"
 
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:66
-#: build/barrio-admin.js:70
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:63
+#: build/barrio-admin.js:67
+#: build/barrio-admin.js:88
 msgid "Edit"
 msgstr "Modifica"
 
@@ -1767,52 +1764,52 @@ msgstr "Modifica"
 #: modules/duplicate/src/Module.php:221
 #: modules/duplicate/src/Module.php:234
 #: modules/duplicate/src/Module.php:400
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:69
 msgid "Duplicate"
 msgstr "Duplica"
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "Form duplicated."
 msgstr "Form duplicato."
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "Copy shortcode"
 msgstr "Copia shortcode"
 
-#: build/barrio-admin.js:42
-#: build/barrio-admin.js:46
+#: build/barrio-admin.js:39
+#: build/barrio-admin.js:43
 msgid "Close to new entries"
 msgstr "Chiudi alle nuove registrazioni"
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "Form closed."
 msgstr "Form chiuso."
 
+#: build/barrio-admin.js:39
 #: build/barrio-admin.js:42
-#: build/barrio-admin.js:45
 msgid "Reopen"
 msgstr "Riapri"
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "Form reopened."
 msgstr "Form riaperto."
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "Search forms"
 msgstr "Cerca form"
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "The trash is empty."
 msgstr "Il cestino è vuoto."
 
-#: build/barrio-admin.js:42
+#: build/barrio-admin.js:39
 msgid "No forms found."
 msgstr "Nessun form trovato."
 
 #. translators: %d: number of forms restored.
-#: build/barrio-admin.js:43
+#: build/barrio-admin.js:40
 #, js-format
 msgid "%d form restored."
 msgid_plural "%d forms restored."
@@ -1820,7 +1817,7 @@ msgstr[0] "%d form ripristinato."
 msgstr[1] "%d form ripristinati."
 
 #. translators: %d: number of forms to delete.
-#: build/barrio-admin.js:44
+#: build/barrio-admin.js:41
 #, js-format
 msgid "Delete %d form permanently?"
 msgid_plural "Delete %d forms permanently?"
@@ -1828,7 +1825,7 @@ msgstr[0] "Vuoi eliminare definitivamente %d form?"
 msgstr[1] "Vuoi eliminare definitivamente %d form?"
 
 #. translators: %d: number of forms deleted.
-#: build/barrio-admin.js:45
+#: build/barrio-admin.js:42
 #, js-format
 msgid "%d form deleted."
 msgid_plural "%d forms deleted."
@@ -1836,7 +1833,7 @@ msgstr[0] "%d form eliminato."
 msgstr[1] "%d form eliminati."
 
 #. translators: %d: number of forms reopened.
-#: build/barrio-admin.js:46
+#: build/barrio-admin.js:43
 #, js-format
 msgid "%d form reopened."
 msgid_plural "%d forms reopened."
@@ -1844,458 +1841,458 @@ msgstr[0] "%d form riaperto."
 msgstr[1] "%d form riaperti."
 
 #. translators: %d: number of forms closed.
-#: build/barrio-admin.js:47
+#: build/barrio-admin.js:44
 #, js-format
 msgid "%d form closed."
 msgid_plural "%d forms closed."
 msgstr[0] "%d form chiuso."
 msgstr[1] "%d form chiusi."
 
-#: build/barrio-admin.js:47
+#: build/barrio-admin.js:44
 msgid "Move to trash"
 msgstr "Sposta nel cestino"
 
 #. translators: %d: number of forms moved to the trash.
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 #, js-format
 msgid "%d form moved to the trash."
 msgid_plural "%d forms moved to the trash."
 msgstr[0] "%d form spostato nel cestino."
 msgstr[1] "%d form spostati nel cestino."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "New form"
 msgstr "Nuovo form"
 
 #: build/barrio-admin.js:4
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Sections"
 msgstr "Sezioni"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Contact forms, their entries and their notifications."
 msgstr "Form di contatto, le loro registrazioni e le loro notifiche."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Contact forms with a drag & drop builder"
 msgstr "Form di contatto con un builder drag & drop"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Active forms"
 msgstr "Form attivi"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Unread entries"
 msgstr "Registrazioni da leggere"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Manage forms"
 msgstr "Gestisci i form"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Update automatically every night"
 msgstr "Aggiorna automaticamente ogni notte"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Automatic updates of plugins are not available on this site."
 msgstr "Gli aggiornamenti automatici dei plugin non sono disponibili su questo sito."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Automatic updates"
 msgstr "Aggiornamenti automatici"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Barrio Suite and its extensions get fixes and new features by themselves."
 msgstr "Barrio Suite e le sue estensioni ricevono correzioni e nuove funzionalità in automatico."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Every night after midnight (site time) Barrio Suite and every installed extension are updated to the latest version."
 msgstr "Ogni notte dopo mezzanotte (ora del sito) Barrio Suite e tutte le estensioni installate vengono aggiornati all'ultima versione."
 
 #. translators: %s: installed version.
-#: build/barrio-admin.js:73
+#: build/barrio-admin.js:70
 #, js-format
 msgid "Barrio Suite %s is installed."
 msgstr "È installato Barrio Suite %s."
 
 #. translators: 1: installed version; 2: available version.
-#: build/barrio-admin.js:74
+#: build/barrio-admin.js:71
 #, js-format
 msgid "Barrio Suite %1$s is installed. Version %2$s is available."
 msgstr "È installato Barrio Suite %1$s. È disponibile la versione %2$s."
 
 #. translators: %s: installed version.
-#: build/barrio-admin.js:75
+#: build/barrio-admin.js:72
 #, js-format
 msgid "Barrio Suite %s is installed, the latest version."
 msgstr "È installato Barrio Suite %s, l'ultima versione."
 
-#: build/barrio-admin.js:75
+#: build/barrio-admin.js:72
 msgid "Updates"
 msgstr "Aggiornamenti"
 
-#: build/barrio-admin.js:75
+#: build/barrio-admin.js:72
 msgid "New versions of Barrio Suite and of its extensions are published on GitHub. They also appear in Dashboard → Updates, like those of the other plugins."
 msgstr "Le nuove versioni di Barrio Suite e delle sue estensioni vengono pubblicate su GitHub. Compaiono anche in Bacheca → Aggiornamenti, come quelle degli altri plugin."
 
-#: build/barrio-admin.js:75
-#: build/barrio-admin.js:82
+#: build/barrio-admin.js:72
+#: build/barrio-admin.js:79
 msgid "Checking…"
 msgstr "Verifica in corso…"
 
-#: build/barrio-admin.js:75
-#: build/barrio-admin.js:82
+#: build/barrio-admin.js:72
+#: build/barrio-admin.js:79
 msgid "Check for updates"
 msgstr "Verifica aggiornamenti"
 
-#: build/barrio-admin.js:49
-#: build/barrio-admin.js:75
+#: build/barrio-admin.js:46
+#: build/barrio-admin.js:72
 msgid "Updating…"
 msgstr "Aggiornamento in corso…"
 
 #. translators: %s: available version.
-#: build/barrio-admin.js:76
+#: build/barrio-admin.js:73
 #, js-format
 msgid "Update to %s"
 msgstr "Aggiorna alla versione %s"
 
-#: build/barrio-admin.js:76
+#: build/barrio-admin.js:73
 msgid "Every night after midnight (site time) Barrio Suite and every installed extension are updated to the latest version. Each one can also be turned on or off in Plugins."
 msgstr "Ogni notte dopo mezzanotte (ora del sito) Barrio Suite e tutte le estensioni installate vengono aggiornati all'ultima versione. Puoi attivare o disattivare gli aggiornamenti automatici di ciascuno anche in Plugin."
 
 #. translators: %s: extension name.
-#: build/barrio-admin.js:77
+#: build/barrio-admin.js:74
 #, js-format
 msgid "%s installed and activated."
 msgstr "%s installato e attivato."
 
 #. translators: %s: extension name.
-#: build/barrio-admin.js:78
+#: build/barrio-admin.js:75
 #, js-format
 msgid "%s updated."
 msgstr "%s aggiornato."
 
 #. translators: %s: extension name.
-#: build/barrio-admin.js:79
+#: build/barrio-admin.js:76
 #, js-format
 msgid "%s activated."
 msgstr "%s attivato."
 
 #. translators: %s: extension name.
-#: build/barrio-admin.js:80
+#: build/barrio-admin.js:77
 #, js-format
 msgid "%s deactivated."
 msgstr "%s disattivato."
 
 #. translators: %s: extension name.
-#: build/barrio-admin.js:81
+#: build/barrio-admin.js:78
 #, js-format
 msgid "%s deleted."
 msgstr "%s eliminato."
 
 #. translators: %s: extension name.
-#: build/barrio-admin.js:82
+#: build/barrio-admin.js:79
 #, js-format
 msgid "Delete %s? Its files are removed from the site; you can install it again from this page."
 msgstr "Vuoi eliminare %s? I suoi file vengono rimossi dal sito; potrai installarlo di nuovo da questa pagina."
 
-#: build/barrio-admin.js:82
+#: build/barrio-admin.js:79
 msgid "Please wait…"
 msgstr "Attendi…"
 
-#: build/barrio-admin.js:82
+#: build/barrio-admin.js:79
 msgid "Search extensions"
 msgstr "Cerca estensioni"
 
-#: build/barrio-admin.js:82
+#: build/barrio-admin.js:79
 msgid "Upload a zip"
 msgstr "Carica uno zip"
 
-#: build/barrio-admin.js:82
+#: build/barrio-admin.js:79
 msgid "Every extension is a separate plugin: it can also be deactivated or deleted from Plugins. Account settings, like API keys, are in <a>Forms → Settings</a>; each form chooses in its Integrations tab whether to use an extension and how."
 msgstr "Ogni estensione è un plugin separato: puoi anche disattivarla o eliminarla da Plugin. Le impostazioni degli account, come le chiavi API, sono in <a>Form → Impostazioni</a>; ogni form sceglie nella sua scheda Integrazioni se usare un'estensione e come."
 
 #. translators: %s: version number, for example 0.2.0.
-#: build/barrio-admin.js:83
+#: build/barrio-admin.js:80
 #, js-format
 msgid "Not installed. Latest version: %s."
 msgstr "Non installata. Ultima versione: %s."
 
 #. translators: 1: installed version; 2: available version.
-#: build/barrio-admin.js:84
+#: build/barrio-admin.js:81
 #, js-format
 msgid "Version %1$s installed. Version %2$s is available."
 msgstr "Versione %1$s installata. È disponibile la versione %2$s."
 
 #. translators: %s: installed version.
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 #, js-format
 msgid "Version %s installed."
 msgstr "Versione %s installata."
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "Install"
 msgstr "Installa"
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "Deactivate"
 msgstr "Disattiva"
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "Activate"
 msgstr "Attiva"
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "Update"
 msgstr "Aggiorna"
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "No extensions found."
 msgstr "Nessuna estensione trovata."
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "No extensions are available yet."
 msgstr "Non ci sono ancora estensioni disponibili."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Leave empty to keep the saved password."
 msgstr "Lascia vuoto per mantenere la password salvata."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Defined in wp-config.php with the BARRIO_SMTP_PASSWORD constant."
 msgstr "Definita in wp-config.php con la costante BARRIO_SMTP_PASSWORD."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "The saved password can no longer be read, probably because the WordPress security keys have changed. Enter it again."
 msgstr "La password salvata non è più leggibile, probabilmente perché le chiavi di sicurezza di WordPress sono cambiate. Inseriscila di nuovo."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Host"
 msgstr "Host"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Port"
 msgstr "Porta"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Encryption"
 msgstr "Crittografia"
 
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:83
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "None"
 msgstr "Nessuna"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Username"
 msgstr "Nome utente"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Leave empty if the server does not require authentication."
 msgstr "Lascia vuoto se il server non richiede l'autenticazione."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Password"
 msgstr "Password"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Hide"
 msgstr "Nascondi"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 #: modules/hours/assets/block/index.js:19
 msgid "Show"
 msgstr "Mostra"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "From email"
 msgstr "Email mittente"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "The sender of every email the site sends. SMTP servers usually accept only the addresses of their own domain."
 msgstr "Il mittente di tutte le email inviate dal sito. Di solito i server SMTP accettano solo gli indirizzi del proprio dominio."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "From name"
 msgstr "Nome mittente"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Save your changes first: the test uses the saved settings."
 msgstr "Prima salva le modifiche: la prova usa le impostazioni salvate."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Leave empty to send it to your own address."
 msgstr "Lascia vuoto per inviarla al tuo indirizzo."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Send test email"
 msgstr "Invia email di prova"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Test email"
 msgstr "Email di prova"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "The emails of the site leave through an SMTP server, so they do not end up in spam."
 msgstr "Le email del sito partono da un server SMTP, così non finiscono nello spam."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Used for all the email the site sends, not only form notifications. Leave the host empty to send with the default WordPress mail."
 msgstr "Usato per tutte le email inviate dal sito, non solo per le notifiche dei form. Lascia vuoto l'host per inviare con la posta predefinita di WordPress."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Time zone"
 msgstr "Fuso orario"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "For the dates of entries and emails."
 msgstr "Per le date delle registrazioni e delle email."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Search engines"
 msgstr "Motori di ricerca"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "While the site was being built WordPress may have asked search engines not to index it."
 msgstr "Durante la realizzazione del sito WordPress potrebbe aver chiesto ai motori di ricerca di non indicizzarlo."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Let search engines index the site"
 msgstr "Consenti ai motori di ricerca di indicizzare il sito"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "The same setting as Search engine visibility in Settings → Reading."
 msgstr "È la stessa impostazione di Visibilità ai motori di ricerca in Impostazioni → Lettura."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
+#: build/barrio-admin.js:85
 #: build/barrio-admin.js:88
-#: build/barrio-admin.js:91
 msgid "Site launch"
 msgstr "Messa online del sito"
 
 #. translators: %d: number of steps left to set up.
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 #, js-format
 msgid "Follow the step-by-step guide to configure and publish the site: %d steps to go."
 msgstr "Segui la guida passo passo per configurare e pubblicare il sito: mancano %d passaggi."
 
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "Start the launch"
 msgstr "Avvia la messa online"
 
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "The site is ready to go online"
 msgstr "Il sito è pronto per andare online"
 
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "Everything in the launch guide is configured."
 msgstr "Tutti i passaggi della guida alla messa online sono configurati."
 
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "Review the guide"
 msgstr "Rivedi la guida"
 
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "Back to the dashboard"
 msgstr "Torna alla bacheca"
 
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "Configured"
 msgstr "Configurato"
 
-#: build/barrio-admin.js:87
+#: build/barrio-admin.js:84
 msgid "Skipped"
 msgstr "Saltato"
 
 #. translators: 1: current step number; 2: total number of steps.
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 #, js-format
 msgid "Step %1$d of %2$d"
 msgstr "Passaggio %1$d di %2$d"
 
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "Skip"
 msgstr "Salta"
 
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "Save and continue"
 msgstr "Salva e continua"
 
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "Continue"
 msgstr "Continua"
 
 #: modules/seo/src/Admin.php:16
-#: build/barrio-admin.js:63
-#: build/barrio-admin.js:70
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:60
+#: build/barrio-admin.js:67
+#: build/barrio-admin.js:69
 msgid "SEO"
 msgstr "SEO"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Titles, descriptions, sitemap and redirects. Turn it off if the site uses another SEO plugin, such as Yoast or Rank Math."
 msgstr "Titoli, descrizioni, sitemap e redirect. Spegnilo se il sito usa un altro plugin SEO, come Yoast o Rank Math."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Modules"
 msgstr "Moduli"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "A module that is turned off disappears from the menu and from the site, but its data is kept: turn it on again to find everything as it was."
 msgstr "Un modulo spento sparisce dal menu e dal sito, ma i suoi dati restano: riaccendilo per ritrovare tutto com'era."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Uninstall"
 msgstr "Disinstallazione"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Deactivating Barrio Suite never deletes anything. Deleting it from Plugins keeps the data too, unless you choose otherwise here."
 msgstr "Disattivare Barrio Suite non elimina mai nulla. Anche eliminandolo da Plugin i dati vengono conservati, a meno che tu non scelga diversamente qui."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Delete all data when Barrio Suite is deleted"
 msgstr "Elimina tutti i dati quando Barrio Suite viene eliminato"
 
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "Plugins that connect Barrio Suite to other services."
 msgstr "Plugin che collegano Barrio Suite ad altri servizi."
 
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "Modules, email and the other settings of the whole plugin."
 msgstr "Moduli, email e le altre impostazioni dell'intero plugin."
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "Check that the site is ready to go online and configure what is missing."
 msgstr "Verifica che il sito sia pronto per andare online e configura quello che manca."
 
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:47
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "Good"
 msgstr "Buono"
 
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:47
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "Needs improvement"
 msgstr "Da migliorare"
 
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:47
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "Poor"
 msgstr "Scarso"
 
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:47
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "SEO score"
 msgstr "Punteggio SEO"
 
 #. translators: 1: score from 0 to 100, 2: Good, Needs improvement or Poor.
-#: build/barrio-admin.js:51
+#: build/barrio-admin.js:48
 #: build/seo-form.js:3
 #: build/seo-sidebar.js:2
 #, js-format
@@ -2303,7 +2300,7 @@ msgid "%1$d out of 100, %2$s"
 msgstr "%1$d su 100, %2$s"
 
 #. translators: %d: number of failed checks.
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:49
 #: build/seo-form.js:4
 #: build/seo-sidebar.js:3
 #, js-format
@@ -2312,14 +2309,14 @@ msgid_plural "%d checks to improve"
 msgstr[0] "%d controllo da migliorare"
 msgstr[1] "%d controlli da migliorare"
 
-#: build/barrio-admin.js:52
+#: build/barrio-admin.js:49
 #: build/seo-form.js:4
 #: build/seo-sidebar.js:3
 msgid "All checks passed"
 msgstr "Tutti i controlli superati"
 
 #. translators: 1: characters used, 2: maximum.
-#: build/barrio-admin.js:53
+#: build/barrio-admin.js:50
 #: build/seo-form.js:5
 #: build/seo-sidebar.js:4
 #, js-format
@@ -2327,253 +2324,253 @@ msgid "%1$d of %2$d characters"
 msgstr "%1$d di %2$d caratteri"
 
 #. translators: %s: Yes or No, the value of the content type or taxonomy.
-#: build/barrio-admin.js:54
+#: build/barrio-admin.js:51
 #: build/seo-form.js:6
 #: build/seo-sidebar.js:5
 #, js-format
 msgid "Default (%s)"
 msgstr "Predefinito (%s)"
 
-#: build/barrio-admin.js:54
+#: build/barrio-admin.js:51
 #: build/seo-form.js:6
 #: build/seo-sidebar.js:5
 msgid "No"
 msgstr "No"
 
-#: build/barrio-admin.js:54
+#: build/barrio-admin.js:51
 #: build/seo-form.js:6
 #: build/seo-sidebar.js:5
 msgid "Focus keyword set"
 msgstr "Parola chiave principale impostata"
 
-#: build/barrio-admin.js:54
+#: build/barrio-admin.js:51
 #: build/seo-form.js:6
 #: build/seo-sidebar.js:5
 msgid "Focus keyword in the SEO title"
 msgstr "Parola chiave principale nel titolo SEO"
 
-#: build/barrio-admin.js:54
+#: build/barrio-admin.js:51
 #: build/seo-form.js:6
 #: build/seo-sidebar.js:5
 msgid "Focus keyword in the first half of the SEO title"
 msgstr "Parola chiave principale nella prima metà del titolo SEO"
 
 #. translators: %d: characters.
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:52
 #: build/seo-form.js:7
 #: build/seo-sidebar.js:6
 #, js-format
 msgid "Title up to 60 characters (%d)"
 msgstr "Titolo fino a 60 caratteri (%d)"
 
-#: build/barrio-admin.js:55
+#: build/barrio-admin.js:52
 #: build/seo-form.js:7
 #: build/seo-sidebar.js:6
 msgid "Focus keyword in the meta description"
 msgstr "Parola chiave principale nella meta description"
 
 #. translators: %d: characters.
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:53
 #: build/seo-form.js:8
 #: build/seo-sidebar.js:7
 #, js-format
 msgid "Description of 120 to 160 characters (%d)"
 msgstr "Descrizione da 120 a 160 caratteri (%d)"
 
-#: build/barrio-admin.js:56
+#: build/barrio-admin.js:53
 #: build/seo-form.js:8
 #: build/seo-sidebar.js:7
 msgid "Focus keyword in the URL"
 msgstr "Parola chiave principale nell'URL"
 
 #. translators: %d: characters.
-#: build/barrio-admin.js:57
+#: build/barrio-admin.js:54
 #: build/seo-form.js:9
 #: build/seo-sidebar.js:8
 #, js-format
 msgid "URL up to 75 characters (%d)"
 msgstr "URL fino a 75 caratteri (%d)"
 
-#: build/barrio-admin.js:57
+#: build/barrio-admin.js:54
 #: build/seo-form.js:9
 #: build/seo-sidebar.js:8
 msgid "An image for sharing"
 msgstr "Un'immagine per la condivisione"
 
 #. translators: %d: words.
-#: build/barrio-admin.js:58
+#: build/barrio-admin.js:55
 #: build/seo-form.js:10
 #: build/seo-sidebar.js:9
 #, js-format
 msgid "At least 600 words (%d)"
 msgstr "Almeno 600 parole (%d)"
 
-#: build/barrio-admin.js:58
+#: build/barrio-admin.js:55
 #: build/seo-form.js:10
 #: build/seo-sidebar.js:9
 msgid "Focus keyword in the content"
 msgstr "Parola chiave principale nel contenuto"
 
-#: build/barrio-admin.js:58
+#: build/barrio-admin.js:55
 #: build/seo-form.js:10
 #: build/seo-sidebar.js:9
 msgid "Focus keyword at the beginning of the content (first 10%)"
 msgstr "Parola chiave principale all'inizio del contenuto (primo 10%)"
 
 #. translators: %s: percentage.
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 #, js-format
 msgid "Focus keyword density from 0.5%% to 2.5%% (%s%%)"
 msgstr "Densità della parola chiave principale tra 0,5%% e 2,5%% (%s%%)"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Focus keyword in a subheading"
 msgstr "Parola chiave principale in un sottotitolo"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Focus keyword in the alt text of an image"
 msgstr "Parola chiave principale nel testo alternativo di un'immagine"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Links to other pages of the site"
 msgstr "Link ad altre pagine del sito"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Links to other sites"
 msgstr "Link ad altri siti"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Paragraphs of 120 words at most"
 msgstr "Paragrafi di al massimo 120 parole"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Images or videos in the content"
 msgstr "Immagini o video nel contenuto"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Search result"
 msgstr "Risultato di ricerca"
 
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Content"
 msgstr "Contenuto"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Passed:"
 msgstr "Superato:"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Failed:"
 msgstr "Non superato:"
 
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:64
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:61
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "SEO title"
 msgstr "Titolo SEO"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Meta description"
 msgstr "Meta description"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Focus keywords"
 msgstr "Parole chiave"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Press Enter after each one. The first is the main one, used by the checks."
 msgstr "Premi Invio dopo ognuna. La prima è la principale, quella dei controlli."
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Social"
 msgstr "Social"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Replace image"
 msgstr "Sostituisci immagine"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Choose image"
 msgstr "Scegli immagine"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "For Facebook, LinkedIn, WhatsApp and X. Without an image, the featured image or the default one of the site is used."
 msgstr "Per Facebook, LinkedIn, WhatsApp e X. Senza un'immagine si usa quella in evidenza o quella predefinita del sito."
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:58
 #: build/barrio-admin.js:61
-#: build/barrio-admin.js:64
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Indexing"
 msgstr "Indicizzazione"
 
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:57
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Show in search results"
 msgstr "Mostra nei risultati di ricerca"
 
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:57
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Follow the links"
 msgstr "Segui i link"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Archive page of"
 msgstr "Pagina archivio di"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "The structured data of the page list the contents of this type."
 msgstr "I dati strutturati della pagina elencano i contenuti di questo tipo."
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 #: build/seo-form.js:11
 #: build/seo-sidebar.js:10
 msgid "Checks"
@@ -2630,183 +2627,182 @@ msgstr "La destinazione è uguale all'origine."
 msgid "There is already a redirect from %s."
 msgstr "Esiste già un redirect da %s."
 
-#: build/barrio-admin.js:9
-#: build/barrio-admin.js:18
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:10
+#: build/barrio-admin.js:15
+#: build/barrio-admin.js:56
 msgid "Scheduled"
 msgstr "Programmato"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 msgid "Draft"
 msgstr "Bozza"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 msgid "Pending"
 msgstr "In attesa"
 
-#: build/barrio-admin.js:59
+#: build/barrio-admin.js:56
 msgid "Private"
 msgstr "Privato"
 
 #: build/barrio-admin.js:8
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:57
 #: build/barrio-reorder.js:5
 msgid "Discard the changes?"
 msgstr "Annullare le modifiche?"
 
 #. translators: %s: title of a page, post or term.
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 #, js-format
 msgid "SEO of “%s”"
 msgstr "SEO di “%s”"
 
 #: build/barrio-admin.js:8
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:59
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:56
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:83
 #: build/barrio-reorder.js:5
 msgid "Cancel"
 msgstr "Annulla"
 
-#: build/barrio-admin.js:11
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 #: build/barrio-reorder.js:5
 msgid "(no title)"
 msgstr "(senza titolo)"
 
 #. translators: %d: number of pages, posts or terms.
-#: build/barrio-admin.js:64
+#: build/barrio-admin.js:61
 #, js-format
 msgid "%d item updated."
 msgid_plural "%d items updated."
 msgstr[0] "%d elemento aggiornato."
 msgstr[1] "%d elementi aggiornati."
 
-#: build/barrio-admin.js:64
+#: build/barrio-admin.js:61
 msgid "Indexed"
 msgstr "Indicizzato"
 
-#: build/barrio-admin.js:64
+#: build/barrio-admin.js:61
 msgid "Not indexed"
 msgstr "Non indicizzato"
 
 #: build/barrio-admin.js:9
-#: build/barrio-admin.js:64
+#: build/barrio-admin.js:61
 msgid "Title"
 msgstr "Titolo"
 
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:64
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:61
+#: build/barrio-admin.js:63
 msgid "Description"
 msgstr "Descrizione"
 
 #. translators: %s: Indexed or Not indexed.
-#: build/barrio-admin.js:65
+#: build/barrio-admin.js:62
 #, js-format
 msgid "%s (default)"
 msgstr "%s (predefinito)"
 
-#: build/barrio-admin.js:65
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:62
+#: build/barrio-admin.js:63
 msgid "Score"
 msgstr "Punteggio"
 
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 msgid "Edit SEO"
 msgstr "Modifica SEO"
 
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 msgid "Content type"
 msgstr "Tipo di contenuto"
 
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 msgid "Nothing found."
 msgstr "Nessun risultato."
 
-#: build/barrio-admin.js:66
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:63
+#: build/barrio-admin.js:67
 msgid "All"
 msgstr "Tutti"
 
-#: build/barrio-admin.js:66
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:63
+#: build/barrio-admin.js:69
 msgid "Without description"
 msgstr "Senza descrizione"
 
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 msgid "Index"
 msgstr "Indicizza"
 
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 msgid "Do not index"
 msgstr "Non indicizzare"
 
-#: build/barrio-admin.js:66
+#: build/barrio-admin.js:63
 msgid "Use the default"
 msgstr "Usa il predefinito"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "301 Moved permanently"
 msgstr "301 Spostato per sempre"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "302 Found"
 msgstr "302 Spostato temporaneamente"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "307 Temporary redirect"
 msgstr "307 Redirect temporaneo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "308 Permanent redirect"
 msgstr "308 Redirect permanente"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "410 Content deleted"
 msgstr "410 Contenuto eliminato"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Edit redirect"
 msgstr "Modifica redirect"
 
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:67
 msgid "Add redirect"
 msgstr "Aggiungi redirect"
 
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:69
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:66
 msgid "From"
 msgstr "Da"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "The old address, such as /old-page. A full URL works too: only the path is kept."
 msgstr "Il vecchio indirizzo, per esempio /vecchia-pagina. Va bene anche un URL completo: si tiene solo il percorso."
 
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:69
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:66
+#: build/barrio-admin.js:67
 msgid "Type"
 msgstr "Tipo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Tells search engines that the page was removed on purpose and has no replacement."
 msgstr "Dice ai motori di ricerca che la pagina è stata tolta di proposito e non ha un sostituto."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "301 for a page that moved for good, the usual choice; 302 or 307 for a temporary move."
 msgstr "301 per una pagina spostata per sempre, la scelta di solito giusta; 302 o 307 per uno spostamento temporaneo."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "A path of this site, such as /new-page/, or the full URL of another site."
 msgstr "Un percorso di questo sito, per esempio /nuova-pagina/, o l'URL completo di un altro sito."
 
 #. translators: %d: number of redirects to delete.
-#: build/barrio-admin.js:68
+#: build/barrio-admin.js:65
 #, js-format
 msgid "Delete %d redirect?"
 msgid_plural "Delete %d redirects?"
@@ -2814,436 +2810,434 @@ msgstr[0] "Eliminare %d redirect?"
 msgstr[1] "Eliminare %d redirect?"
 
 #. translators: %d: number of redirects deleted.
-#: build/barrio-admin.js:69
+#: build/barrio-admin.js:66
 #, js-format
 msgid "%d redirect deleted."
 msgid_plural "%d redirects deleted."
 msgstr[0] "%d redirect eliminato."
 msgstr[1] "%d redirect eliminati."
 
-#: build/barrio-admin.js:69
+#: build/barrio-admin.js:66
 msgid "Automatic"
 msgstr "Automatico"
 
 #. translators: %s: the source address of a redirect, such as /old-page.
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 #, js-format
 msgid "Actions for %s"
 msgstr "Azioni per %s"
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
+#: build/barrio-admin.js:64
 #: build/barrio-admin.js:67
-#: build/barrio-admin.js:70
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Redirects"
 msgstr "Redirect"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Search redirects"
 msgstr "Cerca redirect"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "No redirects found."
 msgstr "Nessun redirect trovato."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Created"
 msgstr "Creati"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Automatically, when an address changed"
 msgstr "In automatico, al cambio di un indirizzo"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "By hand"
 msgstr "A mano"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Redirect saved."
 msgstr "Redirect salvato."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Redirect added."
 msgstr "Redirect aggiunto."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Province or region"
 msgstr "Provincia o regione"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "State"
 msgstr "Stato"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Other place"
 msgstr "Altro luogo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Not specified"
 msgstr "Non indicata"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Available"
 msgstr "Disponibile"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Limited availability"
 msgstr "Disponibilità limitata"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Pre-order"
 msgstr "Su prenotazione"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Not available"
 msgstr "Non disponibile"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Discontinued"
 msgstr "Fuori produzione"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Structured data"
 msgstr "Dati strutturati"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "What search engines read about the business, in JSON-LD: it is in every indexed page, with the site and the page."
 msgstr "Ciò che i motori di ricerca leggono dell'azienda, in JSON-LD: è in ogni pagina indicizzata, con il sito e la pagina."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Organization"
 msgstr "Organizzazione"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "The business behind the site, for search engines: Google can show it in the results and on Maps."
 msgstr "L'azienda dietro il sito, per i motori di ricerca: Google può mostrarla nei risultati e su Maps."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "The schema.org type that best describes the business."
 msgstr "Il tipo di schema.org che descrive meglio l'azienda."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Without a name, the name of the site is used."
 msgstr "Senza un nome si usa quello del sito."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "At least 112 pixels wide, on a plain background."
 msgstr "Largo almeno 112 pixel, su uno sfondo uniforme."
 
-#: build/barrio-admin.js:60
-#: build/barrio-admin.js:90
+#: build/barrio-admin.js:57
+#: build/barrio-admin.js:87
 msgid "Image"
 msgstr "Immagine"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "A photo of the place or of the business."
 msgstr "Una foto del luogo o dell'attività."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "VAT number"
 msgstr "Partita IVA"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Address"
 msgstr "Indirizzo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Street and number"
 msgstr "Via e numero civico"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Two-letter code, such as IT."
 msgstr "Codice di due lettere, per esempio IT."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Latitude"
 msgstr "Latitudine"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "In Google Maps, right-click the place: the first number is the latitude, the second the longitude."
 msgstr "In Google Maps fai clic con il tasto destro sul luogo: il primo numero è la latitudine, il secondo la longitudine."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Longitude"
 msgstr "Longitudine"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Areas served"
 msgstr "Zone servite"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Add area"
 msgstr "Aggiungi zona"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Kind of area"
 msgstr "Tipo di zona"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Name of the area"
 msgstr "Nome della zona"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Expertise"
 msgstr "Competenze"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Add topic"
 msgstr "Aggiungi competenza"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Topic"
 msgstr "Competenza"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Profiles"
 msgstr "Profili"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Add profile"
 msgstr "Aggiungi profilo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Full address of a profile, such as https://www.instagram.com/…"
 msgstr "Indirizzo completo di un profilo, per esempio https://www.instagram.com/…"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Offers"
 msgstr "Offerte"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Add offer"
 msgstr "Aggiungi offerta"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Catalog name"
 msgstr "Nome del catalogo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Currency"
 msgstr "Valuta"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Three-letter code, such as EUR."
 msgstr "Codice di tre lettere, per esempio EUR."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "New offer"
 msgstr "Nuova offerta"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Service"
 msgstr "Servizio"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Product"
 msgstr "Prodotto"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Category"
 msgstr "Categoria"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Price"
 msgstr "Prezzo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Leave empty if the price depends on the request."
 msgstr "Lascia vuoto se il prezzo dipende dalla richiesta."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Availability"
 msgstr "Disponibilità"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Remove offer"
 msgstr "Rimuovi offerta"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Use Contents and Redirects"
 msgstr "Usa Contenuti e Redirect"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Edit the SEO of the contents they can edit"
 msgstr "Modifica la SEO dei contenuti che può modificare"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Include, with the text"
 msgstr "Includi, con il testo"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Links only"
 msgstr "Solo link"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Leave out"
 msgstr "Escludi"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Default description"
 msgstr "Descrizione predefinita"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "For the pages without a description, an excerpt or a text of their own. Search engines show about 160 characters."
 msgstr "Per le pagine senza una descrizione, un riassunto o un testo loro. I motori di ricerca ne mostrano circa 160 caratteri."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Default sharing image"
 msgstr "Immagine di condivisione predefinita"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Shown when a page without an image of its own is shared on Facebook, LinkedIn, WhatsApp or X. 1200 × 630 pixels is best."
 msgstr "Si vede quando una pagina senza un'immagine sua si condivide su Facebook, LinkedIn, WhatsApp o X. L'ideale è 1200 × 630 pixel."
 
-#: build/barrio-admin.js:12
-#: build/barrio-admin.js:61
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:58
+#: build/barrio-admin.js:69
 msgid "Content types"
 msgstr "Tipi di contenuto"
 
-#: build/barrio-admin.js:61
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:58
+#: build/barrio-admin.js:69
 msgid "Taxonomies"
 msgstr "Tassonomie"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Titles and meta"
 msgstr "Titoli e meta"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "How the pages of the site look in search results and when they are shared. Each page can change its own in its SEO panel."
 msgstr "Come appaiono le pagine del sito nei risultati di ricerca e quando si condividono. Ogni pagina può cambiare i suoi nel pannello SEO."
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Site name"
 msgstr "Nome del sito"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Site icon"
 msgstr "Icona del sito"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "In the browser tabs and next to the site in Google. Square, at least 512 pixels wide."
 msgstr "Nelle schede del browser e accanto al sito in Google. Quadrata, larga almeno 512 pixel."
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Title separator"
 msgstr "Separatore del titolo"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Title order"
 msgstr "Ordine del titolo"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Page title, then site name"
 msgstr "Titolo della pagina, poi nome del sito"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Site name, then page title"
 msgstr "Nome del sito, poi titolo della pagina"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Page title"
 msgstr "Titolo della pagina"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "What search engines may show and whose links they may follow. Each page can change it in its SEO panel; what is not shown is left out of the sitemap."
 msgstr "Cosa possono mostrare i motori di ricerca e di cosa possono seguire i link. Ogni pagina può cambiarlo nel pannello SEO; ciò che non si mostra resta fuori dalla sitemap."
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Archives"
 msgstr "Archivi"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Authors"
 msgstr "Autori"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Dates"
 msgstr "Date"
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Sitemap"
 msgstr "Sitemap"
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "Introduction"
 msgstr "Introduzione"
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "At the beginning of both files, after the name of the site."
 msgstr "All'inizio dei due file, dopo il nome del sito."
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "Files"
 msgstr "File"
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "Create a redirect when an address changes"
 msgstr "Crea un redirect quando cambia un indirizzo"
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "When the address of a published page or of a category changes, also by moving it under another one, the old address leads to the new one, with the pages below it. Useful above all with a headless frontend: WordPress alone already does it for posts."
 msgstr "Quando cambia l'indirizzo di una pagina pubblicata o di una categoria, anche spostandola sotto un'altra, il vecchio indirizzo porta al nuovo, con le pagine che stanno sotto. Serve soprattutto con un frontend headless: per gli articoli WordPress lo fa già da solo."
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "What each role can do in SEO. Administrators can always do everything; only administrators change these settings."
 msgstr "Cosa può fare ogni ruolo nella SEO. Gli amministratori possono sempre fare tutto; solo gli amministratori cambiano queste impostazioni."
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "What search engines and social networks show for the pages without texts and images of their own, and the business behind the site."
 msgstr "Cosa mostrano motori di ricerca e social per le pagine senza testi e immagini loro, e l'azienda dietro il sito."
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "Name of the business"
 msgstr "Nome dell'azienda"
 
 #: src/Admin.php:45
-#: build/barrio-admin.js:12
-#: build/barrio-admin.js:63
-#: build/barrio-admin.js:72
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:60
+#: build/barrio-admin.js:69
+#: build/barrio-admin.js:83
 msgid "Contents"
 msgstr "Contenuti"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Titles, descriptions, indexing and redirects of the site."
 msgstr "Titoli, descrizioni, indicizzazione e redirect del sito."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Titles, descriptions, sitemap and redirects"
 msgstr "Titoli, descrizioni, sitemap e redirect"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Indexed contents"
 msgstr "Contenuti indicizzati"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Business"
 msgstr "Azienda"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "The cities or regions where the business works, if it goes to its customers."
 msgstr "Le città o le regioni in cui lavora l'azienda, se va dai suoi clienti."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "What the business knows best, such as “Neapolitan pizza” or “wood-fired oven”."
 msgstr "Ciò che l'azienda conosce meglio, per esempio “pizza napoletana” o “forno a legna”."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "Social profiles and listings of the business, such as Facebook, Instagram, LinkedIn or Google Business Profile."
 msgstr "I profili social e le schede dell'azienda, come Facebook, Instagram, LinkedIn o il Profilo dell'attività su Google."
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "not in the sitemap"
 msgstr "fuori dalla sitemap"
 
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:57
 msgid "in the sitemap after saving"
 msgstr "in sitemap dopo il salvataggio"
 
 #. translators: %d: number of addresses.
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 #, js-format
 msgid "%d address in the sitemap"
 msgid_plural "%d addresses in the sitemap"
@@ -3251,31 +3245,31 @@ msgstr[0] "%d indirizzo in sitemap"
 msgstr[1] "%d indirizzi in sitemap"
 
 #. translators: %d: number of addresses.
-#: build/barrio-admin.js:62
+#: build/barrio-admin.js:59
 #, js-format
 msgid "%d address in all."
 msgid_plural "%d addresses in all."
 msgstr[0] "%d indirizzo in tutto."
 msgstr[1] "%d indirizzi in tutto."
 
-#: build/barrio-admin.js:62
+#: build/barrio-admin.js:59
 msgid "WordPress publishes it with only what is indexed and lists it in robots.txt: submit it in Google Search Console."
 msgstr "WordPress la pubblica con solo ciò che è indicizzato e la indica in robots.txt: inviala a Google Search Console."
 
-#: build/barrio-admin.js:62
+#: build/barrio-admin.js:59
 msgid "WordPress does not publish it while the site asks search engines not to index it (Settings → Reading)."
 msgstr "WordPress non la pubblica finché il sito chiede ai motori di ricerca di non indicizzarlo (Impostazioni → Lettura)."
 
 #. translators: %s: line to add to robots.txt, with the address of the sitemap.
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 #, js-format
 msgid "The folder of the site has a robots.txt file: the server sends it instead of the one of WordPress, which lists the sitemap. Add the line \"%s\" to it, or delete it."
 msgstr "Nella cartella del sito c'è un file robots.txt: il server manda quello al posto di quello di WordPress, che indica la sitemap. Aggiungigli la riga \"%s\" oppure eliminalo."
 
 #: modules/alt/src/Module.php:335
 #: build/barrio-admin.js:9
-#: build/barrio-admin.js:50
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:47
+#: build/barrio-admin.js:57
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "Generating…"
@@ -3283,8 +3277,8 @@ msgstr "Generazione in corso…"
 
 #. translators: 1: number of the item being generated, 2: number of selected items.
 #. translators: 1: number of the image being generated, 2: number of images.
-#: build/barrio-admin.js:67
-#: build/barrio-admin.js:89
+#: build/barrio-admin.js:64
+#: build/barrio-admin.js:86
 #, js-format
 msgid "Generating %1$d of %2$d…"
 msgstr "Generazione %1$d di %2$d…"
@@ -3329,8 +3323,8 @@ msgid "Google did not accept the service account. %s"
 msgstr "Google non ha accettato il service account. %s"
 
 #: build/barrio-admin.js:9
-#: build/barrio-admin.js:50
-#: build/barrio-admin.js:60
+#: build/barrio-admin.js:47
+#: build/barrio-admin.js:57
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "Generate with AI"
@@ -3338,233 +3332,233 @@ msgstr "Genera con AI"
 
 #: modules/alt/src/Module.php:326
 #: build/barrio-admin.js:8
-#: build/barrio-admin.js:50
+#: build/barrio-admin.js:47
 #: build/seo-form.js:2
 #: build/seo-sidebar.js:1
 msgid "To use it, set up Google AI in Barrio → Settings."
 msgstr "Per usarlo, configura l'AI di Google in Barrio → Impostazioni."
 
-#: build/barrio-admin.js:66
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:63
+#: build/barrio-admin.js:88
 msgid "Generate with AI, empty fields only"
 msgstr "Genera con AI, solo i campi vuoti"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Model"
 msgstr "Modello"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "The Google Cloud service account the site uses for the services of Google: the AI and, later, Analytics."
 msgstr "Il service account di Google Cloud con cui il sito usa i servizi di Google: l'AI e, più avanti, Analytics."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "AI"
 msgstr "AI"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Gemini, on Vertex AI, writes the SEO titles, descriptions and keywords and the introduction of llms.txt. Google bills the use to the project of the service account."
 msgstr "Gemini, su Vertex AI, scrive titoli, descrizioni e parole chiave SEO e l'introduzione di llms.txt. Google addebita l'uso al progetto del service account."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "About the site"
 msgstr "Il sito"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "What the site is, who it is for, the tone and the words to prefer. The AI reads it every time it writes."
 msgstr "Cos'è il sito, a chi si rivolge, il tono e le parole da preferire. L'AI lo legge ogni volta che scrive."
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "AI assistants"
 msgstr "Assistenti AI"
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "Two files that tell AI assistants such as ChatGPT, Gemini and Claude what the site is: llms.txt with a summary and the links, llms-full.txt also with the text of the pages. They are built from the contents, and what is not indexed is never included."
 msgstr "Due file che spiegano il sito agli assistenti AI come ChatGPT, Gemini e Claude: llms.txt con un riassunto e i link, llms-full.txt anche con il testo delle pagine. Si creano dai contenuti, e ciò che non è indicizzato non c'è mai."
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "No service account yet"
 msgstr "Nessun service account"
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "Upload the JSON key of a Google Cloud service account."
 msgstr "Carica la chiave JSON di un service account di Google Cloud."
 
-#: build/barrio-admin.js:85
+#: build/barrio-admin.js:82
 msgid "Save to connect it."
 msgstr "Salva per collegarlo."
 
 #. translators: %s: Google Cloud project ID.
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 #, js-format
 msgid "Project %s"
 msgstr "Progetto %s"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Not saved"
 msgstr "Da salvare"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Connected"
 msgstr "Collegato"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Replace key"
 msgstr "Sostituisci chiave"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Upload JSON key"
 msgstr "Carica chiave JSON"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Loading from Google…"
 msgstr "Caricamento da Google…"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Region"
 msgstr "Regione"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Where Google processes the requests. Automatic picks the region with free capacity; choose a European one to keep the data in Europe."
 msgstr "Dove Google elabora le richieste. Automatica sceglie la regione con capacità libera; scegline una europea per tenere i dati in Europa."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Automatic (global)"
 msgstr "Automatica (global)"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Choose a Gemini model: the Flash ones are fast and cheap, and enough for titles and descriptions. Not every model is in every region."
 msgstr "Scegli un modello Gemini: i Flash sono veloci ed economici, e bastano per titoli e descrizioni. Non tutti i modelli sono in tutte le regioni."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "How to create it"
 msgstr "Come crearlo"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "In the Google Cloud console, choose or create a project with billing and turn on the Vertex AI API."
 msgstr "Nella console di Google Cloud, scegli o crea un progetto con la fatturazione e attiva l'API Vertex AI."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "In IAM → Service accounts, create a service account with the Vertex AI User role."
 msgstr "In IAM → Service account, crea un service account con il ruolo Vertex AI User."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "In the service account, open Keys → Add key → Create new key → JSON, and upload the file here."
 msgstr "Nel service account, apri Chiavi → Aggiungi chiave → Crea nuova chiave → JSON, e carica qui il file."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "To use the AI, connect the Google service account first."
 msgstr "Per usare l'AI, prima collega il service account di Google."
 
 #: modules/performance/src/Module.php:92
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Performance"
 msgstr "Prestazioni"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Modern image formats, faster navigation and a lighter page head, with what WordPress already provides."
 msgstr "Formati di immagine moderni, navigazione più veloce e un head più leggero, con ciò che WordPress offre già."
 
-#: build/barrio-admin.js:49
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:46
+#: build/barrio-admin.js:69
 msgid "WordPress default"
 msgstr "Predefinito di WordPress"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Remove the emoji script and styles"
 msgstr "Rimuovi script e stili delle emoji"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Remove the WordPress version (generator)"
 msgstr "Rimuovi la versione di WordPress (generator)"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Remove the RSD link"
 msgstr "Rimuovi il link RSD"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Remove the shortlink"
 msgstr "Rimuovi lo shortlink"
 
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "Everything happens on this server, without external services. Changes apply from the next page load."
 msgstr "Tutto avviene su questo server, senza servizi esterni. Le modifiche valgono dal caricamento successivo di una pagina."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Image format"
 msgstr "Formato delle immagini"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "The sizes WordPress creates from new JPEG images are saved in this format; the uploaded file stays as it is. For images already in the media library, regenerate the sizes, for example with wp media regenerate."
 msgstr "Le dimensioni che WordPress crea dalle nuove immagini JPEG si salvano in questo formato; il file caricato resta com'è. Per le immagini già nella libreria dei media, rigenera le dimensioni, per esempio con wp media regenerate."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "As uploaded"
 msgstr "Come caricato"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Speculative loading"
 msgstr "Caricamento speculativo"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "The browser loads the next page before the click, for visitors who are not logged in. Prerender also runs the JavaScript of the page: check that forms, analytics and slideshows still work."
 msgstr "Il browser carica la pagina successiva prima del clic, per i visitatori che non hanno fatto l'accesso. Il prerender esegue anche il JavaScript della pagina: verifica che form, statistiche e slideshow funzionino ancora."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Prefetch"
 msgstr "Prefetch"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Prerender"
 msgstr "Prerender"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Eagerness"
 msgstr "Anticipo"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Conservative: when the link is pressed"
 msgstr "Prudente: quando si preme il link"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Moderate: when the pointer rests on the link"
 msgstr "Moderata: quando il puntatore si ferma sul link"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Eager: as soon as the pointer is on the link"
 msgstr "Anticipata: appena il puntatore è sul link"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Remove Dashicons for visitors"
 msgstr "Rimuovi le Dashicons per i visitatori"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Only for those who do not see the admin bar. Leave it off if the theme uses Dashicons icons."
 msgstr "Solo per chi non vede la barra di amministrazione. Lascialo spento se il tema usa le icone Dashicons."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Image formats, speculative loading and page head"
 msgstr "Formati delle immagini, caricamento speculativo e head"
 
 #: build/barrio-admin.js:9
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
+#: build/barrio-admin.js:85
 #: build/barrio-admin.js:88
-#: build/barrio-admin.js:91
 msgid "Images"
 msgstr "Immagini"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Mode"
 msgstr "Modalità"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Page head"
 msgstr "Head della pagina"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Tags and files that WordPress adds to every page and that most sites do not need."
 msgstr "Tag e file che WordPress aggiunge a ogni pagina e che alla maggior parte dei siti non servono."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Removed from the head"
 msgstr "Rimossi dall'head"
 
@@ -3572,11 +3566,11 @@ msgstr "Rimossi dall'head"
 msgid "The destination leads back to the source through other redirects."
 msgstr "La destinazione riporta all'origine attraverso altri redirect."
 
-#: build/barrio-admin.js:61
+#: build/barrio-admin.js:58
 msgid "Attachment pages"
 msgstr "Pagine degli allegati"
 
-#: build/barrio-admin.js:63
+#: build/barrio-admin.js:60
 msgid "WordPress does not publish them while the site asks search engines not to index it (Settings → Reading) or uses plain permalinks (Settings → Permalinks)."
 msgstr "WordPress non li pubblica finché il sito chiede ai motori di ricerca di non indicizzarlo (Impostazioni → Lettura) o usa i permalink semplici (Impostazioni → Permalink)."
 
@@ -3616,23 +3610,23 @@ msgstr "Non hai il permesso di duplicare questo elemento."
 msgid "The copy could not be completed and has been deleted. Please try again."
 msgstr "Non è stato possibile completare la copia, che è stata eliminata. Riprova."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Duplication"
 msgstr "Duplicazione"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "A Duplicate link for contents and terms, in the lists and in the editor."
 msgstr "Un link Duplica per contenuti e termini, nelle liste e nell'editor."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Tools for whoever writes and manages the contents of the site."
 msgstr "Strumenti per chi scrive e gestisce i contenuti del sito."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Duplicate in the list, in the bulk actions and in the editor. The copy is a draft of whoever duplicates it, with the content, the custom fields and the terms of the original."
 msgstr "Duplica nella lista, nelle azioni di massa e nell'editor. La copia è una bozza di chi duplica, con il contenuto, i campi personalizzati e i termini dell'originale."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Duplicate in the list of terms. The copy has the description, the parent and the custom fields of the original."
 msgstr "Duplica nella lista dei termini. La copia ha la descrizione, il genitore e i campi personalizzati dell'originale."
 
@@ -3642,7 +3636,7 @@ msgstr "Duplica nella lista dei termini. La copia ha la descrizione, il genitore
 msgid "Used by %s"
 msgstr "Usata da %s"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Tools for writing and managing the contents"
 msgstr "Strumenti per scrivere e gestire i contenuti"
 
@@ -3654,11 +3648,11 @@ msgstr "Alcuni elementi non sono più in questo elenco. Ricarica la pagina e rip
 msgid "You are not allowed to move some of these contents."
 msgstr "Non puoi spostare alcuni di questi contenuti."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Ordering"
 msgstr "Ordinamento"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "A manual order for contents and terms, by drag and drop, wherever the site does not ask for another order."
 msgstr "Un ordine manuale per contenuti e termini, con il trascinamento, ovunque il sito non chieda un altro ordine."
 
@@ -3670,7 +3664,7 @@ msgstr "Gli elementi si spostano tra quelli con lo stesso genitore: il genitore 
 msgid "There is nothing to order yet."
 msgstr "Non c'è ancora niente da ordinare."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Lists in manual order"
 msgstr "Elenchi in ordine manuale"
 
@@ -3684,149 +3678,149 @@ msgstr "Riordina %s"
 msgid "Drag the items by their handle, or press space on it and move them with the arrow keys, then save."
 msgstr "Trascina gli elementi dalla maniglia, oppure premi spazio sulla maniglia e spostali con le frecce, poi salva."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Blocks"
 msgstr "Blocchi"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "The blocks and the editor restrictions of each role, and the editor of each content type."
 msgstr "I blocchi e le restrizioni dell'editor di ogni ruolo, e l'editor di ogni tipo di contenuto."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "No heading 1"
 msgstr "Niente titolo 1"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "The H1 is the title of the page. Headings already saved stay as they are."
 msgstr "L'H1 è il titolo della pagina. I titoli già salvati restano come sono."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Only the colors and font sizes of the theme"
 msgstr "Solo i colori e le dimensioni del testo del tema"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "No custom colors, font sizes, line heights and other typography settings. Blocks styled by an administrator keep their style."
 msgstr "Niente colori, dimensioni del testo, interlinea e altre impostazioni tipografiche personalizzate. I blocchi formattati da un amministratore mantengono il loro stile."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "No code editor"
 msgstr "Niente editor del codice"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Neither the code editor of the content nor Edit as HTML of the blocks."
 msgstr "Né l'editor del codice del contenuto né Modifica come HTML dei blocchi."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "No locking and unlocking of blocks"
 msgstr "Niente blocco e sblocco dei blocchi"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Blocks locked by an administrator stay locked."
 msgstr "I blocchi bloccati da un amministratore restano bloccati."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Hide Author, Revisions and Parent"
 msgstr "Nascondi Autore, Revisioni e Genitore"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "In the settings of the content. Revisions are still saved."
 msgstr "Nelle impostazioni del contenuto. Le revisioni si salvano comunque."
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Available blocks"
 msgstr "Blocchi disponibili"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgid "Search blocks"
 msgstr "Cerca blocchi"
 
-#: build/barrio-admin.js:71
+#: build/barrio-admin.js:68
 msgid "Role"
 msgstr "Ruolo"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Editor by content type"
 msgstr "Editor per tipo di contenuto"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Block editor"
 msgstr "Editor a blocchi"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Classic editor"
 msgstr "Editor classico"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "No editor"
 msgstr "Nessun editor"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "External content"
 msgstr "Contenuti esterni"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Patterns from WordPress.org"
 msgstr "Pattern da WordPress.org"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "The patterns of the WordPress.org directory, downloaded by the site."
 msgstr "I pattern della directory di WordPress.org, scaricati dal sito."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Openverse images"
 msgstr "Immagini di Openverse"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Free images to search in the Media tab: the browser of whoever writes asks Openverse."
 msgstr "Immagini libere da cercare nella scheda Media: il browser di chi scrive le chiede a Openverse."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Roles with restrictions"
 msgstr "Ruoli con restrizioni"
 
-#: build/barrio-admin.js:70
+#: build/barrio-admin.js:67
 msgctxt "blocks"
 msgid "None"
 msgstr "Nessuno"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 #: build/barrio-reorder.js:5
 msgid "Reorder"
 msgstr "Riordina"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Who can reorder the lists in manual order. They also need to be able to edit the contents of others, or the terms: authors and contributors cannot. Administrators can always do everything; only administrators change these settings."
 msgstr "Chi può riordinare gli elenchi in ordine manuale. Serve anche poter modificare i contenuti degli altri, o i termini: autori e collaboratori non possono. Gli amministratori possono sempre fare tutto; solo gli amministratori possono modificare queste impostazioni."
 
 #. translators: %s: role name, such as Editor.
-#: build/barrio-admin.js:71
+#: build/barrio-admin.js:68
 #, js-format
 msgid "Blocks and restrictions for %s"
 msgstr "Blocchi e restrizioni del ruolo %s"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "Who can duplicate, among the contents and terms they can edit. Administrators can always do everything; only administrators change these settings."
 msgstr "Chi può duplicare, tra i contenuti e i termini che può modificare. Gli amministratori possono sempre fare tutto; solo gli amministratori possono modificare queste impostazioni."
 
 #. translators: 1: role being edited, such as Editor; 2: name of the administrator role.
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 #, js-format
 msgid "You are editing the %1$s role. The settings in grey are the same for every role: change them with %2$s."
 msgstr "Stai modificando il ruolo %1$s. Le impostazioni in grigio sono uguali per tutti i ruoli: modificale con %2$s."
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Lists with Duplicate"
 msgstr "Elenchi con Duplica"
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "With No editor the screen keeps the title and the other fields, and the content stays in the REST API and in GraphQL."
 msgstr "Con Nessun editor la schermata tiene il titolo e gli altri campi, e il contenuto resta nella REST API e in GraphQL."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "What the inserter of the editor offers from other services, for everyone who writes."
 msgstr "Cosa offre l'inseritore dell'editor da altri servizi, per chiunque scriva."
 
-#: build/barrio-admin.js:71
+#: build/barrio-admin.js:68
 msgid "What the users with the role chosen at the top find in the editor. Administrators always have everything, and nothing changes on the site."
 msgstr "Cosa trovano nell'editor gli utenti con il ruolo scelto in alto. Gli amministratori hanno sempre tutto, e nel sito non cambia niente."
 
@@ -3847,12 +3841,12 @@ msgid "This image format cannot be sent to Google."
 msgstr "Questo formato di immagine non si può mandare a Google."
 
 #: build/barrio-admin.js:9
-#: build/barrio-admin.js:90
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:87
+#: build/barrio-admin.js:88
 msgid "Alt text"
 msgstr "Testo alternativo"
 
-#: build/barrio-admin.js:88
+#: build/barrio-admin.js:85
 msgid "The alternative text of the images, written by Google AI looking at each image: from the image details, in bulk or after the upload."
 msgstr "Il testo alternativo delle immagini, scritto dall'AI di Google guardando ogni immagine: dai dettagli dell'immagine, in massa o dopo il caricamento."
 
@@ -3878,55 +3872,55 @@ msgstr "Genera anche il titolo"
 msgid "The Generate buttons suggest a title as well. After the upload and in bulk it replaces only a title that is still the file name."
 msgstr "I pulsanti Genera propongono anche un titolo. Dopo il caricamento e in massa sostituisce solo un titolo che è ancora il nome del file."
 
-#: build/barrio-admin.js:89
+#: build/barrio-admin.js:86
 msgid "Stop"
 msgstr "Interrompi"
 
 #. translators: 1: number of images done, 2: number of images.
-#: build/barrio-admin.js:90
+#: build/barrio-admin.js:87
 #, js-format
 msgid "%1$d of %2$d images done."
 msgstr "%1$d immagini fatte su %2$d."
 
-#: build/barrio-admin.js:90
+#: build/barrio-admin.js:87
 msgid "File"
 msgstr "File"
 
-#: build/barrio-admin.js:90
+#: build/barrio-admin.js:87
 msgid "Attached to"
 msgstr "Allegata a"
 
 #: build/barrio-admin.js:8
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "Generate"
 msgstr "Genera"
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "Edit in Media"
 msgstr "Modifica in Media"
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "Search images"
 msgstr "Cerca immagini"
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "No images found."
 msgstr "Nessuna immagine trovata."
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "Every image has its alt text."
 msgstr "Ogni immagine ha il suo testo alternativo."
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "All images"
 msgstr "Tutte le immagini"
 
 #: build/barrio-admin.js:9
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "Without alt text"
 msgstr "Senza testo alternativo"
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "Generate all missing"
 msgstr "Genera tutti quelli mancanti"
 
@@ -3936,7 +3930,7 @@ msgctxt "module name"
 msgid "Alt text"
 msgstr "Testi alternativi"
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "To generate the alt text, set up Google AI in Barrio → Settings."
 msgstr "Per generare il testo alternativo, configura l'AI di Google in Barrio → Impostazioni."
 
@@ -3952,11 +3946,11 @@ msgstr "Per le immagini nuove senza testo alternativo, chiunque le carichi. Goog
 msgid "Who can generate, in this page and in the image details, for the images they can edit. They also need to be able to upload files: contributors cannot. Administrators can always do everything; only administrators change these settings."
 msgstr "Chi può generare, in questa pagina e nei dettagli dell'immagine, per le immagini che può modificare. Deve anche poter caricare file: i collaboratori no. Gli amministratori possono sempre fare tutto; solo gli amministratori cambiano queste impostazioni."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "In manual order, the list of the type has a Reorder button next to Add. The order applies wherever the site lists the contents, unless another order is chosen (such as by title) or in a search; a new content goes to the top. Turned off, the most recent come first again, and the saved order is kept."
 msgstr "In ordine manuale, la lista del tipo ha un pulsante Riordina accanto ad Aggiungi. L'ordine vale ovunque il sito elenchi i contenuti, a meno che non si scelga un altro ordine (per esempio per titolo) o in una ricerca; un contenuto nuovo va in cima. Spento, tornano prima i più recenti, e l'ordine salvato resta."
 
-#: build/barrio-admin.js:72
+#: build/barrio-admin.js:69
 msgid "In manual order, the list of the terms has a Reorder button. A new term goes to the end; turned off, the terms are in alphabetical order again, and the saved order is kept."
 msgstr "In ordine manuale, la lista dei termini ha un pulsante Riordina. Un termine nuovo va in fondo; spento, i termini tornano in ordine alfabetico, e l'ordine salvato resta."
 
@@ -3969,8 +3963,8 @@ msgid "With alt text"
 msgstr "Con testo alternativo"
 
 #: modules/hours/src/Module.php:109
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:46
 #: modules/hours/assets/block/index.js:17
 #: modules/hours/assets/block/index.js:66
 msgid "Opening hours"
@@ -4003,14 +3997,14 @@ msgid "The answer of Google is not valid. Try again later."
 msgstr "La risposta di Google non è valida. Riprova più tardi."
 
 #. translators: %s: a date as written, like 2026-02-30.
-#: modules/banners/src/Module.php:324
+#: modules/banners/src/Module.php:292
 #: modules/hours/src/Module.php:584
 #, php-format
 msgid "%s is not a date."
 msgstr "%s non è una data."
 
 #: modules/hours/src/Module.php:588
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "A special period cannot end before it starts."
 msgstr "Un periodo speciale non può finire prima di iniziare."
 
@@ -4039,7 +4033,7 @@ msgstr "Aperto · chiude %1$s alle %2$s"
 
 #: modules/hours/src/Render.php:121
 #: modules/hours/src/Render.php:296
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Closed"
 msgstr "Chiuso"
 
@@ -4065,128 +4059,128 @@ msgstr "Chiuso · apre %1$s alle %2$s"
 msgid "Special opening hours"
 msgstr "Orari speciali"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Opens"
 msgstr "Apre"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Closes"
 msgstr "Chiude"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Add hours"
 msgstr "Aggiungi orario"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Week"
 msgstr "Settimana"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "For a closing after midnight, write a closing time before the opening: it counts on the next day. 00:00–00:00 is open 24 hours."
 msgstr "Per una chiusura dopo mezzanotte, scrivi un'ora di chiusura prima di quella di apertura: vale il giorno dopo. 00:00–00:00 è aperto 24 ore su 24."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Copy to all days"
 msgstr "Copia su tutti i giorni"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Special day"
 msgstr "Giorno speciale"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Choose the date."
 msgstr "Scegli la data."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Apply"
 msgstr "Applica"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Empty for a single day."
 msgstr "Vuoto per un giorno solo."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Open"
 msgstr "Aperto"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Closed all day."
 msgstr "Chiuso tutto il giorno."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Next to the hours, for example Christmas or Holidays."
 msgstr "Accanto agli orari, per esempio Natale o Ferie."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Special days"
 msgstr "Giorni speciali"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Holidays and days with other hours. Past days are removed by themselves."
 msgstr "Ferie, festività e giorni con altri orari. I giorni passati si tolgono da soli."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "No special days."
 msgstr "Nessun giorno speciale."
 
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:46
 msgid "Source"
 msgstr "Fonte"
 
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:46
 msgid "Google"
 msgstr "Google"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Place ID"
 msgstr "Place ID"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Add the Google service account in Barrio → Settings: Google is called with it, and the Places API must be enabled in its project."
 msgstr "Aggiungi il service account di Google in Barrio → Impostazioni: Google si chiama con quello, e nel suo progetto deve essere attiva la Places API."
 
 #. translators: 1: date and time; 2: name of the business on Google.
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 #, js-format
 msgid "Updated on %1$s from %2$s."
 msgstr "Aggiornati il %1$s da %2$s."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "The opening hours have been updated from Google."
 msgstr "Gli orari sono stati aggiornati da Google."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Update now"
 msgstr "Aggiorna ora"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "On the site"
 msgstr "Nel sito"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Nothing is shown until there are opening hours."
 msgstr "Finché non ci sono orari non si vede niente."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "How to show them"
 msgstr "Come mostrarli"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Who can edit the opening hours and the special days. Administrators can always do everything; only administrators choose the source and change these settings."
 msgstr "Chi può modificare gli orari e i giorni speciali. Gli amministratori possono sempre fare tutto; solo gli amministratori scelgono la fonte e cambiano queste impostazioni."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 #: modules/hours/assets/block/index.js:27
 msgid "Today"
 msgstr "Oggi"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "Next special day"
 msgstr "Prossimo giorno speciale"
 
-#: build/barrio-admin.js:91
+#: build/barrio-admin.js:88
 msgid "The opening hours of the business and its special days, for the site, the schema of the organization and the headless frontend."
 msgstr "Gli orari dell'attività e i suoi giorni speciali, per il sito, lo schema dell'organizzazione e il frontend headless."
 
@@ -4226,32 +4220,32 @@ msgctxt "block keyword"
 msgid "open"
 msgstr "aperto"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "The ID of the business on Google Maps, like ChIJ…."
 msgstr "L'ID dell'attività su Google Maps, come ChIJ…."
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Find the Place ID"
 msgstr "Trova il Place ID"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "Hours and special days, also from Google"
 msgstr "Orari e giorni speciali, anche da Google"
 
-#: build/barrio-admin.js:48
+#: build/barrio-admin.js:45
 msgid "With Google, the week and the special days of the next 7 days come from the Google Business Profile of the business every night at 3:00 (site time). To change them in Opening hours, switch to manual: it starts from the latest hours."
 msgstr "Con Google, la settimana e i giorni speciali dei prossimi 7 giorni arrivano dal Profilo dell'attività su Google ogni notte alle 3:00 (ora del sito). Per modificarli in Orari passa a manuale: si parte dagli ultimi orari."
 
-#: build/barrio-admin.js:48
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:45
+#: build/barrio-admin.js:46
 msgid "Written by hand"
 msgstr "Scritti a mano"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "The opening hours come from Google, every night: to change them here, choose the manual source in Settings."
 msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui scegli la fonte manuale in Impostazioni."
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "The opening hours come from Google, every night: to change them here, an administrator has to choose the manual source."
 msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui un amministratore deve scegliere la fonte manuale."
 
@@ -4260,190 +4254,74 @@ msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui un amminis
 msgid "M j"
 msgstr "j M"
 
-#: build/barrio-admin.js:49
+#: build/barrio-admin.js:46
 msgid "In the block editor, the Opening hours block: the week, today or open now. Elsewhere, a shortcode. With the SEO module the hours are also in the schema of the organization, for Google."
 msgstr "Nell'editor a blocchi, il blocco Orari: la settimana, oggi o aperto ora. Altrove, uno shortcode. Con il modulo SEO gli orari sono anche nello schema dell'organizzazione, per Google."
 
-#: modules/banners/src/BannerRepository.php:70
+#: modules/banners/src/BannerRepository.php:99
 msgid "Write the text of the banner in the main language."
 msgstr "Scrivi il testo del banner nella lingua principale."
 
-#: modules/banners/src/BannerRepository.php:73
+#: modules/banners/src/BannerRepository.php:102
 msgid "The end must come after the start."
 msgstr "La fine deve venire dopo l'inizio."
 
-#: modules/banners/src/BannerRepository.php:101
-#: modules/banners/src/BannerRepository.php:111
-#: modules/banners/src/Module.php:258
-#: modules/banners/src/Module.php:284
+#: modules/banners/src/BannerRepository.php:130
+#: modules/banners/src/BannerRepository.php:140
+#: modules/banners/src/Module.php:227
+#: modules/banners/src/Module.php:253
 msgid "Banner not found."
 msgstr "Banner non trovato."
 
-#: modules/banners/src/Module.php:98
-msgid "Close"
-msgstr "Chiudi"
-
-#: modules/banners/src/Module.php:108
+#: modules/banners/src/Module.php:92
 msgid "Announcement"
 msgstr "Avviso"
 
-#: modules/banners/src/Module.php:115
-#: build/barrio-admin.js:13
-#: build/barrio-admin.js:18
+#: modules/banners/src/Module.php:96
+#: build/barrio-admin.js:10
+#: build/barrio-admin.js:15
 msgid "Banners"
 msgstr "Banner"
 
-#: build/barrio-admin.js:9
+#: build/barrio-admin.js:10
 msgid "Expired"
 msgstr "Scaduto"
 
-#: build/barrio-admin.js:9
+#: build/barrio-admin.js:10
 msgid "Off"
 msgstr "Spento"
 
-#: build/barrio-admin.js:9
-msgid "Whole site"
-msgstr "Tutto il sito"
-
-#: build/barrio-admin.js:9
-#: build/barrio-admin.js:12
-msgid "Home page"
-msgstr "Home page"
-
-#. translators: %s: pages, separated by commas.
-#: build/barrio-admin.js:10
-#, js-format
-msgid "Only: %s"
-msgstr "Solo: %s"
-
-#. translators: %s: pages, separated by commas.
-#: build/barrio-admin.js:11
-#, js-format
-msgid "Except: %s"
-msgstr "Tranne: %s"
-
-#. translators: %s: name of a page or a term.
-#: build/barrio-admin.js:12
-#, js-format
-msgid "Remove %s"
-msgstr "Togli %s"
-
-#: build/barrio-admin.js:12
-#: build/barrio-admin.js:17
-msgid "Where"
-msgstr "Dove"
-
-#: build/barrio-admin.js:12
-msgid "The pages of the site where it shows up. In other languages the translations of the chosen pages count too."
-msgstr "Le pagine del sito in cui compare. Nelle altre lingue valgono anche le traduzioni delle pagine scelte."
-
-#: build/barrio-admin.js:12
-msgid "Pages"
-msgstr "Pagine"
-
-#: build/barrio-admin.js:12
-msgid "The whole site"
-msgstr "Tutto il sito"
-
-#: build/barrio-admin.js:12
-msgid "Only on the pages below"
-msgstr "Solo nelle pagine qui sotto"
-
-#: build/barrio-admin.js:12
-msgid "Everywhere except the pages below"
-msgstr "Ovunque tranne le pagine qui sotto"
-
-#: build/barrio-admin.js:12
-msgid "Pages, posts and other contents, one by one."
-msgstr "Pagine, articoli e altri contenuti, uno per uno."
-
-#: build/barrio-admin.js:12
-msgid "All the contents of a type."
-msgstr "Tutti i contenuti di un tipo."
-
-#: build/barrio-admin.js:12
-msgid "Terms"
-msgstr "Termini"
-
-#: build/barrio-admin.js:12
-msgid "The contents with the term, such as a category, and its archive."
-msgstr "I contenuti con il termine, come una categoria, e il suo archivio."
-
-#: build/barrio-admin.js:12
-msgid "Who"
-msgstr "Chi"
-
-#: build/barrio-admin.js:12
-msgid "Devices"
-msgstr "Dispositivi"
-
-#: build/barrio-admin.js:12
-msgid "Phones are the screens narrower than 768 pixels."
-msgstr "I telefoni sono gli schermi larghi meno di 768 pixel."
-
-#: build/barrio-admin.js:12
-msgid "All devices"
-msgstr "Tutti i dispositivi"
-
-#: build/barrio-admin.js:12
-msgid "Only computers and tablets"
-msgstr "Solo computer e tablet"
-
-#: build/barrio-admin.js:12
-msgid "Only phones"
-msgstr "Solo telefoni"
-
-#: build/barrio-admin.js:12
-msgid "Visitors"
-msgstr "Visitatori"
-
-#: build/barrio-admin.js:12
-msgid "Everyone"
-msgstr "Tutti"
-
-#: build/barrio-admin.js:12
-msgid "Only who is not logged in"
-msgstr "Solo chi non ha fatto l'accesso"
-
-#: build/barrio-admin.js:12
-msgid "Only logged-in users"
-msgstr "Solo chi ha fatto l'accesso"
-
-#: build/barrio-admin.js:12
-#: build/barrio-admin.js:17
+#: build/barrio-admin.js:14
+#: build/barrio-admin.js:15
 msgid "Period"
 msgstr "Periodo"
 
-#: build/barrio-admin.js:12
-msgid "Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off."
-msgstr "Orari nel fuso del sito. Senza inizio compare appena salvato, senza fine resta finché non lo si spegne."
-
-#: build/barrio-admin.js:12
+#: build/barrio-admin.js:15
 msgid "On"
 msgstr "Acceso"
 
-#: build/barrio-admin.js:12
+#: build/barrio-admin.js:15
 msgid "Turned off, it never shows up."
 msgstr "Spento, non compare mai."
 
-#: build/barrio-admin.js:12
+#: build/barrio-admin.js:15
 msgid "Start"
 msgstr "Inizio"
 
-#: build/barrio-admin.js:12
+#: build/barrio-admin.js:15
 msgid "End"
 msgstr "Fine"
 
-#: build/barrio-admin.js:13
+#: build/barrio-admin.js:10
 msgid "Announcements at the top or bottom of pages"
 msgstr "Avvisi in cima o in fondo alle pagine"
 
-#: build/barrio-admin.js:13
+#: build/barrio-admin.js:10
 msgid "Manage"
 msgstr "Gestisci"
 
 #. translators: %d: number of banners turned on.
-#: build/barrio-admin.js:14
+#: build/barrio-admin.js:11
 #, js-format
 msgid "%d banner turned on."
 msgid_plural "%d banners turned on."
@@ -4451,7 +4329,7 @@ msgstr[0] "%d banner acceso."
 msgstr[1] "%d banner accesi."
 
 #. translators: %d: number of banners turned off.
-#: build/barrio-admin.js:15
+#: build/barrio-admin.js:12
 #, js-format
 msgid "%d banner turned off."
 msgid_plural "%d banners turned off."
@@ -4459,7 +4337,7 @@ msgstr[0] "%d banner spento."
 msgstr[1] "%d banner spenti."
 
 #. translators: %d: number of banners to delete.
-#: build/barrio-admin.js:16
+#: build/barrio-admin.js:13
 #, js-format
 msgid "Delete %d banner permanently?"
 msgid_plural "Delete %d banners permanently?"
@@ -4467,159 +4345,107 @@ msgstr[0] "Eliminare definitivamente %d banner?"
 msgstr[1] "Eliminare definitivamente %d banner?"
 
 #. translators: %d: number of banners deleted.
-#: build/barrio-admin.js:17
+#: build/barrio-admin.js:14
 #, js-format
 msgid "%d banner deleted."
 msgid_plural "%d banners deleted."
 msgstr[0] "%d banner eliminato."
 msgstr[1] "%d banner eliminati."
 
-#: build/barrio-admin.js:17
+#: build/barrio-admin.js:14
 #, js-format
 msgid "From %s"
 msgstr "Dal %s"
 
-#: build/barrio-admin.js:17
+#: build/barrio-admin.js:14
 #, js-format
 msgid "Until %s"
 msgstr "Fino al %s"
 
-#: build/barrio-admin.js:17
+#: build/barrio-admin.js:14
 msgid "Always"
 msgstr "Sempre"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Banner duplicated: the copy is off."
 msgstr "Banner duplicato: la copia è spenta."
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Turn off"
 msgstr "Spegni"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Turn on"
 msgstr "Accendi"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Search banners"
 msgstr "Cerca nei banner"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "No banners found."
 msgstr "Nessun banner trovato."
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "All banners"
 msgstr "Tutti i banner"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "New banner"
 msgstr "Nuovo banner"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "The text of the banner"
 msgstr "Il testo del banner"
 
-#: build/barrio-admin.js:18
-msgid "At the top of every page."
-msgstr "In cima alle pagine."
-
-#: build/barrio-admin.js:18
-msgid "Fixed at the bottom of the screen while scrolling."
-msgstr "Fisso in fondo allo schermo mentre si scorre."
-
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Edit banner"
 msgstr "Modifica il banner"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Write the text of the banner."
 msgstr "Scrivi il testo del banner."
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Banner saved."
 msgstr "Banner salvato."
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Link"
 msgstr "Link"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Optional: the whole banner leads here. A path like /contacts/ or a full address."
 msgstr "Facoltativo: tutto il banner porta qui. Un percorso come /contatti/ o un indirizzo completo."
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Open the link in a new tab"
 msgstr "Apri il link in una nuova scheda"
 
-#: build/barrio-admin.js:18
-msgid "Appearance"
-msgstr "Aspetto"
-
-#: build/barrio-admin.js:18
-msgid "Position"
-msgstr "Posizione"
-
-#: build/barrio-admin.js:18
-msgid "At the top of the page"
-msgstr "In cima alla pagina"
-
-#: build/barrio-admin.js:18
-msgid "Fixed at the bottom of the screen"
-msgstr "Fisso in fondo allo schermo"
-
-#: build/barrio-admin.js:18
-msgid "Scrolling text"
-msgstr "Testo che scorre"
-
-#: build/barrio-admin.js:18
-msgid "It stops under the mouse, on focus and while touched, and stays still for those who chose to reduce motion."
-msgstr "Si ferma sotto il mouse, con il focus e mentre lo si tocca, e resta fermo per chi ha scelto di ridurre il movimento."
-
-#: build/barrio-admin.js:18
-msgid "Can be closed"
-msgstr "Si può chiudere"
-
-#: build/barrio-admin.js:18
-msgid "With an X on the side."
-msgstr "Con una X a lato."
-
-#: build/barrio-admin.js:18
-msgid "Back after (days)"
-msgstr "Torna dopo (giorni)"
-
-#: build/barrio-admin.js:18
-msgid "Once closed, it shows up again for the same visitor after these days; with 0, on the next page."
-msgstr "Una volta chiuso, ricompare allo stesso visitatore dopo questi giorni; con 0, alla pagina successiva."
-
-#: build/barrio-admin.js:18
-msgid "Own colors"
-msgstr "Colori propri"
-
-#: build/barrio-admin.js:18
-msgid "Without, those of the banner style, which the theme can change."
-msgstr "Senza, quelli dello stile del banner, che il tema può cambiare."
-
-#: build/barrio-admin.js:18
-msgid "Background"
-msgstr "Sfondo"
-
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Who can create, change and delete the banners. Administrators can always do everything; only administrators change these settings."
 msgstr "Chi può creare, modificare ed eliminare i banner. Gli amministratori possono sempre fare tutto; solo gli amministratori cambiano queste impostazioni."
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Active now"
 msgstr "Attivi ora"
 
-#: build/barrio-admin.js:18
+#: build/barrio-admin.js:15
 msgid "Manage banners"
 msgstr "Gestisci i banner"
 
-#: build/barrio-admin.js:86
+#: build/barrio-admin.js:83
 msgid "Forms, entries with their files, banners, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first."
 msgstr "Form, registrazioni con i loro file, banner, redirect, i dati SEO dei contenuti, impostazioni e permessi di questo sito. Non si può annullare: prima esporta le registrazioni che ti servono."
 
-#: build/barrio-admin.js:91
-msgid "Announcements in a line at the top or at the bottom of the pages, with where, to whom and when they show up."
-msgstr "Avvisi su una riga in cima o in fondo alle pagine, con dove, a chi e quando compaiono."
+#: build/barrio-admin.js:15
+msgid "Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up."
+msgstr "Orari nel fuso del sito. Senza inizio compare appena salvato, senza fine resta finché non lo si spegne. Con più banner accesi compare il più recente."
+
+#: build/barrio-admin.js:15
+msgid "The preview follows what you write. Move the mouse over the banner: as on the site, it slows down and stops."
+msgstr "L'anteprima segue ciò che scrivi. Passa con il mouse sul banner: come nel sito, rallenta e si ferma."
+
+#: build/barrio-admin.js:88
+msgid "Announcements in a scrolling line at the top of every page, each with its period."
+msgstr "Avvisi su una riga che scorre in cima a tutte le pagine, ognuno con il suo periodo."

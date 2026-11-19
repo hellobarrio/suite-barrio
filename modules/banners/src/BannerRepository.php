@@ -4,7 +4,6 @@ namespace BarrioSuite\Banners;
 
 use BarrioSuite\Database\Db;
 use BarrioSuite\I18n;
-use BarrioSuite\Visibility;
 use WP_Error;
 
 /**
@@ -13,8 +12,7 @@ use WP_Error;
  * letto nel sito, e fa partire barrio_banners_changed.
  *
  * @phpstan-type Texts array<string, array{text: string, link_url: string|null}>
- * @phpstan-type Settings array{position: string, scroll: bool, closable: bool, new_tab: bool, colors: array{background: string, text: string}, where: array{mode: string, home: bool, posts: list<int>, types: list<string>, terms: list<int>}, who: array{device: string, users: string}, days: int}
- * @phpstan-type Banner array{id: int, is_enabled: bool, starts_at: string|null, ends_at: string|null, settings: Settings, i18n: Texts, created_at: string, updated_at: string}
+ * @phpstan-type Banner array{id: int, is_enabled: bool, new_tab: bool, starts_at: string|null, ends_at: string|null, i18n: Texts, created_at: string, updated_at: string}
  */
 final class BannerRepository {
 
@@ -47,9 +45,40 @@ final class BannerRepository {
 	}
 
 	/**
+	 * Quello del sito adesso: tra gli accesi nel loro periodo il più recente, così una promozione creata dopo vince su
+	 * quella di sempre.
+	 *
+	 * @return Banner|null
+	 */
+	public static function shown(): ?array {
+		foreach ( self::live() as $banner ) {
+			if ( 'active' === self::status( $banner ) ) {
+				return $banner;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Calcolato dal periodo, non salvato.
+	 *
+	 * @param Banner $banner
+	 * @return 'off'|'scheduled'|'active'|'expired'
+	 */
+	public static function status( array $banner ): string {
+		$now = gmdate( 'Y-m-d H:i:s' );
+		return match ( true ) {
+			! $banner['is_enabled']                                => 'off',
+			null !== $banner['ends_at'] && $banner['ends_at'] <= $now     => 'expired',
+			null !== $banner['starts_at'] && $banner['starts_at'] > $now  => 'scheduled',
+			default                                                => 'active',
+		};
+	}
+
+	/**
 	 * Crea ($id null) o sostituisce un banner. Date in UTC (Y-m-d H:i:s) o null; i testi per lingua, con la principale.
 	 *
-	 * @param array<string, mixed> $banner Come schema(): is_enabled, starts_at, ends_at, settings, i18n.
+	 * @param array<string, mixed> $banner Come schema(): is_enabled, new_tab, starts_at, ends_at, i18n.
 	 */
 	public static function save( ?int $id, array $banner ): int|WP_Error {
 		$banner['i18n'] = array_map(
@@ -63,8 +92,8 @@ final class BannerRepository {
 		if ( is_wp_error( $valid ) ) {
 			return new WP_Error( 'rest_invalid_param', $valid->get_error_message(), [ 'status' => 400 ] );
 		}
-		// Valori come "1" o "true" diventano del loro tipo prima di finire nel JSON.
-		/** @var array{is_enabled: bool, starts_at: string|null, ends_at: string|null, settings: array<string, mixed>, i18n: Texts} $banner */
+		// Valori come "1" o "true" diventano del loro tipo.
+		/** @var array{is_enabled: bool, new_tab: bool, starts_at: string|null, ends_at: string|null, i18n: Texts} $banner */
 		$banner = rest_sanitize_value_from_schema( $banner, self::schema(), 'banner' );
 		if ( ! isset( $banner['i18n'][ I18n::languages()[0] ] ) ) {
 			return new WP_Error( 'barrio_banner_main_language', __( 'Write the text of the banner in the main language.', 'barrio-suite' ), [ 'status' => 400 ] );
@@ -78,9 +107,9 @@ final class BannerRepository {
 				$now = gmdate( 'Y-m-d H:i:s' );
 				$row = [
 					'is_enabled' => (int) $banner['is_enabled'],
+					'new_tab'    => (int) $banner['new_tab'],
 					'starts_at'  => $banner['starts_at'],
 					'ends_at'    => $banner['ends_at'],
-					'settings'   => (string) wp_json_encode( $banner['settings'] ),
 					'updated_at' => $now,
 				];
 				if ( null === $id ) {
@@ -131,11 +160,7 @@ final class BannerRepository {
 
 	/** @return array<string, mixed> Lo schema JSON di un banner da scrivere: fa i controlli che il database non sa fare. */
 	public static function schema(): array {
-		$color = [
-			'type'    => 'string',
-			'pattern' => '^(#[0-9a-fA-F]{6})?$',
-		];
-		$utc   = [
+		$utc = [
 			'type'    => [ 'string', 'null' ],
 			'pattern' => '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$',
 		];
@@ -145,31 +170,7 @@ final class BannerRepository {
 				'is_enabled' => [ 'type' => 'boolean' ],
 				'starts_at'  => $utc,
 				'ends_at'    => $utc,
-				'settings'   => [
-					'type'                 => 'object',
-					'properties'           => [
-						'position' => [
-							'type' => 'string',
-							'enum' => [ 'top', 'bottom' ],
-						],
-						// La scritta che scorre; altrimenti ferma.
-						'scroll'   => [ 'type' => 'boolean' ],
-						'closable' => [ 'type' => 'boolean' ],
-						'new_tab'  => [ 'type' => 'boolean' ],
-						// Vuoti: le custom property del CSS, che il tema può cambiare.
-						'colors'   => [
-							'type'                 => 'object',
-							'properties'           => [
-								'background' => $color,
-								'text'       => $color,
-							],
-							'required'             => [ 'background', 'text' ],
-							'additionalProperties' => false,
-						],
-					] + Visibility::SCHEMA,
-					'required'             => [ 'position', 'scroll', 'closable', 'new_tab', 'colors', 'where', 'who', 'days' ],
-					'additionalProperties' => false,
-				],
+				'new_tab'    => [ 'type' => 'boolean' ],
 				'i18n'       => [
 					'type'                 => 'object',
 					'patternProperties'    => [
@@ -194,7 +195,7 @@ final class BannerRepository {
 					'additionalProperties' => false,
 				],
 			],
-			'required'             => [ 'is_enabled', 'starts_at', 'ends_at', 'settings', 'i18n' ],
+			'required'             => [ 'is_enabled', 'new_tab', 'starts_at', 'ends_at', 'i18n' ],
 			'additionalProperties' => true,
 		];
 	}
@@ -224,20 +225,16 @@ final class BannerRepository {
 			];
 		}
 		return array_map(
-			static function ( array $row ) use ( $i18n ): array {
-				/** @var Settings $settings */
-				$settings = json_decode( (string) $row['settings'], true );
-				return [
-					'id'         => (int) $row['id'],
-					'is_enabled' => '1' === $row['is_enabled'],
-					'starts_at'  => $row['starts_at'],
-					'ends_at'    => $row['ends_at'],
-					'settings'   => $settings,
-					'i18n'       => $i18n[ (int) $row['id'] ] ?? [],
-					'created_at' => (string) $row['created_at'],
-					'updated_at' => (string) $row['updated_at'],
-				];
-			},
+			static fn( array $row ): array => [
+				'id'         => (int) $row['id'],
+				'is_enabled' => '1' === $row['is_enabled'],
+				'new_tab'    => '1' === $row['new_tab'],
+				'starts_at'  => $row['starts_at'],
+				'ends_at'    => $row['ends_at'],
+				'i18n'       => $i18n[ (int) $row['id'] ] ?? [],
+				'created_at' => (string) $row['created_at'],
+				'updated_at' => (string) $row['updated_at'],
+			],
 			$rows
 		);
 	}

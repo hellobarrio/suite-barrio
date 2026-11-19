@@ -281,7 +281,6 @@
 .barrio-admin .barrio-card__toggle:focus-visible,
 .barrio-admin .barrio-details summary:focus-visible,
 .barrio-admin .barrio-switch:focus-visible,
-.barrio-admin .barrio-token__remove:focus-visible,
 .barrio-nav a:focus-visible,
 .barrio-table th button:focus-visible {
 	outline: 2px solid var(--barrio-accent);
@@ -2193,81 +2192,64 @@ a.barrio-badge {
 }
 
 /*
- * Le regole di popup e banner (visibility.js): i contenuti e i termini scelti,
- * con la X per toglierli, e Aggiungi largo quanto il campo.
+ * L'anteprima del banner (modules/banners), come nel prototipo: una finestra
+ * del browser con il banner, con lo stile del sito, in cima a una pagina finta.
  */
-.barrio-tokens {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-
-.barrio-token {
-	display: inline-flex;
-	gap: 4px;
-	align-items: center;
-	max-width: 100%;
-	padding: 2px 2px 2px 12px;
-	border: 1px solid var(--barrio-line);
-	border-radius: 999px;
-	background: var(--barrio-soft);
-	color: var(--barrio-ink);
-	overflow-wrap: anywhere;
-}
-
-.barrio-token__remove {
-	display: grid;
-	flex: none;
-	place-items: center;
-	width: 24px;
-	height: 24px;
-	padding: 0;
-	border: 0;
-	border-radius: 50%;
-	background: none;
-	color: var(--barrio-muted);
-	cursor: pointer;
-}
-
-.barrio-token__remove:hover {
-	background: var(--barrio-line);
-	color: var(--barrio-ink);
-}
-
-.barrio-token__remove .dashicons {
-	width: 16px;
-	height: 16px;
-	font-size: 16px;
-}
-
-.barrio-lookup,
-.barrio-lookup > .barrio-button {
-	width: 100%;
-}
-
-/* I risultati della ricerca sono bottoni, come le scelte di Picker. */
-button.barrio-picker__option {
-	width: 100%;
-	border: 0;
-	background: none;
-	font: inherit;
-	text-align: start;
-}
-
-.barrio-admin .barrio-input[type="color"] {
-	padding: 4px;
-	cursor: pointer;
-}
-
-/*
- * L'anteprima del banner (modules/banners) con lo stile del sito: in fondo
- * non resta fissa sullo schermo.
- */
-.barrio-banner-preview {
+.barrio-browser {
 	overflow: hidden;
+	border: 1px solid var(--barrio-line);
 	border-radius: var(--barrio-radius-small);
 }
 
-.barrio-banner-preview .barrio-banner.is-bottom {
-	position: static;
+.barrio-browser__bar {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	padding: 8px 12px;
+	background: var(--barrio-soft);
+}
+
+.barrio-browser__bar > span {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: #ff5f57;
+}
+
+.barrio-browser__bar > span:nth-child(2) {
+	background: #febc2e;
+}
+
+.barrio-browser__bar > span:nth-child(3) {
+	background: #28c840;
+}
+
+.barrio-browser__bar > .barrio-browser__url {
+	flex: 1;
+	height: 18px;
+	margin-left: 8px;
+	border: 1px solid var(--barrio-line);
+	border-radius: 4px;
+	background: #fff;
+}
+
+.barrio-browser__page {
+	display: grid;
+	gap: 9px;
+	padding: 18px 16px;
+	background: #f9fafb;
+}
+
+.barrio-browser__page > span {
+	height: 7px;
+	border-radius: 4px;
+	background: var(--barrio-line);
+}
+
+.barrio-browser__page > span:nth-child(1) {
+	width: 70%;
+}
+
+.barrio-browser__page > span:nth-child(3) {
+	width: 50%;
 }

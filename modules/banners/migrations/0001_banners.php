@@ -10,22 +10,21 @@ return static function ( wpdb $wpdb ): void {
 	$t       = "{$p}barrio_";
 	$charset = $wpdb->get_charset_collate();
 
-	// Periodo in UTC, NULL = senza inizio o senza fine. settings è letto e scritto intero (posizione, colori, regole di
-	// Visibility): lo valida BannerRepository. L'indice serve agli accesi non scaduti, letti nel sito.
+	// Periodo in UTC, NULL = senza inizio o senza fine. L'indice serve agli accesi non scaduti, letti nel sito.
 	Db::query(
 		"CREATE TABLE IF NOT EXISTS {$t}banners (
 			id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			is_enabled  TINYINT(1)      NOT NULL DEFAULT 0,
+			new_tab     TINYINT(1)      NOT NULL DEFAULT 0,
 			starts_at   DATETIME        NULL,
 			ends_at     DATETIME        NULL,
-			settings    JSON            NOT NULL,
 			created_at  DATETIME        NOT NULL,
 			updated_at  DATETIME        NOT NULL,
 			PRIMARY KEY (id),
 			KEY enabled_ends (is_enabled, ends_at),
 			CONSTRAINT {$p}bb_enabled_chk CHECK (is_enabled IN (0, 1)),
-			CONSTRAINT {$p}bb_period_chk CHECK (ends_at > starts_at),
-			CONSTRAINT {$p}bb_settings_chk CHECK (JSON_TYPE(settings) = 'OBJECT')
+			CONSTRAINT {$p}bb_tab_chk CHECK (new_tab IN (0, 1)),
+			CONSTRAINT {$p}bb_period_chk CHECK (ends_at > starts_at)
 		) ENGINE=InnoDB {$charset}"
 	);
 

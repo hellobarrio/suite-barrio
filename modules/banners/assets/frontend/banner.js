@@ -1,7 +1,6 @@
-// I banner nel sito (modules/banners/src/Module.php): toglie quelli chiusi di recente o fuori dal periodo, fa scorrere la
-// scritta e scrive l'altezza di quello mostrato in --barrio-banner-height, per i temi con l'header fisso.
-// eslint-disable-next-line import/no-unresolved -- lo risolve l'import map di WordPress.
-import { remember, visible } from '@barrio/visibility';
+// Il banner nel sito (modules/banners/src/Module.php): fuori dal suo periodo si toglie, perché con la cache di pagina
+// l'HTML può essere vecchio; la scritta scorre; la sua altezza va in --barrio-banner-height, per i temi con l'header
+// fisso. L'anteprima dell'admin usa start().
 
 // Pixel al secondo.
 const SPEED = 50;
@@ -9,26 +8,39 @@ const SPEED = 50;
 /**
  * La scritta che scorre: copie del testo, nascoste agli screen reader, fino a riempire la barra più una, e una Web
  * Animation lunga quanto il testo con il suo spazio, così il giro non salta. Si rifà quando cambiano le misure (i font
- * caricati, la finestra). Si ferma col mouse, col focus e col tocco; senza link un clic la ferma fino al clic dopo.
- * Con prefers-reduced-motion resta ferma (banner.css).
+ * caricati, la finestra). Col mouse, il focus e il tocco rallenta fino a fermarsi, e poi riparte; senza link un clic
+ * la ferma fino al clic dopo. Con prefers-reduced-motion resta ferma (banner.css).
  *
  * @param {HTMLElement} banner
- * @return {() => void} Toglie animazione e copie: per l'anteprima dell'admin.
+ * @return {() => void} Toglie animazione e copie.
  */
 export function start( banner ) {
 	const track = banner.querySelector( '.barrio-banner__track' );
 	const text = track.firstElementChild;
-	if (
-		! banner.classList.contains( 'is-scroll' ) ||
-		window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches
-	) {
+	if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
 		return () => {};
 	}
 	let animation;
 	let stopped = false;
-	let held = false;
-	const sync = () =>
-		stopped || held ? animation?.pause() : animation?.play();
+	// Mouse e focus, ognuno per conto suo: il focus resta anche quando il mouse esce.
+	const holds = new Set();
+	let rate = 1;
+	let frame;
+	const ease = () => {
+		const target = stopped || holds.size ? 0 : 1;
+		rate += ( target - rate ) * 0.12;
+		if ( Math.abs( target - rate ) < 0.01 ) {
+			rate = target;
+		}
+		if ( animation ) {
+			animation.playbackRate = rate;
+		}
+		frame = rate === target ? null : window.requestAnimationFrame( ease );
+	};
+	const sync = () => {
+		window.cancelAnimationFrame( frame );
+		ease();
+	};
 	const run = () => {
 		const width = text.offsetWidth;
 		if ( ! width ) {
@@ -55,19 +67,23 @@ export function start( banner ) {
 			],
 			{ duration: ( width / SPEED ) * 1000, iterations: Infinity }
 		);
-		sync();
+		animation.playbackRate = rate;
 	};
 	const observer = new window.ResizeObserver( run );
 	observer.observe( banner );
 	observer.observe( text );
-	const hold = ( on ) => () => {
-		held = on;
+	const hold = ( reason, on ) => () => {
+		if ( on ) {
+			holds.add( reason );
+		} else {
+			holds.delete( reason );
+		}
 		sync();
 	};
-	banner.addEventListener( 'pointerenter', hold( true ) );
-	banner.addEventListener( 'pointerleave', hold( false ) );
-	banner.addEventListener( 'focusin', hold( true ) );
-	banner.addEventListener( 'focusout', hold( false ) );
+	banner.addEventListener( 'pointerenter', hold( 'pointer', true ) );
+	banner.addEventListener( 'pointerleave', hold( 'pointer', false ) );
+	banner.addEventListener( 'focusin', hold( 'focus', true ) );
+	banner.addEventListener( 'focusout', hold( 'focus', false ) );
 	if ( ! banner.querySelector( 'a' ) ) {
 		banner.addEventListener( 'click', () => {
 			stopped = ! stopped;
@@ -76,45 +92,26 @@ export function start( banner ) {
 	}
 	return () => {
 		observer.disconnect();
+		window.cancelAnimationFrame( frame );
 		animation?.cancel();
 		track.replaceChildren( text );
 	};
 }
 
-const banners = [
-	...document.querySelectorAll( '.barrio-banner[data-barrio-visibility]' ),
-];
-
-// Il CSS nasconde quello dell'altro dispositivo: conta quello che ha un'altezza. In fondo serve anche lo spazio sotto
-// la pagina, perché il banner non copra il footer.
-function measure() {
-	const shown = banners.find(
-		( banner ) => banner.isConnected && banner.offsetHeight
-	);
-	document.documentElement.style.setProperty(
-		'--barrio-banner-height',
-		`${ shown?.offsetHeight ?? 0 }px`
-	);
-	document.documentElement.classList.toggle(
-		'barrio-banner-bottom',
-		!! shown?.classList.contains( 'is-bottom' )
-	);
-}
-
-const resize = new window.ResizeObserver( measure );
-for ( const banner of banners ) {
-	if ( ! visible( banner ) ) {
-		banner.remove();
-		continue;
-	}
+const banner = document.getElementById( 'barrio-banner' );
+const now = Date.now() / 1000;
+if (
+	banner &&
+	( now < Number( banner.dataset.start ?? 0 ) ||
+		now >= Number( banner.dataset.end ?? Infinity ) )
+) {
+	banner.remove();
+} else if ( banner ) {
 	start( banner );
-	resize.observe( banner );
-	banner
-		.querySelector( '.barrio-banner__close' )
-		?.addEventListener( 'click', () => {
-			remember( banner );
-			banner.remove();
-			measure();
-		} );
+	new window.ResizeObserver( () =>
+		document.documentElement.style.setProperty(
+			'--barrio-banner-height',
+			`${ banner.offsetHeight }px`
+		)
+	).observe( banner );
 }
-measure();
