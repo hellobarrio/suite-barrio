@@ -544,7 +544,8 @@ export const Details = ( { title, children } ) => (
 );
 
 /**
- * Nella Bacheca, la card di un modulo acceso, con al massimo tre numeri: le card restano alte uguali.
+ * Nella Bacheca, la card di un modulo acceso, con al massimo tre numeri: le card restano alte uguali. La descrizione
+ * e ogni numero stanno in una riga; il testo che non ci sta finisce con … e si legge intero al passaggio.
  *
  * @param {Object}                       props
  * @param {Object}                       props.module   icon, title, description e color del modulo.
@@ -563,7 +564,7 @@ export const ModuleCard = ( { module, stats, actions, notice } ) => (
 			</span>
 			<div>
 				<h2 className="barrio-module__title">{ module.title }</h2>
-				<p>{ module.description }</p>
+				<p title={ module.description }>{ module.description }</p>
 			</div>
 		</header>
 		<div className="barrio-module__body">
@@ -573,7 +574,9 @@ export const ModuleCard = ( { module, stats, actions, notice } ) => (
 					{ stats.slice( 0, 3 ).map( ( [ label, value ] ) => (
 						<div key={ label }>
 							<dt>{ label }</dt>
-							<dd>{ value.toLocaleString() }</dd>
+							<dd title={ value.toLocaleString() }>
+								{ value.toLocaleString() }
+							</dd>
 						</div>
 					) ) }
 				</dl>

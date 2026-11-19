@@ -3955,39 +3955,39 @@ msgstr "Con testo alternativo"
 msgid "Opening hours"
 msgstr "Orari"
 
-#: modules/hours/src/Module.php:297
+#: modules/hours/src/Module.php:299
 msgid "Only administrators can change the source and the permissions."
 msgstr "Solo gli amministratori possono cambiare la fonte e i permessi."
 
-#: modules/hours/src/Module.php:305
+#: modules/hours/src/Module.php:307
 msgid "Enter the Place ID of the business to take the opening hours from Google."
 msgstr "Inserisci il Place ID dell'attività per prendere gli orari da Google."
 
-#: modules/hours/src/Module.php:355
+#: modules/hours/src/Module.php:357
 msgid "Choose Google as the source first."
 msgstr "Prima scegli Google come fonte."
 
 #. translators: %s: reason given by Google.
-#: modules/hours/src/Module.php:514
+#: modules/hours/src/Module.php:516
 #, php-format
 msgid "Google did not return the opening hours. %s"
 msgstr "Google non ha restituito gli orari. %s"
 
-#: modules/hours/src/Module.php:518
+#: modules/hours/src/Module.php:520
 msgid "This place has no opening hours on Google: add them to its Google Business Profile, or write them here with the manual source."
 msgstr "Questo luogo non ha orari su Google: aggiungili al suo Profilo dell'attività su Google, oppure scrivili qui con la fonte manuale."
 
-#: modules/hours/src/Module.php:532
+#: modules/hours/src/Module.php:534
 msgid "The answer of Google is not valid. Try again later."
 msgstr "La risposta di Google non è valida. Riprova più tardi."
 
 #. translators: %s: a date as written, like 2026-02-30.
-#: modules/hours/src/Module.php:582
+#: modules/hours/src/Module.php:584
 #, php-format
 msgid "%s is not a date."
 msgstr "%s non è una data."
 
-#: modules/hours/src/Module.php:586
+#: modules/hours/src/Module.php:588
 #: build/barrio-admin.js:40
 msgid "A special period cannot end before it starts."
 msgstr "Un periodo speciale non può finire prima di iniziare."
@@ -3999,7 +3999,7 @@ msgid "Today: %s"
 msgstr "Oggi: %s"
 
 #: modules/hours/src/Render.php:115
-#: modules/hours/src/Render.php:283
+#: modules/hours/src/Render.php:284
 msgid "Open 24 hours"
 msgstr "Aperto 24 ore su 24"
 
@@ -4016,7 +4016,7 @@ msgid "Open · closes %1$s at %2$s"
 msgstr "Aperto · chiude %1$s alle %2$s"
 
 #: modules/hours/src/Render.php:120
-#: modules/hours/src/Render.php:280
+#: modules/hours/src/Render.php:281
 #: build/barrio-admin.js:40
 msgid "Closed"
 msgstr "Chiuso"
@@ -4039,13 +4039,9 @@ msgstr "Chiuso · apre domani alle %s"
 msgid "Closed · opens %1$s at %2$s"
 msgstr "Chiuso · apre %1$s alle %2$s"
 
-#: modules/hours/src/Render.php:255
+#: modules/hours/src/Render.php:256
 msgid "Special opening hours"
 msgstr "Orari speciali"
-
-#: build/barrio-admin.js:40
-msgid "Opening hours and special days, written by hand or from Google"
-msgstr "Orari di apertura e giorni speciali, scritti a mano o da Google"
 
 #: build/barrio-admin.js:40
 msgid "Opens"
@@ -4120,18 +4116,12 @@ msgid "No special days."
 msgstr "Nessun giorno speciale."
 
 #: build/barrio-admin.js:40
+#: build/barrio-admin.js:41
 msgid "Source"
 msgstr "Fonte"
 
 #: build/barrio-admin.js:40
-msgid "With Google, the week and the special days of the next 7 days come from the Google Business Profile of the business every night at 3:00 (site time). To change them here, switch to manual: it starts from the latest hours."
-msgstr "Con Google, la settimana e i giorni speciali dei prossimi 7 giorni arrivano dal Profilo dell'attività su Google ogni notte alle 3:00 (ora del sito). Per modificarli qui passa a manuale: si parte dagli ultimi orari."
-
-#: build/barrio-admin.js:40
-msgid "Written here"
-msgstr "Scritti qui"
-
-#: build/barrio-admin.js:40
+#: build/barrio-admin.js:41
 msgid "Google"
 msgstr "Google"
 
@@ -4241,3 +4231,24 @@ msgstr "L'ID dell'attività su Google Maps, come ChIJ…."
 #: build/barrio-admin.js:40
 msgid "Find the Place ID"
 msgstr "Trova il Place ID"
+
+#: build/barrio-admin.js:40
+msgid "Hours and special days, also from Google"
+msgstr "Orari e giorni speciali, anche da Google"
+
+#: build/barrio-admin.js:40
+msgid "With Google, the week and the special days of the next 7 days come from the Google Business Profile of the business every night at 3:00 (site time). To change them in Opening hours, switch to manual: it starts from the latest hours."
+msgstr "Con Google, la settimana e i giorni speciali dei prossimi 7 giorni arrivano dal Profilo dell'attività su Google ogni notte alle 3:00 (ora del sito). Per modificarli in Orari passa a manuale: si parte dagli ultimi orari."
+
+#: build/barrio-admin.js:40
+#: build/barrio-admin.js:41
+msgid "Written by hand"
+msgstr "Scritti a mano"
+
+#: build/barrio-admin.js:41
+msgid "The opening hours come from Google, every night: to change them here, choose the manual source in Settings."
+msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui scegli la fonte manuale in Impostazioni."
+
+#: build/barrio-admin.js:41
+msgid "The opening hours come from Google, every night: to change them here, an administrator has to choose the manual source."
+msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui un amministratore deve scegliere la fonte manuale."

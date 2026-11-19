@@ -125,6 +125,9 @@ final class HoursTest extends WP_UnitTestCase {
 		$this->assertSame( $week, do_shortcode( '[barrio_hours group="1"]' ), 'The shortcode is the same as the block.' );
 		$this->assertStringContainsString( '<th scope="row">Monday</th>', do_shortcode( '[barrio_hours]' ) );
 		$this->assertTrue( wp_style_is( 'barrio-hours' ) );
+		$card = apply_filters( 'barrio_admin_data', [] )['hours'];
+		$this->assertSame( '24 Dec – 26 Dec', $card['next'], 'Short, to fit in one row of the dashboard card.' );
+		$this->assertSame( 'manual', $card['source'] );
 
 		// La pagina scritta un venerdì, letta dal browser nei giorni dopo, come con la cache.
 		$friday = new DateTimeImmutable( '2099-12-18', wp_timezone() );
