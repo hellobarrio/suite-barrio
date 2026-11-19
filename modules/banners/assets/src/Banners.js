@@ -2,6 +2,7 @@
 // l'anteprima; agli amministratori la scheda Impostazioni con i Permessi. E la card della Bacheca. I testi si traducono
 // come nel builder dei form (TextIn): nelle altre lingue un testo vuoto vale quello della lingua principale.
 import apiFetch from '@wordpress/api-fetch';
+import { getSettings, gmdateI18n } from '@wordpress/date';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
@@ -23,7 +24,6 @@ import {
 	ModuleCard,
 	Notice,
 	Permissions,
-	Select,
 	Table,
 	Text,
 	Toggle,
@@ -31,15 +31,6 @@ import {
 	langOption,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
-import {
-	PeriodCard,
-	RULES,
-	STATUS,
-	WhereCard,
-	WhoCard,
-	periodText,
-	whereText,
-} from '../../../../assets/src/admin/visibility.js';
 import {
 	setTranslation,
 	textIn,
@@ -71,18 +62,38 @@ const pageUrl = ( params = {} ) =>
 
 const blank = () => ( {
 	is_enabled: true,
+	new_tab: false,
 	starts_at: null,
 	ends_at: null,
-	settings: {
-		position: 'top',
-		scroll: false,
-		closable: true,
-		new_tab: false,
-		colors: { background: '', text: '' },
-		...RULES,
-	},
 	i18n: { [ main ]: { text: '', link_url: null } },
 } );
+
+// BannerRepository::status(): il nome e il colore del badge.
+const STATUS = {
+	active: [ __( 'Active', 'barrio-suite' ), 'is-success' ],
+	scheduled: [ __( 'Scheduled', 'barrio-suite' ), 'is-warning' ],
+	expired: [ __( 'Expired', 'barrio-suite' ), '' ],
+	off: [ __( 'Off', 'barrio-suite' ), '' ],
+};
+
+// Una data del campo datetime-local (ora del sito) nel formato della lingua, senza passare dal fuso del browser.
+const dateText = ( local ) =>
+	gmdateI18n( getSettings().formats.datetimeAbbreviated, `${ local }:00Z` );
+
+function periodText( start, end ) {
+	if ( start && end ) {
+		return `${ dateText( start ) } – ${ dateText( end ) }`;
+	}
+	if ( start ) {
+		/* translators: %s: date and time. */
+		return sprintf( __( 'From %s', 'barrio-suite' ), dateText( start ) );
+	}
+	if ( end ) {
+		/* translators: %s: date and time. */
+		return sprintf( __( 'Until %s', 'barrio-suite' ), dateText( end ) );
+	}
+	return __( 'Always', 'barrio-suite' );
+}
 
 // Al caricamento le altre lingue tengono solo i testi diversi da quelli della lingua principale.
 const trim = ( banner ) =>
@@ -211,11 +222,6 @@ function BannerList() {
 	const all = banners.map( ( banner ) => ( {
 		...banner,
 		text: textOf( banner ),
-		where: whereText(
-			banner.settings.where,
-			banner.labels,
-			bannersData.types
-		),
 		period: periodText( banner.starts_at, banner.ends_at ),
 		// Per ordinare: gli stati nell'ordine di STATUS, il periodo dall'inizio.
 		order: Object.keys( STATUS ).indexOf( banner.status ),
@@ -242,7 +248,7 @@ function BannerList() {
 			} )
 		),
 		query,
-		[ 'text', 'where', 'period' ]
+		[ 'text', 'period' ]
 	);
 
 	const columns = [
@@ -271,12 +277,6 @@ function BannerList() {
 					{ STATUS[ banner.status ][ 0 ] }
 				</span>
 			),
-		},
-		{
-			key: 'where',
-			label: __( 'Where', 'barrio-suite' ),
-			sort: 'where',
-			hideable: true,
 		},
 		{
 			key: 'period',
@@ -443,28 +443,54 @@ function BannerList() {
 	);
 }
 
-const CLOSE = (
-	<svg
-		viewBox="0 0 24 24"
-		width="20"
-		height="20"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		aria-hidden="true"
+/**
+ * Acceso, inizio e fine, nell'ora del sito; vuoti, da subito e per sempre.
+ *
+ * @param {Object}                    props
+ * @param {Object}                    props.banner
+ * @param {(changes: Object) => void} props.onChange { is_enabled }, { starts_at } o { ends_at }.
+ */
+const PeriodCard = ( { banner, onChange } ) => (
+	<Card
+		icon="calendar-alt"
+		title={ __( 'Period', 'barrio-suite' ) }
+		description={ __(
+			'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up.',
+			'barrio-suite'
+		) }
 	>
-		<path d="M18 6 6 18M6 6l12 12" />
-	</svg>
+		<Toggle
+			label={ __( 'On', 'barrio-suite' ) }
+			help={
+				! banner.is_enabled &&
+				__( 'Turned off, it never shows up.', 'barrio-suite' )
+			}
+			checked={ banner.is_enabled }
+			onChange={ ( on ) => onChange( { is_enabled: on } ) }
+		/>
+		<Text
+			type="datetime-local"
+			label={ __( 'Start', 'barrio-suite' ) }
+			value={ banner.starts_at }
+			onChange={ ( value ) => onChange( { starts_at: value || null } ) }
+		/>
+		<Text
+			type="datetime-local"
+			label={ __( 'End', 'barrio-suite' ) }
+			min={ banner.starts_at ?? undefined }
+			value={ banner.ends_at }
+			onChange={ ( value ) => onChange( { ends_at: value || null } ) }
+		/>
+	</Card>
 );
 
-// Come nel sito, con lo stile e lo script del sito (Module::menu()); in fondo non resta fisso sullo schermo.
+// Una finestra del browser con il banner in cima a una pagina finta, come nel prototipo. Il banner ha lo stile e lo
+// script del sito (Module::admin_data()): scorre, e rallenta fino a fermarsi sotto il mouse.
 function Preview( { banner, lang } ) {
 	const ref = useRef();
-	const { settings } = banner;
-	const text = textIn( banner, lang, main ).text;
-	// Un banner nuovo a ogni cambio di ciò che lo script misura: lo script non sa di React.
-	const key = JSON.stringify( [ text, settings.scroll, settings.closable ] );
+	const { text, link_url: link } = textIn( banner, lang, main );
+	// Lo script cambia il banner senza che React lo sappia: a ogni testo un banner nuovo.
+	const key = JSON.stringify( [ text, !! link ] );
 	useEffect( () => {
 		let current = true;
 		let stop;
@@ -480,27 +506,23 @@ function Preview( { banner, lang } ) {
 			stop?.();
 		};
 	}, [ key ] );
+	const Body = link ? 'a' : 'div';
 	return (
 		<Card icon="visibility" title={ __( 'Preview', 'barrio-suite' ) }>
-			<div className="barrio-banner-preview">
-				<div
-					key={ key }
-					ref={ ref }
-					className={ `barrio-banner is-${ settings.position }${
-						settings.scroll ? ' is-scroll' : ''
-					}` }
-					style={
-						settings.colors.background
-							? {
-									'--barrio-banner-background':
-										settings.colors.background,
-									'--barrio-banner-color':
-										settings.colors.text,
-								}
-							: {}
-					}
-				>
-					<div className="barrio-banner__body">
+			<div className="barrio-browser" aria-hidden="true">
+				<div className="barrio-browser__bar">
+					<span />
+					<span />
+					<span />
+					<span className="barrio-browser__url" />
+				</div>
+				<div key={ key } ref={ ref } className="barrio-banner">
+					<Body
+						className="barrio-banner__body"
+						href={ link ? '#' : undefined }
+						tabIndex={ -1 }
+						onClick={ ( event ) => event.preventDefault() }
+					>
 						<span className="barrio-banner__track">
 							<span className="barrio-banner__text">
 								{ text ||
@@ -510,19 +532,19 @@ function Preview( { banner, lang } ) {
 									) }
 							</span>
 						</span>
-					</div>
-					{ settings.closable && (
-						<span className="barrio-banner__close">{ CLOSE }</span>
-					) }
+					</Body>
+				</div>
+				<div className="barrio-browser__page">
+					<span />
+					<span />
+					<span />
 				</div>
 			</div>
 			<p className="barrio-field__help">
-				{ 'top' === settings.position
-					? __( 'At the top of every page.', 'barrio-suite' )
-					: __(
-							'Fixed at the bottom of the screen while scrolling.',
-							'barrio-suite'
-						) }
+				{ __(
+					'The preview follows what you write. Move the mouse over the banner: as on the site, it slows down and stops.',
+					'barrio-suite'
+				) }
 			</p>
 		</Card>
 	);
@@ -531,18 +553,16 @@ function Preview( { banner, lang } ) {
 function BannerEditor( { id } ) {
 	const [ banner, setBanner ] = useState( id ? null : blank );
 	const [ saved, setSaved ] = useState( banner );
-	const [ labels, setLabels ] = useState( { posts: {}, terms: {} } );
 	const [ lang, setLang ] = useState( main );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
 
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
-	const load = ( { labels: names, status, ...data } ) => {
+	const load = ( { status, ...data } ) => {
 		const loaded = trim( data );
 		setSaved( loaded );
 		setBanner( loaded );
-		setLabels( names );
 	};
 	useEffect( () => {
 		if ( id ) {
@@ -558,9 +578,7 @@ function BannerEditor( { id } ) {
 	if ( ! banner ) {
 		return notice ? <Notice notice={ notice } /> : <Loading />;
 	}
-	const { settings } = banner;
-	const set = ( changes ) =>
-		setBanner( { ...banner, settings: { ...settings, ...changes } } );
+	const set = ( changes ) => setBanner( { ...banner, ...changes } );
 	const save = () => {
 		if ( ! banner.i18n[ main ]?.text.trim() ) {
 			setNotice( {
@@ -666,157 +684,13 @@ function BannerEditor( { id } ) {
 									'Open the link in a new tab',
 									'barrio-suite'
 								) }
-								checked={ settings.new_tab }
+								checked={ banner.new_tab }
 								onChange={ ( on ) => set( { new_tab: on } ) }
 							/>
 						</Fixed>
 					</Card>
-					<Card
-						icon="admin-appearance"
-						title={ __( 'Appearance', 'barrio-suite' ) }
-					>
-						<Fixed lang={ lang }>
-							<Select
-								label={ __( 'Position', 'barrio-suite' ) }
-								value={ settings.position }
-								options={ [
-									{
-										value: 'top',
-										label: __(
-											'At the top of the page',
-											'barrio-suite'
-										),
-									},
-									{
-										value: 'bottom',
-										label: __(
-											'Fixed at the bottom of the screen',
-											'barrio-suite'
-										),
-									},
-								] }
-								onChange={ ( position ) => set( { position } ) }
-							/>
-							<Toggle
-								label={ __( 'Scrolling text', 'barrio-suite' ) }
-								help={ __(
-									'It stops under the mouse, on focus and while touched, and stays still for those who chose to reduce motion.',
-									'barrio-suite'
-								) }
-								checked={ settings.scroll }
-								onChange={ ( scroll ) => set( { scroll } ) }
-							/>
-							<Toggle
-								label={ __( 'Can be closed', 'barrio-suite' ) }
-								help={ __(
-									'With an X on the side.',
-									'barrio-suite'
-								) }
-								checked={ settings.closable }
-								onChange={ ( closable ) => set( { closable } ) }
-							/>
-							{ settings.closable && (
-								<Text
-									type="number"
-									min={ 0 }
-									max={ 365 }
-									label={ __(
-										'Back after (days)',
-										'barrio-suite'
-									) }
-									help={ __(
-										'Once closed, it shows up again for the same visitor after these days; with 0, on the next page.',
-										'barrio-suite'
-									) }
-									value={ String( settings.days ) }
-									onChange={ ( value ) =>
-										set( {
-											days: Math.min(
-												365,
-												Math.max(
-													0,
-													parseInt( value, 10 ) || 0
-												)
-											),
-										} )
-									}
-								/>
-							) }
-							<Toggle
-								label={ __( 'Own colors', 'barrio-suite' ) }
-								help={ __(
-									'Without, those of the banner style, which the theme can change.',
-									'barrio-suite'
-								) }
-								checked={ !! settings.colors.background }
-								onChange={ ( on ) =>
-									set( {
-										colors: on
-											? {
-													background: '#1e1e1e',
-													text: '#ffffff',
-												}
-											: { background: '', text: '' },
-									} )
-								}
-							/>
-							{ !! settings.colors.background && (
-								<div className="barrio-row is-fill">
-									<Text
-										type="color"
-										label={ __(
-											'Background',
-											'barrio-suite'
-										) }
-										value={ settings.colors.background }
-										onChange={ ( background ) =>
-											set( {
-												colors: {
-													...settings.colors,
-													background,
-												},
-											} )
-										}
-									/>
-									<Text
-										type="color"
-										label={ __( 'Text', 'barrio-suite' ) }
-										value={ settings.colors.text }
-										onChange={ ( color ) =>
-											set( {
-												colors: {
-													...settings.colors,
-													text: color,
-												},
-											} )
-										}
-									/>
-								</div>
-							) }
-						</Fixed>
-					</Card>
 					<Fixed lang={ lang }>
-						<WhereCard
-							where={ settings.where }
-							labels={ labels }
-							types={ bannersData.types }
-							onChange={ ( where, next ) => {
-								set( { where } );
-								setLabels( next );
-							} }
-						/>
-						<WhoCard
-							who={ settings.who }
-							onChange={ ( who ) => set( { who } ) }
-						/>
-						<PeriodCard
-							enabled={ banner.is_enabled }
-							start={ banner.starts_at }
-							end={ banner.ends_at }
-							onChange={ ( changes ) =>
-								setBanner( { ...banner, ...changes } )
-							}
-						/>
+						<PeriodCard banner={ banner } onChange={ set } />
 					</Fixed>
 				</div>
 				<div className="barrio-panel">

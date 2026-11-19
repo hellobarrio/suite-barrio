@@ -111,7 +111,7 @@ const PAGES = {
 	'barrio-banners': {
 		title: BANNERS.title,
 		description: __(
-			'Announcements in a line at the top or at the bottom of the pages, with where, to whom and when they show up.',
+			'Announcements in a scrolling line at the top of every page, each with its period.',
 			'barrio-suite'
 		),
 		page: (

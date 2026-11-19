@@ -15,7 +15,6 @@ export default [
 				'@wordpress/date',
 				'@wordpress/editor',
 				'@wordpress/element',
-				'@wordpress/html-entities',
 				'@wordpress/i18n',
 				'@wordpress/media-utils',
 				'@wordpress/plugins',

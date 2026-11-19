@@ -17,7 +17,7 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 | Database | **Come sempre, il database è il centro dello sviluppo**: ogni modulo parte dai dati, e ogni fase si apre con schema, migrazioni e i test che dimostrano ogni vincolo su MariaDB 10.5 e MySQL 8.0, prima di REST e interfaccia. Valgono tutte le regole di PLAN.md §2: InnoDB, foreign key, CHECK per gli insiemi chiusi, `utf8mb4_bin` per gli identificatori, date UTC scritte da PHP, NULL solo per "non applicabile", un enum PHP per ogni CHECK, solo i Repository usano `$wpdb`, transazioni sulle scritture su più tabelle, migrazioni numerate con il lock. Le raccolte di record (popup, banner) sono tabelle con i testi in tabelle `_i18n`. I record unici sono opzioni con JSON Schema. I dati di un contenuto di WordPress (l'ordine dei termini) sono suoi meta. `docs/database.md` documenta le tabelle nuove |
 | Moduli | Sette voci nuove nella card Moduli: `popups` (Popup), `banners` (Banner), `hours` (Orari), `blocks` (Blocchi), `ordering` (Ordinamento), `duplicate` (Duplicazione), `alt` (Testi alternativi). Namespace `BarrioSuite\Popups`, `\Banners`, `\Hours`, `\Blocks`, `\Ordering`, `\Duplicate`, `\Alt` |
 | Accesi di default | Come tutti i moduli, ma **un modulo acceso non cambia niente finché non lo si configura**: nessun popup o banner, nessun orario, nessun blocco disattivato, nessun tipo in ordine manuale, nessuna generazione al caricamento. L'unica cosa che si vede subito è il link "Duplica" nelle liste. Sui siti del prototipo l'estensione di migrazione tiene spenti i moduli che il prototipo ha accesi, fino alla migrazione (come per il SEO) |
-| Popup e Banner separati | Due moduli, come nel prototipo, per accenderli, gestirli e dare i permessi separatamente: ognuno ha le sue tabelle, la sua pagina, la sua capability e la sua card. Ciò che hanno uguale sta nel core e si scrive una volta (§1): dove, chi e quando compaiono, il periodo, la frequenza, la lingua. Nel prototipo quella parte è copiata da un modulo all'altro, con gli stessi bug |
+| Popup e Banner separati | Due moduli, come nel prototipo, per accenderli, gestirli e dare i permessi separatamente: ognuno ha le sue tabelle, la sua pagina, la sua capability e la sua card. Le regole del §1 (dove, chi, frequenza) sono del Popup: il Banner, deciso in M6, è quello del prototipo, una scritta che scorre in cima a tutte le pagine, con solo il periodo |
 | Tabelle e non CPT | Popup e banner sono raccolte di record con testi per lingua, come i form: tabella più tabella `_i18n`, con la lingua scelta nella barra dell'editor e i componenti dei testi tradotti del builder (`TextIn`, `Fixed`, `fillTranslations`). Così funzionano senza WPML e il GraphQL resta con i campi del prototipo. Un CPT con l'editor a blocchi lascerebbe le traduzioni a WPML, e per il banner (una riga di testo) aprirebbe un editor a blocchi intero |
 | Impostazioni | Orari, Blocchi, Ordinamento, Duplicazione e Testi alternativi hanno un solo record ciascuno: un'opzione con JSON Schema (`barrio_hours`, `barrio_blocks`, `barrio_ordering`, `barrio_duplicate`, `barrio_alt`), scritta solo dalla sua rotta REST. In autoload solo quelle lette nel sito (`barrio_hours`, `barrio_ordering`) |
 | Admin | Quattro pagine nuove nel menu Barrio: **Testi alternativi**, **Popup**, **Banner** e **Orari**, perché ci lavora chi gestisce i contenuti; Testi alternativi come il SEO, con le schede Immagini e Impostazioni. Blocchi, Ordinamento e Duplicazione sono strumenti per i contenuti con poche impostazioni: invece di tre voci, una pagina **Contenuti** con una scheda per modulo acceso (la pagina sparisce con tutti e tre spenti), solo per gli amministratori. Ordinamento e Duplicazione si usano dove si lavora, nelle liste di WordPress: Riordina accanto ad Aggiungi, Duplica tra le azioni. Menu: Bacheca, Form, SEO, Testi alternativi, Popup, Banner, Orari, Contenuti, Prestazioni, Estensioni, Impostazioni |
@@ -26,11 +26,10 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 | Headless | `hbPopup`, `hbBanner` e `hbOrari` restano con i nomi e le forme del prototipo nell'estensione `barrio-suite-wpgraphql`, un file per modulo. Ordinamento non ha GraphQL suo: `menuOrder` e `orderby: MENU_ORDER` sono già di WPGraphQL |
 | Revalidation | Come `barrio_seo_changed`: `barrio_popups_changed`, `barrio_banners_changed`, `barrio_hours_changed` e `barrio_ordering_changed`, usati dal ponte dell'estensione di migrazione verso la revalidation del prototipo (tag `wp:popup`, `wp:banner`, `wp:orari`, `wp:type:{tipo}`) e, più avanti, dall'estensione di revalidation |
 
-## 1. Regole di visualizzazione (core, per Popup e Banner)
+## 1. Regole di visualizzazione (per i Popup)
 
-Le regole sono del core (`src/Visibility.php`, lo script module `assets/frontend/visibility.js` e le card React in
-`assets/src/admin/visibility.js`), come `I18n`: due moduli le usano, e nessuno dei due deve dipendere dall'altro
-acceso.
+Dove, a chi e quando compare un popup. In M6 il Banner le aveva, e sono state tolte: è una scritta in cima a tutte le
+pagine, con solo il periodo (§3). Se in M7 servono solo al Popup, stanno nel suo modulo.
 
 - **Dove**: tutto il sito, solo in, o ovunque tranne. Le scelte possibili sono:
   - la home;
@@ -42,24 +41,21 @@ acceso.
 - **Frequenza**: chiuso, non torna per N giorni (0: torna a ogni pagina, come `days="0"` nel prototipo). Si ricorda
   in `localStorage` (`barrio_{modulo}_{id}`, la data di chiusura). Non è un cookie: non va al server e non serve
   consenso, perché ricorda solo una scelta di chi visita.
-- **Più attivi insieme**, come in Popup Maker. In una pagina compaiono al più un popup e un banner: tra quelli che
-  valgono per la pagina, il più recente. Una promozione con un periodo creata dopo vince su quella di sempre, senza
-  un campo priorità. Si sceglie per dispositivo (fatto in M6): se il più recente è solo per i telefoni, sui desktop
-  resta quello di sempre, e la pagina ha i due elementi (`Visibility::pick()`).
+- **Più attivi insieme**, come in Popup Maker. In una pagina compare al più un popup: tra quelli che valgono per la
+  pagina, il più recente. Una promozione con un periodo creata dopo vince su quella di sempre, senza un campo
+  priorità. Si sceglie per dispositivo: se il più recente è solo per i telefoni, sui desktop resta quello di sempre.
 - **Lingue**: come nei form, ogni lingua ha la sua riga di testi completa. Nell'editor un testo non tradotto è quello
   della lingua principale, e al salvataggio la riga si completa (`fillTranslations`). Nel sito e in GraphQL si legge
   la riga della lingua, o quella principale se la lingua non ne ha una: la stessa regola ovunque.
 - **ID nella lingua principale**: le regole salvano gli ID dei contenuti e dei termini nella lingua principale. Nel
   sito l'ID della pagina si porta alla lingua principale con il filtro nuovo `barrio_main_language_id`, a cui
   risponde l'estensione WPML (`wpml_object_id`): una regola sulla pagina "Chi siamo" vale anche per "About us".
-- **Nel sito**: il server valuta pagina, utente e periodo e stampa l'elemento. Il JavaScript controlla periodo e
-  frequenza: con la cache di pagina l'HTML può essere vecchio, il browser no. Il dispositivo del banner lo sceglie il
-  CSS (`data-device`, 768px), senza scatti al caricamento (fatto in M6); il popup, che si apre dopo, potrà usare
-  `matchMedia`.
+- **Nel sito**: il server valuta pagina, utente e periodo e stampa l'elemento. Il JavaScript controlla dispositivo
+  (`matchMedia`), periodo e frequenza: con la cache di pagina l'HTML può essere vecchio, il browser no.
 - **Niente query a ogni pagina**: gli elementi accesi e non scaduti di un modulo, con i loro testi, stanno in un
-  transient senza scadenza (`barrio_popups_live`, `barrio_banners_live`) che ogni scrittura elimina; con zero
-  elementi è un array vuoto. CSS e JS solo nelle pagine con un popup o un banner.
-- **JSON Schema**: le regole sono una parte delle impostazioni JSON di ogni elemento (`Visibility::SCHEMA`),
+  transient senza scadenza (`barrio_popups_live`, come `barrio_banners_live`) che ogni scrittura elimina; con zero
+  elementi è un array vuoto. CSS e JS solo nelle pagine con un popup.
+- **JSON Schema**: le regole sono una parte delle impostazioni JSON di ogni popup,
   validate prima di ogni scrittura.
 
 ## 2. Popup (`popups`)
@@ -159,26 +155,28 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 
 ### 3.1 Cosa fa
 
-- **Contenuto**: una riga di testo, tutta cliccabile se ha un link (nuova scheda a scelta).
-- **Posizione**: in cima alla pagina (`wp_body_open`) o fisso in fondo (`wp_footer`).
-- **Scorrevole o fermo**: scorrevole è la scritta che scorre del prototipo e di `hello_standard`; fermo è la classica
-  barra degli avvisi.
-- **Aspetto**: colore di sfondo e del testo, con le custom property del CSS come per i popup. L'altezza è nella
-  custom property `--barrio-banner-height`, per i temi con l'header fisso.
-- **Chiusura**: con la X, se si sceglie; poi vale la frequenza del §1.
-- **Dove, chi, periodo, frequenza, lingue**: §1.
+Il banner del prototipo e di `hello_standard`, scelto così in M6 (prima aveva posizione, colori, chiusura e le regole
+del §1, tolte):
+
+- **Contenuto**: una riga di testo per lingua, tutta cliccabile se ha un link (nuova scheda a scelta).
+- **Nel sito**: in cima a tutte le pagine (`wp_body_open`), una scritta che scorre e rallenta fino a fermarsi sotto
+  il mouse, col focus e col tocco. Colori nelle custom property del CSS, che il tema può cambiare; l'altezza in
+  `--barrio-banner-height`, per i temi con l'header fisso.
+- **Periodo**: inizio e fine facoltativi; lo stato si calcola (Spento, Programmato, Attivo, Scaduto). Con più banner
+  accesi compare il più recente, così una promozione vince su quello di sempre finché dura. Il JavaScript ricontrolla
+  il periodo, per la cache di pagina.
+- **Lingue**: come nel §1, righe di testi complete.
 
 ### 3.2 Dati (migrazione `0001`)
 
 ```
-banners       id, is_enabled, starts_at NULL, ends_at NULL (UTC), CHECK (ends_at > starts_at),
-              settings JSON (CHECK oggetto), created_at, updated_at
+banners       id, is_enabled, new_tab, starts_at NULL, ends_at NULL (UTC), CHECK (ends_at > starts_at),
+              created_at, updated_at
               INDEX (is_enabled, ends_at)
 banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
               text VARCHAR(255) NOT NULL, link_url VARCHAR(2048) NULL, CHECK (link_url REGEXP '^(/|https?://)')
 ```
 
-- `settings` contiene `position` (`top`|`bottom`), `scroll`, `closable`, `colors`, `new_tab` e le regole del §1.
 - La riga della lingua principale la garantisce `BannerRepository`, come per i popup.
 - La migrazione `0002` assegna `barrio_manage_banners` ad admin ed editor.
 
@@ -186,24 +184,24 @@ banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
 
 | Problema | Nel nuovo modulo |
 |---|---|
-| Un solo banner attivo, senza regole né periodo; compare solo dove il tema stampa lo shortcode | Regole del §1 e l'inserimento automatico |
+| Un solo banner attivo, senza periodo; compare solo dove il tema stampa lo shortcode | Il periodo, il più recente tra gli accesi e l'inserimento automatico |
 | La scritta si ripete 30 volte per gli screen reader, e il nome del link è il testo ripetuto 30 volte | Il testo si legge una volta: le copie sono `aria-hidden` |
-| Scorre senza modo di fermarla (WCAG 2.2.2) e ignora `prefers-reduced-motion`; si ferma solo col mouse | Si ferma anche col focus e col tocco; resta ferma con `prefers-reduced-motion`; si può scegliere fermo |
+| Scorre senza modo di fermarla (WCAG 2.2.2) e ignora `prefers-reduced-motion`; si ferma solo col mouse | Si ferma anche col focus e col tocco; resta ferma con `prefers-reduced-motion` |
 | Salta di 20px a ogni giro (`GAP` copiato dal frontend senza lo spazio nel CSS); le copie non hanno spazio tra loro; la larghezza si misura una volta, prima dei font | Una Web Animation sulla larghezza misurata dopo il caricamento dei font (`document.fonts.ready`) e al ridimensionamento, con lo spazio nel CSS |
 | XSS salvato nell'admin (`innerHTML` del titolo); il limite di banner solo nell'interfaccia; cambio di lingua che riporta i valori vecchi | Come per i popup (§2.3) |
-| Due tabelle create a ogni richiesta, senza foreign key; da 2 a 4 query per pagina; CSS e JS in ogni pagina | Lo schema del §3.2; transient e asset solo dove serve (§1) |
+| Due tabelle create a ogni richiesta, senza foreign key; da 2 a 4 query per pagina; CSS e JS in ogni pagina | Lo schema del §3.2; il transient `barrio_banners_live`, e asset solo con un banner |
 | Un link tradotto vuoto toglie il link in GraphQL e lo tiene nel sito | Righe di testo complete, una regola sola (§1) |
 | Due shortcode nella stessa pagina: ID doppi e solo il primo scorre | Niente shortcode: un solo banner per pagina |
 
 ### 3.4 Admin
 
 - **Banner** (`barrio_manage_banners`), schede Banner e Impostazioni (Permessi):
-  - la tabella del plugin con colonne testo, stato, dove, periodo e lingue. Stessi filtri, menu ⋯ e azioni di massa
-    dei popup;
+  - la tabella del plugin con colonne testo, stato, periodo e lingue. Stessi filtri, menu ⋯ e azioni di massa dei
+    popup;
   - "Nuovo banner" nella barra.
-- **Editor** (`?banner=ID`): una pagina corta, non una modale, perché ha le card delle regole. A sinistra Contenuto
-  (per lingua) e Aspetto, poi Dove, Chi e Periodo; a destra l'anteprima del banner, scorrevole o fermo, con i suoi
-  colori.
+- **Editor** (`?banner=ID`): a sinistra Contenuto (per lingua) e Periodo; a destra l'anteprima del prototipo, una
+  finestra del browser con il banner in cima a una pagina finta, con lo stile e lo script del sito: segue ciò che si
+  scrive e rallenta sotto il mouse.
 - **REST** (`barrio_manage_banners`): `GET`/`POST /banners`, `GET`/`PUT`/`DELETE /banners/{id}`,
   `POST /banners/{id}/duplicate`, `POST /banners/bulk`.
 - **Bacheca**: card con i banner attivi ora e programmati.
@@ -211,9 +209,9 @@ banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
   vuoti.
 
 **Da WPFront Notification Bar e Simple Banner**:
-- presi: in cima o in fondo, colori, chiusura ricordata, periodo, pagine;
-- lasciati: conto alla rovescia, pulsante separato dal testo, banner fisso in cima sopra l'header (dipende dal
-  tema: c'è la custom property dell'altezza).
+- preso: il periodo;
+- lasciati: posizione in fondo, colori, chiusura ricordata e pagine (tolti in M6), conto alla rovescia, pulsante
+  separato dal testo, banner fisso in cima sopra l'header (dipende dal tema: c'è la custom property dell'altezza).
 
 ## 4. Orari (`hours`)
 
@@ -568,7 +566,7 @@ blocco dei form:
 | Estensione | Cosa cambia |
 |---|---|
 | `barrio-suite-wpgraphql` | `popups.php`, `banners.php` e `hours.php`, ognuno solo con il suo modulo acceso e con priorità 9, come per form e SEO.<br>• `hbPopup(lang): HBPopup` (`id`, `title`, `content`, `link: HBPopupCta {url, title, target}`, `image: HBPopupImage {node: MediaItem}`).<br>• `hbBanner(lang): HBBanner` (`id`, `title` = il testo, `link: HBBannerCta {url, target}`).<br>• `hbOrari(lang): HBOrari` (`ultimoAggiornamento` d/m/Y H:i, `displayName`, `settimana [HBOrariGiorno {giorno, slots, chiuso}]` da lunedì, `slots` in 12 ore per l'inglese).<br>Popup e banner sono quelli di `live()` del modulo con le regole "tutto il sito" (i frontend non mandano la pagina) |
-| `barrio-suite-wpml` | Il filtro `barrio_main_language_id` (`wpml_object_id`) per le regole di popup e banner. Nulla in `wpml-config.xml`: i testi di popup e banner e le note degli orari sono nel plugin |
+| `barrio-suite-wpml` | Il filtro `barrio_main_language_id` (`wpml_object_id`) per le regole dei popup. Nulla in `wpml-config.xml`: i testi di popup e banner e le note degli orari sono nel plugin |
 | `barrio-suite-migration` | Un file per modulo, con il suo comando `wp barrio <modulo> migrate [--dry-run]`, e il ponte di revalidation (dettagli in §11, M9) |
 
 Hook nuovi, solo quelli che un'estensione usa:
@@ -629,8 +627,7 @@ Ogni fase si apre dai dati e si chiude con:
 - lo stesso commit su `con-updater` e `senza-updater`;
 - le traduzioni rigenerate (PLAN.md §8).
 
-Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti, il Banner costruisce le regole del core
-che il Popup riusa.
+Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti, il Popup le regole del §1.
 
 | # | Fase | Pronta quando |
 |---|---|---|
@@ -639,8 +636,8 @@ che il Popup riusa.
 | M3 | **Blocchi**: per ruolo, per tipo, contenuti esterni | Un editor:<br>• non trova i blocchi disattivati, ma un elenco ha ancora le sue voci;<br>• non sceglie H1;<br>• apre un contenuto colorato da un amministratore senza "contenuto inatteso".<br>Con "nessun editor" `content` resta in REST. Senza scelte l'editor è quello di WordPress |
 | M4 | **Testi alternativi** e `Ai::generate()` con le immagini | Alt generato al caricamento (dopo l'upload), dal pulsante e in massa, con Google simulato (`pre_http_request`): l'immagine mandata è la `large`; un alt presente non si tocca; un autore non genera su un allegato altrui |
 | M5 | **Orari**: opzione e schema, manuale, Google, blocco e shortcode, schema SEO, card | Una settimana con una chiusura dopo mezzanotte e un giorno speciale si vede giusta nel blocco e nello stato "aperto ora" con la cache di pagina; lo schema passa il Rich Results Test; la sincronizzazione Google simulata scrive settimana ed eccezioni, e un errore arriva nella Bacheca. Lo schema JSON rifiuta ore, giorni e date non validi |
-| M6 | **Banner** e le **regole del core** (`Visibility`): migrazioni, `BannerRepository`, editor, sito, card | Ogni vincolo delle tabelle dimostrato; la riga della lingua principale sempre presente. Un banner in due lingue compare solo dove e quando deve, anche con la cache di pagina; scorre e si ferma col focus, resta fermo con `prefers-reduced-motion`, lo screen reader legge il testo una volta; chiuso, non torna per N giorni. Con il modulo spento nessuna query e nessun asset |
-| M7 | **Popup**: migrazioni, `PopupRepository`, editor con anteprima, sito, card | Ogni vincolo delle tabelle dimostrato. Il popup compare solo dove e quando deve, si apre da tastiera e da un link, si chiude con Esc e rimette il focus, non ritorna per N giorni; un form inviato nel popup lo chiude. Controllo con lo screen reader (VoiceOver) e a 360px |
+| M6 | **Banner**: migrazioni, `BannerRepository`, editor con l'anteprima del prototipo, sito, card | Ogni vincolo delle tabelle dimostrato; la riga della lingua principale sempre presente. Un banner in due lingue compare solo quando deve, anche con la cache di pagina, e il più recente vince; scorre e si ferma col mouse e col focus, resta fermo con `prefers-reduced-motion`, lo screen reader legge il testo una volta. Con il modulo spento nessuna query e nessun asset |
+| M7 | **Popup** e le **regole del §1**: migrazioni, `PopupRepository`, editor con anteprima, sito, card | Ogni vincolo delle tabelle dimostrato. Il popup compare solo dove e quando deve, si apre da tastiera e da un link, si chiude con Esc e rimette il focus, non ritorna per N giorni; un form inviato nel popup lo chiude. Controllo con lo screen reader (VoiceOver) e a 360px |
 | M8 | **GraphQL** in `barrio-suite-wpgraphql` | Lo snapshot dello schema di `hbPopup`, `hbBanner` e `hbOrari` coincide con il prototipo; `hello_standard` (`getPopup`, `getBanner`, `getOrari`) funziona senza modifiche contro wp-env |
 | M9 | **Migrazione dal prototipo** in `barrio-suite-migration` | Su wp-env con il prototipo e i suoi dati: prova a vuoto e migrazione con gli stessi conteggi; popup, banner, orari e GraphQL uguali prima e dopo, tranne le correzioni previste |
 
@@ -653,7 +650,7 @@ che il Popup riusa.
   - `image_url` senza `image_id` diventa un ID con `attachment_url_to_postid()`; il testo passa da `wpautop`.
   - Un campo tradotto vuoto prende quello della lingua principale, come le righe complete del §1.
 - **Banner**: `wpb_banners` e `wpb_banners_translations` diventano `banners` e `banners_i18n`. Il titolo diventa il
-  testo; quello attivo resta acceso, scorrevole e in cima.
+  testo; quello attivo resta acceso.
 - **Shortcode**: il comando elenca i contenuti con gli shortcode del prototipo e i loro attributi, per rifare le
   regole a mano dove serve.
 - **Orari**: il Place ID passa e la fonte diventa Google; la settimana parte dagli ultimi dati salvati, con
