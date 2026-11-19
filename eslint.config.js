@@ -12,6 +12,7 @@ export default [
 				'@wordpress/components',
 				'@wordpress/core-data',
 				'@wordpress/data',
+				'@wordpress/date',
 				'@wordpress/editor',
 				'@wordpress/element',
 				'@wordpress/i18n',

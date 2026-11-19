@@ -6,6 +6,7 @@ import { useEffect, useState } from '@wordpress/element';
 
 import { AltCard } from '../../../modules/alt/assets/src/Alt.js';
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
+import { HoursCard } from '../../../modules/hours/assets/src/Hours.js';
 import { PerformanceCard } from '../../../modules/performance/assets/src/Performance.js';
 import { SeoCard } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import { ContentsCard } from '../contents/Contents.js';
@@ -35,6 +36,7 @@ export function Dashboard() {
 				<FormsCard />
 				<SeoCard />
 				<AltCard />
+				<HoursCard />
 				<ContentsCard />
 				<PerformanceCard />
 			</div>

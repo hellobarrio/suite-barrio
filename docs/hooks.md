@@ -145,6 +145,7 @@ le aspetta.
 | `barrio_seo_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo SEO acceso: il momento per collegarsi al SEO, come `barrio_forms_loaded`. L'estensione WPML vi aggiunge a robots.txt le sitemap delle altre lingue |
 | `barrio_seo_url` | filtro | `string $url` | L'URL di una pagina in ogni punto in cui il modulo SEO lo scrive (`Seo\Meta::url()`: canonical, `og:url`, JSON-LD, llms.txt); le immagini restano su WordPress. Serve a portare gli URL su un frontend headless. La canonical dei singoli nell'head la stampa il core e non passa da qui |
 | `barrio_seo_changed` | azione | `string $what`, `int $id = 0` | Sono cambiati le impostazioni SEO (`'settings'`), i redirect (`'redirects'`, anche quelli automatici) o i meta SEO di un contenuto (`'post'`) o di un termine (`'term'`) con il suo ID, una volta per richiesta: per svuotare la cache di un frontend |
+| `barrio_hours_changed` | azione | — | Sono cambiati gli orari (`barrio_hours`): un salvataggio, o la sincronizzazione con Google, anche quella di ogni notte. Per svuotare la cache di un frontend |
 | `barrio_ordering_changed` | azione | `string $kind`, `string $name` | È cambiato l'ordine manuale di un tipo di contenuto (`'post'`, `'page'`) o di una tassonomia (`'term'`, `'category'`): un nuovo ordine salvato, o l'ordine manuale acceso o spento. Per svuotare la cache di un frontend |
 
 ## Nel browser

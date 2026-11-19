@@ -234,6 +234,20 @@ di default, validati dallo schema della rotta `PUT /alt/settings`. Dopo un caric
 esecuzione, un evento singolo di WP-Cron (`barrio_alt_generate`), che spegnere il modulo elimina. L'unica migrazione,
 la `0001`, assegna `barrio_generate_alt` ai ruoli con `upload_files`.
 
+## Modulo Orari
+
+Nessuna tabella: un solo record, letto intero da ogni blocco. L'opzione `barrio_hours` (in autoload: la leggono il
+blocco e `init`, che programma WP-Cron) ha `source` (`manual` o `google`), `place_id`, `week` (giorni ISO da 1 a 7,
+ognuno con le sue fasce `{open, close}` in `HH:MM`), `exceptions` (`{from, to, hours, note}`, date `Y-m-d`, `note`
+per lingua) e `google` (`synced_at`, timestamp UTC, `name` ed `error`, scritti solo da PHP). Lo schema JSON di
+`Hours\Module::schema()` fa i controlli che in una tabella farebbero i CHECK (ore, giorni, formato delle date); il
+resto (una data che esiste, `to` non prima di `from`) lo controlla `check_dates()`. Valida la REST e anche ciò che
+arriva da Google, prima di scriverlo. Una chiusura non dopo l'apertura vale il giorno dopo: `00:00`–`00:00` è aperto
+tutto il giorno. Le fasce si scrivono in ordine, i giorni speciali per data; quelli passati non si leggono più e
+spariscono dal database alla scrittura dopo. Con la fonte Google resta un evento singolo di WP-Cron
+(`barrio_hours_sync`) alle 3 del fuso del sito, che la fonte manuale e lo spegnimento del modulo eliminano. L'unica
+migrazione, la `0001`, assegna `barrio_manage_hours` agli amministratori e agli editor.
+
 ## Modulo Duplicazione
 
 Nessuna tabella: la copia passa dalle funzioni del core. L'opzione `barrio_duplicate` (non in autoload) elenca i tipi

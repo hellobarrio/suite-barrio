@@ -216,22 +216,30 @@ banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
 
 ### 4.1 Cosa fa
 
-- **Settimana**: per ogni giorno nessuna fascia (chiuso) o più fasce. Una chiusura prima dell'apertura vale il giorno
-  dopo, per chi chiude dopo mezzanotte. "Copia su tutti i giorni".
+- **Settimana**: per ogni giorno nessuna fascia (chiuso) o più fasce. Una chiusura non dopo l'apertura vale il giorno
+  dopo, per chi chiude dopo mezzanotte; `00:00`–`00:00` è aperto tutto il giorno. "Copia su tutti i giorni".
 - **Giorni speciali**: una data o un intervallo, chiuso o con fasce sue, e una nota per lingua ("Ferie", "Natale").
   Quelli passati si tolgono da soli.
 - **Fonte**: manuale, oppure Google con il Place ID. Con Google settimana e giorni speciali arrivano ogni notte
   (03:00 del fuso del sito) e con "Aggiorna ora", e nell'admin si vedono senza modificarli. Per modificarli si passa
   a manuale, che parte dagli ultimi dati.
   - La settimana viene da `regularOpeningHours`.
-  - I giorni speciali vengono da `currentOpeningHours.specialDays` (i prossimi 7 giorni).
+  - I giorni speciali vengono da `currentOpeningHours.specialDays` (i prossimi 7 giorni): sono solo date, le fasce
+    sono i periodi di `currentOpeningHours.periods` che si aprono quel giorno (`open.date`); nessuna, chiuso.
+  - Scegliere Google, o un altro Place ID, li prende subito, al salvataggio. Le note dei giorni speciali di Google
+    restano vuote.
 - **Nel sito**: il blocco `barrio/hours` (dinamico) e lo shortcode `[barrio_hours]`, con lo stesso render. Tre forme:
   - la settimana: una tabella, con i giorni uguali raggruppati se si sceglie ("Lun–Ven");
   - oggi;
   - lo stato ("Aperto · chiude alle 19:00").
 
-  I nomi dei giorni e il formato dell'ora seguono la lingua della pagina (`WP_Locale`, `time_format`). "Aperto ora"
-  si calcola nel browser con il fuso del sito (`Intl`), quindi resta giusto con la cache di pagina.
+  I nomi dei giorni e il formato dell'ora seguono la lingua della pagina (`WP_Locale`, `time_format`); la settimana
+  parte dal primo giorno del sito (`start_of_week`). Oggi e lo stato li scrive il server e li riscrive il browser:
+  il blocco porta per i prossimi 15 giorni l'inizio di ogni giorno e i periodi aperti uniti (anche la fascia di ieri
+  che passa la mezzanotte), come timestamp con le ore già scritte, e lo script (`assets/frontend/hours.js`) sceglie
+  con l'ora del browser. Nessun calcolo di fuso nel browser, e resta giusto con la cache di pagina. Lo stesso calcolo
+  è in PHP (`Render::status()`) e in JavaScript, provati sulle stesse fixture. Senza orari il blocco non mostra
+  niente, invece di "chiuso" tutti i giorni.
 - **Schema**: con il modulo SEO acceso, il nodo Organization ha `openingHoursSpecification`, anche per i giorni
   speciali (`validFrom`, `validThrough`). È il Local SEO di Rank Math: `Seo\Schema` lo chiede a `Hours`, se il modulo
   è acceso.
@@ -255,21 +263,23 @@ che si potano da sole. Lo schema fa i controlli che in una tabella farebbero i C
 | Chiave API in chiaro nell'opzione e nell'HTML della pagina; Place ID nell'URL senza codifica | Il service account cifrato del core; il Place ID validato e codificato |
 | Nessun output in WordPress: gli orari esistono solo in GraphQL | Blocco, shortcode e schema |
 | `currentOpeningHours` usato come settimana: nella settimana di Natale gli orari "normali" diventano quelli delle feste, senza dire quali giorni | Settimana da `regularOpeningHours`, eccezioni con la loro data. `hbOrari` le applica ai prossimi 7 giorni, come faceva |
-| Un locale aperto 24 ore (fascia senza `close`) dà un warning PHP e una fascia sbagliata | La fascia senza chiusura vale tutto il giorno (da verificare, §10) |
+| Un locale aperto 24 ore (fascia senza `close`) dà un warning PHP e una fascia sbagliata | Places dà un solo periodo senza `close` (verificato, §10): diventa `00:00`–`00:00` ogni giorno. Un periodo più lungo di un giorno si divide a mezzanotte |
 | Il cron gira alle 01:00 UTC e non del sito, si programma a ogni richiesta anche senza credenziali e non si toglie mai; se Google sbaglia, nessuno lo sa | Programmato solo con la fonte Google, tolto spegnendo il modulo (`deactivate()`); l'errore resta nella pagina e nella card della Bacheca |
 | Giorni salvati con i nomi italiani come chiavi; in GraphQL una tabella di traduzione per 12 lingue scritta nel codice; l'ultimo aggiornamento salvato come testo già formattato | Giorni ISO e ore `HH:MM`; i nomi dalla lingua della richiesta; il timestamp UTC, formattato solo in uscita |
 
 ### 4.4 Admin
 
 - **Orari** (`barrio_manage_hours`), un solo Salva:
-  - card Fonte (`manage_options`): manuale o Google, Place ID, Aggiorna ora, ultimo aggiornamento ed errore;
+  - card Fonte (`manage_options`): manuale o Google, Place ID, Aggiorna ora (con la fonte e il Place ID salvati),
+    ultimo aggiornamento ed errore, e un avviso senza il service account;
   - card Settimana: una riga per giorno, l'interruttore Aperto, le fasce;
   - card Giorni speciali: "Aggiungi" nell'intestazione, una modale per data, fasce e nota;
-  - colonna destra: come appare nel sito (lo stato e la settimana) e come inserirlo (blocco o shortcode);
+  - colonna destra: come appare nel sito (lo stato e la settimana, anche non salvati, resi dal server come il
+    blocco) e come inserirlo (blocco o shortcode);
   - la lingua nella barra serve solo alle note;
   - scheda Impostazioni con i Permessi.
-- **REST**: `GET`/`PUT /hours` (`barrio_manage_hours`; fonte e Place ID solo con `manage_options`) e
-  `POST /hours/sync`.
+- **REST**: `GET`/`PUT /hours` (`barrio_manage_hours`; fonte, Place ID e Permessi solo con `manage_options`),
+  `POST /hours/sync` (`manage_options`) e `POST /hours/preview` (l'anteprima, `barrio_manage_hours`).
 - **Bacheca**: card con gli orari di oggi, il prossimo giorno speciale e l'errore di Google, se c'è.
 
 **Da Rank Math Local SEO**:
@@ -579,8 +589,12 @@ Blocchi, Duplicazione e Testi alternativi non hanno hook: nessuna estensione ne 
 - **Ordine dei termini in WPGraphQL e in admin**: verificare che WPGraphQL chieda `name` di default (allora l'ordine
   vale, come serve a `hello_standard`) e che la lista gerarchica di `edit-tags.php` resti corretta. Con WPML ogni
   lingua ha i suoi termini, quindi si riordina una lingua alla volta: decidere se copiare l'ordine alle traduzioni.
-- **Google Places**: token del service account con `X-Goog-User-Project`; come Places (New) rappresenta un luogo
-  aperto 24 ore; `specialDays` con le fasce di quei giorni; il costo per una richiesta al giorno.
+- **Google Places** (verificato sulla documentazione in M5, provato con Google simulato): Places (New) accetta il
+  token OAuth del service account (scope `cloud-platform`) con il progetto in `X-Goog-User-Project`; un luogo
+  sempre aperto è un solo periodo con `open` domenica 00:00 e senza `close`; `specialDays` dà solo le date, e le
+  fasce sono nei periodi di `currentOpeningHours` con `open.date`. `regularOpeningHours` e `currentOpeningHours` sono
+  dello SKU Place Details Enterprise: circa 30 richieste al mese per sito. Da provare con un Place ID e un service
+  account veri (l'API Places va abilitata nel progetto), e lo schema con il Rich Results Test su un sito pubblico.
 - **Nomi dei giorni in `hbOrari`**: con `switch_to_locale()` servono i pacchetti di lingua installati. Una lingua
   chiesta dal frontend senza pacchetto avrebbe i giorni in inglese, mentre il prototipo aveva 12 lingue scritte a
   mano.

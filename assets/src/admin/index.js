@@ -11,6 +11,11 @@ import {
 } from '../../../modules/alt/assets/src/Alt.js';
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
 import {
+	HOURS,
+	hoursSection,
+	hoursSettingsSection,
+} from '../../../modules/hours/assets/src/Hours.js';
+import {
 	PERFORMANCE,
 	performanceSection,
 } from '../../../modules/performance/assets/src/Performance.js';
@@ -27,6 +32,8 @@ const params = new URLSearchParams( window.location.search );
 
 // Costante: General ricarica le sezioni quando cambia l'array.
 const ALT_SECTIONS = [ altSection ];
+const HOURS_SECTIONS = [ hoursSection ];
+const HOURS_SETTINGS = [ hoursSettingsSection ];
 
 // Il nome della pagina dopo "Barrio Suite" (senza, la Bacheca mostra la versione), la descrizione e
 // il contenuto.
@@ -88,6 +95,40 @@ const PAGES = {
 							<General
 								title={ __( 'Settings', 'barrio-suite' ) }
 								sections={ ALT_SECTIONS }
+							/>
+						),
+					],
+				].filter( Boolean ) }
+			/>
+		),
+	},
+	'barrio-hours': {
+		title: HOURS.title,
+		description: __(
+			'The opening hours of the business and its special days, for the site, the schema of the organization and the headless frontend.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-hours"
+				tabs={ [
+					[
+						'',
+						HOURS.title,
+						() => (
+							<General
+								title={ HOURS.title }
+								sections={ HOURS_SECTIONS }
+							/>
+						),
+					],
+					window.barrioAdmin.canManageOptions && [
+						'settings',
+						__( 'Settings', 'barrio-suite' ),
+						() => (
+							<General
+								title={ __( 'Settings', 'barrio-suite' ) }
+								sections={ HOURS_SETTINGS }
 							/>
 						),
 					],

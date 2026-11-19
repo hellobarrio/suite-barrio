@@ -2137,3 +2137,22 @@ a.barrio-badge {
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 }
+
+/*
+ * Orari: un giorno per riga, diviso da una linea come gli interruttori, con le
+ * sue fasce sotto.
+ */
+.barrio-hours-day,
+.barrio-hours-slots {
+	display: grid;
+	gap: 12px;
+}
+
+.barrio-hours-day + .barrio-hours-day {
+	padding-top: 16px;
+	border-top: 1px solid var(--barrio-line);
+}
+
+.barrio-admin .barrio-hours-slots .barrio-input {
+	width: auto;
+}
