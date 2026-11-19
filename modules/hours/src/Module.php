@@ -130,7 +130,7 @@ final class Module {
 		return $data + [
 			'hours' => [
 				'today'  => Render::day_text( $settings, current_datetime()->setTime( 0, 0 ) ),
-				'next'   => $next ? Render::dates( $next, Render::short_date() ) : '',
+				'next'   => $next ? Render::dates( $next ) : '',
 				'source' => $settings['source'],
 				'error'  => 'google' === $settings['source'] ? $settings['google']['error'] : '',
 			],

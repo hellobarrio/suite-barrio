@@ -584,7 +584,6 @@ function Preview( { week, exceptions, lang } ) {
 				</p>
 			) : (
 				<div
-					className="barrio-hours-preview"
 					// L'HTML del blocco, scritto dal server con i testi già codificati.
 					dangerouslySetInnerHTML={ { __html: html ?? '' } }
 				/>

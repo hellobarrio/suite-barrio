@@ -2190,13 +2190,3 @@ a.barrio-badge {
 	padding-block: 16px;
 	border-block: 1px solid var(--barrio-line);
 }
-
-/* L'anteprima degli orari: l'HTML del sito, con lo spazio delle card. */
-.barrio-hours-preview {
-	display: grid;
-	gap: 16px;
-}
-
-.barrio-hours-preview p {
-	margin: 0;
-}

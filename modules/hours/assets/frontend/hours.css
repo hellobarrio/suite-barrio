@@ -82,7 +82,11 @@
 	text-align: start;
 }
 
-/* Le date sono più lunghe dei giorni: vanno a capo. */
+/* Le date, più lunghe dei giorni, vanno a capo solo dopo il trattino. */
 .barrio-hours__special th {
 	white-space: normal;
+}
+
+.barrio-hours__special th span {
+	white-space: nowrap;
 }

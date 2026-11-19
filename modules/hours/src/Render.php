@@ -209,14 +209,16 @@ final class Render {
 	}
 
 	/**
-	 * Le date di un giorno speciale: una, o la prima e l'ultima. Nell'anno in corso in $short, senza l'anno; negli altri
-	 * nel formato del sito.
+	 * Le date di un giorno speciale: una, o la prima e l'ultima. Entro un anno senza l'anno, anche a cavallo di
+	 * Capodanno, così stanno in una riga anche su un telefono; più avanti nel formato del sito.
 	 *
 	 * @param Special $special
 	 */
-	public static function dates( array $special, string $short ): string {
-		$year   = current_datetime()->format( 'Y' );
-		$format = static fn( string $date ): string => (string) mysql2date( str_starts_with( $date, $year ) ? $short : (string) get_option( 'date_format' ), $date );
+	public static function dates( array $special ): string {
+		$soon = $special['to'] < current_datetime()->modify( '+1 year' )->format( 'Y-m-d' );
+		/* translators: short date format without the year, for the special days within a year: see https://www.php.net/manual/datetime.format.php */
+		$short  = $soon ? __( 'M j', 'barrio-suite' ) : (string) get_option( 'date_format' );
+		$format = static fn( string $date ): string => (string) mysql2date( $short, $date );
 		return $special['from'] === $special['to'] ? $format( $special['from'] ) : $format( $special['from'] ) . ' – ' . $format( $special['to'] );
 	}
 
@@ -255,7 +257,8 @@ final class Render {
 			$specials .= sprintf(
 				'<tr data-until="%d"><th scope="row">%s</th><td>%s</td></tr>',
 				$until,
-				esc_html( self::dates( $special, self::short_date() ) ),
+				// Una data non va a capo a metà: solo dopo il trattino.
+				self::spans( explode( ' – ', self::dates( $special ) ), ' – ' ),
 				self::spans( self::ranges( $special['hours'] ) )
 			);
 		}
@@ -265,30 +268,15 @@ final class Render {
 		return '<div class="barrio-hours is-week">' . $html . '</div>';
 	}
 
-	// La data breve dei giorni speciali di quest'anno, nel sito e nella Bacheca: sta in una riga anche su un telefono.
-	public static function short_date(): string {
-		/* translators: short date format without the year, for the special days of this year: see https://www.php.net/manual/datetime.format.php */
-		return __( 'M j', 'barrio-suite' );
-	}
-
 	/** @param list<string> $texts */
-	private static function spans( array $texts ): string {
-		return implode( '', array_map( static fn( string $text ): string => '<span>' . esc_html( $text ) . '</span>', $texts ) );
-	}
-
-	/**
-	 * La nota di un giorno speciale nella lingua della pagina, o in quella principale.
-	 *
-	 * @param Special $special
-	 */
-	private static function note( array $special ): string {
-		$note = $special['note'];
-		return (string) ( ( $note[ I18n::current() ] ?? '' ) ?: ( $note[ I18n::languages()[0] ] ?? '' ) );
+	private static function spans( array $texts, string $glue = '' ): string {
+		return implode( $glue, array_map( static fn( string $text ): string => '<span>' . esc_html( $text ) . '</span>', $texts ) );
 	}
 
 	/** @param Special $special */
 	private static function special_text( array $special ): string {
-		$note = self::note( $special );
+		$note = $special['note'];
+		$note = (string) ( ( $note[ I18n::current() ] ?? '' ) ?: ( $note[ I18n::languages()[0] ] ?? '' ) );
 		return self::slots_text( $special['hours'] ) . ( '' === $note ? '' : " · {$note}" );
 	}
 

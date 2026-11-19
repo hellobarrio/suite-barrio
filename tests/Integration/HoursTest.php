@@ -121,15 +121,15 @@ final class HoursTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<tr><th scope="row">Wed–Thu</th><td><span>Closed</span></td></tr>', $week );
 		$this->assertStringContainsString( '<tr><th scope="row">Fri</th><td><span>20:00–02:00</span></td></tr>', $week );
 		$this->assertStringContainsString( '<tr><th scope="row">Sun</th><td><span>Open 24 hours</span></td></tr>', $week );
-		$this->assertMatchesRegularExpression( '#<caption>Special opening hours</caption><tbody><tr data-until="\d+"><th scope="row">24 December 2099 – 26 December 2099</th><td><span>Closed</span></td></tr></tbody>#', $week, 'Another year: the date format of the site.' );
+		$this->assertMatchesRegularExpression( '#<caption>Special opening hours</caption><tbody><tr data-until="\d+"><th scope="row"><span>24 December 2099</span> – <span>26 December 2099</span></th><td><span>Closed</span></td></tr></tbody>#', $week, 'Another year: the date format of the site.' );
 		$this->assertSame( $week, do_shortcode( '[barrio_hours group="1"]' ), 'The shortcode is the same as the block.' );
 		$this->assertStringContainsString( '<th scope="row">Monday</th>', do_shortcode( '[barrio_hours]' ) );
 		$this->assertTrue( wp_style_is( 'barrio-hours' ) );
 		$card = apply_filters( 'barrio_admin_data', [] )['hours'];
 		$this->assertSame( '24 December 2099 – 26 December 2099', $card['next'] );
 		$this->assertSame( 'manual', $card['source'] );
-		$today = current_datetime()->format( 'Y-m-d' );
-		$this->assertSame( wp_date( 'M j' ), Render::dates( $this->special( $today, $today ), Render::short_date() ), 'This year without the year, to fit in one row.' );
+		$later = current_datetime()->modify( '+11 months' );
+		$this->assertSame( wp_date( 'M j' ) . ' – ' . $later->format( 'M j' ), Render::dates( $this->special( current_datetime()->format( 'Y-m-d' ), $later->format( 'Y-m-d' ) ) ), 'Within a year without the year, also across New Year, to fit in one row.' );
 
 		// La pagina scritta un venerdì, letta dal browser nei giorni dopo, come con la cache.
 		$friday = new DateTimeImmutable( '2099-12-18', wp_timezone() );

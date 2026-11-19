@@ -3900,7 +3900,7 @@ msgid "Today: %s"
 msgstr "Oggi: %s"
 
 #: modules/hours/src/Render.php:116
-#: modules/hours/src/Render.php:311
+#: modules/hours/src/Render.php:299
 msgid "Open 24 hours"
 msgstr "Aperto 24 ore su 24"
 
@@ -3917,7 +3917,7 @@ msgid "Open · closes %1$s at %2$s"
 msgstr "Aperto · chiude %1$s alle %2$s"
 
 #: modules/hours/src/Render.php:121
-#: modules/hours/src/Render.php:308
+#: modules/hours/src/Render.php:296
 #: build/barrio-admin.js:40
 msgid "Closed"
 msgstr "Chiuso"
@@ -3940,7 +3940,7 @@ msgstr "Chiuso · apre domani alle %s"
 msgid "Closed · opens %1$s at %2$s"
 msgstr "Chiuso · apre %1$s alle %2$s"
 
-#: modules/hours/src/Render.php:263
+#: modules/hours/src/Render.php:266
 msgid "Special opening hours"
 msgstr "Orari speciali"
 
@@ -4138,8 +4138,8 @@ msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui scegli la 
 msgid "The opening hours come from Google, every night: to change them here, an administrator has to choose the manual source."
 msgstr "Gli orari arrivano da Google, ogni notte: per modificarli qui un amministratore deve scegliere la fonte manuale."
 
-#. translators: short date format without the year, for the special days of this year: see https://www.php.net/manual/datetime.format.php
-#: modules/hours/src/Render.php:271
+#. translators: short date format without the year, for the special days within a year: see https://www.php.net/manual/datetime.format.php
+#: modules/hours/src/Render.php:220
 msgid "M j"
 msgstr "j M"
 
