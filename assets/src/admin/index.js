@@ -117,7 +117,7 @@ const PAGES = {
 	'barrio-popups': {
 		title: POPUPS.title,
 		description: __(
-			'Windows that open on the pages: where, to whom, when and how often. When more apply to a page, the most recent one opens.',
+			'A window in the middle of every page, each with its opening and its period. With more popups on, the most recent one opens.',
 			'barrio-suite'
 		),
 		page: (

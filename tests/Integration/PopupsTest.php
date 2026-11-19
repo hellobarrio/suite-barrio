@@ -7,13 +7,12 @@ use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Popups\Module;
 use BarrioSuite\Popups\PopupRepository;
-use BarrioSuite\Popups\Rules;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_UnitTestCase;
 
-// Il modulo Popup e le regole del §1: dove, a chi e quando si apre un popup, anche in due lingue; il più recente per
-// dispositivo; la riga della lingua principale; il transient che tiene il sito senza query; REST, anteprima e permessi.
+// Il modulo Popup: quale popup si apre e quando, anche in due lingue; la riga della lingua principale; il transient che
+// tiene il sito senza query; REST, anteprima e permessi.
 final class PopupsTest extends WP_UnitTestCase {
 
 	private string $lang = 'it';
@@ -47,16 +46,11 @@ final class PopupsTest extends WP_UnitTestCase {
 
 	public function test_the_schema_refuses_invalid_settings_texts_and_dates(): void {
 		$invalid = [
-			'position'           => $this->popup( [ 'position' => 'top' ] ),
-			'color'              => $this->popup( [ 'colors' => [ 'background' => 'red' ] ] ),
 			'trigger'            => $this->popup( [ 'trigger' => [ 'type' => 'click' ] ] ),
 			'scroll over 100'    => $this->popup( [ 'trigger' => [ 'scroll' => 101 ] ] ),
 			'delay negative'     => $this->popup( [ 'trigger' => [ 'delay' => -1 ] ] ),
-			'where mode'         => $this->popup( [ 'where' => [ 'mode' => 'some' ] ] ),
-			'post id 0'          => $this->popup( [ 'where' => [ 'posts' => [ 0 ] ] ] ),
-			'device'             => $this->popup( [ 'who' => [ 'device' => 'tv' ] ] ),
 			'days over a year'   => $this->popup( [ 'days' => 366 ] ),
-			'unknown setting'    => $this->popup( [ 'sound' => true ] ),
+			'unknown setting'    => $this->popup( [ 'where' => [ 'mode' => 'all' ] ] ),
 			'image 0'            => $this->popup( [], [ 'image_id' => 0 ] ),
 			'javascript link'    => $this->popup( [], [ 'i18n' => [ 'it' => $this->text( 'Newsletter', 'javascript:alert(1)' ) ] ] ),
 			'button without one' => $this->popup( [], [ 'i18n' => [ 'it' => $this->text( 'Newsletter', null, 'Iscriviti' ) ] ] ),
@@ -122,26 +116,9 @@ final class PopupsTest extends WP_UnitTestCase {
 	}
 
 	public function test_popups_are_created_changed_duplicated_and_deleted_by_those_who_manage_them(): void {
-		$page = self::factory()->post->create(
-			[
-				'post_type'  => 'page',
-				'post_title' => 'Chi siamo',
-			]
-		);
-		$id   = $this->request( 'POST', '/barrio/v1/popups', $this->popup() )->get_data()['id'];
-		$data = $this->request(
-			'PUT',
-			"/barrio/v1/popups/{$id}",
-			$this->popup(
-				[
-					'where' => [
-						'mode'  => 'only',
-						'posts' => [ $page ],
-					],
-				]
-			)
-		)->get_data();
-		$this->assertEquals( (object) [ $page => 'Chi siamo' ], $data['labels']['posts'], 'The names of the chosen pages, for the admin.' );
+		$id = $this->request( 'POST', '/barrio/v1/popups', $this->popup() )->get_data()['id'];
+		$this->assertSame( 200, $this->request( 'PUT', "/barrio/v1/popups/{$id}", $this->popup( [ 'new_tab' => true ] ) )->get_status() );
+		$this->assertTrue( PopupRepository::get( $id )['settings']['new_tab'] ?? null );
 		$this->assertSame( 404, $this->request( 'PUT', '/barrio/v1/popups/999999', $this->popup() )->get_status() );
 
 		$copy = $this->request( 'POST', "/barrio/v1/popups/{$id}/duplicate" )->get_data();
@@ -172,97 +149,51 @@ final class PopupsTest extends WP_UnitTestCase {
 		$this->assertFalse( get_role( 'editor' )->has_cap( Module::CAP ) );
 	}
 
-	public function test_a_popup_in_two_languages_opens_only_where_and_when_it_must(): void {
-		$page  = self::factory()->post->create( [ 'post_type' => 'page' ] );
-		$other = self::factory()->post->create( [ 'post_type' => 'page' ] );
-		$where = [
-			'where' => [
-				'mode'  => 'only',
-				'posts' => [ $page ],
-			],
-		];
-		$id    = $this->create( $where );
+	public function test_a_popup_in_two_languages_opens_only_when_it_must(): void {
+		$id   = $this->create();
+		$page = get_permalink( self::factory()->post->create( [ 'post_type' => 'page' ] ) );
 
-		$this->assertStringContainsString( '<h2 id="barrio-popup-' . $id . '-title" class="barrio-popup__title">Newsletter</h2>', $this->page( get_permalink( $page ) ) );
+		$this->assertStringContainsString( '<h2 id="barrio-popup-' . $id . '-title" class="barrio-popup__title">Newsletter</h2>', $this->page( $page ) );
 		$this->assertTrue( wp_style_is( 'barrio-popups' ) );
 		$this->lang = 'en';
-		$this->assertStringContainsString( '>Subscribe<', $this->page( get_permalink( $page ) ) );
+		$this->assertStringContainsString( '>Subscribe<', $this->page( home_url( '/' ) ) );
 		$this->lang = 'de';
-		$this->assertStringContainsString( '>Newsletter<', $this->page( get_permalink( $page ) ), 'A language without texts: the main one.' );
-
-		wp_dequeue_style( 'barrio-popups' );
-		$this->assertSame( '', $this->page( get_permalink( $other ) ) );
-		$this->assertFalse( wp_style_is( 'barrio-popups' ), 'No asset without a popup.' );
-
-		// La traduzione di una pagina scelta vale come la pagina (con WPML lo dice barrio-suite-wpml).
-		$translation = self::factory()->post->create( [ 'post_type' => 'page' ] );
-		add_filter( 'barrio_main_language_id', static fn( int $post ): int => $translation === $post ? $page : $post );
-		$this->assertNotSame( '', $this->page( get_permalink( $translation ) ) );
+		$this->assertStringContainsString( '>Newsletter<', $this->page( $page ), 'A language without texts: the main one.' );
 
 		$hour = static fn( int $hours ): string => gmdate( 'Y-m-d H:i:s', time() + $hours * HOUR_IN_SECONDS );
-		PopupRepository::save( $id, $this->popup( $where, [ 'starts_at' => $hour( 1 ) ] ) );
-		$this->assertSame( '', $this->page( get_permalink( $page ) ), 'Not started yet.' );
-		PopupRepository::save( $id, $this->popup( $where, [ 'ends_at' => $hour( -1 ) ] ) );
-		$this->assertSame( '', $this->page( get_permalink( $page ) ), 'Ended.' );
+		PopupRepository::save( $id, $this->popup( [], [ 'starts_at' => $hour( 1 ) ] ) );
+		wp_dequeue_style( 'barrio-popups' );
+		$this->assertSame( '', $this->page( $page ), 'Not started yet.' );
+		$this->assertFalse( wp_style_is( 'barrio-popups' ), 'No asset without a popup.' );
+		PopupRepository::save( $id, $this->popup( [], [ 'ends_at' => $hour( -1 ) ] ) );
+		$this->assertSame( '', $this->page( $page ), 'Ended.' );
 		PopupRepository::save(
 			$id,
 			$this->popup(
-				$where + [ 'who' => [ 'users' => 'members' ] ],
+				[],
 				[
 					'starts_at' => $hour( -1 ),
 					'ends_at'   => $hour( 1 ),
 				]
 			)
 		);
-		$this->assertNotSame( '', $this->page( get_permalink( $page ) ) );
-		wp_set_current_user( 0 );
-		$this->assertSame( '', $this->page( get_permalink( $page ) ), 'Only for logged-in users.' );
+		$this->assertMatchesRegularExpression( '/data-barrio-popup-rules="[^"]*&quot;start&quot;:\d+,&quot;end&quot;:\d+/', $this->page( $page ), 'The period for the script, with page caching.' );
 		PopupRepository::set_enabled( false, $id );
-		wp_set_current_user( self::factory()->user->create() );
-		$this->assertSame( '', $this->page( get_permalink( $page ) ), 'Off.' );
+		$this->assertSame( '', $this->page( $page ), 'Off.' );
 	}
 
-	public function test_the_home_the_contents_of_a_type_and_a_term_with_its_archive(): void {
-		$category = self::factory()->category->create();
-		$post     = self::factory()->post->create( [ 'post_category' => [ $category ] ] );
-		$plain    = self::factory()->post->create();
-		$page     = self::factory()->post->create( [ 'post_type' => 'page' ] );
-		$where    = [
-			'home'  => true,
-			'types' => [ 'page' ],
-			'terms' => [ $category ],
-		];
-		$id       = $this->create( [ 'where' => [ 'mode' => 'only' ] + $where ] );
-		$urls     = [
-			'home'                     => home_url( '/' ),
-			'a page'                   => get_permalink( $page ),
-			'a post with the category' => get_permalink( $post ),
-			'the category archive'     => get_category_link( $category ),
-			'a post without'           => get_permalink( $plain ),
-		];
-		$shown    = fn(): array => array_map( fn( string $url ): bool => '' !== $this->page( $url ), $urls );
-
-		$this->assertSame( [ true, true, true, true, false ], array_values( $shown() ) );
-		PopupRepository::save( $id, $this->popup( [ 'where' => [ 'mode' => 'except' ] + $where ] ) );
-		$this->assertSame( [ false, false, false, false, true ], array_values( $shown() ) );
-	}
-
-	public function test_the_most_recent_that_applies_wins_on_each_device(): void {
+	public function test_the_most_recent_popup_on_wins(): void {
 		$always = $this->create();
-		$phones = $this->create( [ 'who' => [ 'device' => 'mobile' ] ] );
-		$picked = function (): array {
-			$this->go_to( home_url( '/' ) );
-			return array_map( static fn( array $pick ): array => [ $pick[0]['id'], $pick[1] ], Rules::pick( PopupRepository::live() ) );
-		};
-		$this->assertEqualsCanonicalizing( [ [ $phones, 'mobile' ], [ $always, 'desktop' ] ], $picked(), 'An older one for all devices stays on the desktop.' );
-		$html = $this->page( home_url( '/' ) );
-		$this->assertStringContainsString( 'data-device="mobile"', $html );
-		$this->assertStringContainsString( 'data-device="desktop"', $html );
+		$this->assertStringContainsString( '>Newsletter<', $this->page( home_url( '/' ) ) );
 
-		$newest = $this->create();
-		$this->assertSame( [ [ $newest, 'all' ] ], $picked(), 'One popup per page.' );
-		PopupRepository::save( $newest, $this->popup( [ 'where' => [ 'mode' => 'except' ] + [ 'home' => true ] ] ) );
-		$this->assertEqualsCanonicalizing( [ [ $phones, 'mobile' ], [ $always, 'desktop' ] ], $picked(), 'One that is not for this page does not count.' );
+		$promo = $this->create( [], [ 'i18n' => [ 'it' => $this->text( 'Black Friday' ) ] ] );
+		$html  = $this->page( home_url( '/' ) );
+		$this->assertStringContainsString( '>Black Friday<', $html );
+		$this->assertStringNotContainsString( '>Newsletter<', $html, 'One popup per page.' );
+
+		PopupRepository::save( $promo, $this->popup( [], [ 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS ) ] ) );
+		$this->assertStringContainsString( '>Newsletter<', $this->page( home_url( '/' ) ), 'A newer one not started yet does not count.' );
+		$this->assertSame( $always, PopupRepository::shown()['id'] ?? null );
 	}
 
 	public function test_the_site_reads_the_popups_without_queries(): void {
@@ -279,7 +210,7 @@ final class PopupsTest extends WP_UnitTestCase {
 		$this->assertFalse( get_transient( PopupRepository::LIVE ), 'Every write empties it.' );
 		$this->assertSame( [ $id ], array_column( PopupRepository::live(), 'id' ), 'Only those on and not expired.' );
 		$queries = $wpdb->num_queries;
-		PopupRepository::live();
+		PopupRepository::shown();
 		$this->assertSame( $queries, $wpdb->num_queries );
 	}
 
@@ -287,17 +218,12 @@ final class PopupsTest extends WP_UnitTestCase {
 		$image = self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg' );
 		$id    = $this->create(
 			[
-				'position' => 'corner',
-				'new_tab'  => true,
-				'colors'   => [
-					'background' => '#112233',
-					'text'       => '#ffffff',
-				],
-				'trigger'  => [
+				'new_tab' => true,
+				'trigger' => [
 					'type'   => 'scroll',
 					'scroll' => 40,
 				],
-				'days'     => 3,
+				'days'    => 3,
 			],
 			[
 				'image_id' => $image,
@@ -306,9 +232,8 @@ final class PopupsTest extends WP_UnitTestCase {
 		);
 		$html  = $this->page( home_url( '/' ) );
 
-		$this->assertStringContainsString( "<dialog id=\"barrio-popup-{$id}\" class=\"barrio-popup is-corner\" data-device=\"all\"", $html );
-		$this->assertStringNotContainsString( ' open', substr( $html, 0, (int) strpos( $html, '>' ) ), 'Closed until the script opens it.' );
-		$this->assertStringContainsString( "aria-labelledby=\"barrio-popup-{$id}-title\" style=\"--barrio-popup-background:#112233;--barrio-popup-color:#ffffff\"", $html );
+		$this->assertStringContainsString( "<dialog id=\"barrio-popup-{$id}\" class=\"barrio-popup\" data-barrio-popup-rules=", $html );
+		$this->assertStringContainsString( "aria-labelledby=\"barrio-popup-{$id}-title\"><div", $html, 'Closed until the script opens it.' );
 		$this->assertStringContainsString( 'class="barrio-popup__image', $html );
 		$this->assertStringContainsString( '>Saldi &quot;estivi&quot;</h2>', $html );
 		$this->assertStringContainsString( '<a class="barrio-popup__button" href="https://example.org/saldi?a=1&#038;b=2" target="_blank" rel="noopener">Learn more</a>', $html, 'Without a text, the standard one.' );
@@ -367,15 +292,14 @@ final class PopupsTest extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$html = $response->get_data()['html'];
 
-		$this->assertStringContainsString( 'class="barrio-popup is-center" data-device="all"', $html );
-		$this->assertStringContainsString( ' open>', $html );
+		$this->assertStringContainsString( 'aria-labelledby="barrio-popup-0-title" open>', $html );
 		$this->assertStringContainsString( '<div class="barrio-preview-backdrop"></div>', $html );
 		$this->assertStringContainsString( '>The title of the popup</h2>', $html );
 		$this->assertStringContainsString( 'data-barrio-form data-barrio-preview', $html, 'The form does not send.' );
 		$this->assertStringContainsString( 'frontend/form.js', $html );
 		$this->assertSame( [], PopupRepository::all(), 'Nothing saved.' );
 
-		$settings['position'] = 'top';
+		$settings['trigger']['type'] = 'click';
 		$this->assertSame( 400, $this->request( 'POST', '/barrio/v1/popups/preview', [ 'settings' => $settings ] )->get_status() );
 	}
 
@@ -395,29 +319,13 @@ final class PopupsTest extends WP_UnitTestCase {
 				'image_id'   => null,
 				'settings'   => array_replace_recursive(
 					[
-						'position' => 'center',
-						'colors'   => [
-							'background' => '',
-							'text'       => '',
-						],
-						'trigger'  => [
+						'trigger' => [
 							'type'   => 'delay',
 							'delay'  => 2,
 							'scroll' => 50,
 						],
-						'new_tab'  => false,
-						'where'    => [
-							'mode'  => 'all',
-							'home'  => false,
-							'posts' => [],
-							'types' => [],
-							'terms' => [],
-						],
-						'who'      => [
-							'device' => 'all',
-							'users'  => 'all',
-						],
-						'days'     => 7,
+						'new_tab' => false,
+						'days'    => 7,
 					],
 					$settings
 				),

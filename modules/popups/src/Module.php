@@ -12,8 +12,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Popup (PLAN-MODULI.md §2): un <dialog> in wp_footer, il più recente tra quelli che valgono per la pagina (Rules).
- * Nel sito nessuna query (PopupRepository::live()), e CSS e JS solo nelle pagine con un popup.
+ * Popup (PLAN-MODULI.md §2): un <dialog> modale in wp_footer, in tutte le pagine, il più recente tra gli accesi nel loro
+ * periodo. Nel sito nessuna query (PopupRepository::live()), e CSS e JS solo con un popup.
  *
  * @phpstan-import-type Popup from PopupRepository
  */
@@ -22,7 +22,7 @@ final class Module {
 	// Chi gestisce i popup (Permessi). Dalla migrazione 0002.
 	public const CAP = 'barrio_manage_popups';
 
-	// L'HTML dei popup della pagina, scritto su wp_enqueue_scripts: un form nel testo carica lì i suoi asset.
+	// L'HTML del popup, scritto su wp_enqueue_scripts: un form nel testo carica lì i suoi asset.
 	private static string $html = '';
 
 	public static function boot(): void {
@@ -55,11 +55,9 @@ final class Module {
 	}
 
 	public static function enqueue(): void {
-		self::$html = '';
-		foreach ( Rules::pick( PopupRepository::live() ) as [ $popup, $device ] ) {
-			self::$html .= self::html( $popup, $device );
-		}
-		if ( self::$html ) {
+		$popup      = PopupRepository::shown();
+		self::$html = $popup ? self::html( $popup ) : '';
+		if ( $popup ) {
 			wp_enqueue_style( 'barrio-popups' );
 			wp_enqueue_script_module( '@barrio/popups' );
 		}
@@ -75,7 +73,7 @@ final class Module {
 	 *
 	 * @param Popup $popup
 	 */
-	public static function html( array $popup, string $device, bool $open = false ): string {
+	public static function html( array $popup, bool $open = false ): string {
 		$settings = $popup['settings'];
 		$text     = I18n::pick( $popup['i18n'], I18n::current() );
 		$id       = "barrio-popup-{$popup['id']}";
@@ -87,13 +85,6 @@ final class Module {
 			'days'    => $settings['days'],
 			'trigger' => $settings['trigger'],
 		];
-		$colors   = array_filter(
-			[
-				'--barrio-popup-background' => $settings['colors']['background'],
-				'--barrio-popup-color'      => $settings['colors']['text'],
-			]
-		);
-		$style    = implode( ';', array_map( static fn( string $name, string $color ): string => "{$name}:{$color}", array_keys( $colors ), $colors ) );
 		// L'editor mette lo shortcode del form in un paragrafo, che lo lascerebbe vuoto sotto il form.
 		$content = shortcode_unautop( (string) ( $text['content'] ?? '' ) );
 		// Senza il modulo Form lo shortcode non stampa niente, invece del suo testo.
@@ -105,14 +96,11 @@ final class Module {
 			esc_html( $text['button_label'] ?? __( 'Learn more', 'barrio-suite' ) )
 		);
 		return sprintf(
-			'<dialog id="%1$s" class="barrio-popup is-%2$s" data-device="%3$s" data-barrio-popup-rules="%4$s" aria-labelledby="%1$s-title"%5$s%6$s><div class="barrio-popup__box">'
-			. '<button type="button" class="barrio-popup__close" aria-label="%7$s"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
-			. '%8$s<div class="barrio-popup__body"><h2 id="%1$s-title" class="barrio-popup__title">%9$s</h2>%10$s%11$s</div></div></dialog>',
+			'<dialog id="%1$s" class="barrio-popup" data-barrio-popup-rules="%2$s" aria-labelledby="%1$s-title"%3$s><div class="barrio-popup__box">'
+			. '<button type="button" class="barrio-popup__close" aria-label="%4$s"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
+			. '%5$s<div class="barrio-popup__body"><h2 id="%1$s-title" class="barrio-popup__title">%6$s</h2>%7$s%8$s</div></div></dialog>',
 			esc_attr( $id ),
-			esc_attr( $settings['position'] ),
-			esc_attr( $device ),
 			esc_attr( (string) wp_json_encode( $rules ) ),
-			$style ? ' style="' . esc_attr( $style ) . '"' : '',
 			$open ? ' open' : '',
 			esc_attr__( 'Close', 'barrio-suite' ),
 			// Un'immagine eliminata non c'è più: il popup esce senza.
@@ -138,14 +126,13 @@ final class Module {
 	}
 
 	/**
-	 * In window.barrioAdmin.popups, a chi gestisce i popup: i tipi di contenuto delle regole. Senza, il JavaScript sa che
-	 * il modulo è spento.
+	 * window.barrioAdmin.popups, a chi gestisce i popup. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
 	 */
 	public static function admin_data( array $data ): array {
-		return self::can() ? $data + [ 'popups' => [ 'types' => Rules::types() ] ] : $data;
+		return self::can() ? $data + [ 'popups' => true ] : $data;
 	}
 
 	public static function register(): void {
@@ -307,7 +294,7 @@ final class Module {
 			'settings'   => rest_sanitize_value_from_schema( $settings, $schema['settings'], 'settings' ),
 			'i18n'       => [ $lang => [ 'title' => $texts['title'] ?: __( 'The title of the popup', 'barrio-suite' ) ] + $texts ],
 		];
-		$html  = I18n::in( $lang, static fn(): string => self::html( $popup, 'all', true ) );
+		$html  = I18n::in( $lang, static fn(): string => self::html( $popup, true ) );
 		$forms = str_contains( $html, 'data-barrio-form' ) ? Render::head() : '';
 		return new WP_REST_Response(
 			[
@@ -318,7 +305,7 @@ final class Module {
 					esc_url( add_query_arg( 'ver', BARRIO_SUITE_VERSION, plugins_url( 'assets/frontend/popup.css', __DIR__ ) ) ),
 					$forms,
 					str_repeat( '<div class="barrio-preview-line"></div>', 12 ),
-					'center' === $popup['settings']['position'] ? '<div class="barrio-preview-backdrop"></div>' : '',
+					'<div class="barrio-preview-backdrop"></div>',
 					str_replace( ' data-barrio-form', ' data-barrio-form data-barrio-preview', $html )
 				),
 			]
@@ -342,8 +329,6 @@ final class Module {
 	}
 
 	/**
-	 * Con i nomi dei contenuti e dei termini delle regole, per l'admin.
-	 *
 	 * @param Popup $popup
 	 * @return array<string, mixed>
 	 */
@@ -356,9 +341,8 @@ final class Module {
 			'ends_at'    => Period::local( $popup['ends_at'] ),
 			'image_id'   => $popup['image_id'],
 			'settings'   => $popup['settings'],
-			// Oggetti anche vuoti: [] in JSON sarebbe una lista.
+			// Un oggetto anche vuoto: [] in JSON sarebbe una lista.
 			'i18n'       => (object) $popup['i18n'],
-			'labels'     => array_map( static fn( array $names ): object => (object) $names, Rules::labels( $popup['settings']['where'] ) ),
 		];
 	}
 

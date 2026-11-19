@@ -1,7 +1,6 @@
 /*
- * Il popup nel sito: il tema può cambiare le custom property di .barrio-popup.
- * Al centro è un modale con lo sfondo scuro; in angolo resta in basso a
- * destra, sopra la pagina.
+ * Il popup nel sito, un modale al centro con lo sfondo scuro: il tema può
+ * cambiare le custom property di .barrio-popup.
  */
 
 .barrio-popup {
@@ -11,8 +10,13 @@
 	--barrio-popup-radius: 12px;
 
 	box-sizing: border-box;
+
+	/* Al centro anche aperto senza showModal(), come nell'anteprima. */
+	position: fixed;
+	inset: 0;
 	width: min(var(--barrio-popup-width), 100% - 2rem);
 	max-height: calc(100% - 2rem);
+	margin: auto;
 	padding: 0;
 	overflow: auto;
 	overscroll-behavior: contain;
@@ -23,24 +27,6 @@
 	color: var(--barrio-popup-color);
 	font-size: 1rem;
 	line-height: 1.5;
-}
-
-/* Anche aperto senza showModal(), come nell'anteprima. */
-.barrio-popup.is-center {
-	position: fixed;
-	inset: 0;
-	margin: auto;
-}
-
-.barrio-popup.is-corner {
-	--barrio-popup-width: 360px;
-
-	position: fixed;
-	z-index: 99999;
-	inset: auto;
-	inset-block-end: 1rem;
-	inset-inline-end: 1rem;
-	margin: 0;
 }
 
 .barrio-popup::backdrop {

@@ -246,9 +246,8 @@ erDiagram
 
 - **`popups`**: `is_enabled` (`bp_enabled_chk`), il periodo in UTC come i banner (`bp_period_chk`), `image_id`
   (`bp_image_chk`; NULL senza immagine, nessuna foreign key verso `wp_posts`: un'immagine eliminata si ignora) e
-  `settings`, JSON letto e scritto intero (`bp_settings_chk`): posizione, colori, apertura (dopo dei secondi, dopo lo
-  scroll o all'uscita), nuova scheda e le regole di `Rules` (dove, chi, giorni dopo la chiusura). L'indice
-  `enabled_ends` serve agli accesi non scaduti.
+  `settings`, JSON letto e scritto intero (`bp_settings_chk`): apertura (dopo dei secondi, dopo lo scroll o
+  all'uscita), nuova scheda e giorni dopo la chiusura. L'indice `enabled_ends` serve agli accesi non scaduti.
 - **`popups_i18n`**: una riga completa per lingua, compresa la principale (`bpi_lang_chk`), con il titolo, mai vuoto
   (`bpi_title_chk`), il testo in HTML già filtrato (`wp_kses_post`; NULL senza testo), il testo del pulsante (NULL:
   quello standard) e il link, un percorso o un URL `http(s)` (`bpi_url_chk`). Un pulsante ha sempre un link
@@ -257,9 +256,8 @@ erDiagram
   database vede solo come oggetto) e garantisce la riga della lingua principale (test in `PopupsTest`). Testi e popup
   si scrivono in una transazione.
 - **Nel sito nessuna query**: come per i banner, gli accesi non scaduti stanno nel transient `barrio_popups_live`,
-  svuotato da ogni scrittura, che fa partire `barrio_popups_changed`. In una pagina si apre il più recente tra quelli
-  che valgono per lei, scelto per i computer e per i telefoni. La data di chiusura sta solo nel browser
-  (`localStorage`, `barrio_popups_{id}`).
+  svuotato da ogni scrittura, che fa partire `barrio_popups_changed`. In tutte le pagine si apre il più recente tra
+  quelli nel loro periodo. La data di chiusura sta solo nel browser (`localStorage`, `barrio_popups_{id}`).
 
 ## Modulo Banner
 

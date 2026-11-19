@@ -16,8 +16,6 @@ With WPML active, the Barrio Suite builder shows a language switcher: every text
 
 For SEO, the default texts (description, organization description, llms.txt introduction) are translated in SEO → Settings with the same switcher. Translations of pages, posts and terms translate their SEO title, description and keywords, and keep the indexing of the original. robots.txt lists the sitemap of every language, llms.txt has a part for each language and SEO → Contents shows the language of each content.
 
-The rules of the popups count the translations of the chosen pages and terms: a popup only on "Chi siamo" opens on "About us" too.
-
 Without WPML the extension does nothing; translations already saved stay in the database.
 
 It needs Barrio Suite.
