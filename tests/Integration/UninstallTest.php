@@ -59,6 +59,7 @@ final class UninstallTest extends WP_UnitTestCase {
 		update_post_meta( $post, '_barrio_seo_title', 'Title' );
 		update_term_meta( $term, '_barrio_seo_index', 'noindex' );
 		set_transient( 'barrio_banners_live', [] );
+		set_transient( 'barrio_popups_live', [] );
 
 		Plugin::uninstall();
 
@@ -79,6 +80,9 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_manage_banners' ) );
 		$this->assertContains( $wpdb->prefix . 'barrio_banners_i18n', $this->dropped );
 		$this->assertFalse( get_transient( 'barrio_banners_live' ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_manage_popups' ) );
+		$this->assertContains( $wpdb->prefix . 'barrio_popups_i18n', $this->dropped );
+		$this->assertFalse( get_transient( 'barrio_popups_live' ) );
 		$this->assertFalse( get_option( 'barrio_ordering_db_version' ) );
 		$this->assertFalse( metadata_exists( 'post', $post, '_barrio_seo_title' ) );
 		$this->assertFalse( metadata_exists( 'term', $term, '_barrio_seo_index' ) );

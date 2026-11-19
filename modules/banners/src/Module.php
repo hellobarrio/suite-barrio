@@ -4,9 +4,8 @@ namespace BarrioSuite\Banners;
 
 use BarrioSuite\Admin;
 use BarrioSuite\I18n;
+use BarrioSuite\Period;
 use BarrioSuite\Roles;
-use DateTimeImmutable;
-use DateTimeZone;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -254,51 +253,29 @@ final class Module {
 	}
 
 	/**
-	 * Le date nel fuso del sito, come le scrive il campo datetime-local.
-	 *
 	 * @param Banner $banner
 	 * @return array<string, mixed>
 	 */
 	private static function prepare( array $banner ): array {
-		$local = static fn( ?string $utc ): ?string => null === $utc ? null : get_date_from_gmt( $utc, 'Y-m-d\TH:i' );
 		return [
 			'id'         => $banner['id'],
 			'is_enabled' => $banner['is_enabled'],
 			'new_tab'    => $banner['new_tab'],
 			'status'     => BannerRepository::status( $banner ),
-			'starts_at'  => $local( $banner['starts_at'] ),
-			'ends_at'    => $local( $banner['ends_at'] ),
+			'starts_at'  => Period::local( $banner['starts_at'] ),
+			'ends_at'    => Period::local( $banner['ends_at'] ),
 			// Un oggetto anche vuoto: [] in JSON sarebbe una lista.
 			'i18n'       => (object) $banner['i18n'],
 		];
 	}
 
-	/**
-	 * Il banner da scrivere: le date dal fuso del sito (Y-m-dTH:i, vuote per nessuna) a UTC.
-	 *
-	 * @return array{is_enabled: mixed, new_tab: mixed, starts_at: string|null, ends_at: string|null, i18n: mixed}|WP_Error
-	 */
+	/** @return array{is_enabled: mixed, new_tab: mixed, starts_at: string|null, ends_at: string|null, i18n: mixed}|WP_Error */
 	private static function input( WP_REST_Request $request ): array|WP_Error {
-		$period = [];
-		foreach ( [ 'starts_at', 'ends_at' ] as $key ) {
-			$value = $request[ $key ];
-			if ( null === $value || '' === $value ) {
-				$period[ $key ] = null;
-				continue;
-			}
-			$date = is_string( $value ) ? DateTimeImmutable::createFromFormat( '!Y-m-d\TH:i', $value, wp_timezone() ) : false;
-			if ( ! $date || $date->format( 'Y-m-d\TH:i' ) !== $value ) {
-				/* translators: %s: a date as written, like 2026-02-30. */
-				return new WP_Error( 'rest_invalid_param', sprintf( __( '%s is not a date.', 'barrio-suite' ), is_scalar( $value ) ? (string) $value : '' ), [ 'status' => 400 ] );
-			}
-			$period[ $key ] = $date->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
-		}
-		return [
+		$period = Period::input( $request );
+		return is_wp_error( $period ) ? $period : [
 			'is_enabled' => $request['is_enabled'],
 			'new_tab'    => $request['new_tab'],
-			'starts_at'  => $period['starts_at'],
-			'ends_at'    => $period['ends_at'],
 			'i18n'       => $request['i18n'],
-		];
+		] + $period;
 	}
 }

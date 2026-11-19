@@ -281,6 +281,7 @@
 .barrio-admin .barrio-card__toggle:focus-visible,
 .barrio-admin .barrio-details summary:focus-visible,
 .barrio-admin .barrio-switch:focus-visible,
+.barrio-admin .barrio-token__remove:focus-visible,
 .barrio-nav a:focus-visible,
 .barrio-table th button:focus-visible {
 	outline: 2px solid var(--barrio-accent);
@@ -2252,4 +2253,87 @@ a.barrio-badge {
 
 .barrio-browser__page > span:nth-child(3) {
 	width: 50%;
+}
+
+/*
+ * Le regole dei popup (modules/popups/assets/src/Rules.js): i contenuti e i
+ * termini scelti, con la X per toglierli, e Aggiungi largo quanto il campo.
+ */
+.barrio-tokens {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.barrio-token {
+	display: inline-flex;
+	gap: 4px;
+	align-items: center;
+	max-width: 100%;
+	padding: 2px 2px 2px 12px;
+	border: 1px solid var(--barrio-line);
+	border-radius: 999px;
+	background: var(--barrio-soft);
+	color: var(--barrio-ink);
+	overflow-wrap: anywhere;
+}
+
+.barrio-token__remove {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+	color: var(--barrio-muted);
+	cursor: pointer;
+}
+
+.barrio-token__remove:hover {
+	background: var(--barrio-line);
+	color: var(--barrio-ink);
+}
+
+.barrio-token__remove .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+}
+
+.barrio-lookup,
+.barrio-lookup > .barrio-button {
+	width: 100%;
+}
+
+/* I risultati della ricerca sono bottoni, come le scelte di Picker. */
+button.barrio-picker__option {
+	width: 100%;
+	border: 0;
+	background: none;
+	font: inherit;
+	text-align: start;
+}
+
+.barrio-admin .barrio-input[type="color"] {
+	padding: 4px;
+	cursor: pointer;
+}
+
+/* L'anteprima del popup: la pagina del sito sotto la barra della finestra. */
+.barrio-popup-frame {
+	display: block;
+	width: 100%;
+	height: 480px;
+	border: 0;
+}
+
+/* L'editor classico del testo dei popup, con i bordi dei campi. */
+.barrio-admin .mce-tinymce {
+	overflow: hidden;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius-small);
+	box-shadow: none;
 }

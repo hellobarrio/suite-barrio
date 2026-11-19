@@ -9,6 +9,7 @@ import { BannersCard } from '../../../modules/banners/assets/src/Banners.js';
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { HoursCard } from '../../../modules/hours/assets/src/Hours.js';
 import { PerformanceCard } from '../../../modules/performance/assets/src/Performance.js';
+import { PopupsCard } from '../../../modules/popups/assets/src/Popups.js';
 import { SeoCard } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import { ContentsCard } from '../contents/Contents.js';
 import { LaunchBanner, launchUrl } from '../launch/Launch.js';
@@ -37,6 +38,7 @@ export function Dashboard() {
 				<FormsCard />
 				<SeoCard />
 				<AltCard />
+				<PopupsCard />
 				<BannersCard />
 				<HoursCard />
 				<ContentsCard />

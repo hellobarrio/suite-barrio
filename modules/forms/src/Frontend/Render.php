@@ -49,15 +49,22 @@ final class Render {
 	 * come sul sito ma non invia: il JS si ferma dopo la validazione.
 	 */
 	public static function preview( Form $form, string $lang ): string {
+		return sprintf(
+			'<!doctype html><html><head><meta charset="utf-8">%1$s<style>body{margin:24px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}</style></head><body>%2$s</body></html>',
+			self::head(),
+			I18n::in( $lang, static fn(): string => self::html( $form, $lang, true ) )
+		);
+	}
+
+	// CSS e JS del form per una pagina che non è di WordPress: le anteprime del builder e dei popup.
+	public static function head(): string {
 		$assets = self::assets();
 		$ver    = '?ver=' . BARRIO_SUITE_VERSION;
 		return sprintf(
-			'<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="%1$s"><script type="importmap">%2$s</script><script type="module" src="%3$s"></script>' // phpcs:ignore WordPress.WP.EnqueuedResources -- non è una pagina di WordPress.
-			. '<style>body{margin:24px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}</style></head><body>%4$s</body></html>',
+			'<link rel="stylesheet" href="%1$s"><script type="importmap">%2$s</script><script type="module" src="%3$s"></script>', // phpcs:ignore WordPress.WP.EnqueuedResources -- non è una pagina di WordPress.
 			esc_url( "{$assets}frontend/form.css{$ver}" ),
 			wp_json_encode( [ 'imports' => [ '@barrio/forms-conditions' => "{$assets}frontend/conditions.js{$ver}" ] ] ),
-			esc_url( "{$assets}frontend/form.js{$ver}" ),
-			I18n::in( $lang, static fn(): string => self::html( $form, $lang, true ) )
+			esc_url( "{$assets}frontend/form.js{$ver}" )
 		);
 	}
 

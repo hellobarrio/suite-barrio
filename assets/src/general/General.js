@@ -14,6 +14,7 @@ import { FORMS } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { HOURS } from '../../../modules/hours/assets/src/Hours.js';
 import { ORDERING } from '../../../modules/ordering/assets/src/Ordering.js';
 import { PERFORMANCE } from '../../../modules/performance/assets/src/Performance.js';
+import { POPUPS } from '../../../modules/popups/assets/src/Popups.js';
 import { SEO } from '../../../modules/seo/assets/src/seo/SeoCard.js';
 import {
 	Bar,
@@ -40,6 +41,7 @@ const MODULES = {
 		),
 	},
 	alt: ALT,
+	popups: POPUPS,
 	banners: BANNERS,
 	hours: HOURS,
 	blocks: BLOCKS,
@@ -115,7 +117,7 @@ const uninstallSection = {
 					'barrio-suite'
 				) }
 				help={ __(
-					'Forms, entries with their files, banners, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first.',
+					'Forms, entries with their files, popups, banners, redirects, the SEO data of the contents, settings and permissions of this site. It cannot be undone: export the entries you need first.',
 					'barrio-suite'
 				) }
 				checked={ draft }
