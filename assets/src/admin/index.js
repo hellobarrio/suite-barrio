@@ -24,6 +24,11 @@ import {
 	PERFORMANCE,
 	performanceSection,
 } from '../../../modules/performance/assets/src/Performance.js';
+import {
+	POPUPS,
+	PopupsTab,
+	popupsSettingsSection,
+} from '../../../modules/popups/assets/src/Popups.js';
 import { seoPage } from '../../../modules/seo/assets/src/seo/Seo.js';
 import { contentsPage } from '../contents/Contents.js';
 import { Dashboard } from '../dashboard/Dashboard.js';
@@ -38,6 +43,7 @@ const params = new URLSearchParams( window.location.search );
 // Costante: General ricarica le sezioni quando cambia l'array.
 const ALT_SECTIONS = [ altSection ];
 const BANNERS_SETTINGS = [ bannersSettingsSection ];
+const POPUPS_SETTINGS = [ popupsSettingsSection ];
 const HOURS_SECTIONS = [ hoursSection ];
 const HOURS_SETTINGS = [ hoursSettingsSection ];
 
@@ -101,6 +107,31 @@ const PAGES = {
 							<General
 								title={ __( 'Settings', 'barrio-suite' ) }
 								sections={ ALT_SECTIONS }
+							/>
+						),
+					],
+				].filter( Boolean ) }
+			/>
+		),
+	},
+	'barrio-popups': {
+		title: POPUPS.title,
+		description: __(
+			'Windows that open on the pages: where, to whom, when and how often. When more apply to a page, the most recent one opens.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-popups"
+				tabs={ [
+					[ '', POPUPS.title, PopupsTab ],
+					window.barrioAdmin.canManageOptions && [
+						'settings',
+						__( 'Settings', 'barrio-suite' ),
+						() => (
+							<General
+								title={ __( 'Settings', 'barrio-suite' ) }
+								sections={ POPUPS_SETTINGS }
 							/>
 						),
 					],

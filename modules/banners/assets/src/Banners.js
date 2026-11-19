@@ -2,10 +2,16 @@
 // l'anteprima; agli amministratori la scheda Impostazioni con i Permessi. E la card della Bacheca. I testi si traducono
 // come nel builder dei form (TextIn): nelle altre lingue un testo vuoto vale quello della lingua principale.
 import apiFetch from '@wordpress/api-fetch';
-import { getSettings, gmdateI18n } from '@wordpress/date';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
+import {
+	PeriodCard,
+	STATUS,
+	fillTexts,
+	periodText,
+	trimTexts,
+} from '../../../../assets/src/admin/period.js';
 import {
 	initialQuery,
 	localQuery,
@@ -25,16 +31,12 @@ import {
 	Notice,
 	Permissions,
 	Table,
-	Text,
 	Toggle,
 	errorMessage,
 	langOption,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
-import {
-	setTranslation,
-	textIn,
-} from '../../../forms/assets/src/builder/model.js';
+import { textIn } from '../../../forms/assets/src/builder/model.js';
 import { TextIn } from '../../../forms/assets/src/builder/Texts.js';
 
 // Anche nella card Moduli di Barrio → Impostazioni.
@@ -66,58 +68,6 @@ const blank = () => ( {
 	starts_at: null,
 	ends_at: null,
 	i18n: { [ main ]: { text: '', link_url: null } },
-} );
-
-// BannerRepository::status(): il nome e il colore del badge.
-const STATUS = {
-	active: [ __( 'Active', 'barrio-suite' ), 'is-success' ],
-	scheduled: [ __( 'Scheduled', 'barrio-suite' ), 'is-warning' ],
-	expired: [ __( 'Expired', 'barrio-suite' ), '' ],
-	off: [ __( 'Off', 'barrio-suite' ), '' ],
-};
-
-// Una data del campo datetime-local (ora del sito) nel formato della lingua, senza passare dal fuso del browser.
-const dateText = ( local ) =>
-	gmdateI18n( getSettings().formats.datetimeAbbreviated, `${ local }:00Z` );
-
-function periodText( start, end ) {
-	if ( start && end ) {
-		return `${ dateText( start ) } – ${ dateText( end ) }`;
-	}
-	if ( start ) {
-		/* translators: %s: date and time. */
-		return sprintf( __( 'From %s', 'barrio-suite' ), dateText( start ) );
-	}
-	if ( end ) {
-		/* translators: %s: date and time. */
-		return sprintf( __( 'Until %s', 'barrio-suite' ), dateText( end ) );
-	}
-	return __( 'Always', 'barrio-suite' );
-}
-
-// Al caricamento le altre lingue tengono solo i testi diversi da quelli della lingua principale.
-const trim = ( banner ) =>
-	others.reduce(
-		( item, lang ) =>
-			Object.keys( item.i18n[ lang ] ?? {} ).reduce(
-				( next, key ) =>
-					next.i18n[ lang ]?.[ key ] === next.i18n[ main ]?.[ key ]
-						? setTranslation( next, lang, key, '' )
-						: next,
-				item
-			),
-		banner
-	);
-
-// Al salvataggio ogni lingua tradotta ha la riga completa, come vuole il database.
-const fill = ( banner ) => ( {
-	...banner,
-	i18n: Object.fromEntries(
-		Object.keys( banner.i18n ).map( ( lang ) => [
-			lang,
-			textIn( banner, lang, main ),
-		] )
-	),
 } );
 
 const textOf = ( banner ) =>
@@ -443,47 +393,6 @@ function BannerList() {
 	);
 }
 
-/**
- * Acceso, inizio e fine, nell'ora del sito; vuoti, da subito e per sempre.
- *
- * @param {Object}                    props
- * @param {Object}                    props.banner
- * @param {(changes: Object) => void} props.onChange { is_enabled }, { starts_at } o { ends_at }.
- */
-const PeriodCard = ( { banner, onChange } ) => (
-	<Card
-		icon="calendar-alt"
-		title={ __( 'Period', 'barrio-suite' ) }
-		description={ __(
-			'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up.',
-			'barrio-suite'
-		) }
-	>
-		<Toggle
-			label={ __( 'On', 'barrio-suite' ) }
-			help={
-				! banner.is_enabled &&
-				__( 'Turned off, it never shows up.', 'barrio-suite' )
-			}
-			checked={ banner.is_enabled }
-			onChange={ ( on ) => onChange( { is_enabled: on } ) }
-		/>
-		<Text
-			type="datetime-local"
-			label={ __( 'Start', 'barrio-suite' ) }
-			value={ banner.starts_at }
-			onChange={ ( value ) => onChange( { starts_at: value || null } ) }
-		/>
-		<Text
-			type="datetime-local"
-			label={ __( 'End', 'barrio-suite' ) }
-			min={ banner.starts_at ?? undefined }
-			value={ banner.ends_at }
-			onChange={ ( value ) => onChange( { ends_at: value || null } ) }
-		/>
-	</Card>
-);
-
 // Una finestra del browser con il banner in cima a una pagina finta, come nel prototipo. Il banner ha lo stile e lo
 // script del sito (Module::admin_data()): scorre, e rallenta fino a fermarsi sotto il mouse.
 function Preview( { banner, lang } ) {
@@ -560,7 +469,7 @@ function BannerEditor( { id } ) {
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
 	const load = ( { status, ...data } ) => {
-		const loaded = trim( data );
+		const loaded = trimTexts( data );
 		setSaved( loaded );
 		setBanner( loaded );
 	};
@@ -589,7 +498,7 @@ function BannerEditor( { id } ) {
 		}
 		setBusy( true );
 		setNotice( null );
-		const { id: current, ...data } = fill( banner );
+		const { id: current, ...data } = fillTexts( banner );
 		apiFetch(
 			current
 				? {
@@ -690,7 +599,14 @@ function BannerEditor( { id } ) {
 						</Fixed>
 					</Card>
 					<Fixed lang={ lang }>
-						<PeriodCard banner={ banner } onChange={ set } />
+						<PeriodCard
+							item={ banner }
+							description={ __(
+								'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up.',
+								'barrio-suite'
+							) }
+							onChange={ set }
+						/>
 					</Fixed>
 				</div>
 				<div className="barrio-panel">

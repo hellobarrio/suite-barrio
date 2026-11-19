@@ -13,7 +13,7 @@ use WP_UnitTestCase;
 // Nel SQL {tabella} diventa il nome completo, {nome} l'id creato in set_up, {p} il prefisso.
 final class SchemaTest extends WP_UnitTestCase {
 
-	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_integrations', 'form_integrations_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes', 'redirects', 'banners', 'banners_i18n' ];
+	private const TABLES = [ 'forms', 'form_i18n', 'form_notifications', 'form_notifications_i18n', 'form_integrations', 'form_integrations_i18n', 'form_versions', 'form_fields', 'form_fields_i18n', 'entries', 'entry_values', 'entry_files', 'entry_notes', 'redirects', 'banners', 'banners_i18n', 'popups', 'popups_i18n' ];
 
 	/** @var array<string, int> */
 	private array $id = [];
@@ -64,6 +64,21 @@ final class SchemaTest extends WP_UnitTestCase {
 				'banner_id' => $this->id['banner'],
 				'lang'      => 'it',
 				'text'      => 'Saldi',
+			]
+		);
+		$this->id['popup'] = $this->insert(
+			'popups',
+			[
+				'is_enabled' => 1,
+				'settings'   => '{}',
+			]
+		);
+		$this->insert(
+			'popups_i18n',
+			[
+				'popup_id' => $this->id['popup'],
+				'lang'     => 'it',
+				'title'    => 'Newsletter',
 			]
 		);
 	}
@@ -131,6 +146,16 @@ final class SchemaTest extends WP_UnitTestCase {
 			'empty banner text'                      => [ "UPDATE {banners_i18n} SET text = '' WHERE banner_id = {banner}", '{p}bbi_text_chk' ],
 			'banner link without a scheme'           => [ "UPDATE {banners_i18n} SET link_url = 'example.com/saldi' WHERE banner_id = {banner}", '{p}bbi_url_chk' ],
 			'banner link with javascript'            => [ "UPDATE {banners_i18n} SET link_url = 'javascript:alert(1)' WHERE banner_id = {banner}", '{p}bbi_url_chk' ],
+			'popup is_enabled not 0 or 1'            => [ 'UPDATE {popups} SET is_enabled = 2 WHERE id = {popup}', '{p}bp_enabled_chk' ],
+			'popup ending before it starts'          => [ "UPDATE {popups} SET starts_at = '2030-02-01', ends_at = '2030-01-01' WHERE id = {popup}", '{p}bp_period_chk' ],
+			'popup ending when it starts'            => [ "UPDATE {popups} SET starts_at = '2030-01-01', ends_at = '2030-01-01' WHERE id = {popup}", '{p}bp_period_chk' ],
+			'popup image 0'                          => [ 'UPDATE {popups} SET image_id = 0 WHERE id = {popup}', '{p}bp_image_chk' ],
+			'popup settings a list'                  => [ "UPDATE {popups} SET settings = '[]' WHERE id = {popup}", '{p}bp_settings_chk' ],
+			'popup text lang uppercase'              => [ "UPDATE {popups_i18n} SET lang = 'IT' WHERE popup_id = {popup}", '{p}bpi_lang_chk' ],
+			'empty popup title'                      => [ "UPDATE {popups_i18n} SET title = '' WHERE popup_id = {popup}", '{p}bpi_title_chk' ],
+			'popup link without a scheme'            => [ "UPDATE {popups_i18n} SET link_url = 'example.com/news' WHERE popup_id = {popup}", '{p}bpi_url_chk' ],
+			'popup link with javascript'             => [ "UPDATE {popups_i18n} SET link_url = 'javascript:alert(1)' WHERE popup_id = {popup}", '{p}bpi_url_chk' ],
+			'popup button without a link'            => [ "UPDATE {popups_i18n} SET button_label = 'Iscriviti', link_url = NULL WHERE popup_id = {popup}", '{p}bpi_button_chk' ],
 
 			// FOREIGN KEY: righe figlie senza padre.
 			'texts of a missing form'                => [ "INSERT INTO {form_i18n} (form_id, lang, submit_label) VALUES (999999, 'it', 'Invia')", '{p}bfi_form_fk' ],
@@ -147,6 +172,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'file of a missing entry'                => [ sprintf( $file, 999999, '{cv}', 'new1' ), '{p}befi_entry_fk' ],
 			'file of a missing field'                => [ sprintf( $file, '{entry}', 999999, 'new2' ), '{p}befi_field_fk' ],
 			'texts of a missing banner'              => [ "INSERT INTO {banners_i18n} (banner_id, lang, text) VALUES (999999, 'it', 'Saldi')", '{p}bbi_banner_fk' ],
+			'texts of a missing popup'               => [ "INSERT INTO {popups_i18n} (popup_id, lang, title) VALUES (999999, 'it', 'Newsletter')", '{p}bpi_popup_fk' ],
 			'note of a missing entry'                => [ "INSERT INTO {entry_notes} (entry_id, source, level, message, created_at) VALUES (999999, 'admin', 'info', 'x', '2026-01-01')", '{p}ben_entry_fk' ],
 
 			// FOREIGN KEY RESTRICT: i padri con dati storici o file non si cancellano.
@@ -169,6 +195,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'two values in the same position'        => [ "INSERT INTO {entry_values} (entry_id, field_id, position, value) VALUES ({entry}, {email}, 0, 'b')", 'PRIMARY' ],
 			'two files with the same path'           => [ sprintf( $file, '{entry}', '{cv}', 'a1b2c3' ), 'stored_path' ],
 			'two banner texts, same lang'            => [ "INSERT INTO {banners_i18n} (banner_id, lang, text) VALUES ({banner}, 'it', 'Saldi')", 'PRIMARY' ],
+			'two popup texts, same lang'             => [ "INSERT INTO {popups_i18n} (popup_id, lang, title) VALUES ({popup}, 'it', 'Newsletter')", 'PRIMARY' ],
 			'two redirects from the same source'     => [ "INSERT INTO {redirects} (source, target, code, created_at, updated_at) VALUES ('/old', '/other', 302, '2026-01-01', '2026-01-01')", "source'" ],
 		];
 	}
@@ -209,6 +236,10 @@ final class SchemaTest extends WP_UnitTestCase {
 			'banner with a period'       => [ "UPDATE {banners} SET starts_at = '2030-01-01', ends_at = '2030-01-01 00:00:01' WHERE id = {banner}" ],
 			'relative banner link'       => [ "UPDATE {banners_i18n} SET link_url = '/saldi/' WHERE banner_id = {banner}" ],
 			'banner text in emoji'       => [ "UPDATE {banners_i18n} SET text = '🎉' WHERE banner_id = {banner}" ],
+			'popup without an image'     => [ 'UPDATE {popups} SET image_id = NULL WHERE id = {popup}' ],
+			'popup with a period'        => [ "UPDATE {popups} SET starts_at = '2030-01-01', ends_at = '2030-01-01 00:00:01' WHERE id = {popup}" ],
+			'popup link without button'  => [ "UPDATE {popups_i18n} SET link_url = '/news/', button_label = NULL WHERE popup_id = {popup}" ],
+			'popup button with a link'   => [ "UPDATE {popups_i18n} SET link_url = 'https://example.com/', button_label = 'Vai' WHERE popup_id = {popup}" ],
 		];
 	}
 
@@ -241,6 +272,12 @@ final class SchemaTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $this->rows( 'form_notifications_i18n', 'notification_id', $this->id['other_notif'] ) );
 		$this->assertSame( 0, $this->rows( 'form_integrations', 'form_id', $this->id['other_form'] ) );
 		$this->assertSame( 0, $this->rows( 'form_integrations_i18n', 'integration_id', $this->id['other_integ'] ) );
+	}
+
+	public function test_deleting_a_popup_cascades_to_its_texts(): void {
+		$this->query( 'DELETE FROM {popups} WHERE id = {popup}' );
+
+		$this->assertSame( 0, $this->rows( 'popups_i18n', 'popup_id', $this->id['popup'] ) );
 	}
 
 	public function test_deleting_a_banner_cascades_to_its_texts(): void {
@@ -310,6 +347,7 @@ final class SchemaTest extends WP_UnitTestCase {
 			'entry_notes'   => [ 'created_at' ],
 			'redirects'     => [ 'created_at', 'updated_at' ],
 			'banners'       => [ 'created_at', 'updated_at' ],
+			'popups'        => [ 'created_at', 'updated_at' ],
 		];
 		foreach ( $dates[ $table ] ?? [] as $column ) {
 			$row[ $column ] = '2026-01-01 00:00:00';

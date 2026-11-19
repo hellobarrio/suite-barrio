@@ -4,6 +4,7 @@ namespace BarrioSuite\Banners;
 
 use BarrioSuite\Database\Db;
 use BarrioSuite\I18n;
+use BarrioSuite\Period;
 use WP_Error;
 
 /**
@@ -60,19 +61,11 @@ final class BannerRepository {
 	}
 
 	/**
-	 * Calcolato dal periodo, non salvato.
-	 *
 	 * @param Banner $banner
 	 * @return 'off'|'scheduled'|'active'|'expired'
 	 */
 	public static function status( array $banner ): string {
-		$now = gmdate( 'Y-m-d H:i:s' );
-		return match ( true ) {
-			! $banner['is_enabled']                                => 'off',
-			null !== $banner['ends_at'] && $banner['ends_at'] <= $now     => 'expired',
-			null !== $banner['starts_at'] && $banner['starts_at'] > $now  => 'scheduled',
-			default                                                => 'active',
-		};
+		return Period::status( $banner['is_enabled'], $banner['starts_at'], $banner['ends_at'] );
 	}
 
 	/**
@@ -160,16 +153,12 @@ final class BannerRepository {
 
 	/** @return array<string, mixed> Lo schema JSON di un banner da scrivere: fa i controlli che il database non sa fare. */
 	public static function schema(): array {
-		$utc = [
-			'type'    => [ 'string', 'null' ],
-			'pattern' => '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$',
-		];
 		return [
 			'type'                 => 'object',
 			'properties'           => [
 				'is_enabled' => [ 'type' => 'boolean' ],
-				'starts_at'  => $utc,
-				'ends_at'    => $utc,
+				'starts_at'  => Period::UTC,
+				'ends_at'    => Period::UTC,
 				'new_tab'    => [ 'type' => 'boolean' ],
 				'i18n'       => [
 					'type'                 => 'object',

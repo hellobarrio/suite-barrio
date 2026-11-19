@@ -47,6 +47,7 @@ final class ModulesTest extends WP_UnitTestCase {
 				'forms'       => true,
 				'seo'         => true,
 				'alt'         => true,
+				'popups'      => true,
 				'banners'     => true,
 				'hours'       => true,
 				'blocks'      => true,
@@ -68,6 +69,7 @@ final class ModulesTest extends WP_UnitTestCase {
 				'forms'       => false,
 				'seo'         => true,
 				'alt'         => true,
+				'popups'      => true,
 				'banners'     => true,
 				'hours'       => true,
 				'blocks'      => true,
@@ -110,7 +112,7 @@ final class ModulesTest extends WP_UnitTestCase {
 		$this->assertSame( '/new', RedirectRepository::find( '/old' )['target'] ?? null );
 	}
 
-	public function test_the_banners_module_turned_off_registers_nothing_and_keeps_its_data(): void {
+	public function test_popups_and_banners_turned_off_register_nothing_and_keep_their_data(): void {
 		$id = BannerRepository::save(
 			null,
 			[
@@ -127,10 +129,17 @@ final class ModulesTest extends WP_UnitTestCase {
 			]
 		);
 
-		$this->put( [ 'banners' => false ] );
+		$this->put(
+			[
+				'popups'  => false,
+				'banners' => false,
+			]
+		);
 		$this->boot();
-		$this->assertSame( [], $this->callbacks( 'banners' ), 'No query and no asset in the site, no page and no route.' );
-		$this->assertSame( [], preg_grep( '#^/barrio/v1/banners#', array_keys( rest_get_server()->get_routes( 'barrio/v1' ) ) ) );
+		foreach ( [ 'popups', 'banners' ] as $module ) {
+			$this->assertSame( [], $this->callbacks( $module ), "{$module}: no query and no asset in the site, no page and no route." );
+			$this->assertSame( [], preg_grep( "#^/barrio/v1/{$module}#", array_keys( rest_get_server()->get_routes( 'barrio/v1' ) ) ) );
+		}
 
 		$this->put( [ 'banners' => true ] );
 		$this->boot();

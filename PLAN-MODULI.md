@@ -29,7 +29,9 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 ## 1. Regole di visualizzazione (per i Popup)
 
 Dove, a chi e quando compare un popup. In M6 il Banner le aveva, e sono state tolte: è una scritta in cima a tutte le
-pagine, con solo il periodo (§3). Se in M7 servono solo al Popup, stanno nel suo modulo.
+pagine, con solo il periodo (§3). Servono solo al Popup, quindi in M7 sono nel suo modulo (`Popups\Rules` e le card
+Dove e Chi di `Rules.js`). Del core è solo ciò che Popup e Banner hanno in comune: il periodo e lo stato
+(`src/Period.php`, `assets/src/admin/period.js`, con la card Periodo e le righe di testo complete).
 
 - **Dove**: tutto il sito, solo in, o ovunque tranne. Le scelte possibili sono:
   - la home;
@@ -39,7 +41,7 @@ pagine, con solo il periodo (§3). Se in M7 servono solo al Popup, stanno nel su
 - **Chi**: dispositivo (tutti, desktop, telefoni) e utenti (tutti, solo i visitatori, solo chi ha fatto l'accesso).
 - **Periodo**: inizio e fine facoltativi. Lo stato si calcola: Spento, Programmato, Attivo, Scaduto.
 - **Frequenza**: chiuso, non torna per N giorni (0: torna a ogni pagina, come `days="0"` nel prototipo). Si ricorda
-  in `localStorage` (`barrio_{modulo}_{id}`, la data di chiusura). Non è un cookie: non va al server e non serve
+  in `localStorage` (`barrio_popups_{id}`, la data di chiusura; `Infinity` dopo un form inviato). Non è un cookie: non va al server e non serve
   consenso, perché ricorda solo una scelta di chi visita.
 - **Più attivi insieme**, come in Popup Maker. In una pagina compare al più un popup: tra quelli che valgono per la
   pagina, il più recente. Una promozione con un periodo creata dopo vince su quella di sempre, senza un campo
@@ -71,7 +73,9 @@ pagine, con solo il periodo (§3). Se in M7 servono solo al Popup, stanno nel su
   lascia la finestra, solo desktop). Si apre sempre anche con un link a `#barrio-popup-{id}` o un elemento con
   `data-barrio-popup="{id}"`, anche senza le altre regole (il trigger "clic" di Popup Maker).
 - **Form**: basta lo shortcode `[barrio_form]` nel testo. Un form inviato dentro il popup (`barrio:success`) lo chiude
-  dopo il messaggio e non lo ripropone più. Con Forms spento lo shortcode non stampa niente.
+  4 secondi dopo il messaggio e non lo ripropone più. Con Forms spento lo shortcode non stampa niente. L'HTML del popup
+  si scrive su `wp_enqueue_scripts`, così il form carica i suoi asset in tempo anche con i temi a blocchi.
+- **Il link** apre il popup stampato nella pagina: se le regole ne hanno scelto un altro, il link non fa niente.
 - **Dove, chi, periodo, frequenza, lingue**: §1.
 
 ### 2.2 Dati (migrazione `0001`)
@@ -87,10 +91,11 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 ```
 
 - `settings` si legge e si scrive sempre intero e non si interroga in SQL, quindi è JSON (regola 4 di PLAN.md),
-  validato con il suo schema. Contiene `position` (`center`|`corner`), `colors`, `trigger` (`delay`|`scroll`|`exit`
-  con il valore), `new_tab` e le regole del §1.
-- `image_id` non ha una foreign key verso `wp_posts` (regola 9). Un'immagine eliminata si ignora: il popup esce
-  senza.
+  validato con il suo schema. Contiene `position` (`center`|`corner`), `colors`, `trigger` (`{type: delay|scroll|exit,
+  delay: secondi, scroll: per cento}`: i due valori restano, così cambiando apertura non si perdono), `new_tab` e le
+  regole del §1.
+- `image_id` non ha una foreign key verso `wp_posts` (regola 9), ma un CHECK `> 0`. Un'immagine eliminata si ignora: il
+  popup esce senza. Il titolo non è mai vuoto (CHECK), ed è il nome del `<dialog>`.
 - Un pulsante con il link e senza testo usa il testo standard della lingua ("Scopri di più"); un testo senza link non
   si salva (CHECK).
 - Ogni popup ha la riga della lingua principale: lo garantisce `PopupRepository`, come le righe di testo dei campi
@@ -605,9 +610,12 @@ Blocchi, Duplicazione e Testi alternativi non hanno hook: nessuna estensione ne 
 - **Nomi dei giorni in `hbOrari`**: con `switch_to_locale()` servono i pacchetti di lingua installati. Una lingua
   chiesta dal frontend senza pacchetto avrebbe i giorni in inglese, mentre il prototipo aveva 12 lingue scritte a
   mano.
-- **`<dialog>`**: ritorno del focus alla chiusura e scroll della pagina bloccato in Safari; il popup in angolo
-  (`show()`, non modale) non deve rubare il focus.
-- **TinyMCE in React** (`wp.oldEditor.initialize`): cambio di lingua senza perdere il testo, distruzione allo smontaggio.
+- **`<dialog>`** (provato in M7 su Chrome): il focus torna dove era, la pagina non scorre, Tab resta nel popup. Il
+  popup in angolo si apre con l'attributo `open` e non con `show()`, che sposterebbe il focus; Esc lo chiude dal
+  JavaScript. Da provare su Safari e con VoiceOver: l'albero di accessibilità di Chrome è dialog con il titolo come
+  nome, poi Chiudi, il testo, il form e il pulsante.
+- **TinyMCE in React** (provato in M7): `wp.oldEditor.initialize` va chiamato dopo `DOMContentLoaded`, perché WordPress
+  stampa le impostazioni in fondo alla pagina. Ogni lingua ha il suo editor (`key`), distrutto allo smontaggio.
 - **Banner e temi classici**: serve `wp_body_open`, che i temi chiamano dal 2019; controllare quelli dei clienti. Sui
   siti classici del prototipo con lo shortcode del banner in un punto preciso dell'header il banner si sposta in
   cima.
