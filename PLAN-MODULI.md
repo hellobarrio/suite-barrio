@@ -479,20 +479,25 @@ blocco dei form:
 - **Genera con l'AI del core** (Gemini su Vertex AI, il service account e il modello di Barrio → Impostazioni) il
   testo alternativo, e a scelta anche il titolo dell'immagine (spento). Didascalia e descrizione restano come sono.
   Senza service account e modello i pulsanti sono spenti, con il motivo.
-- **Cosa va a Google**: la dimensione `large` dell'immagine (al più 1024px, JPEG, PNG o WebP: quelle che Gemini
-  accetta), non l'originale. Va anche un contesto: il nome del file e il titolo del contenuto a cui è allegata.
+- **Cosa va a Google**: la dimensione `large` dell'immagine (al più 1024px), o il file caricato se è più piccolo, mai
+  l'originale grande. Gemini legge JPEG, PNG e WebP: AVIF (le dimensioni del modulo Prestazioni), GIF e HEIC si
+  convertono in JPEG con l'editor di immagini del server, in un file temporaneo. Va anche un contesto: il nome del
+  file e il titolo del contenuto a cui è allegata.
 
   La risposta è JSON con il suo schema (`responseSchema`, come "Genera con AI" del SEO), nella lingua principale del
-  sito: alt di al più 125 caratteri, senza "immagine di". SVG e formati senza una dimensione generata si saltano.
+  sito: alt di al più 125 caratteri, senza "immagine di". SVG e i formati che il server non apre si saltano: nella
+  tabella Genera è spento, nella massa non partono.
 - **Tre modi**:
   - **al caricamento** (spento di default): un evento singolo di WP-Cron dopo che WordPress ha creato le dimensioni.
     L'upload non aspetta Google. Scrive solo se l'alt è vuoto;
   - **"Genera con AI"** nei dettagli dell'allegato (finestra dei media e schermata di modifica): riempie il campo
     senza ricaricare la pagina. Si salva come ogni modifica dell'alt, quindi si vede prima;
   - **Contenuti → Testi alternativi**: la tabella del plugin con le immagini (miniatura, file, alt, contenuto a cui è
-    allegata). Il filtro di partenza è "senza testo alternativo"; nel menu ⋯ Genera e Modifica (una modale). Le
-    azioni di massa e "Genera per tutte quelle senza" lavorano nel browser, un'immagine alla volta, con
-    l'avanzamento e Interrompi, e si fermano al primo errore come le azioni di massa del SEO.
+    allegata). Il filtro di partenza è "senza testo alternativo"; nel menu ⋯ Genera e Modifica aprono la stessa
+    modale (Genera la apre generando), che salva con `/wp/v2/media`. Le azioni di massa e "Genera tutti" (gli ID da
+    `GET /alt/images?alt=missing&fields=ids`) lavorano nel browser, un'immagine alla volta, con l'avanzamento e
+    Interrompi, e si fermano al primo errore come le azioni di massa del SEO. Le impostazioni sono una modale dalla
+    barra, solo per gli amministratori, perché la scheda è una tabella.
 - **Nel core**: `Ai::generate()` accetta delle parti in più (`inlineData` con `mimeType` e base64) oltre al testo.
   Il resto (token, modello, istruzioni del sito, risposta JSON) c'è già.
 
@@ -501,6 +506,8 @@ blocco dei form:
 - L'alt è il meta del core `_wp_attachment_image_alt`, il titolo è `post_title` dell'allegato: nessun dato nuovo.
 - L'elenco "senza testo alternativo" è una `meta_query` (assente o vuoto), sull'indice `meta_key` del core.
 - **Opzione `barrio_alt`**: `on_upload` (spento), `title` (spento).
+- **Il titolo "manca"** quando è ancora quello che WordPress dà caricando l'immagine, il nome del file (anche senza il
+  `-2` di un nome già usato): solo quello si sostituisce al caricamento e nella massa.
 
 ### 8.3 Problemi del prototipo da non ripetere
 
@@ -517,11 +524,13 @@ blocco dei form:
 ### 8.4 Admin
 
 - **REST**:
-  - `GET /alt/images` (`upload_files`; pagine, ricerca e filtro sul server, come le Registrazioni);
+  - `GET /alt/images` (`upload_files`; pagine, ricerca e filtro sul server, come le Registrazioni; con `fields=ids`
+    tutte quelle trovate che chi chiede può generare);
   - `POST /alt/{id}` (`edit_post`; genera e, con `save`, scrive);
   - `GET`/`PUT /alt/settings` (`manage_options`).
 - **Bacheca**: le immagini senza testo alternativo nella card Contenuti, che ha al massimo tre numeri (uno per
-  strumento): con il quarto strumento si sceglie quale numero togliere.
+  strumento). Con tutti e quattro gli strumenti resta fuori quello di Duplicazione, che è acceso su ogni elenco:
+  Testi alternativi viene prima nelle schede e nei moduli.
 
 **Da Alt Text AI e simili**:
 - presi: generazione al caricamento, in massa e per immagine; contesto dal contenuto;

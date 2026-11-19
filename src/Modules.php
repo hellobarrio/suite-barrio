@@ -19,6 +19,7 @@ final class Modules {
 		// Prima di Prestazioni: l'ordine dei moduli è quello del menu, con la pagina Contenuti e le sue schede.
 		'blocks'      => Blocks\Module::class,
 		'ordering'    => Ordering\Module::class,
+		'alt'         => Alt\Module::class,
 		'duplicate'   => Duplicate\Module::class,
 		'performance' => Performance\Module::class,
 	];

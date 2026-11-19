@@ -328,6 +328,22 @@
 	object-fit: cover;
 }
 
+/* Contenuti → Testi alternativi: la miniatura nella riga e nella modale. */
+.barrio-alt-thumb {
+	flex: none;
+	width: 32px;
+	height: 32px;
+	border-radius: 4px;
+	object-fit: cover;
+}
+
+.barrio-alt-preview {
+	align-self: flex-start;
+	max-width: 150px;
+	max-height: 150px;
+	border-radius: 6px;
+}
+
 /* Sotto una traduzione, il testo originale con i suoi a capo. */
 .barrio-original {
 	white-space: pre-line;

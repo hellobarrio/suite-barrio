@@ -3,6 +3,12 @@
 import { __ } from '@wordpress/i18n';
 
 import {
+	ALT,
+	AltText,
+	altData,
+	altStats,
+} from '../../../modules/alt/assets/src/Alt.js';
+import {
 	BLOCKS,
 	blocksData,
 	blocksSection,
@@ -40,7 +46,8 @@ const BLOCKS_SECTIONS = [ blocksSection ];
 const ORDERING_SECTIONS = [ orderingSection ];
 const DUPLICATE_SECTIONS = [ duplicateSection ];
 
-// Per strumento: la scheda della pagina ([ tab, nome, componente ]) e i numeri della card.
+// Per strumento: la scheda della pagina ([ tab, nome, componente ]) e i numeri della card, che ne mostra tre: con
+// tutti e quattro gli strumenti resta fuori l'ultimo, i tipi con Duplica. Testi alternativi anche a chi carica i media.
 const TOOLS = [
 	blocksData &&
 		canManageOptions && {
@@ -70,6 +77,10 @@ const TOOLS = [
 			],
 			stats: orderingStats,
 		},
+	altData && {
+		tab: [ 'alt', ALT.title, AltText ],
+		stats: altStats,
+	},
 	duplicateData &&
 		canManageOptions && {
 			tab: [

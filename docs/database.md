@@ -225,6 +225,14 @@ tassonomie in ordine manuale; spegnerli lascia `menu_order` e i meta. La disinst
 `_barrio_order`; `menu_order` resta, perché è del core. L'unica migrazione, la `0001`, assegna `barrio_reorder` ai
 ruoli che modificano i contenuti degli altri o gestiscono le categorie.
 
+## Modulo Testi alternativi
+
+Nessuna tabella e nessun dato nuovo: l'alt è il meta del core `_wp_attachment_image_alt`, il titolo è `post_title`
+dell'allegato. "Senza testo alternativo" è il meta assente o vuoto, una `meta_query` sull'indice `meta_key` del core.
+L'opzione `barrio_alt` (non in autoload: si legge nell'admin e dopo un caricamento) ha `on_upload` e `title`, spenti
+di default, validati dallo schema della rotta `PUT /alt/settings`. Dopo un caricamento resta, fino alla sua
+esecuzione, un evento singolo di WP-Cron (`barrio_alt_generate`), che spegnere il modulo elimina.
+
 ## Modulo Duplicazione
 
 Nessuna tabella: la copia passa dalle funzioni del core. L'opzione `barrio_duplicate` (non in autoload) elenca i tipi
