@@ -29,7 +29,7 @@ export const HOURS = {
 	icon: 'clock',
 	title: __( 'Opening hours', 'barrio-suite' ),
 	description: __(
-		'Opening hours and special days, written by hand or from Google',
+		'Hours and special days, also from Google',
 		'barrio-suite'
 	),
 	color: 'linear-gradient(135deg, #14532d, #15803d)',
@@ -69,18 +69,11 @@ const slotsText = ( hours ) =>
 
 const noteIn = ( note, lang ) => note[ lang ] || note[ main ] || '';
 
-// I dati che la pagina modifica: con Google settimana e giorni speciali non si toccano, e la fonte solo agli
-// amministratori.
-const editable = ( data ) => ( {
-	...( canManageOptions && {
-		source: data.source,
-		place_id: data.place_id,
-	} ),
-	...( 'manual' === data.source && {
-		week: data.week,
-		exceptions: data.exceptions,
-	} ),
-} );
+// Settimana e giorni speciali, solo con la fonte manuale: con Google si vedono senza modificarli.
+const editable = ( data ) =>
+	'manual' === data.source
+		? { week: data.week, exceptions: data.exceptions }
+		: {};
 
 const AddButton = ( { text, onClick } ) => (
 	<button type="button" className="barrio-button" onClick={ onClick }>
@@ -451,10 +444,11 @@ function SourceCard( { data, draft, set, onData, onNotice } ) {
 	};
 	return (
 		<Card
+			className="barrio-wide"
 			icon="admin-site-alt3"
 			title={ __( 'Source', 'barrio-suite' ) }
 			description={ __(
-				'With Google, the week and the special days of the next 7 days come from the Google Business Profile of the business every night at 3:00 (site time). To change them here, switch to manual: it starts from the latest hours.',
+				'With Google, the week and the special days of the next 7 days come from the Google Business Profile of the business every night at 3:00 (site time). To change them in Opening hours, switch to manual: it starts from the latest hours.',
 				'barrio-suite'
 			) }
 		>
@@ -464,20 +458,11 @@ function SourceCard( { data, draft, set, onData, onNotice } ) {
 				options={ [
 					{
 						value: 'manual',
-						label: __( 'Written here', 'barrio-suite' ),
+						label: __( 'Written by hand', 'barrio-suite' ),
 					},
 					{ value: 'google', label: __( 'Google', 'barrio-suite' ) },
 				] }
-				onChange={ ( source ) =>
-					set( {
-						source,
-						place_id: draft.place_id,
-						...( 'manual' === source && {
-							week: data.week,
-							exceptions: data.exceptions,
-						} ),
-					} )
-				}
+				onChange={ ( source ) => set( { ...draft, source } ) }
 			/>
 			{ google && (
 				<>
@@ -602,7 +587,11 @@ function Preview( { week, exceptions, lang } ) {
 }
 
 const HowTo = () => (
-	<Card icon="editor-code" title={ __( 'How to show them', 'barrio-suite' ) }>
+	<Card
+		className="barrio-wide"
+		icon="editor-code"
+		title={ __( 'How to show them', 'barrio-suite' ) }
+	>
 		<ul className="barrio-howto">
 			<li>
 				{ __(
@@ -627,25 +616,48 @@ const HowTo = () => (
 	</Card>
 );
 
-function HoursCards( { data, draft, set, view, onData, onNotice } ) {
+// Con Google gli orari si vedono senza modificarli: si cambia fonte in Impostazioni, che solo gli amministratori aprono.
+function GoogleNotice( { google } ) {
+	const notice = {
+		status: 'info',
+		message: canManageOptions
+			? __(
+					'The opening hours come from Google, every night: to change them here, choose the manual source in Settings.',
+					'barrio-suite'
+				)
+			: __(
+					'The opening hours come from Google, every night: to change them here, an administrator has to choose the manual source.',
+					'barrio-suite'
+				),
+		action: canManageOptions && (
+			<a className="barrio-button" href="?page=barrio-hours&tab=settings">
+				{ __( 'Settings', 'barrio-suite' ) }
+			</a>
+		),
+	};
+	return (
+		<>
+			<Notice notice={ notice } />
+			<Notice
+				notice={
+					google.error && { status: 'error', message: google.error }
+				}
+			/>
+		</>
+	);
+}
+
+function HoursCards( { data, draft, set, view } ) {
 	const lang = view.lang ?? main;
-	const google = 'google' === ( draft.source ?? data.source );
+	const google = 'google' === data.source;
 	const week = draft.week ?? data.week;
 	const exceptions = draft.exceptions ?? data.exceptions;
 	return (
 		<>
+			{ google && <GoogleNotice google={ data.google } /> }
 			<LangNotice lang={ lang } />
 			<div className="barrio-fields">
 				<div>
-					{ canManageOptions && (
-						<SourceCard
-							data={ data }
-							draft={ draft }
-							set={ set }
-							onData={ onData }
-							onNotice={ onNotice }
-						/>
-					) }
 					<WeekCard
 						week={ week }
 						disabled={ google || lang !== main }
@@ -660,20 +672,19 @@ function HoursCards( { data, draft, set, view, onData, onNotice } ) {
 						}
 					/>
 				</div>
-				<div>
+				<div className="barrio-panel">
 					<Preview
 						week={ week }
 						exceptions={ exceptions }
 						lang={ lang }
 					/>
-					<HowTo />
 				</div>
 			</div>
 		</>
 	);
 }
 
-// La scheda Orari, per General: un solo Salva per fonte, settimana e giorni speciali.
+// La scheda Orari, per General: un solo Salva per settimana e giorni speciali.
 export const hoursSection = {
 	id: 'hours',
 	load: () => apiFetch( { path: '/barrio/v1/hours' } ),
@@ -689,32 +700,42 @@ export const hoursSection = {
 	Cards: HoursCards,
 };
 
-// La scheda Impostazioni, agli amministratori: i Permessi.
+// La scheda Impostazioni, agli amministratori: la fonte, come mostrarli e i Permessi, con un solo Salva.
 export const hoursSettingsSection = {
 	id: 'hours-settings',
 	load: () => apiFetch( { path: '/barrio/v1/hours' } ),
-	value: ( data ) => data.roles,
-	save: ( roles ) =>
-		apiFetch( {
-			path: '/barrio/v1/hours',
-			method: 'PUT',
-			data: { roles },
-		} ),
-	Cards: ( { data, draft, set } ) => (
-		<Permissions
-			description={ __(
-				'Who can edit the opening hours and the special days. Administrators can always do everything; only administrators choose the source and change these settings.',
-				'barrio-suite'
-			) }
-			caps={ CAPS }
-			names={ data.role_names }
-			roles={ draft }
-			onChange={ set }
-		/>
+	value: ( data ) => ( {
+		source: data.source,
+		place_id: data.place_id,
+		roles: data.roles,
+	} ),
+	save: ( draft ) =>
+		apiFetch( { path: '/barrio/v1/hours', method: 'PUT', data: draft } ),
+	Cards: ( { data, draft, set, onData, onNotice } ) => (
+		<>
+			<SourceCard
+				data={ data }
+				draft={ draft }
+				set={ set }
+				onData={ onData }
+				onNotice={ onNotice }
+			/>
+			<HowTo />
+			<Permissions
+				description={ __(
+					'Who can edit the opening hours and the special days. Administrators can always do everything; only administrators choose the source and change these settings.',
+					'barrio-suite'
+				) }
+				caps={ CAPS }
+				names={ data.role_names }
+				roles={ draft.roles }
+				onChange={ ( roles ) => set( { ...draft, roles } ) }
+			/>
+		</>
 	),
 };
 
-// Nella Bacheca: oggi, il prossimo giorno speciale e l'errore di Google.
+// Nella Bacheca: oggi, il prossimo giorno speciale, la fonte e l'errore di Google.
 export function HoursCard() {
 	if ( ! hoursData ) {
 		return null;
@@ -733,6 +754,12 @@ export function HoursCard() {
 				[
 					__( 'Next special day', 'barrio-suite' ),
 					hoursData.next || '—',
+				],
+				[
+					__( 'Source', 'barrio-suite' ),
+					'google' === hoursData.source
+						? __( 'Google', 'barrio-suite' )
+						: __( 'Written by hand', 'barrio-suite' ),
 				],
 			] }
 			actions={ [

@@ -115,7 +115,8 @@ final class Module {
 
 	/**
 	 * In window.barrioAdmin.hours, per la card della Bacheca, a chi modifica gli orari: oggi, il prossimo giorno
-	 * speciale e l'errore di Google. Senza, il JavaScript sa che il modulo è spento.
+	 * speciale (con la data breve, perché stia in una riga), la fonte e l'errore di Google. Senza, il JavaScript sa che
+	 * il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
@@ -128,9 +129,10 @@ final class Module {
 		$next     = $settings['exceptions'][0] ?? null;
 		return $data + [
 			'hours' => [
-				'today' => Render::day_text( $settings, current_datetime()->setTime( 0, 0 ) ),
-				'next'  => $next ? Render::dates( $next ) : '',
-				'error' => 'google' === $settings['source'] ? $settings['google']['error'] : '',
+				'today'  => Render::day_text( $settings, current_datetime()->setTime( 0, 0 ) ),
+				'next'   => $next ? Render::dates( $next, 'j M' ) : '',
+				'source' => $settings['source'],
+				'error'  => 'google' === $settings['source'] ? $settings['google']['error'] : '',
 			],
 		];
 	}

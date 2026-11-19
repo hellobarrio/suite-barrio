@@ -565,10 +565,18 @@
 	font-weight: 700;
 }
 
+.barrio-module__head > div {
+	min-width: 0;
+}
+
+/* Una riga, come i numeri: le card accanto restano allineate. */
 .barrio-module__head p {
 	margin: 4px 0 0;
+	overflow: hidden;
 	color: rgb(255 255 255 / 90%);
 	font-size: 12px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 /* I bottoni restano in fondo anche quando la card accanto ha più numeri. */
@@ -600,13 +608,19 @@
 }
 
 .barrio-module__stats dt {
+	flex: none;
 	color: var(--barrio-muted);
+	white-space: nowrap;
 }
 
 .barrio-module__stats dd {
+	min-width: 0;
 	margin: 0;
+	overflow: hidden;
 	color: var(--barrio-ink);
 	font-weight: 600;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 /* Card, avvisi, etichette */

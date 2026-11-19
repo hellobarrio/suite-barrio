@@ -208,12 +208,13 @@ final class Render {
 	}
 
 	/**
-	 * Le date di un giorno speciale nel formato del sito: una, o la prima e l'ultima.
+	 * Le date di un giorno speciale, nel formato del sito o in $pattern: una, o la prima e l'ultima.
 	 *
 	 * @param Special $special
 	 */
-	public static function dates( array $special ): string {
-		$format = static fn( string $date ): string => (string) mysql2date( (string) get_option( 'date_format' ), $date );
+	public static function dates( array $special, string $pattern = '' ): string {
+		$pattern = $pattern ?: (string) get_option( 'date_format' );
+		$format  = static fn( string $date ): string => (string) mysql2date( $pattern, $date );
 		return $special['from'] === $special['to'] ? $format( $special['from'] ) : $format( $special['from'] ) . ' – ' . $format( $special['to'] );
 	}
 

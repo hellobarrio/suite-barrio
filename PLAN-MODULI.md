@@ -270,17 +270,21 @@ che si potano da sole. Lo schema fa i controlli che in una tabella farebbero i C
 ### 4.4 Admin
 
 - **Orari** (`barrio_manage_hours`), un solo Salva:
-  - card Fonte (`manage_options`): manuale o Google, Place ID, Aggiorna ora (con la fonte e il Place ID salvati),
-    ultimo aggiornamento ed errore, e un avviso senza il service account;
   - card Settimana: una riga per giorno, l'interruttore Aperto, le fasce;
   - card Giorni speciali: "Aggiungi" nell'intestazione, una modale per data, fasce e nota;
-  - colonna destra: come appare nel sito (lo stato e la settimana, anche non salvati, resi dal server come il
-    blocco) e come inserirlo (blocco o shortcode);
-  - la lingua nella barra serve solo alle note;
-  - scheda Impostazioni con i Permessi.
+  - colonna destra, ferma mentre si scorre: come appare nel sito (lo stato e la settimana, anche non salvati, resi
+    dal server come il blocco);
+  - con la fonte Google un avviso, con il collegamento a Impostazioni per gli amministratori, e l'errore di Google;
+  - la lingua nella barra serve solo alle note.
+- **Impostazioni** (`manage_options`), un solo Salva:
+  - card Fonte: manuale o Google, Place ID, Aggiorna ora (con la fonte e il Place ID salvati), ultimo aggiornamento
+    ed errore, e un avviso senza il service account;
+  - card Come mostrarli: il blocco, gli shortcode, lo schema SEO;
+  - card Permessi.
 - **REST**: `GET`/`PUT /hours` (`barrio_manage_hours`; fonte, Place ID e Permessi solo con `manage_options`),
   `POST /hours/sync` (`manage_options`) e `POST /hours/preview` (l'anteprima, `barrio_manage_hours`).
-- **Bacheca**: card con gli orari di oggi, il prossimo giorno speciale e l'errore di Google, se c'è.
+- **Bacheca**: card con tre righe, oggi, il prossimo giorno speciale (con la data breve) e la fonte, e l'errore di
+  Google, se c'è. Come in ogni card dei moduli, la descrizione e ogni riga stanno su una riga.
 
 **Da Rank Math Local SEO**:
 - presi: orari nello schema, formato dell'ora della lingua, blocco e shortcode;

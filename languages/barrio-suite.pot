@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-19T13:19:57+00:00\n"
+"POT-Creation-Date: 2026-11-19T13:32:53+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -691,39 +691,39 @@ msgstr ""
 msgid "Opening hours"
 msgstr ""
 
-#: modules/hours/src/Module.php:297
+#: modules/hours/src/Module.php:299
 msgid "Only administrators can change the source and the permissions."
 msgstr ""
 
-#: modules/hours/src/Module.php:305
+#: modules/hours/src/Module.php:307
 msgid "Enter the Place ID of the business to take the opening hours from Google."
 msgstr ""
 
-#: modules/hours/src/Module.php:355
+#: modules/hours/src/Module.php:357
 msgid "Choose Google as the source first."
 msgstr ""
 
 #. translators: %s: reason given by Google.
-#: modules/hours/src/Module.php:514
+#: modules/hours/src/Module.php:516
 #, php-format
 msgid "Google did not return the opening hours. %s"
 msgstr ""
 
-#: modules/hours/src/Module.php:518
+#: modules/hours/src/Module.php:520
 msgid "This place has no opening hours on Google: add them to its Google Business Profile, or write them here with the manual source."
 msgstr ""
 
-#: modules/hours/src/Module.php:532
+#: modules/hours/src/Module.php:534
 msgid "The answer of Google is not valid. Try again later."
 msgstr ""
 
 #. translators: %s: a date as written, like 2026-02-30.
-#: modules/hours/src/Module.php:582
+#: modules/hours/src/Module.php:584
 #, php-format
 msgid "%s is not a date."
 msgstr ""
 
-#: modules/hours/src/Module.php:586
+#: modules/hours/src/Module.php:588
 #: build/barrio-admin.js:40
 msgid "A special period cannot end before it starts."
 msgstr ""
@@ -735,7 +735,7 @@ msgid "Today: %s"
 msgstr ""
 
 #: modules/hours/src/Render.php:115
-#: modules/hours/src/Render.php:283
+#: modules/hours/src/Render.php:284
 msgid "Open 24 hours"
 msgstr ""
 
@@ -752,7 +752,7 @@ msgid "Open · closes %1$s at %2$s"
 msgstr ""
 
 #: modules/hours/src/Render.php:120
-#: modules/hours/src/Render.php:280
+#: modules/hours/src/Render.php:281
 #: build/barrio-admin.js:40
 msgid "Closed"
 msgstr ""
@@ -775,7 +775,7 @@ msgstr ""
 msgid "Closed · opens %1$s at %2$s"
 msgstr ""
 
-#: modules/hours/src/Render.php:255
+#: modules/hours/src/Render.php:256
 msgid "Special opening hours"
 msgstr ""
 
@@ -2205,7 +2205,7 @@ msgid "Contact forms, their entries and their notifications."
 msgstr ""
 
 #: build/barrio-admin.js:40
-msgid "Opening hours and special days, written by hand or from Google"
+msgid "Hours and special days, also from Google"
 msgstr ""
 
 #: build/barrio-admin.js:40
@@ -2287,18 +2287,21 @@ msgid "No special days."
 msgstr ""
 
 #: build/barrio-admin.js:40
+#: build/barrio-admin.js:41
 msgid "Source"
 msgstr ""
 
 #: build/barrio-admin.js:40
-msgid "With Google, the week and the special days of the next 7 days come from the Google Business Profile of the business every night at 3:00 (site time). To change them here, switch to manual: it starts from the latest hours."
+msgid "With Google, the week and the special days of the next 7 days come from the Google Business Profile of the business every night at 3:00 (site time). To change them in Opening hours, switch to manual: it starts from the latest hours."
 msgstr ""
 
 #: build/barrio-admin.js:40
-msgid "Written here"
+#: build/barrio-admin.js:41
+msgid "Written by hand"
 msgstr ""
 
 #: build/barrio-admin.js:40
+#: build/barrio-admin.js:41
 msgid "Google"
 msgstr ""
 
@@ -2358,6 +2361,14 @@ msgstr ""
 
 #: build/barrio-admin.js:41
 msgid "With the SEO module, also in the schema of the organization, for Google."
+msgstr ""
+
+#: build/barrio-admin.js:41
+msgid "The opening hours come from Google, every night: to change them here, choose the manual source in Settings."
+msgstr ""
+
+#: build/barrio-admin.js:41
+msgid "The opening hours come from Google, every night: to change them here, an administrator has to choose the manual source."
 msgstr ""
 
 #: build/barrio-admin.js:41
