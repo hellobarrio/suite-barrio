@@ -14,6 +14,8 @@ use WP_REST_Response;
 final class Modules {
 
 	public const ALL = [
+		// Prima di tutti: Statistiche è la prima pagina del menu dopo la Bacheca, e la prima card della Bacheca.
+		'analytics'   => Analytics\Module::class,
 		'forms'       => Forms\Module::class,
 		'seo'         => Seo\Module::class,
 		'alt'         => Alt\Module::class,

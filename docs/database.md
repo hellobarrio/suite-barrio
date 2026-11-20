@@ -298,6 +298,15 @@ spariscono dal database alla scrittura dopo. Con la fonte Google resta un evento
 (`barrio_hours_sync`) alle 3 del fuso del sito, che la fonte manuale e lo spegnimento del modulo eliminano. L'unica
 migrazione, la `0001`, assegna `barrio_manage_hours` agli amministratori e agli editor.
 
+## Modulo Statistiche
+
+Nessuna tabella: i dati sono di Google Analytics, e il plugin non ne tiene una copia. L'opzione `barrio_analytics`
+(non in autoload: si legge solo nell'admin) ha `property`, `properties/{id}` o vuota finché non si sceglie, e
+`replace_dashboard`, spento, validati dallo schema di `Analytics\Module::schema()` sulla rotta `PUT /analytics`. La risposta di `GET /analytics/report` resta
+un'ora nel transient `barrio_analytics_{md5}` della proprietà e delle date chieste: un'altra proprietà ha altre
+chiavi, un errore non si salva, e alla disinstallazione i transient scadono da soli. L'unica migrazione, la `0001`,
+assegna `barrio_view_analytics` agli amministratori e agli editor.
+
 ## Modulo Duplicazione
 
 Nessuna tabella: la copia passa dalle funzioni del core. L'opzione `barrio_duplicate` (non in autoload) elenca i tipi

@@ -2269,3 +2269,250 @@ a.barrio-badge {
 	border-radius: var(--barrio-radius-small);
 	box-shadow: none;
 }
+
+/*
+ * Statistiche (modules/analytics): i 5 numeri, l'andamento e gli elenchi con le
+ * barre. Visualizzazioni in blu e utenti in arancio, distinguibili anche da chi
+ * non vede il rosso e il verde.
+ */
+.barrio-numbers {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: var(--barrio-gap);
+	margin: 0;
+}
+
+.barrio-number {
+	padding: 16px 20px;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius);
+	background: #fff;
+	box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.barrio-number dt {
+	overflow: hidden;
+	color: var(--barrio-muted);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.barrio-number dd {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	align-items: baseline;
+	margin: 8px 0 0;
+}
+
+.barrio-number strong {
+	color: var(--barrio-ink);
+	font-size: 24px;
+	font-weight: 600;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+
+.barrio-change {
+	color: var(--barrio-muted);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.barrio-change.is-good {
+	color: #007017;
+}
+
+.barrio-change.is-bad {
+	color: var(--barrio-danger);
+}
+
+.barrio-chart {
+	position: relative;
+}
+
+.barrio-chart .is-views {
+	--barrio-series: var(--barrio-accent);
+}
+
+.barrio-chart .is-users {
+	--barrio-series: #b45309;
+}
+
+.barrio-chart__legend {
+	display: flex;
+	gap: 16px;
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+}
+
+.barrio-chart__legend li,
+.barrio-chart__tip span {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin: 0;
+}
+
+.barrio-chart__legend li::before,
+.barrio-chart__tip span::before {
+	width: 12px;
+	height: 3px;
+	border-radius: 2px;
+	background: var(--barrio-series);
+	content: "";
+}
+
+.barrio-chart svg {
+	display: block;
+	overflow: visible;
+	border-radius: var(--barrio-radius-small);
+}
+
+.barrio-chart svg:focus {
+	outline: none;
+}
+
+.barrio-chart svg:focus-visible {
+	outline: 2px solid var(--barrio-accent);
+	outline-offset: 4px;
+}
+
+.barrio-chart__grid {
+	stroke: var(--barrio-line);
+}
+
+.barrio-chart__tick {
+	fill: var(--barrio-muted);
+	font-size: 11px;
+}
+
+.barrio-chart__line {
+	fill: none;
+	stroke: var(--barrio-series);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.barrio-chart__cursor {
+	stroke: var(--barrio-muted);
+	stroke-dasharray: 3 3;
+}
+
+.barrio-chart__dot {
+	fill: #fff;
+	stroke: var(--barrio-series);
+	stroke-width: 2;
+}
+
+.barrio-chart__tip {
+	display: grid;
+	position: absolute;
+	top: 32px;
+	gap: 4px;
+	padding: 8px 12px;
+	border: 1px solid var(--barrio-line);
+	border-radius: var(--barrio-radius-small);
+	background: #fff;
+	box-shadow: 0 4px 12px rgb(0 0 0 / 8%);
+	font-size: 12px;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.barrio-chart__tip strong {
+	color: var(--barrio-ink);
+}
+
+.barrio-lists {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--barrio-gap);
+}
+
+@media (max-width: 782px) {
+
+	.barrio-lists {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.barrio-list-metric,
+.barrio-note {
+	color: var(--barrio-muted);
+	font-size: 13px;
+}
+
+.barrio-admin .barrio-note {
+	margin: 0;
+}
+
+.barrio-bars {
+	display: grid;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.barrio-bars li {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 4px 12px;
+	margin: 0;
+}
+
+.barrio-bars__name {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.barrio-bars__value {
+	color: var(--barrio-ink);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.barrio-bars__bar {
+	grid-column: 1 / -1;
+	min-width: 2px;
+	height: 6px;
+	border-radius: 3px;
+	background: var(--barrio-accent);
+}
+
+/* Personalizzato: le due date sotto la barra. */
+.barrio-dates {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 16px;
+	padding: 16px 20px;
+}
+
+/* Il widget nella Bacheca di WordPress: i numeri senza card. */
+.barrio-widget {
+	display: grid;
+	gap: 16px;
+}
+
+.barrio-widget .barrio-numbers {
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 12px 16px;
+}
+
+.barrio-widget .barrio-number {
+	padding: 0;
+	border: 0;
+	box-shadow: none;
+}
+
+.barrio-widget .barrio-number strong {
+	font-size: 18px;
+}
+
+.barrio-widget > .barrio-button {
+	justify-self: start;
+}

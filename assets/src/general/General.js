@@ -7,6 +7,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { ALT } from '../../../modules/alt/assets/src/Alt.js';
+import { ANALYTICS } from '../../../modules/analytics/assets/src/Analytics.js';
 import { BANNERS } from '../../../modules/banners/assets/src/Banners.js';
 import { BLOCKS } from '../../../modules/blocks/assets/src/Blocks.js';
 import { DUPLICATE } from '../../../modules/duplicate/assets/src/Duplicate.js';
@@ -32,6 +33,7 @@ import { smtpSection } from './Smtp.js';
 
 // I nomi dei moduli di Modules::ALL (src/Modules.php).
 const MODULES = {
+	analytics: ANALYTICS,
 	forms: FORMS,
 	seo: {
 		title: SEO.title,

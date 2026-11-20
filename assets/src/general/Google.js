@@ -241,7 +241,7 @@ export const googleSection = {
 					icon="google"
 					title="Google"
 					description={ __(
-						'The Google Cloud service account the site uses for the services of Google: the AI and, later, Analytics.',
+						'The Google Cloud service account the site uses for the services of Google: the AI, Analytics and the opening hours from Google.',
 						'barrio-suite'
 					) }
 				>

@@ -7,10 +7,10 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Il service account di Google Cloud con cui il sito usa i servizi di Google: l'AI (Vertex AI, src/Ai.php) e, più
- * avanti, Analytics. Si carica il file JSON della chiave in Barrio → Impostazioni; si salvano cifrati (Crypto) solo
- * email, progetto e chiave privata. I token si chiedono a Google con un JWT firmato dalla chiave (il flusso dei
- * service account di OAuth 2.0) e si tengono in cache, cifrati, finché valgono.
+ * Il service account di Google Cloud con cui il sito usa i servizi di Google: l'AI (Vertex AI, src/Ai.php), gli
+ * Orari da Google Places e le Statistiche di Google Analytics. Si carica il file JSON della chiave in Barrio →
+ * Impostazioni; si salvano cifrati (Crypto) solo email, progetto e chiave privata. I token si chiedono a Google con un
+ * JWT firmato dalla chiave (il flusso dei service account di OAuth 2.0) e si tengono in cache, cifrati, finché valgono.
  *
  * @phpstan-type Account array{client_email: string, private_key: string, project_id: string}
  */
