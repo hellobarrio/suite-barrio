@@ -8,3 +8,5 @@ parameters:
 	scanFiles:
 		- tests/wpgraphql.stub
 		- tests/wp-cli.stub
+	typeAliases:
+		BarrioMigrationReport: 'array{counts: list<array{data: string, found: int, migrated: int, skipped: int}>, notes: list<string>, warnings: list<string>}'

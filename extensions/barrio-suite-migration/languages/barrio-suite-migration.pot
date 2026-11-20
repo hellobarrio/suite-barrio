@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-18T09:21:58+00:00\n"
+"POT-Creation-Date: 2026-11-20T11:54:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite-migration\n"
@@ -21,7 +21,7 @@ msgstr ""
 
 #. Description of the plugin
 #: barrio-suite-migration.php
-msgid "Moves forms, entries, files, settings and shortcodes from Suite Barrio, the previous plugin, with the WP-CLI command wp barrio forms migrate, and its SEO with wp barrio seo migrate. Once done, it can be removed."
+msgid "Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with one WP-CLI command per module: forms, SEO, popups, banners, opening hours, blocks, ordering, duplicate, alt text and analytics. Once done, it can be removed."
 msgstr ""
 
 #. Author of the plugin
@@ -29,12 +29,18 @@ msgstr ""
 msgid "Hellobarrio"
 msgstr ""
 
+#. translators: %s: list of WP-CLI commands.
+#: barrio-suite-migration.php:114
+#, php-format
+msgid "These modules of Barrio Suite stay off until the same modules of Suite Barrio are migrated, so the site does not get them twice. Run each command with --dry-run first: %s."
+msgstr ""
+
 #: forms.php:350
 msgid "Next"
 msgstr ""
 
 #. translators: 1: dry run command, 2: migration command.
-#: seo.php:68
+#: seo.php:69
 #, php-format
 msgid "The SEO module of Barrio Suite stays off until the SEO of Suite Barrio is migrated: run %1$s, then %2$s. Turned on before, it prints the meta tags twice."
 msgstr ""

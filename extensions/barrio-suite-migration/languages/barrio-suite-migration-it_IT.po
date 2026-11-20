@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Barrio Suite Migration 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/barrio-suite-"
 "migration\n"
-"POT-Creation-Date: 2026-11-18T09:21:58+00:00\n"
+"POT-Creation-Date: 2026-11-20T11:54:34+00:00\n"
 "PO-Revision-Date: 2026-11-17 08:54+0000\n"
 "Last-Translator: Hellobarrio\n"
 "Language-Team: Italian\n"
@@ -25,13 +25,15 @@ msgstr "Barrio Suite Migration"
 #. Description of the plugin
 #: barrio-suite-migration.php
 msgid ""
-"Moves forms, entries, files, settings and shortcodes from Suite Barrio, the "
-"previous plugin, with the WP-CLI command wp barrio forms migrate, and its "
-"SEO with wp barrio seo migrate. Once done, it can be removed."
+"Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with "
+"one WP-CLI command per module: forms, SEO, popups, banners, opening hours, "
+"blocks, ordering, duplicate, alt text and analytics. Once done, it can be "
+"removed."
 msgstr ""
-"Trasferisce form, registrazioni, file, impostazioni e shortcode da Suite "
-"Barrio, il plugin precedente, con il comando WP-CLI wp barrio forms migrate, "
-"e il suo SEO con wp barrio seo migrate. Al termine puoi rimuoverlo."
+"Trasferisce i dati di Suite Barrio, il plugin precedente, in Barrio Suite con "
+"un comando WP-CLI per modulo: form, SEO, popup, banner, orari, blocchi, "
+"ordinamento, duplicazione, testi alternativi e statistiche. Al termine puoi "
+"rimuoverlo."
 
 #. Author of the plugin
 #: barrio-suite-migration.php
@@ -43,7 +45,7 @@ msgid "Next"
 msgstr "Avanti"
 
 #. translators: 1: dry run command, 2: migration command.
-#: seo.php:68
+#: seo.php:69
 #, php-format
 msgid ""
 "The SEO module of Barrio Suite stays off until the SEO of Suite Barrio is "
@@ -52,3 +54,15 @@ msgid ""
 msgstr ""
 "Il modulo SEO di Barrio Suite resta spento finché il SEO di Suite Barrio non "
 "è migrato: esegui %1$s, poi %2$s. Acceso prima, stampa i meta tag due volte."
+
+#. translators: %s: list of WP-CLI commands.
+#: barrio-suite-migration.php:114
+#, php-format
+msgid ""
+"These modules of Barrio Suite stay off until the same modules of Suite "
+"Barrio are migrated, so the site does not get them twice. Run each command "
+"with --dry-run first: %s."
+msgstr ""
+"Questi moduli di Barrio Suite restano spenti finché gli stessi moduli di "
+"Suite Barrio non sono migrati, così il sito non li ha due volte. Esegui ogni "
+"comando prima con --dry-run: %s."
