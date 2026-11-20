@@ -377,7 +377,7 @@ function barrio_migration_seo_redirects( bool $table, array &$report ): array {
  * @return array{sections: array<string, mixed>, frontend: string}|null
  */
 function barrio_migration_seo_settings( array &$report ): ?array {
-	if ( false !== get_option( 'barrio_seo' ) ) {
+	if ( get_option( 'barrio_seo' ) ) {
 		$report['notes'][] = 'Settings: Barrio Suite already has its SEO settings, they stay as they are.';
 		return null;
 	}

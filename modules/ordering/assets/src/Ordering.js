@@ -23,7 +23,7 @@ const CARDS = {
 		icon: 'admin-page',
 		title: __( 'Content types', 'barrio-suite' ),
 		description: __(
-			'In manual order, the list of the type has a Reorder button next to Add. The order applies wherever the site lists the contents, unless another order is chosen (such as by title) or in a search; a new content goes to the top. Turned off, the most recent come first again, and the saved order is kept.',
+			'In manual order, the list of the type has a Reorder button next to Add. The order applies wherever the site lists the contents, also where it asks for the latest ones (such as the Latest Posts block), unless another order is chosen (such as by title), in a search and in the RSS feed; a new content goes to the top. Turned off, the most recent come first again, and the saved order is kept.',
 			'barrio-suite'
 		),
 	},

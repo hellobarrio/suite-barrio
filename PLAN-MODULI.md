@@ -16,7 +16,7 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 |---|---|
 | Database | **Come sempre, il database è il centro dello sviluppo**: ogni modulo parte dai dati, e ogni fase si apre con schema, migrazioni e i test che dimostrano ogni vincolo su MariaDB 10.5 e MySQL 8.0, prima di REST e interfaccia. Valgono tutte le regole di PLAN.md §2: InnoDB, foreign key, CHECK per gli insiemi chiusi, `utf8mb4_bin` per gli identificatori, date UTC scritte da PHP, NULL solo per "non applicabile", un enum PHP per ogni CHECK, solo i Repository usano `$wpdb`, transazioni sulle scritture su più tabelle, migrazioni numerate con il lock. Le raccolte di record (popup, banner) sono tabelle con i testi in tabelle `_i18n`. I record unici sono opzioni con JSON Schema. I dati di un contenuto di WordPress (l'ordine dei termini) sono suoi meta. `docs/database.md` documenta le tabelle nuove |
 | Moduli | Otto voci nuove nella card Moduli: `popups` (Popup), `banners` (Banner), `hours` (Orari), `blocks` (Blocchi), `ordering` (Ordinamento), `duplicate` (Duplicazione), `alt` (Testi alternativi), `analytics` (Statistiche, in inglese Analytics). Namespace `BarrioSuite\Popups`, `\Banners`, `\Hours`, `\Blocks`, `\Ordering`, `\Duplicate`, `\Alt`, `\Analytics` |
-| Accesi di default | Come tutti i moduli, ma **un modulo acceso non cambia niente finché non lo si configura**: nessun popup o banner, nessun orario, nessun blocco disattivato, nessun tipo in ordine manuale, nessuna generazione al caricamento, nessuna proprietà GA4. L'unica cosa che si vede subito è il link "Duplica" nelle liste. Sui siti del prototipo l'estensione di migrazione tiene spenti i moduli che il prototipo ha accesi, fino alla migrazione (come per il SEO) |
+| Accesi di default | Come tutti i moduli, ma **un modulo acceso non cambia niente finché non lo si configura**: nessun popup o banner, nessun orario, nessun blocco disattivato, nessun tipo in ordine manuale, nessuna generazione al caricamento, nessuna proprietà GA4. L'unica cosa che si vede subito è il link "Duplica" nelle liste dei tipi con pagine nel sito. Le opzioni lette nel sito nascono vuote, in autoload, da una migrazione: una che non esiste costerebbe una query a ogni richiesta (`ModulesTest` lo controlla su una pagina del sito). Sui siti del prototipo l'estensione di migrazione tiene spenti i moduli che il prototipo ha accesi, fino alla migrazione (come per il SEO) |
 | Popup e Banner separati | Due moduli, come nel prototipo, per accenderli, gestirli e dare i permessi separatamente: ognuno ha le sue tabelle, la sua pagina, la sua capability e la sua card. Le regole del §1 (periodo, frequenza, lingue) sono del Popup: il Banner, deciso in M6, è quello del prototipo, una scritta che scorre in cima a tutte le pagine, con solo il periodo. Dove, Chi e Aspetto sono stati tolti a tutti e due (M6 e M7): un solo popup e un solo banner in tutte le pagine |
 | Tabelle e non CPT | Popup e banner sono raccolte di record con testi per lingua, come i form: tabella più tabella `_i18n`, con la lingua scelta nella barra dell'editor e i componenti dei testi tradotti del builder (`TextIn`, `Fixed`, `fillTranslations`). Così funzionano senza WPML e il GraphQL resta con i campi del prototipo. Un CPT con l'editor a blocchi lascerebbe le traduzioni a WPML, e per il banner (una riga di testo) aprirebbe un editor a blocchi intero |
 | Impostazioni | Orari, Blocchi, Ordinamento, Duplicazione, Testi alternativi e Statistiche hanno un solo record ciascuno: un'opzione con JSON Schema (`barrio_hours`, `barrio_blocks`, `barrio_ordering`, `barrio_duplicate`, `barrio_alt`, `barrio_analytics`), scritta solo dalla sua rotta REST. In autoload solo quelle lette nel sito (`barrio_hours`, `barrio_ordering`) |
@@ -181,7 +181,7 @@ banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
 |---|---|
 | Un solo banner attivo, senza periodo; compare solo dove il tema stampa lo shortcode | Il periodo, il più recente tra gli accesi e l'inserimento automatico |
 | La scritta si ripete 30 volte per gli screen reader, e il nome del link è il testo ripetuto 30 volte | Il testo si legge una volta: le copie sono `aria-hidden` |
-| Scorre senza modo di fermarla (WCAG 2.2.2) e ignora `prefers-reduced-motion`; si ferma solo col mouse | Si ferma anche col focus e col tocco; resta ferma con `prefers-reduced-motion` |
+| Scorre senza modo di fermarla (WCAG 2.2.2) e ignora `prefers-reduced-motion`; si ferma solo col mouse | Si ferma anche col focus (senza link il banner ha `tabindex="0"`) e col tocco; resta ferma con `prefers-reduced-motion` |
 | Salta di 20px a ogni giro (`GAP` copiato dal frontend senza lo spazio nel CSS); le copie non hanno spazio tra loro; la larghezza si misura una volta, prima dei font | Una Web Animation sulla larghezza misurata dopo il caricamento dei font (`document.fonts.ready`) e al ridimensionamento, con lo spazio nel CSS |
 | XSS salvato nell'admin (`innerHTML` del titolo); il limite di banner solo nell'interfaccia; cambio di lingua che riporta i valori vecchi | Come per i popup (§2.3) |
 | Due tabelle create a ogni richiesta, senza foreign key; da 2 a 4 query per pagina; CSS e JS in ogni pagina | Lo schema del §3.2; il transient `barrio_banners_live`, e asset solo con un banner |
@@ -379,7 +379,9 @@ blocco dei form:
 - **Dove vale l'ordine**: in ogni query di un tipo in ordine manuale che non chiede un ordine, o chiede quello
   predefinito (data, decrescente): sito, admin, REST e WPGraphQL. L'ordine è `menu_order` crescente, poi la data.
   - Un ordine esplicito diverso (titolo, più vecchi, casuale, una colonna cliccata nell'admin) resta.
-  - Nella ricerca vale la pertinenza.
+  - Nella ricerca vale la pertinenza; nel feed RSS la data, perché chi lo legge prende i primi come i più nuovi.
+  - Vale anche dove si chiedono gli ultimi (`wp_get_recent_posts()`, il blocco Ultimi articoli), che non si
+    distinguono dal Query Loop: lo dice la card dei tipi.
   - Un contenuto nuovo ha `menu_order` 0, quindi va in cima finché non lo si sposta.
 - **Termini**: `terms_clauses` usa il loro ordine con un LEFT JOIN quando l'ordine è `name` (il predefinito) su una
   tassonomia ordinata. I termini senza ordine vanno in fondo, per nome.
@@ -418,7 +420,8 @@ blocco dei form:
   - `GET`/`PUT /ordering/settings`, con i ruoli (`src/Roles.php`).
 - **Contenuti → Ordinamento**: le card dei tipi e delle tassonomie e la card Permessi.
 - `barrio_ordering_changed` (tipo o tassonomia) dopo ogni salvataggio.
-- `// ponytail: tutto l'elenco in una richiesta e in una modale; oltre ~2000 voci per tipo servono pagine o il trascinamento nella lista nativa`.
+- Tutto l'elenco in una richiesta e in una modale: il server regge 2.000 pagine (5 query, 29 ms), il trascinamento
+  va a scatti oltre qualche centinaio di voci, e la modale lo dice sopra le 300 (`// ponytail:` in `reorder.js`).
 
 **Da Simple Page Ordering, Post Types Order e Intuitive Custom Post Order**:
 - presi: ordine dei termini, gerarchia, ordine applicato alle query senza ordine esplicito (admin compreso);
@@ -448,15 +451,19 @@ blocco dei form:
   `_wp_desired_post_slug`. Lo slug lo calcola WordPress.
 - **I termini**: nome con " (copia)", poi " (copia 2)" se esiste già; descrizione, genitore, meta tranne
   `_barrio_order`. La copia va in fondo all'ordine.
-- **Dove compare**: tutti i tipi e le tassonomie con interfaccia, allegati esclusi; si tolgono in Contenuti →
-  Duplicazione (`manage_options`).
+- **Dove compare**: di default i tipi e le tassonomie con interfaccia e con pagine nel sito (`is_post_type_viewable()`,
+  `is_taxonomy_viewable()`), allegati esclusi: un tipo interno di un altro plugin può tenere i dati altrove, e la
+  copia sarebbe a metà. Si accendono e si spengono in Contenuti → Duplicazione (`manage_options`).
+- **Meta scritti al salvataggio**: `wp_insert_post()` fa partire gli hook prima che arrivino i meta dell'originale;
+  ogni chiave copiata prima si toglie dalla copia, così resta solo il valore dell'originale.
 
 ### 7.2 Dati
 
 - Nessuna tabella: la copia passa da `wp_insert_post`, `add_post_meta`, `wp_set_object_terms` e `wp_insert_term`.
   Niente transazione, perché le tabelle del core possono non essere InnoDB (regola 9 di PLAN.md): se un passo
   fallisce, la copia a metà si elimina (`wp_delete_post`, `wp_delete_term`).
-- **Opzione `barrio_duplicate`**: `post_types` e `taxonomies` spenti (una chiave assente vale acceso).
+- **Opzione `barrio_duplicate`**: `post_types` e `taxonomies` con le sole scelte, `{ nome: acceso }`; un tipo senza
+  scelta segue il default, anche quelli che arrivano dopo con altri plugin.
 - **Migrazione `0001`**: `barrio_duplicate` ai ruoli con `edit_posts`.
 
 ### 7.3 Problemi del prototipo da non ripetere
@@ -508,7 +515,8 @@ blocco dei form:
     a cui è allegata). Il filtro di partenza è "senza testo alternativo"; nel menu ⋯ Genera e Modifica aprono la
     stessa modale (Genera la apre generando), che salva con `/wp/v2/media`. Le azioni di massa e "Genera tutti" (gli
     ID da `GET /alt/images?alt=missing&fields=ids`) lavorano nel browser, un'immagine alla volta, con l'avanzamento
-    e Interrompi, e si fermano al primo errore come le azioni di massa del SEO.
+    e Interrompi. L'errore di una sola immagine (file mancante, oltre 5 MB, formato) la salta e si conta
+    nell'avviso finale; gli altri (quota, configurazione, rete) fermano tutto, come le azioni di massa del SEO.
 - **Barrio → Testi alternativi → Impostazioni**, per gli amministratori: la card Generazione e i Permessi, con il
   Salva della barra. I Permessi scelgono chi genera (la pagina e il pulsante nei dettagli); la generazione al
   caricamento vale per le immagini di chiunque.
@@ -625,7 +633,7 @@ di WordPress. Il nuovo modulo legge gli stessi report con il service account del
 | Un 401 di Google cancella il refresh token: un errore scollega il sito | L'errore si mostra e non si cancella niente |
 | `fetch_period` è senza cache e aperta a `edit_posts`: ogni cambio di periodo fa 7 chiamate a Google (20 s ciascuna), e un collaboratore legge tutte le statistiche | Due chiamate batch, la cache di un'ora, `barrio_view_analytics` con i Permessi |
 | Nelle settimane e nei mesi gli utenti si sommano giorno per giorno: chi torna 5 giorni conta 5 | Le dimensioni di settimana e mese di GA (§9.1) |
-| I periodi finiscono oggi, con la giornata a metà, e "30 giorni" sono 31 (`30daysAgo`–`today`). Nessun confronto. Personalizzato non controlla l'ordine delle date | Periodi che finiscono ieri, il confronto, le date controllate nello schema della rotta |
+| I periodi finiscono oggi, con la giornata a metà, e "30 giorni" sono 31 (`30daysAgo`–`today`). Nessun confronto. Personalizzato non controlla l'ordine delle date | Periodi che finiscono ieri, il confronto, le date controllate nello schema della rotta, dal 2019 (prima di GA4 nessuna proprietà ha dati) e con una sola richiesta mentre si scrive |
 | Pagine per percorso e titolo: la stessa pagina compare due volte se il titolo cambia. Il link usa `home_url()`, sbagliato nei siti headless | Per host e percorso, il titolo da WordPress, il link all'host di GA |
 | "Sostituisci la bacheca" svuota `$wp_meta_boxes['dashboard']`: spariscono anche i widget degli altri plugin, per tutti gli utenti con `edit_posts` | Un widget in più; la sostituzione a scelta, solo per chi legge le statistiche (§9.1) |
 | La bacheca chiama Google mentre si carica la pagina, fino a 7 richieste; un report fallito diventa zero e si mostra come un dato vero | La pagina si carica e i dati arrivano dalla REST; un errore è un avviso, senza numeri |
@@ -680,7 +688,7 @@ di WordPress. Il nuovo modulo legge gli stessi report con il service account del
 
 | Estensione | Cosa cambia |
 |---|---|
-| `barrio-suite-wpgraphql` | `popups.php`, `banners.php` e `hours.php`, ognuno solo con il suo modulo acceso e con priorità 9, come per form e SEO.<br>• `hbPopup(lang): HBPopup` (`id`, `title`, `content`, `link: HBPopupCta {url, title, target}`, `image: HBPopupImage {node: MediaItem}`).<br>• `hbBanner(lang): HBBanner` (`id`, `title` = il testo, `link: HBBannerCta {url, target}`).<br>• `hbOrari(lang): HBOrari` (`ultimoAggiornamento` d/m/Y H:i, `displayName`, `settimana [HBOrariGiorno {giorno, slots, chiuso}]` da lunedì, `slots` in 12 ore per l'inglese).<br>Popup e banner sono quelli di `shown()` del modulo, gli stessi del sito.<br>In più, come campi che il prototipo non aveva: `days`, `startsAt` ed `endsAt` (ISO 8601 in UTC) nel popup, il periodo nel banner; negli orari `fonte`, `settimanaNormale`, `giorniSpeciali` (`dal`, `al`, `nota`) e le `fasce` in HH:MM. `hbPopups` e `hbBanners` danno tutti quelli accesi e non scaduti, anche i programmati, nell'ordine in cui vincono. Lo shortcode del form resta nel testo del popup |
+| `barrio-suite-wpgraphql` | `popups.php`, `banners.php` e `hours.php`, ognuno solo con il suo modulo acceso e con priorità 9, come per form e SEO.<br>• `hbPopup(lang): HBPopup` (`id`, `title`, `content`, `link: HBPopupCta {url, title, target}`, `image: HBPopupImage {node: MediaItem}`).<br>• `hbBanner(lang): HBBanner` (`id`, `title` = il testo, `link: HBBannerCta {url, target}`).<br>• `hbOrari(lang): HBOrari` (`ultimoAggiornamento` d/m/Y H:i, `displayName`, `settimana [HBOrariGiorno {giorno, slots, chiuso}]` da lunedì, `slots` in 12 ore per l'inglese).<br>Popup e banner sono quelli di `shown()` del modulo, gli stessi del sito.<br>In più, come campi che il prototipo non aveva: `days`, `startsAt` ed `endsAt` (ISO 8601 in UTC) nel popup, il periodo nel banner; negli orari `fonte`, `settimanaNormale`, `giorniSpeciali` (`dal`, `al`, `nota`) e le `fasce` in HH:MM. I programmati non escono prima del loro inizio (`hbPopups` e `hbBanners`, che li davano, sono stati tolti dopo l'audit dei moduli). Lo shortcode del form resta nel testo del popup |
 | `barrio-suite-wpml` | Niente di nuovo. Nulla in `wpml-config.xml`: i testi di popup e banner e le note degli orari sono nel plugin |
 | `barrio-suite-migration` | Un file per modulo, con il suo comando `wp barrio <modulo> migrate [--dry-run]`, e il ponte di revalidation (dettagli in §12, M10) |
 
@@ -709,6 +717,8 @@ Blocchi, Duplicazione, Testi alternativi e Statistiche non hanno hook: nessuna e
 - **Ordine dei termini in WPGraphQL e in admin**: verificare che WPGraphQL chieda `name` di default (allora l'ordine
   vale, come serve a `hello_standard`) e che la lista gerarchica di `edit-tags.php` resti corretta. Con WPML ogni
   lingua ha i suoi termini, quindi si riordina una lingua alla volta: decidere se copiare l'ordine alle traduzioni.
+  `OrderRepository` legge con SQL diretto, senza i filtri di WPML: la modale elenca insieme le voci di tutte le
+  lingue (l'ordine di ognuna resta giusto). Da provare con WPML e, se confonde, filtrare per lingua.
 - **Google Places** (verificato sulla documentazione in M5, provato con Google simulato): Places (New) accetta il
   token OAuth del service account (scope `cloud-platform`) con il progetto in `X-Goog-User-Project`; un luogo
   sempre aperto è un solo periodo con `open` domenica 00:00 e senza `close`; `specialDays` dà solo le date, e le

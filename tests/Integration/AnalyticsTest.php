@@ -120,10 +120,11 @@ final class AnalyticsTest extends WP_UnitTestCase {
 		$this->assertTrue( $requests[5]['orderBys'][0]['desc'] );
 	}
 
-	public function test_custom_dates_must_exist_be_in_order_and_end_by_yesterday(): void {
+	public function test_custom_dates_must_exist_be_in_order_and_go_from_2019_to_yesterday(): void {
 		$yesterday = current_datetime()->modify( '-1 day' )->format( 'Y-m-d' );
 		$today     = current_datetime()->format( 'Y-m-d' );
-		foreach ( [ [ '2026-02-30', '2026-03-01' ], [ '2025-03-02', '2025-03-01' ], [ $yesterday, $today ], [ '', $yesterday ], [ '2025-1-01', '2025-01-02' ] ] as [ $from, $to ] ) {
+		// 0002: un anno scritto a metà da tastiera.
+		foreach ( [ [ '2026-02-30', '2026-03-01' ], [ '2025-03-02', '2025-03-01' ], [ $yesterday, $today ], [ '', $yesterday ], [ '2025-1-01', '2025-01-02' ], [ '0002-01-10', $yesterday ], [ '2018-12-31', $yesterday ] ] as [ $from, $to ] ) {
 			$this->assertSame( 400, $this->report( 'custom', compact( 'from', 'to' ) )->get_status(), "{$from} – {$to}" );
 		}
 		$this->assertSame(
@@ -131,7 +132,7 @@ final class AnalyticsTest extends WP_UnitTestCase {
 			$this->report(
 				'custom',
 				[
-					'from' => $yesterday,
+					'from' => '2019-01-01',
 					'to'   => $yesterday,
 				]
 			)->get_status()

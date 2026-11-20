@@ -184,7 +184,8 @@ la `0002` assegna `barrio_manage_seo` agli amministratori e `barrio_edit_seo` an
 sopra. I suoi vincoli sono in `SchemaTest` come quelli dei form. Il resto dei dati SEO non ha tabelle: i meta
 `_barrio_seo_*` di contenuti e termini, registrati con `register_post_meta` e `register_term_meta` e validati dalla
 REST del core, e l'opzione `barrio_seo` (`modules/seo/src/Settings.php`). L'opzione è in autoload perché ogni pagina
-del sito la legge intera: arriva con le altre opzioni, senza query in più.
+del sito la legge intera: arriva con le altre opzioni, senza query in più. La crea vuota la migrazione `0003`, perché
+un'opzione che non esiste costa una query a ogni richiesta.
 
 - **`source`** è il percorso senza dominio, con la query string, in `utf8mb4_bin` perché gli URL distinguono le
   maiuscole: `/` all'inizio e nessuna `/` finale prima della query, tranne la radice (`br_source_chk`), così la
@@ -222,8 +223,9 @@ scrive:
 Nelle query l'ordine è un `LEFT JOIN` su `termmeta` (`terms_clauses`) e `orderby` di `WP_Query` (`pre_get_posts`):
 nessuna query in più. L'opzione `barrio_ordering` (in autoload, la leggono le query del sito) elenca i tipi e le
 tassonomie in ordine manuale; spegnerli lascia `menu_order` e i meta. La disinstallazione con i dati elimina i meta
-`_barrio_order`; `menu_order` resta, perché è del core. L'unica migrazione, la `0001`, assegna `barrio_reorder` ai
-ruoli che modificano i contenuti degli altri o gestiscono le categorie.
+`_barrio_order`; `menu_order` resta, perché è del core. La migrazione `0001` assegna `barrio_reorder` ai ruoli che
+modificano i contenuti degli altri o gestiscono le categorie; la `0002` crea l'opzione vuota, così le query del sito
+non la cercano a ogni richiesta.
 
 ## Modulo Testi alternativi
 
@@ -280,8 +282,9 @@ erDiagram
   lingua principale, che nessun vincolo SQL impone (test in `BannersTest`). Testi e banner si scrivono in una
   transazione.
 - **Nel sito nessuna query**: gli accesi non scaduti, con i testi, stanno nel transient `barrio_banners_live`, senza
-  scadenza e quindi in autoload (vuoto con zero banner). Ogni scrittura lo elimina e fa partire
-  `barrio_banners_changed`. Il sito mostra il più recente tra quelli nel loro periodo; quelli scaduti dopo li scarta
+  scadenza e quindi in autoload (vuoto con zero banner), con la versione del plugin: dopo un aggiornamento che cambia
+  la forma delle righe si rilegge. Ogni scrittura lo elimina e fa partire `barrio_banners_changed`. Le letture e il
+  transient sono di `src/Database/PeriodRepository.php`, comune a popup e banner. Il sito mostra il più recente tra quelli nel loro periodo; quelli scaduti dopo li scarta
   PHP. La disinstallazione con i dati elimina il transient con le tabelle.
 
 ## Modulo Orari
@@ -295,8 +298,9 @@ resto (una data che esiste, `to` non prima di `from`) lo controlla `check_dates(
 arriva da Google, prima di scriverlo. Una chiusura non dopo l'apertura vale il giorno dopo: `00:00`–`00:00` è aperto
 tutto il giorno. Le fasce si scrivono in ordine, i giorni speciali per data; quelli passati non si leggono più e
 spariscono dal database alla scrittura dopo. Con la fonte Google resta un evento singolo di WP-Cron
-(`barrio_hours_sync`) alle 3 del fuso del sito, che la fonte manuale e lo spegnimento del modulo eliminano. L'unica
-migrazione, la `0001`, assegna `barrio_manage_hours` agli amministratori e agli editor.
+(`barrio_hours_sync`) alle 3 del fuso del sito, che la fonte manuale e lo spegnimento del modulo eliminano. La
+migrazione `0001` assegna `barrio_manage_hours` agli amministratori e agli editor; la `0002` crea l'opzione vuota, che
+`init` legge a ogni richiesta.
 
 ## Modulo Statistiche
 
@@ -309,5 +313,6 @@ assegna `barrio_view_analytics` agli amministratori e agli editor.
 
 ## Modulo Duplicazione
 
-Nessuna tabella: la copia passa dalle funzioni del core. L'opzione `barrio_duplicate` (non in autoload) elenca i tipi
-e le tassonomie spenti; l'unica migrazione, la `0001`, assegna `barrio_duplicate` ai ruoli con `edit_posts`.
+Nessuna tabella: la copia passa dalle funzioni del core. L'opzione `barrio_duplicate` (non in autoload) tiene solo le
+scelte, `{ post_types: { nome: acceso }, taxonomies: { … } }`: un tipo senza scelta ha Duplica se ha pagine nel sito.
+L'unica migrazione, la `0001`, assegna `barrio_duplicate` ai ruoli con `edit_posts`.

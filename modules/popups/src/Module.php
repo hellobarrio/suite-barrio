@@ -40,9 +40,7 @@ final class Module {
 
 	// Le tabelle e le opzioni le elimina il core (src/Uninstall.php); il transient non ha il prefisso barrio_.
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			$role->remove_cap( self::CAP );
-		}
+		Roles::remove( [ self::CAP ] );
 		delete_transient( PopupRepository::LIVE );
 	}
 

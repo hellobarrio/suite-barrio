@@ -9,6 +9,7 @@ use BarrioSuite\Forms\Api\RestPublic;
 use BarrioSuite\Forms\Frontend\Render;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Submission\FileStore;
+use BarrioSuite\Roles;
 
 final class Module {
 
@@ -42,11 +43,7 @@ final class Module {
 
 	// Disinstallando, se il sito lo ha scelto: tabelle e opzioni le elimina il core (src/Uninstall.php).
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			foreach ( RestAdmin::CAPS as $cap ) {
-				$role->remove_cap( $cap );
-			}
-		}
+		Roles::remove( RestAdmin::CAPS );
 		// Senza accesso diretto ai file (FTP) i file delle registrazioni restano in uploads.
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		if ( WP_Filesystem() ) {

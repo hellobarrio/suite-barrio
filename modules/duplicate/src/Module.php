@@ -13,16 +13,18 @@ use WP_Term;
 /**
  * Duplica contenuti e termini (PLAN-MODULI.md §7): tra le azioni di riga delle liste, tra le azioni di massa dei
  * contenuti e nel pannello dello stato dell'editor. La copia è una bozza di chi duplica, con i meta e i termini
- * dell'originale. Si toglie per tipo e per tassonomia in Barrio → Contenuti → Duplicazione.
+ * dell'originale. Si accende e si spegne per tipo e per tassonomia in Barrio → Contenuti → Duplicazione: di default
+ * c'è dove il tipo ha pagine nel sito; gli altri (pattern, menu, tipi interni di altri plugin) spesso tengono dati
+ * altrove, e la copia sarebbe a metà.
  *
- * @phpstan-type Settings array{post_types: list<string>, taxonomies: list<string>}
+ * @phpstan-type Settings array{post_types: array<string, bool>, taxonomies: array<string, bool>}
  */
 final class Module {
 
 	// Chi può duplicare (Permessi), oltre ai permessi di WordPress sull'originale. Dalla migrazione 0001.
 	public const CAP = 'barrio_duplicate';
 
-	// Non in autoload: si legge solo nell'admin. Salva i tipi e le tassonomie spenti, così uno nuovo ha Duplica.
+	// Non in autoload: si legge solo nell'admin. Salva solo le scelte, { nome: acceso }: un tipo nuovo ha il suo default.
 	private const OPTION = 'barrio_duplicate';
 
 	private const DEFAULTS = [
@@ -58,9 +60,7 @@ final class Module {
 
 	// L'opzione la elimina il core (src/Uninstall.php).
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			$role->remove_cap( self::CAP );
-		}
+		Roles::remove( [ self::CAP ] );
 	}
 
 	public static function menu(): void {
@@ -75,7 +75,7 @@ final class Module {
 	 * @return array<string, mixed>
 	 */
 	public static function admin_data( array $data ): array {
-		return $data + [ 'duplicate' => [ 'disabled' => self::settings() ] ];
+		return $data + [ 'duplicate' => [ 'chosen' => self::json( self::settings() ) ] ];
 	}
 
 	// Dopo init, quando tipi e tassonomie ci sono. Anche in admin-ajax.php, che ridisegna una riga dopo la modifica rapida.
@@ -95,12 +95,9 @@ final class Module {
 	public static function register(): void {
 		$admin = static fn(): bool => current_user_can( 'manage_options' );
 		$names = [
-			'type'        => 'array',
-			'items'       => [
-				'type'    => 'string',
-				'pattern' => '^[a-z0-9_-]{1,32}$',
-			],
-			'uniqueItems' => true,
+			'type'                 => 'object',
+			'patternProperties'    => [ '^[a-z0-9_-]{1,32}$' => [ 'type' => 'boolean' ] ],
+			'additionalProperties' => false,
 		];
 		register_rest_route(
 			'barrio/v1',
@@ -132,10 +129,10 @@ final class Module {
 	}
 
 	public static function get(): WP_REST_Response {
-		return new WP_REST_Response( self::settings() + Roles::get( [ self::CAP ] ) );
+		return new WP_REST_Response( self::json( self::settings() ) + Roles::get( [ self::CAP ] ) );
 	}
 
-	// Un elenco assente resta com'è. Un tipo che non c'è più resta spento, se torna.
+	// Un elenco assente resta com'è. Un tipo che non c'è più tiene la sua scelta, se torna.
 	public static function put( WP_REST_Request $request ): WP_REST_Response {
 		update_option( self::OPTION, array_intersect_key( $request->get_params(), self::DEFAULTS ) + self::settings(), false );
 		if ( is_array( $request['roles'] ) ) {
@@ -293,9 +290,14 @@ final class Module {
 		if ( is_wp_error( $copy ) ) {
 			return $copy;
 		}
-		// Template, immagine in evidenza, SEO e campi ACF compresi, così come sono.
+		// Template, immagine in evidenza, SEO e campi ACF compresi, così come sono. Un plugin può averne già scritto
+		// uno su save_post: resta solo il valore dell'originale.
 		foreach ( (array) get_post_meta( $post->ID ) as $key => $values ) {
-			foreach ( self::skip_meta( (string) $key ) ? [] : (array) $values as $value ) {
+			if ( self::skip_meta( (string) $key ) ) {
+				continue;
+			}
+			delete_post_meta( $copy, wp_slash( (string) $key ) );
+			foreach ( (array) $values as $value ) {
 				if ( ! add_post_meta( $copy, wp_slash( (string) $key ), self::slash( maybe_unserialize( $value ) ) ) ) {
 					wp_delete_post( $copy, true );
 					return self::failed();
@@ -343,7 +345,11 @@ final class Module {
 		}
 		foreach ( (array) get_term_meta( $term->term_id ) as $key => $values ) {
 			// L'ordine manuale (modulo Ordinamento) no: un termine senza va in fondo.
-			foreach ( '_barrio_order' === $key ? [] : (array) $values as $value ) {
+			if ( '_barrio_order' === $key ) {
+				continue;
+			}
+			delete_term_meta( $copy['term_id'], wp_slash( (string) $key ) );
+			foreach ( (array) $values as $value ) {
 				if ( ! add_term_meta( $copy['term_id'], wp_slash( (string) $key ), self::slash( maybe_unserialize( $value ) ) ) ) {
 					wp_delete_term( $copy['term_id'], $taxonomy );
 					return self::failed();
@@ -355,7 +361,18 @@ final class Module {
 
 	/** @param 'post_types'|'taxonomies' $group */
 	private static function enabled( string $group, string $name ): bool {
-		return in_array( $name, array_column( Admin::content_types()[ $group ], 'name' ), true ) && ! in_array( $name, self::settings()[ $group ], true );
+		$default = array_column( Admin::content_types()[ $group ], 'viewable', 'name' )[ $name ] ?? null;
+		return null !== $default && ( self::settings()[ $group ][ $name ] ?? $default );
+	}
+
+	/**
+	 * Gli elenchi come oggetti JSON anche vuoti.
+	 *
+	 * @param Settings $settings
+	 * @return array{post_types: object, taxonomies: object}
+	 */
+	private static function json( array $settings ): array {
+		return array_map( static fn( array $chosen ): object => (object) $chosen, $settings );
 	}
 
 	// Chi duplica, oltre a CAP, deve poter modificare l'originale (un collaboratore non legge così il privato di un

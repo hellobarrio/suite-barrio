@@ -143,7 +143,7 @@ le aspetta.
 | `barrio_launch_steps` | filtro | `array<string, bool> $steps` | Messa online (`src/Launch.php`): per passaggio, se è configurato secondo le impostazioni vere. Un passaggio per modulo (Forms: `forms`) più quelli del sito (`smtp`, `timezone`, `search`); un passaggio nuovo compare nella guida solo se `assets/src/launch/Launch.js` sa come configurarlo |
 | `barrio_admin_data` | filtro | `array $data` | Per i moduli: i dati delle pagine Barrio, in `window.barrioAdmin` (`src/Admin.php`). Forms aggiunge `forms`; senza, il JavaScript sa che il modulo è spento |
 | `barrio_seo_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo SEO acceso: il momento per collegarsi al SEO, come `barrio_forms_loaded`. L'estensione WPML vi aggiunge a robots.txt le sitemap delle altre lingue |
-| `barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo acceso: il momento per collegarsi a Popup, Banner e Orari, come `barrio_forms_loaded`. L'estensione WPGraphQL vi registra `hbPopup`, `hbPopups`, `hbBanner`, `hbBanners` e `hbOrari` |
+| `barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo acceso: il momento per collegarsi a Popup, Banner e Orari, come `barrio_forms_loaded`. L'estensione WPGraphQL vi registra `hbPopup`, `hbBanner` e `hbOrari` |
 | `barrio_seo_url` | filtro | `string $url` | L'URL di una pagina in ogni punto in cui il modulo SEO lo scrive (`Seo\Meta::url()`: canonical, `og:url`, JSON-LD, llms.txt); le immagini restano su WordPress. Serve a portare gli URL su un frontend headless. La canonical dei singoli nell'head la stampa il core e non passa da qui |
 | `barrio_seo_changed` | azione | `string $what`, `int $id = 0` | Sono cambiati le impostazioni SEO (`'settings'`), i redirect (`'redirects'`, anche quelli automatici) o i meta SEO di un contenuto (`'post'`) o di un termine (`'term'`) con il suo ID, una volta per richiesta: per svuotare la cache di un frontend |
 | `barrio_hours_changed` | azione | — | Sono cambiati gli orari (`barrio_hours`): un salvataggio, o la sincronizzazione con Google, anche quella di ogni notte. Per svuotare la cache di un frontend |
@@ -236,7 +236,7 @@ logica a parte.
 ### Popup, banner e orari
 
 Con i moduli accesi (`barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded`) l'estensione registra
-`hbPopup(lang)`, `hbPopups(lang)`, `hbBanner(lang)`, `hbBanners(lang)` e `hbOrari(lang)`, anch'essi con priorità 9. Lo schema contiene ogni campo del
+`hbPopup(lang)`, `hbBanner(lang)` e `hbOrari(lang)`, anch'essi con priorità 9. Lo schema contiene ogni campo del
 prototipo con lo stesso tipo (`tests/fixtures/wpgraphql-modules-schema.txt`), più tutti i dati dei moduli che il
 prototipo non aveva: i frontend del prototipo funzionano senza modifiche, e quelli nuovi si adeguano. Con un modulo
 spento non registra niente e, se è attivo, risponde il prototipo. `lang` è una lingua attiva, altrimenti la principale.
@@ -245,11 +245,8 @@ spento non registra niente e, se è attivo, risponde il prototipo. `lang` è una
   `null`; i testi sono la riga della lingua, o quella principale. `startsAt` ed `endsAt` sono il periodo (ISO 8601 in
   UTC, `null` senza inizio o fine), per ricontrollarlo nel browser con la cache. Il periodo si valuta alla richiesta:
   un frontend con la cache rivalida su `barrio_popups_changed` e `barrio_banners_changed`, che non partono quando un
-  periodo inizia o finisce.
-- **`hbPopups`, `hbBanners`**: tutti quelli che possono comparire, accesi e non scaduti, anche i programmati,
-  nell'ordine in cui vincono (il più recente prima): il primo nel suo periodo è `hbPopup` o `hbBanner`. Un frontend con
-  la cache sceglie nel browser con `startsAt` ed `endsAt`, così uno programmato compare alla sua data senza aspettare
-  una revalidation.
+  periodo inizia o finisce; per quello il ponte di revalidation programma un evento a ogni inizio e fine futuri. Un
+  popup o un banner programmato non esce prima del suo inizio, nemmeno con i suoi testi.
 - **Popup**: `content` è l'HTML senza shortcode, tranne quello del form (`[barrio_form id="3"]`, senza il paragrafo
   intorno), che il frontend separa dal testo, legge con `hbForm` e invia con `hbSubmitForm`; con il modulo Forms spento
   non c'è. `link` è il pulsante (`null` senza): `title` è il suo testo o quello standard della lingua ("Scopri di

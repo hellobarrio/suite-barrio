@@ -16,7 +16,7 @@ Adds the Barrio Suite forms, SEO, popups, banners and opening hours to the WPGra
 
 * forms: `hbForm`, `hbForms` and `hbSubmitForm`. Submissions go through the same pipeline as the REST API, spam checks and file checks included;
 * SEO: `seo` on every public content type, `hbSeoSite`, `hbSchemaRaw`, `hbSitemap`, `hbRedirects`, `hbLlms` and `hbLlmsFull`, with the same data as the head, the sitemap and llms.txt of WordPress;
-* popups, banners and opening hours: `hbPopup`, `hbBanner` and `hbOrari`, the same popup, banner and hours as on WordPress, with the data the previous plugin did not have: the days before a popup comes back, the period of popups and banners, the usual week, the special days with their notes and the hours as HH:MM. `hbPopups` and `hbBanners` list all those that can show up, scheduled ones included, so a cached frontend can show a promotion on its date.
+* popups, banners and opening hours: `hbPopup`, `hbBanner` and `hbOrari`, the same popup, banner and hours as on WordPress, with the data the previous plugin did not have: the days before a popup comes back, the period of popups and banners, the usual week, the special days with their notes and the hours as HH:MM.
 
 Each part only works while its Barrio Suite module is on. In GraphQL → Settings, "Frontend address" moves the links of the SEO data (canonical, JSON-LD, llms.txt) to the headless site; images stay on WordPress. Without WPGraphQL the extension does nothing.
 

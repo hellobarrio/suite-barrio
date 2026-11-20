@@ -33,6 +33,9 @@ final class Module {
 	private const DATA  = 'https://analyticsdata.googleapis.com/v1beta/';
 	private const ADMIN = 'https://analyticsadmin.googleapis.com/v1beta/';
 
+	// Il primo giorno di Personalizzato: prima di GA4 (App + Web, 2019) nessuna proprietà ha dati.
+	private const FIRST_DAY = '2019-01-01';
+
 	// Il nome di una proprietà GA4 nelle API: finisce nell'URL.
 	private const PROPERTY = '^properties/[0-9]{1,20}$';
 
@@ -72,9 +75,7 @@ final class Module {
 
 	// L'opzione la elimina il core (src/Uninstall.php); i transient scadono da soli.
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			$role->remove_cap( self::CAP );
-		}
+		Roles::remove( [ self::CAP ] );
 	}
 
 	public static function can(): bool {
@@ -87,7 +88,7 @@ final class Module {
 
 	/**
 	 * In window.barrioAdmin.analytics, per la pagina e la card della Bacheca, a chi legge le statistiche: cosa manca e
-	 * ieri, l'ultimo giorno che Personalizzato accetta. Senza, il JavaScript sa che il modulo è spento.
+	 * ieri e first, l'ultimo e il primo giorno che Personalizzato accetta. Senza, il JavaScript sa che il modulo è spento.
 	 *
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
@@ -97,6 +98,7 @@ final class Module {
 			'analytics' => [
 				'missing'   => self::missing(),
 				'yesterday' => self::yesterday(),
+				'first'     => self::FIRST_DAY,
 			],
 		] : $data;
 	}
@@ -272,9 +274,9 @@ final class Module {
 		} else {
 			$start = DateTimeImmutable::createFromFormat( '!Y-m-d', $from, $utc );
 			$last  = DateTimeImmutable::createFromFormat( '!Y-m-d', $to, $utc );
-			// Date che esistono (non 2026-02-30), in ordine, fino a ieri.
-			if ( ! $start || ! $last || $start->format( 'Y-m-d' ) !== $from || $last->format( 'Y-m-d' ) !== $to || $start > $last || $last > $end ) {
-				return new WP_Error( 'rest_invalid_param', __( 'Choose a start and an end date: the end not before the start, and at most yesterday.', 'barrio-suite' ), [ 'status' => 400 ] );
+			// Date che esistono (non 2026-02-30), in ordine, da FIRST_DAY a ieri.
+			if ( ! $start || ! $last || $start->format( 'Y-m-d' ) !== $from || $last->format( 'Y-m-d' ) !== $to || $from < self::FIRST_DAY || $start > $last || $last > $end ) {
+				return new WP_Error( 'rest_invalid_param', __( 'Choose a start and an end date from 2019 to yesterday, the end not before the start.', 'barrio-suite' ), [ 'status' => 400 ] );
 			}
 			$end      = $last;
 			$days     = (int) $start->diff( $end )->days + 1;

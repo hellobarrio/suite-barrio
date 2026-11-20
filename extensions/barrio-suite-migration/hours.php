@@ -32,7 +32,7 @@ function barrio_migration_hours_run( bool $dry_run, array &$report ): ?WP_Error 
 		// Il cron del prototipo, che restava anche spegnendo il modulo.
 		wp_clear_scheduled_hook( 'suite_barrio_cron_aggiorna_orari' );
 	}
-	if ( false !== get_option( 'barrio_hours' ) ) {
+	if ( get_option( 'barrio_hours' ) ) {
 		$report['notes'][] = 'Opening hours: Barrio Suite already has its own, they stay as they are.';
 		return null;
 	}

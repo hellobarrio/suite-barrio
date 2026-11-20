@@ -1,6 +1,6 @@
 <?php
 // Il popup con lo schema del prototipo e i campi che il prototipo non aveva (giorni e periodo): hbPopup, lo stesso del
-// sito (PopupRepository::shown()), e hbPopups, tutti quelli che possono comparire.
+// sito (PopupRepository::shown()). Mai i programmati: un frontend in cache li vede con la revalidation al loro inizio.
 
 use BarrioSuite\I18n;
 use BarrioSuite\Period;
@@ -90,24 +90,6 @@ function barrio_wpgraphql_register_popups(): void {
 				$popup = PopupRepository::shown();
 				return $popup ? barrio_wpgraphql_popup( $popup, I18n::resolve( $args['lang'] ?? null ) ) : null;
 			},
-		]
-	);
-	register_graphql_field(
-		'RootQuery',
-		'hbPopups',
-		[
-			'type'        => [ 'list_of' => [ 'non_null' => 'HBPopup' ] ],
-			'description' => 'The popups that are on and not expired, the scheduled ones too, in the order they win: the first one within its period is hbPopup. A cached frontend can choose it in the browser with startsAt and endsAt.',
-			'args'        => [
-				'lang' => [
-					'type'        => 'String',
-					'description' => 'A language code, like en. Without it, or if it is not active, the main language.',
-				],
-			],
-			'resolve'     => static fn( mixed $root, array $args ): array => array_map(
-				static fn( array $popup ): array => barrio_wpgraphql_popup( $popup, I18n::resolve( $args['lang'] ?? null ) ),
-				PopupRepository::live()
-			),
 		]
 	);
 }

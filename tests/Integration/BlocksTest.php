@@ -75,14 +75,16 @@ final class BlocksTest extends WP_UnitTestCase {
 		$this->assertSame(
 			[
 				[
-					'name'   => 'post',
-					'label'  => 'Posts',
-					'blocks' => true,
+					'name'     => 'post',
+					'label'    => 'Posts',
+					'viewable' => true,
+					'blocks'   => true,
 				],
 				[
-					'name'   => 'page',
-					'label'  => 'Pages',
-					'blocks' => true,
+					'name'     => 'page',
+					'label'    => 'Pages',
+					'viewable' => true,
+					'blocks'   => true,
 				],
 			],
 			$available['types'],

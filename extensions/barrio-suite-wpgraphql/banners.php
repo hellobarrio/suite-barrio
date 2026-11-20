@@ -1,6 +1,6 @@
 <?php
 // Il banner con lo schema del prototipo e il periodo, che il prototipo non aveva: hbBanner, lo stesso del sito
-// (BannerRepository::shown()), e hbBanners, tutti quelli che possono comparire.
+// (BannerRepository::shown()). Mai i programmati: un frontend in cache li vede con la revalidation al loro inizio.
 
 use BarrioSuite\Banners\BannerRepository;
 use BarrioSuite\I18n;
@@ -68,24 +68,6 @@ function barrio_wpgraphql_register_banners(): void {
 				$banner = BannerRepository::shown();
 				return $banner ? barrio_wpgraphql_banner( $banner, I18n::resolve( $args['lang'] ?? null ) ) : null;
 			},
-		]
-	);
-	register_graphql_field(
-		'RootQuery',
-		'hbBanners',
-		[
-			'type'        => [ 'list_of' => [ 'non_null' => 'HBBanner' ] ],
-			'description' => 'The banners that are on and not expired, the scheduled ones too, in the order they win: the first one within its period is hbBanner. A cached frontend can choose it in the browser with startsAt and endsAt.',
-			'args'        => [
-				'lang' => [
-					'type'        => 'String',
-					'description' => 'A language code, like en. Without it, or if it is not active, the main language.',
-				],
-			],
-			'resolve'     => static fn( mixed $root, array $args ): array => array_map(
-				static fn( array $banner ): array => barrio_wpgraphql_banner( $banner, I18n::resolve( $args['lang'] ?? null ) ),
-				BannerRepository::live()
-			),
 		]
 	);
 }

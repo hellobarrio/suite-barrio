@@ -213,7 +213,7 @@ final class SeoDataTest extends WP_UnitTestCase {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 
 		$this->assertSame( 400, $this->settings( $body )->get_status() );
-		$this->assertFalse( get_option( 'barrio_seo' ) );
+		$this->assertSame( [], get_option( 'barrio_seo' ) );
 	}
 
 	public function test_only_administrators_manage_settings_and_permissions(): void {

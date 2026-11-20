@@ -33,8 +33,6 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 
 	private const NEW_BANNER = '{ hbBanner { startsAt endsAt } }';
 
-	private const LISTS = 'query ($lang: String) { hbPopups(lang: $lang) { title } hbBanners(lang: $lang) { title } }';
-
 	private const NEW_ORARI = 'query ($lang: String) {
 		hbOrari(lang: $lang) {
 			fonte
@@ -74,7 +72,7 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 			return $lines;
 		};
 		$prototype = (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/wpgraphql-modules-schema.txt' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$schema    = WpGraphqlTest::sdl( [ 'RootQuery' => [ 'hbBanner', 'hbBanners', 'hbOrari', 'hbPopup', 'hbPopups' ] ] );
+		$schema    = WpGraphqlTest::sdl( [ 'RootQuery' => [ 'hbBanner', 'hbOrari', 'hbPopup' ] ] );
 		$this->assertSame( [], array_values( array_diff( $lines( $prototype ), $lines( $schema ) ) ) );
 		$this->assertStringContainsString( "type HBPopup {\n  content: String\n  days: Int\n  endsAt: String\n", $schema, 'The new fields are there too.' );
 	}
@@ -111,8 +109,6 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		// Programmato: non è ancora quello del sito.
 		$this->popup( 'Domani', null, gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) );
 		$this->popup( 'Scaduto', null, '2020-01-01 00:00:00', '2020-02-01 00:00:00' );
-		// Tutti quelli che possono comparire, nell'ordine in cui vincono: il programmato sì, lo scaduto no.
-		$this->assertSame( [ 'Domani', 'Newsletter', 'Sempre' ], array_column( $this->query( self::LISTS )['hbPopups'], 'title' ) );
 
 		$popup = $this->query( self::GET_POPUP )['hbPopup'];
 		$this->assertSame( $id, $popup['id'] );
@@ -159,7 +155,6 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		PopupRepository::set_enabled( false, $id );
 		$popup = $this->query( self::GET_POPUP )['hbPopup'];
 		$this->assertSame( [ $older, null, null ], [ $popup['id'], $popup['link'], $popup['image'] ] );
-		$this->assertSame( [ 'Domani (en)', 'Sempre (en)' ], array_column( $this->query( self::LISTS, [ 'lang' => 'en' ] )['hbPopups'], 'title' ) );
 	}
 
 	public function test_the_banner_is_the_one_of_the_site_in_the_requested_language(): void {
@@ -188,9 +183,8 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		$off = $banner( 'Spento', false );
 		$this->assertIsInt( $off );
 		BannerRepository::set_enabled( false, $off );
-		// Programmato: è nella lista, prima degli altri, ma non è ancora quello del sito.
+		// Programmato: è il più recente, ma non è ancora quello del sito.
 		$banner( 'Domani', false, gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) );
-		$this->assertSame( [ 'Domani (en)', 'Saldi (en)', 'Spedizione gratuita (en)' ], array_column( $this->query( self::LISTS, [ 'lang' => 'en' ] )['hbBanners'], 'title' ) );
 
 		$this->assertSame(
 			[

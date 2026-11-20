@@ -223,7 +223,7 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		)->get_data();
 
 		$this->assertSame( [ 'LocalBusiness', 'Pizzeria da Mario', '+39 011 123456', 'Pizza a Torino.' ], [ $node['@type'], $node['name'], $node['telephone'], $node['description'] ] );
-		$this->assertFalse( get_option( 'barrio_seo' ), 'Nothing is saved.' );
+		$this->assertSame( [], get_option( 'barrio_seo' ), 'Nothing is saved.' );
 		$this->assertSame( 400, $this->rest( 'POST', '/barrio/v1/seo/settings/schema', [ 'organization' => [ 'type' => 'Pizzeria' ] + $organization ] )->get_status() );
 	}
 

@@ -5,7 +5,7 @@
 // amministratori: la generazione e i Permessi. E la card della Bacheca.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useRef, useState } from '@wordpress/element';
-import { __, _x, sprintf } from '@wordpress/i18n';
+import { __, _n, _x, sprintf } from '@wordpress/i18n';
 
 import { initialQuery } from '../../../../assets/src/admin/query.js';
 import {
@@ -54,6 +54,14 @@ const params = ( query ) =>
 	new URLSearchParams(
 		Object.entries( query ).filter( ( [ , value ] ) => '' !== value )
 	);
+
+// Gli errori di Module::generate() che riguardano solo quell'immagine: "Genera tutti" la salta e va avanti.
+const SKIP = [
+	'barrio_alt_file',
+	'barrio_alt_format',
+	'barrio_alt_size',
+	'barrio_alt_not_image',
+];
 
 const generate = ( id, save = false ) =>
 	apiFetch( {
@@ -327,12 +335,13 @@ export function AltText() {
 		return notice ? <Notice notice={ notice } /> : <Loading />;
 	}
 
-	// Una alla volta, per i limiti di richieste al minuto di Google. Si ferma al primo errore o con Interrompi: le
-	// immagini già fatte restano salvate.
+	// Una alla volta, per i limiti di richieste al minuto di Google. L'errore di una sola immagine (SKIP) la salta;
+	// gli altri (quota, configurazione, rete) fermano tutto, come Interrompi: le immagini già fatte restano salvate.
 	const run = async ( ids ) => {
 		stopped.current = false;
 		setRunning( true );
 		let done = 0;
+		let skipped = 0;
 		try {
 			for ( const id of ids ) {
 				if ( stopped.current ) {
@@ -343,7 +352,7 @@ export function AltText() {
 					message: sprintf(
 						/* translators: 1: number of the image being generated, 2: number of images. */
 						__( 'Generating %1$d of %2$d…', 'barrio-suite' ),
-						done + 1,
+						done + skipped + 1,
 						ids.length
 					),
 					action: (
@@ -358,17 +367,36 @@ export function AltText() {
 						</button>
 					),
 				} );
-				await generate( id, true );
-				done++;
+				try {
+					await generate( id, true );
+					done++;
+				} catch ( error ) {
+					if ( ! SKIP.includes( error?.code ) ) {
+						throw error;
+					}
+					skipped++;
+				}
 			}
+			const message = sprintf(
+				/* translators: 1: number of images done, 2: number of images. */
+				__( '%1$d of %2$d images done.', 'barrio-suite' ),
+				done,
+				ids.length
+			);
 			setNotice( {
-				status: 'success',
-				message: sprintf(
-					/* translators: 1: number of images done, 2: number of images. */
-					__( '%1$d of %2$d images done.', 'barrio-suite' ),
-					done,
-					ids.length
-				),
+				status: skipped ? 'warning' : 'success',
+				message: skipped
+					? `${ message } ${ sprintf(
+							/* translators: %d: number of images skipped. */
+							_n(
+								'%d skipped: its file is missing, too large or in a format Google does not read.',
+								'%d skipped: their file is missing, too large or in a format Google does not read.',
+								skipped,
+								'barrio-suite'
+							),
+							skipped
+						) }`
+					: message,
 			} );
 		} catch ( error ) {
 			fail( error );
