@@ -5,6 +5,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 
 import { AltCard } from '../../../modules/alt/assets/src/Alt.js';
+import { AnalyticsCard } from '../../../modules/analytics/assets/src/Analytics.js';
 import { BannersCard } from '../../../modules/banners/assets/src/Banners.js';
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { HoursCard } from '../../../modules/hours/assets/src/Hours.js';
@@ -35,6 +36,7 @@ export function Dashboard() {
 				<LaunchBanner launch={ launch } href={ launchUrl() } />
 			) }
 			<div className="barrio-modules">
+				<AnalyticsCard />
 				<FormsCard />
 				<SeoCard />
 				<AltCard />

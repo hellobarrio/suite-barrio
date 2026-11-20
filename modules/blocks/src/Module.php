@@ -161,7 +161,7 @@ final class Module {
 
 	/**
 	 * Tutti i blocchi registrati tranne quelli spenti. I blocchi registrati solo nel JavaScript non sono nell'elenco,
-	 * quindi con un blocco spento spariscono anche loro (PLAN-MODULI.md §10).
+	 * quindi con un blocco spento spariscono anche loro (PLAN-MODULI.md §11).
 	 *
 	 * @param bool|string[] $allowed
 	 * @return bool|string[]

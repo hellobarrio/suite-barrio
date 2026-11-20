@@ -44,6 +44,7 @@ final class ModulesTest extends WP_UnitTestCase {
 		$this->assertFalse( get_option( 'barrio_disabled_modules' ) );
 		$this->assertSame(
 			[
+				'analytics'   => true,
 				'forms'       => true,
 				'seo'         => true,
 				'alt'         => true,
@@ -66,6 +67,7 @@ final class ModulesTest extends WP_UnitTestCase {
 
 		$this->assertSame(
 			[
+				'analytics'   => true,
 				'forms'       => false,
 				'seo'         => true,
 				'alt'         => true,

@@ -10,6 +10,11 @@ import {
 	altSection,
 } from '../../../modules/alt/assets/src/Alt.js';
 import {
+	ANALYTICS,
+	Overview,
+	analyticsSection,
+} from '../../../modules/analytics/assets/src/Analytics.js';
+import {
 	BANNERS,
 	BannersTab,
 	bannersSettingsSection,
@@ -42,6 +47,7 @@ const params = new URLSearchParams( window.location.search );
 
 // Costante: General ricarica le sezioni quando cambia l'array.
 const ALT_SECTIONS = [ altSection ];
+const ANALYTICS_SECTIONS = [ analyticsSection ];
 const BANNERS_SETTINGS = [ bannersSettingsSection ];
 const POPUPS_SETTINGS = [ popupsSettingsSection ];
 const HOURS_SECTIONS = [ hoursSection ];
@@ -56,6 +62,31 @@ const PAGES = {
 			'barrio-suite'
 		),
 		page: <Dashboard />,
+	},
+	'barrio-analytics': {
+		title: ANALYTICS.title,
+		description: __(
+			'The visits of the site, read from Google Analytics when you open this page.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-analytics"
+				tabs={ [
+					[ '', __( 'Overview', 'barrio-suite' ), Overview ],
+					window.barrioAdmin.canManageOptions && [
+						'settings',
+						__( 'Settings', 'barrio-suite' ),
+						() => (
+							<General
+								title={ __( 'Settings', 'barrio-suite' ) }
+								sections={ ANALYTICS_SECTIONS }
+							/>
+						),
+					],
+				].filter( Boolean ) }
+			/>
+		),
 	},
 	'barrio-forms': formsPage,
 	'barrio-seo': seoPage,
@@ -210,7 +241,15 @@ if ( params.has( 'launch' ) ) {
 		page: <Launch />,
 	};
 }
-const { title, description, page } = PAGES[ params.get( 'page' ) ];
+// La Bacheca di WordPress, se le Statistiche la sostituiscono (Module::replace_dashboard() in modules/analytics):
+// solo la Panoramica, senza le Impostazioni.
+PAGES.dashboard = {
+	title: ANALYTICS.title,
+	description: PAGES[ 'barrio-analytics' ].description,
+	page: <Overview />,
+};
+const { title, description, page } =
+	PAGES[ params.get( 'page' ) ?? window.pagenow ];
 
 createRoot( document.getElementById( 'barrio-admin' ) ).render(
 	<div className="barrio-admin">
