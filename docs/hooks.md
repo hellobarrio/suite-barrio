@@ -9,7 +9,7 @@ plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_languages` e seguenti |
 | [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio e per il SEO: lo schema GraphQL del prototipo sopra `FormRepository`, `Submission::process()` e `Seo\Meta`, e un'impostazione nella pagina di un altro plugin (vedi [GraphQL](#graphql)) |
-| [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle e le opzioni di un altro plugin e scrive con `FormRepository::create()` (con l'ID), `EntryRepository::create()` (con data e stato di lettura), `Seo\Settings::save()` e `RedirectRepository::create()`, in due comandi WP-CLI; tiene spento un modulo finché i dati non sono migrati (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
+| [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle e le opzioni di un altro plugin e scrive con `FormRepository::create()` (con l'ID), `EntryRepository::create()` (con data e stato di lettura), `Seo\Settings::save()`, `RedirectRepository::create()`, `PopupRepository::save()` e `BannerRepository::save()` e le opzioni dei moduli, con un comando WP-CLI per modulo; tiene spento un modulo finché i dati non sono migrati (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
 
 I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`,
 `WpGraphqlTest`, `SeoGraphqlTest`, `MigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. I test GraphQL girano solo con
@@ -270,7 +270,7 @@ spento non registra niente e, se è attivo, risponde il prototipo. `lang` è una
 
 ## Migrazione dal prototipo
 
-`barrio-suite-migration` porta su Barrio Suite i moduli Forms e SEO di Suite Barrio (il prototipo), un sito alla volta.
+`barrio-suite-migration` porta su Barrio Suite i moduli di Suite Barrio (il prototipo), un sito alla volta e un modulo alla volta.
 
 ### Form
 
@@ -349,6 +349,54 @@ wp barrio seo migrate
   prototipo nella cartella del sito sono eliminati, e finché il prototipo è attivo l'estensione chiama la sua
   revalidation di Next.js su `barrio_seo_changed`. Gli archivi degli autori sono noindex, come nel prototipo che non
   li aveva. Le opzioni e i meta `_suite_barrio_seo_*` del prototipo restano: si eliminano a mano dopo la verifica.
+
+### Popup, Banner, Orari, Blocchi, Ordinamento, Duplicazione, Testi alternativi e Statistiche
+
+```sh
+wp barrio popups migrate --dry-run   # i conteggi e gli avvisi, niente salvato; poi senza --dry-run
+wp barrio banners migrate            # e hours, blocks, ordering, duplicate, alt, analytics
+```
+
+- **Prima**: con l'estensione attiva, ogni modulo di Barrio Suite il cui modulo del prototipo è acceso (Suite
+  Barrio → Strumenti; Statistiche nel prototipo è sempre acceso) si spegne da solo, una volta, con lo stato in
+  `barrio_migration_<modulo>` (`held`), e gli amministratori vedono un solo avviso con i comandi. Altrimenti il sito
+  avrebbe due popup e due banner, due link Duplica, due sincronizzazioni degli orari, e in GraphQL i tipi `hb*` del
+  prototipo al posto di quelli dell'estensione. Riacceso a mano prima della migrazione, resta acceso.
+- **Popup e banner**: ogni riga di `wpb_popups` e `wpb_banners` diventa un record con `PopupRepository::save()` o
+  `BannerRepository::save()`, nella sua transazione, con un ID nuovo; la mappa degli ID è in
+  `barrio_migration_popups_ids` e `barrio_migration_banners_ids`, e al giro dopo quelli migrati si saltano. Quello
+  attivo resta acceso (il popup con 7 giorni, il valore del prototipo), gli altri spenti; nessun periodo. Le traduzioni
+  diventano righe complete: un campo vuoto prende quello della lingua principale. Il testo del popup passa da
+  `wpautop()`, che il prototipo applicava solo nel sito; un'immagine scelta come URL diventa il suo allegato. Un link
+  che non è un indirizzo o un percorso (`#ancora`, `mailto:`) si toglie, con il pulsante; un popup senza titolo prende
+  "Popup N" (Barrio Suite lo mostra ed è il nome del `<dialog>`); un banner senza testo non passa. Il comando elenca
+  i contenuti con gli shortcode del prototipo e i loro attributi (`delay`, `days`): l'estensione li registra vuoti,
+  perché popup e banner sono in tutte le pagine.
+- **Orari**: il Place ID passa e la fonte diventa Google (manuale senza Place ID); la settimana è l'ultima che il
+  prototipo aveva preso da Google, i giorni dai nomi italiani, con `synced_at` dall'ultimo aggiornamento. Barrio Suite
+  la sostituisce alla sincronizzazione delle 3 con la settimana normale e i giorni speciali. La chiave API non passa;
+  il cron del prototipo (`suite_barrio_cron_aggiorna_orari`) si toglie.
+- **Blocchi**: per ogni ruolo senza `manage_options` i blocchi disattivati sono quelli registrati meno quelli ammessi,
+  senza i blocchi figli (che seguono il loro blocco: un elenco ha di nuovo le sue voci) e senza quelli di Barrio
+  Suite, che il prototipo non conosceva. Con la restrizione accesa (anche senza l'opzione: era il default del
+  prototipo, con 5 blocchi) anche H1 e colori e tipografia; i pannelli sempre, come faceva il prototipo. I tipi senza
+  "editor Gutenberg" diventano "nessun editor".
+- **Ordinamento**: i tipi e le tassonomie abilitati; il meta `suite_barrio_term_order` diventa `_barrio_order` con una
+  sola istruzione, tranne dove c'è già.
+- **Duplicazione**: il prototipo salvava i tipi abilitati, Barrio Suite quelli spenti: tutti gli altri si spengono.
+- **Testi alternativi**: `suite_barrio_alt_ai_auto_upload` diventa `on_upload`; provider, chiavi, modello, lingua,
+  tono, stile, contesto e parole chiave restano, con un avviso.
+- **Statistiche**: `property_id` diventa `properties/{id}`, `replace_dashboard` passa com'è. Il comando chiede a
+  Google se il service account vede la proprietà (anche con `--dry-run`) e, se no, dice quale email aggiungere come
+  Visualizzatore. Client OAuth e token non passano: `suite_barrio_stats_tokens` (un refresh token in chiaro) si
+  elimina, e il comando ricorda di eliminare il client in Google Cloud.
+- **Impostazioni già in Barrio Suite**: un'opzione che c'è già (`barrio_hours`, `barrio_blocks`, …) resta com'è.
+- **Dopo**: il modulo del prototipo è spento (`suite_barrio_tools_modules`) e quello di Barrio Suite acceso. Finché il
+  prototipo è attivo l'estensione chiama la sua revalidation di Next.js: `barrio_popups_changed` (`wp:popup`),
+  `barrio_banners_changed` (`wp:banner`), `barrio_hours_changed` (`wp:orari`), `barrio_ordering_changed`
+  (`wp:type:{tipo}`); per popup e banner anche all'inizio e alla fine di ogni periodo futuro, con un evento di WP-Cron
+  (`barrio_migration_popups_period`, `barrio_migration_banners_period`). Le tabelle `wpb_popups*` e `wpb_banners*` e
+  le opzioni del prototipo restano: si eliminano a mano dopo la verifica.
 
 ## Database
 

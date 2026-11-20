@@ -732,8 +732,13 @@ Blocchi, Duplicazione, Testi alternativi e Statistiche non hanno hook: nessuna e
 - **Periodo e frontend headless** (da M8): `hbPopup` e `hbBanner` valutano il periodo alla richiesta, ma
   `barrio_popups_changed` e `barrio_banners_changed` non partono quando un periodo inizia o finisce. Con `startsAt` ed
   `endsAt` il frontend nasconde nel browser quello scaduto, ma con la cache di Next.js uno programmato compare solo
-  alla prossima revalidation: il ponte (M10) o l'estensione di revalidation devono programmarne una anche su
-  `starts_at` e `ends_at`.
+  alla prossima revalidation. Il ponte di M10 ne programma una a ogni `starts_at` ed `ends_at` futuro degli accesi
+  (un evento singolo di WP-Cron); l'estensione di revalidation dovrà fare lo stesso.
+- **Prototipo, ordine dei termini** (visto in M10): con una tassonomia in ordine manuale, fuori dall'admin il filtro
+  `terms_clauses` del prototipo sostituisce l'ORDER BY e WordPress aggiunge il verso: `t.name ASC ASC`, un errore SQL
+  in ogni query dei termini di quella tassonomia, nel sito, in REST, in GraphQL e in WP-CLI (anche
+  `wp_insert_term()`). Sui siti del prototipo che lo usano, quei termini nel frontend non escono: dopo la migrazione
+  tornano, nell'ordine salvato.
 - **Gemini con le immagini**: quali modelli dell'elenco accettano immagini (il filtro attuale tiene ogni `gemini-*`);
   tempi per 500 immagini in massa.
 - **Lingua dell'alt con WPML**: con la traduzione dei media ogni lingua ha il suo allegato, che dovrebbe avere l'alt
@@ -773,22 +778,32 @@ Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti
 | M9 | **Statistiche** (§9): opzione e schema, capability, report di Google, REST, pagina con Panoramica e Impostazioni, card della Bacheca e widget | Lo schema rifiuta una proprietà non valida, e la capability arriva ad admin ed editor. Con Google simulato (`pre_http_request`):<br>• ogni periodo manda date, dimensioni e confronto giusti, e la settimana usa `isoYearIsoWeek`;<br>• la seconda apertura non chiama Google, anche dalla card o dal widget;<br>• un errore non va in cache e arriva nella pagina con il suo motivo, anche l'accesso mancante con l'email del service account.<br>Un autore non legge i report. Senza service account o proprietà la pagina dice cosa manca e non chiama Google, e il widget non c'è. `index.php` si carica senza aspettare Google. La scala del grafico ha il suo `node --test`. Pagina e widget controllati a 360px; prova con una proprietà vera |
 | M10 | **Migrazione dal prototipo** in `barrio-suite-migration` | Su wp-env con il prototipo e i suoi dati: prova a vuoto e migrazione con gli stessi conteggi; popup, banner, orari, statistiche e GraphQL uguali prima e dopo, tranne le correzioni previste |
 
-**Migrazione (M10)**: come per il SEO, il comando si può rilanciare e lascia com'è ciò che Barrio Suite ha già.
+**Migrazione (M10)**: come per il SEO, il comando si può rilanciare e lascia com'è ciò che Barrio Suite ha già (un
+popup o un banner già migrato, un'opzione che c'è già). La prova a vuoto dà gli stessi conteggi e avvisi. Lo
+scambio dei moduli, l'avviso e il ponte sono comuni (`barrio-suite-migration.php`); ogni modulo ha il suo file con
+`barrio_migration_<modulo>_run()`.
 
-- **Popup**: `wpb_popups` e `wpb_popups_translations` diventano righe di `popups` e `popups_i18n`, in una
-  transazione per popup.
+- **Popup**: `wpb_popups` e `wpb_popups_translations` diventano righe di `popups` e `popups_i18n` con
+  `PopupRepository::save()`, in una transazione per popup, con un ID nuovo (la mappa in
+  `barrio_migration_popups_ids`).
   - Quello attivo resta acceso, con 7 giorni (il valore di default del prototipo); gli altri restano spenti.
   - `image_url` senza `image_id` diventa un ID con `attachment_url_to_postid()`; il testo passa da `wpautop`.
   - Un campo tradotto vuoto prende quello della lingua principale, come le righe complete del §1.
-- **Banner**: `wpb_banners` e `wpb_banners_translations` diventano `banners` e `banners_i18n`. Il titolo diventa il
-  testo; quello attivo resta acceso.
+  - Senza titolo diventa "Popup N", con un avviso: Barrio Suite lo mostra ed è il nome del `<dialog>`. Un link che
+    non è un indirizzo o un percorso (`#ancora`, `mailto:`) si toglie con il pulsante, con un avviso.
+- **Banner**: `wpb_banners` e `wpb_banners_translations` diventano `banners` e `banners_i18n`, come i popup (mappa in
+  `barrio_migration_banners_ids`). Il titolo diventa il testo; quello attivo resta acceso. Uno senza testo non
+  passa, con un avviso.
 - **Shortcode**: il comando elenca i contenuti con gli shortcode del prototipo e i loro attributi, che spariscono:
   popup e banner sono in tutte le pagine.
-- **Orari**: il Place ID passa e la fonte diventa Google; la settimana parte dagli ultimi dati salvati, con
-  `synced_at`. La chiave API non passa, con un avviso se manca il service account.
-- **Blocchi**: con la restrizione accesa, per ogni ruolo tranne gli amministratori:
-  - i blocchi disattivati sono quelli registrati meno quelli ammessi (figli esclusi);
-  - H1, colori e tipografia e i pannelli diventano restrizioni accese, come si comportava il prototipo.
+- **Orari**: il Place ID passa e la fonte diventa Google (manuale senza Place ID); la settimana parte dagli ultimi
+  dati salvati, con `synced_at`. La chiave API non passa, con un avviso (che dice anche se manca il service account).
+  Il cron del prototipo, che non si toglieva mai, si toglie.
+- **Blocchi**: per ogni ruolo senza `manage_options`, come nel prototipo:
+  - con la restrizione accesa (anche senza l'opzione salvata: era il default, con 5 blocchi), i blocchi disattivati
+    sono quelli registrati meno quelli ammessi, senza i figli e senza quelli di Barrio Suite, che il prototipo non
+    conosceva (altrimenti il conto cambierebbe se il modulo Orari si accende prima); H1, colori e tipografia accesi;
+  - i pannelli sempre: il prototipo li nascondeva anche con la restrizione spenta.
 
   I tipi senza "editor Gutenberg" diventano "nessun editor".
 - **Ordinamento**: i tipi e le tassonomie abilitati; il meta `suite_barrio_term_order` diventa `_barrio_order`.
@@ -805,8 +820,16 @@ Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti
   - `replace_dashboard` passa così com'è: con la sostituzione accesa, gli utenti senza `barrio_view_analytics`
     tornano alla Bacheca di WordPress, e il comando lo ricorda.
 - **Prima della migrazione**: ogni modulo di Barrio Suite resta spento finché quello del prototipo è acceso, come il
-  SEO (`barrio_migration_<modulo>` = `held`).
+  SEO (`barrio_migration_<modulo>` = `held`, poi `migrated`), con un solo avviso per tutti i moduli trattenuti.
+  Statistiche nel prototipo è sempre acceso (non è tra gli Strumenti).
 - **Alla fine**: il modulo del prototipo si spegne e quello di Barrio Suite si accende. Le tabelle `wpb_popups*` e
   `wpb_banners*` del prototipo si eliminano a mano dopo la verifica, come quelle dei form.
 - **Ponte di revalidation**: `barrio_popups_changed` (`wp:popup`), `barrio_banners_changed` (`wp:banner`),
-  `barrio_hours_changed` (`wp:orari`), `barrio_ordering_changed` (`wp:type:{tipo}`).
+  `barrio_hours_changed` (`wp:orari`), `barrio_ordering_changed` (`wp:type:{tipo}`). Per popup e banner anche a ogni
+  inizio e fine futuri degli accesi (§11).
+- **Provato su wp-env** con il prototipo 9.1.6 e i suoi dati: prova a vuoto e migrazione con gli stessi conteggi,
+  il secondo giro salta tutto. `hbOrari` è identico; `hbPopup` e `hbBanner` cambiano solo per le correzioni previste
+  (ID nuovo, testo in paragrafi, l'immagine data come URL che ora c'è). Nella pagina popup e banner sono quelli di
+  Barrio Suite e gli shortcode non stampano niente; il cron degli orari e il token di GA del prototipo non ci sono
+  più. La chiusura si ricorda con un'altra chiave (`localStorage` invece del cookie del prototipo, e nei frontend
+  l'ID nuovo): chi aveva chiuso il popup lo rivede una volta.
