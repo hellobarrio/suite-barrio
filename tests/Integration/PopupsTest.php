@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Tests\Integration;
 
+use BarrioSuite\Database\Db;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Repository\FormRepository;
@@ -46,11 +47,10 @@ final class PopupsTest extends WP_UnitTestCase {
 
 	public function test_the_schema_refuses_invalid_settings_texts_and_dates(): void {
 		$invalid = [
-			'trigger'            => $this->popup( [ 'trigger' => [ 'type' => 'click' ] ] ),
-			'scroll over 100'    => $this->popup( [ 'trigger' => [ 'scroll' => 101 ] ] ),
-			'delay negative'     => $this->popup( [ 'trigger' => [ 'delay' => -1 ] ] ),
+			'days negative'      => $this->popup( [ 'days' => -1 ] ),
 			'days over a year'   => $this->popup( [ 'days' => 366 ] ),
 			'unknown setting'    => $this->popup( [ 'where' => [ 'mode' => 'all' ] ] ),
+			'opening removed'    => $this->popup( [ 'trigger' => [ 'type' => 'delay' ] ] ),
 			'image 0'            => $this->popup( [], [ 'image_id' => 0 ] ),
 			'javascript link'    => $this->popup( [], [ 'i18n' => [ 'it' => $this->text( 'Newsletter', 'javascript:alert(1)' ) ] ] ),
 			'button without one' => $this->popup( [], [ 'i18n' => [ 'it' => $this->text( 'Newsletter', null, 'Iscriviti' ) ] ] ),
@@ -69,6 +69,23 @@ final class PopupsTest extends WP_UnitTestCase {
 			$this->assertSame( 400, $this->request( 'POST', '/barrio/v1/popups', $body )->get_status(), $name );
 		}
 		$this->assertSame( [], PopupRepository::all(), 'Nothing was written.' );
+	}
+
+	public function test_a_setting_saved_before_it_was_removed_is_dropped(): void {
+		global $wpdb;
+		$id = $this->create();
+		$wpdb->update( Db::table( 'popups' ), [ 'settings' => '{"trigger": {"type": "scroll", "delay": 2, "scroll": 40}, "new_tab": false, "days": 7}' ], [ 'id' => $id ] );
+
+		$popup = PopupRepository::get( $id );
+		// assertEquals: MySQL 8.0 riordina le chiavi delle colonne JSON.
+		$this->assertEquals(
+			[
+				'new_tab' => false,
+				'days'    => 7,
+			],
+			$popup['settings'] ?? null
+		);
+		$this->assertSame( $id, PopupRepository::save( $id, $popup ), 'The editor saves it again.' );
 	}
 
 	public function test_texts_are_filtered_and_empty_ones_are_null(): void {
@@ -219,10 +236,6 @@ final class PopupsTest extends WP_UnitTestCase {
 		$id    = $this->create(
 			[
 				'new_tab' => true,
-				'trigger' => [
-					'type'   => 'scroll',
-					'scroll' => 40,
-				],
 				'days'    => 3,
 			],
 			[
@@ -240,15 +253,10 @@ final class PopupsTest extends WP_UnitTestCase {
 		preg_match( '/data-barrio-popup-rules="([^"]+)"/', $html, $match );
 		$this->assertSame(
 			[
-				'key'     => "barrio_popups_{$id}",
-				'start'   => null,
-				'end'     => null,
-				'days'    => 3,
-				'trigger' => [
-					'type'   => 'scroll',
-					'delay'  => 2,
-					'scroll' => 40,
-				],
+				'key'   => "barrio_popups_{$id}",
+				'start' => null,
+				'end'   => null,
+				'days'  => 3,
 			],
 			json_decode( html_entity_decode( $match[1] ?? '' ), true )
 		);
@@ -299,7 +307,7 @@ final class PopupsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'frontend/form.js', $html );
 		$this->assertSame( [], PopupRepository::all(), 'Nothing saved.' );
 
-		$settings['trigger']['type'] = 'click';
+		$settings['days'] = 366;
 		$this->assertSame( 400, $this->request( 'POST', '/barrio/v1/popups/preview', [ 'settings' => $settings ] )->get_status() );
 	}
 
@@ -319,11 +327,6 @@ final class PopupsTest extends WP_UnitTestCase {
 				'image_id'   => null,
 				'settings'   => array_replace_recursive(
 					[
-						'trigger' => [
-							'type'   => 'delay',
-							'delay'  => 2,
-							'scroll' => 50,
-						],
 						'new_tab' => false,
 						'days'    => 7,
 					],

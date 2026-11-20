@@ -491,7 +491,8 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$types = [];
 		while ( $queue ) {
 			$type = array_shift( $queue );
-			if ( isset( $types[ $type->name ] ) || ! ( $type instanceof ObjectType || $type instanceof InputObjectType ) ) {
+			// I tipi di WPGraphQL, come MediaItem, sono nodi con le loro interfacce: restano col nome.
+			if ( isset( $types[ $type->name ] ) || ! ( $type instanceof ObjectType || $type instanceof InputObjectType ) || ( $type instanceof ObjectType && $type->getInterfaces() ) ) {
 				continue;
 			}
 			$fields = $type->getFields();

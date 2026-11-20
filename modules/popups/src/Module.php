@@ -32,6 +32,8 @@ final class Module {
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'admin_menu', [ self::class, 'menu' ] );
 		add_filter( 'barrio_admin_data', [ self::class, 'admin_data' ] );
+		// Le estensioni del modulo (WPGraphQL) si collegano qui, come a barrio_forms_loaded.
+		add_action( 'init', static fn() => do_action( 'barrio_popups_loaded' ), 5 );
 	}
 
 	public static function deactivate(): void {}
@@ -69,7 +71,7 @@ final class Module {
 
 	/**
 	 * Chiuso finché il JavaScript non lo apre; $open per l'anteprima, che non ha JavaScript. Le regole per il browser:
-	 * la chiave della chiusura in localStorage, inizio e fine in secondi, i giorni, l'apertura.
+	 * la chiave della chiusura in localStorage, inizio e fine in secondi, i giorni.
 	 *
 	 * @param Popup $popup
 	 */
@@ -79,21 +81,17 @@ final class Module {
 		$id       = "barrio-popup-{$popup['id']}";
 		$time     = static fn( ?string $utc ): ?int => null === $utc ? null : (int) strtotime( "{$utc} UTC" );
 		$rules    = [
-			'key'     => "barrio_popups_{$popup['id']}",
-			'start'   => $time( $popup['starts_at'] ),
-			'end'     => $time( $popup['ends_at'] ),
-			'days'    => $settings['days'],
-			'trigger' => $settings['trigger'],
+			'key'   => "barrio_popups_{$popup['id']}",
+			'start' => $time( $popup['starts_at'] ),
+			'end'   => $time( $popup['ends_at'] ),
+			'days'  => $settings['days'],
 		];
-		// L'editor mette lo shortcode del form in un paragrafo, che lo lascerebbe vuoto sotto il form.
-		$content = shortcode_unautop( (string) ( $text['content'] ?? '' ) );
-		// Senza il modulo Form lo shortcode non stampa niente, invece del suo testo.
-		$content = shortcode_exists( 'barrio_form' ) ? $content : (string) preg_replace( '/' . get_shortcode_regex( [ 'barrio_form' ] ) . '/', '', $content );
-		$button  = empty( $text['link_url'] ) ? '' : sprintf(
+		$content  = self::content( $text );
+		$button   = empty( $text['link_url'] ) ? '' : sprintf(
 			'<a class="barrio-popup__button" href="%s"%s>%s</a>',
 			esc_url( $text['link_url'] ),
 			$settings['new_tab'] ? ' target="_blank" rel="noopener"' : '',
-			esc_html( $text['button_label'] ?? __( 'Learn more', 'barrio-suite' ) )
+			esc_html( self::label( $text ) )
 		);
 		return sprintf(
 			'<dialog id="%1$s" class="barrio-popup" data-barrio-popup-rules="%2$s" aria-labelledby="%1$s-title"%3$s><div class="barrio-popup__box">'
@@ -109,6 +107,26 @@ final class Module {
 			'' === trim( $content ) ? '' : '<div class="barrio-popup__content">' . do_shortcode( $content ) . '</div>',
 			$button
 		);
+	}
+
+	/**
+	 * Il testo prima degli shortcode, nel sito e in GraphQL. L'editor mette lo shortcode del form in un paragrafo, che
+	 * resterebbe vuoto sotto il form; senza il modulo Form lo shortcode si toglie, invece di restare come testo.
+	 *
+	 * @param array{content?: string|null} $text
+	 */
+	public static function content( array $text ): string {
+		$content = shortcode_unautop( (string) ( $text['content'] ?? '' ) );
+		return shortcode_exists( 'barrio_form' ) ? $content : (string) preg_replace( '/' . get_shortcode_regex( [ 'barrio_form' ] ) . '/', '', $content );
+	}
+
+	/**
+	 * Il testo del pulsante, o quello standard nella lingua attuale: nel sito e in GraphQL.
+	 *
+	 * @param array{button_label?: string|null} $text
+	 */
+	public static function label( array $text ): string {
+		return $text['button_label'] ?? __( 'Learn more', 'barrio-suite' );
 	}
 
 	public static function menu(): void {

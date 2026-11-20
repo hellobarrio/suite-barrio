@@ -3889,7 +3889,7 @@ msgstr "Testo alternativo delle immagini, generato con l'AI"
 msgid "With alt text"
 msgstr "Con testo alternativo"
 
-#: modules/hours/src/Module.php:109
+#: modules/hours/src/Module.php:111
 #: build/barrio-admin.js:45
 #: build/barrio-admin.js:46
 #: modules/hours/assets/block/index.js:17
@@ -3897,40 +3897,40 @@ msgstr "Con testo alternativo"
 msgid "Opening hours"
 msgstr "Orari"
 
-#: modules/hours/src/Module.php:299
+#: modules/hours/src/Module.php:301
 msgid "Only administrators can change the source and the permissions."
 msgstr "Solo gli amministratori possono cambiare la fonte e i permessi."
 
-#: modules/hours/src/Module.php:307
+#: modules/hours/src/Module.php:309
 msgid "Enter the Place ID of the business to take the opening hours from Google."
 msgstr "Inserisci il Place ID dell'attività per prendere gli orari da Google."
 
-#: modules/hours/src/Module.php:357
+#: modules/hours/src/Module.php:359
 msgid "Choose Google as the source first."
 msgstr "Prima scegli Google come fonte."
 
 #. translators: %s: reason given by Google.
-#: modules/hours/src/Module.php:516
+#: modules/hours/src/Module.php:518
 #, php-format
 msgid "Google did not return the opening hours. %s"
 msgstr "Google non ha restituito gli orari. %s"
 
-#: modules/hours/src/Module.php:520
+#: modules/hours/src/Module.php:522
 msgid "This place has no opening hours on Google: add them to its Google Business Profile, or write them here with the manual source."
 msgstr "Questo luogo non ha orari su Google: aggiungili al suo Profilo dell'attività su Google, oppure scrivili qui con la fonte manuale."
 
-#: modules/hours/src/Module.php:534
+#: modules/hours/src/Module.php:536
 msgid "The answer of Google is not valid. Try again later."
 msgstr "La risposta di Google non è valida. Riprova più tardi."
 
 #. translators: %s: a date as written, like 2026-02-30.
-#: modules/hours/src/Module.php:584
-#: src/Period.php:54
+#: modules/hours/src/Module.php:586
+#: src/Period.php:59
 #, php-format
 msgid "%s is not a date."
 msgstr "%s non è una data."
 
-#: modules/hours/src/Module.php:588
+#: modules/hours/src/Module.php:590
 #: build/barrio-admin.js:45
 msgid "A special period cannot end before it starts."
 msgstr "Un periodo speciale non può finire prima di iniziare."
@@ -3942,7 +3942,7 @@ msgid "Today: %s"
 msgstr "Oggi: %s"
 
 #: modules/hours/src/Render.php:116
-#: modules/hours/src/Render.php:299
+#: modules/hours/src/Render.php:308
 msgid "Open 24 hours"
 msgstr "Aperto 24 ore su 24"
 
@@ -3959,7 +3959,7 @@ msgid "Open · closes %1$s at %2$s"
 msgstr "Aperto · chiude %1$s alle %2$s"
 
 #: modules/hours/src/Render.php:121
-#: modules/hours/src/Render.php:296
+#: modules/hours/src/Render.php:305
 #: build/barrio-admin.js:45
 msgid "Closed"
 msgstr "Chiuso"
@@ -3987,7 +3987,6 @@ msgid "Special opening hours"
 msgstr "Orari speciali"
 
 #: build/barrio-admin.js:45
-#: build/barrio-admin.js:54
 msgid "Opens"
 msgstr "Apre"
 
@@ -4201,16 +4200,16 @@ msgstr "La fine deve venire dopo l'inizio."
 
 #: modules/banners/src/BannerRepository.php:123
 #: modules/banners/src/BannerRepository.php:133
-#: modules/banners/src/Module.php:226
-#: modules/banners/src/Module.php:252
+#: modules/banners/src/Module.php:228
+#: modules/banners/src/Module.php:254
 msgid "Banner not found."
 msgstr "Banner non trovato."
 
-#: modules/banners/src/Module.php:91
+#: modules/banners/src/Module.php:93
 msgid "Announcement"
 msgstr "Avviso"
 
-#: modules/banners/src/Module.php:95
+#: modules/banners/src/Module.php:97
 #: build/barrio-admin.js:10
 #: build/barrio-admin.js:15
 msgid "Banners"
@@ -4385,28 +4384,28 @@ msgstr "L'anteprima segue ciò che scrivi. Passa con il mouse sul banner: come n
 msgid "Announcements in a scrolling line at the top of every page, each with its period."
 msgstr "Avvisi su una riga che scorre in cima a tutte le pagine, ognuno con il suo periodo."
 
-#: modules/popups/src/Module.php:96
+#: modules/popups/src/Module.php:129
 msgid "Learn more"
 msgstr "Scopri di più"
 
-#: modules/popups/src/Module.php:105
+#: modules/popups/src/Module.php:103
 msgid "Close"
 msgstr "Chiudi"
 
-#: modules/popups/src/Module.php:115
+#: modules/popups/src/Module.php:133
 #: build/barrio-admin.js:46
 #: build/barrio-admin.js:51
 msgid "Popups"
 msgstr "Popup"
 
-#: modules/popups/src/Module.php:260
-#: modules/popups/src/Module.php:328
+#: modules/popups/src/Module.php:278
+#: modules/popups/src/Module.php:346
 #: modules/popups/src/PopupRepository.php:144
 #: modules/popups/src/PopupRepository.php:154
 msgid "Popup not found."
 msgstr "Popup non trovato."
 
-#: modules/popups/src/Module.php:295
+#: modules/popups/src/Module.php:313
 msgid "The title of the popup"
 msgstr "Il titolo del popup"
 
@@ -4525,40 +4524,6 @@ msgstr "Lascia vuoto per \"Scopri di più\"."
 msgid "Opening"
 msgstr "Apertura"
 
-#. translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12".
-#: build/barrio-admin.js:54
-#, js-format
-msgid "It also opens, always, from a link to %1$s or a button with %2$s."
-msgstr "Si apre anche, sempre, da un link a %1$s o da un pulsante con %2$s."
-
-#: build/barrio-admin.js:54
-msgid "Once saved, it can also open from a link."
-msgstr "Una volta salvato, si può aprire anche da un link."
-
-#: build/barrio-admin.js:54
-msgid "After some seconds"
-msgstr "Dopo qualche secondo"
-
-#: build/barrio-admin.js:54
-msgid "After scrolling the page"
-msgstr "Dopo lo scorrimento della pagina"
-
-#: build/barrio-admin.js:54
-msgid "When the mouse leaves the page"
-msgstr "Quando il mouse esce dalla pagina"
-
-#: build/barrio-admin.js:54
-msgid "Only on computers: phones have no mouse."
-msgstr "Solo sui computer: i telefoni non hanno il mouse."
-
-#: build/barrio-admin.js:54
-msgid "Seconds"
-msgstr "Secondi"
-
-#: build/barrio-admin.js:54
-msgid "Page scrolled (%)"
-msgstr "Pagina scorsa (%)"
-
 #: build/barrio-admin.js:54
 msgid "Back after (days)"
 msgstr "Torna dopo (giorni)"
@@ -4590,3 +4555,13 @@ msgstr "Orari nel fuso del sito. Senza inizio compare appena salvato, senza fine
 #: build/barrio-admin.js:91
 msgid "A window in the middle of every page, each with its opening and its period. With more popups on, the most recent one opens."
 msgstr "Una finestra al centro di ogni pagina, ognuna con la sua apertura e il suo periodo. Con più popup accesi si apre il più recente."
+
+#. translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12".
+#: build/barrio-admin.js:54
+#, js-format
+msgid "It opens 2 seconds after the page loads, and always from a link to %1$s or a button with %2$s."
+msgstr "Si apre 2 secondi dopo il caricamento della pagina, e sempre da un link a %1$s o da un pulsante con %2$s."
+
+#: build/barrio-admin.js:54
+msgid "It opens 2 seconds after the page loads; once saved, also from a link."
+msgstr "Si apre 2 secondi dopo il caricamento della pagina; una volta salvato, anche da un link."

@@ -273,10 +273,19 @@ final class Render {
 		return implode( $glue, array_map( static fn( string $text ): string => '<span>' . esc_html( $text ) . '</span>', $texts ) );
 	}
 
+	/**
+	 * La nota di un giorno speciale nella lingua, o in quella principale: nel blocco e in GraphQL.
+	 *
+	 * @param Special $special
+	 */
+	public static function note( array $special, string $lang ): string {
+		$note = $special['note'];
+		return (string) ( ( $note[ $lang ] ?? '' ) ?: ( $note[ I18n::languages()[0] ] ?? '' ) );
+	}
+
 	/** @param Special $special */
 	private static function special_text( array $special ): string {
-		$note = $special['note'];
-		$note = (string) ( ( $note[ I18n::current() ] ?? '' ) ?: ( $note[ I18n::languages()[0] ] ?? '' ) );
+		$note = self::note( $special, I18n::current() );
 		return self::slots_text( $special['hours'] ) . ( '' === $note ? '' : " · {$note}" );
 	}
 

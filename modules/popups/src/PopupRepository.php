@@ -12,7 +12,7 @@ use WP_Error;
  * testi nella lingua principale, che nessun vincolo SQL può imporre. Ogni scrittura svuota il transient degli accesi,
  * letto nel sito, e fa partire barrio_popups_changed.
  *
- * @phpstan-type Settings array{trigger: array{type: 'delay'|'scroll'|'exit', delay: int, scroll: int}, new_tab: bool, days: int}
+ * @phpstan-type Settings array{new_tab: bool, days: int}
  * @phpstan-type Texts array<string, array{title: string, content: string|null, button_label: string|null, link_url: string|null}>
  * @phpstan-type Popup array{id: int, is_enabled: bool, starts_at: string|null, ends_at: string|null, image_id: int|null, settings: Settings, i18n: Texts, created_at: string, updated_at: string}
  */
@@ -191,29 +191,6 @@ final class PopupRepository {
 				'settings'   => [
 					'type'                 => 'object',
 					'properties'           => [
-						// Si apre dopo delay secondi, dopo lo scroll di scroll per cento della pagina o all'uscita. Anche
-						// con un link, sempre. I due valori restano, così cambiando apertura non si perdono.
-						'trigger' => [
-							'type'                 => 'object',
-							'properties'           => [
-								'type'   => [
-									'type' => 'string',
-									'enum' => [ 'delay', 'scroll', 'exit' ],
-								],
-								'delay'  => [
-									'type'    => 'integer',
-									'minimum' => 0,
-									'maximum' => 600,
-								],
-								'scroll' => [
-									'type'    => 'integer',
-									'minimum' => 0,
-									'maximum' => 100,
-								],
-							],
-							'required'             => [ 'type', 'delay', 'scroll' ],
-							'additionalProperties' => false,
-						],
 						'new_tab' => [ 'type' => 'boolean' ],
 						// Dopo la chiusura non torna per tanti giorni; 0 torna alla pagina dopo.
 						'days'    => [
@@ -222,7 +199,7 @@ final class PopupRepository {
 							'maximum' => 365,
 						],
 					],
-					'required'             => [ 'trigger', 'new_tab', 'days' ],
+					'required'             => [ 'new_tab', 'days' ],
 					'additionalProperties' => false,
 				],
 				'i18n'       => [
@@ -262,6 +239,17 @@ final class PopupRepository {
 	}
 
 	/**
+	 * Le impostazioni salvate, senza quelle tolte dopo (l'apertura), che lo schema rifiuterebbe al prossimo salvataggio.
+	 *
+	 * @return Settings
+	 */
+	private static function settings( string $json ): array {
+		/** @var Settings $settings */
+		$settings = array_intersect_key( (array) json_decode( $json, true ), self::schema()['properties']['settings']['properties'] );
+		return $settings;
+	}
+
+	/**
 	 * Le righe con i loro testi, in una query sola per tutte.
 	 *
 	 * @param list<array<string, string|null>> $rows
@@ -289,7 +277,7 @@ final class PopupRepository {
 				'starts_at'  => $row['starts_at'],
 				'ends_at'    => $row['ends_at'],
 				'image_id'   => null === $row['image_id'] ? null : (int) $row['image_id'],
-				'settings'   => json_decode( (string) $row['settings'], true ),
+				'settings'   => self::settings( (string) $row['settings'] ),
 				'i18n'       => $i18n[ (int) $row['id'] ] ?? [],
 				'created_at' => (string) $row['created_at'],
 				'updated_at' => (string) $row['updated_at'],

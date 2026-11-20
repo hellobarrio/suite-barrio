@@ -4,6 +4,9 @@
 
 const DAY = 86400000;
 
+// Si apre da solo 2 secondi dopo il caricamento: prima la pagina, poi il popup.
+const DELAY = 2000;
+
 /**
  * Se il popup si apre da solo adesso. Senza WordPress: lo prova tests/js/popup.test.js.
  *
@@ -45,7 +48,6 @@ function open( dialog ) {
 
 function setup( dialog ) {
 	const rules = JSON.parse( dialog.dataset.barrioPopupRules );
-	const { trigger } = rules;
 	let sent = false;
 	const show = () => {
 		if (
@@ -78,31 +80,7 @@ function setup( dialog ) {
 		setTimeout( () => dialog.close(), 4000 );
 	} );
 
-	if ( 'delay' === trigger.type ) {
-		setTimeout( show, trigger.delay * 1000 );
-	} else if ( 'scroll' === trigger.type ) {
-		const scrolled = () => {
-			const max =
-				document.documentElement.scrollHeight - window.innerHeight;
-			if (
-				max <= 0 ||
-				( window.scrollY / max ) * 100 >= trigger.scroll
-			) {
-				window.removeEventListener( 'scroll', scrolled );
-				show();
-			}
-		};
-		window.addEventListener( 'scroll', scrolled, { passive: true } );
-		scrolled();
-	} else {
-		// All'uscita: il mouse che lascia la finestra dall'alto, quindi solo sui computer.
-		document.addEventListener( 'mouseout', function left( event ) {
-			if ( ! event.relatedTarget && event.clientY <= 0 ) {
-				document.removeEventListener( 'mouseout', left );
-				show();
-			}
-		} );
-	}
+	setTimeout( show, DELAY );
 }
 
 // Nei test (node --test) non c'è il DOM.

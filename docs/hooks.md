@@ -143,6 +143,7 @@ le aspetta.
 | `barrio_launch_steps` | filtro | `array<string, bool> $steps` | Messa online (`src/Launch.php`): per passaggio, se è configurato secondo le impostazioni vere. Un passaggio per modulo (Forms: `forms`) più quelli del sito (`smtp`, `timezone`, `search`); un passaggio nuovo compare nella guida solo se `assets/src/launch/Launch.js` sa come configurarlo |
 | `barrio_admin_data` | filtro | `array $data` | Per i moduli: i dati delle pagine Barrio, in `window.barrioAdmin` (`src/Admin.php`). Forms aggiunge `forms`; senza, il JavaScript sa che il modulo è spento |
 | `barrio_seo_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo SEO acceso: il momento per collegarsi al SEO, come `barrio_forms_loaded`. L'estensione WPML vi aggiunge a robots.txt le sitemap delle altre lingue |
+| `barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo acceso: il momento per collegarsi a Popup, Banner e Orari, come `barrio_forms_loaded`. L'estensione WPGraphQL vi registra `hbPopup`, `hbPopups`, `hbBanner`, `hbBanners` e `hbOrari` |
 | `barrio_seo_url` | filtro | `string $url` | L'URL di una pagina in ogni punto in cui il modulo SEO lo scrive (`Seo\Meta::url()`: canonical, `og:url`, JSON-LD, llms.txt); le immagini restano su WordPress. Serve a portare gli URL su un frontend headless. La canonical dei singoli nell'head la stampa il core e non passa da qui |
 | `barrio_seo_changed` | azione | `string $what`, `int $id = 0` | Sono cambiati le impostazioni SEO (`'settings'`), i redirect (`'redirects'`, anche quelli automatici) o i meta SEO di un contenuto (`'post'`) o di un termine (`'term'`) con il suo ID, una volta per richiesta: per svuotare la cache di un frontend |
 | `barrio_hours_changed` | azione | — | Sono cambiati gli orari (`barrio_hours`): un salvataggio, o la sincronizzazione con Google, anche quella di ogni notte. Per svuotare la cache di un frontend |
@@ -231,6 +232,41 @@ logica a parte.
   e l'head e il `llms.txt` di WordPress non cambiano. La cache di llms.txt ha una copia per indirizzo.
 - **Lingue**: i testi predefiniti (la descrizione, quella dell'organizzazione) sono nella lingua della richiesta, non
   in quella del contenuto, perché il core non sa la lingua di un contenuto.
+
+### Popup, banner e orari
+
+Con i moduli accesi (`barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded`) l'estensione registra
+`hbPopup(lang)`, `hbPopups(lang)`, `hbBanner(lang)`, `hbBanners(lang)` e `hbOrari(lang)`, anch'essi con priorità 9. Lo schema contiene ogni campo del
+prototipo con lo stesso tipo (`tests/fixtures/wpgraphql-modules-schema.txt`), più tutti i dati dei moduli che il
+prototipo non aveva: i frontend del prototipo funzionano senza modifiche, e quelli nuovi si adeguano. Con un modulo
+spento non registra niente e, se è attivo, risponde il prototipo. `lang` è una lingua attiva, altrimenti la principale.
+
+- **`hbPopup`, `hbBanner`**: quello del sito (`shown()` del modulo), il più recente tra gli accesi nel loro periodo, o
+  `null`; i testi sono la riga della lingua, o quella principale. `startsAt` ed `endsAt` sono il periodo (ISO 8601 in
+  UTC, `null` senza inizio o fine), per ricontrollarlo nel browser con la cache. Il periodo si valuta alla richiesta:
+  un frontend con la cache rivalida su `barrio_popups_changed` e `barrio_banners_changed`, che non partono quando un
+  periodo inizia o finisce.
+- **`hbPopups`, `hbBanners`**: tutti quelli che possono comparire, accesi e non scaduti, anche i programmati,
+  nell'ordine in cui vincono (il più recente prima): il primo nel suo periodo è `hbPopup` o `hbBanner`. Un frontend con
+  la cache sceglie nel browser con `startsAt` ed `endsAt`, così uno programmato compare alla sua data senza aspettare
+  una revalidation.
+- **Popup**: `content` è l'HTML senza shortcode, tranne quello del form (`[barrio_form id="3"]`, senza il paragrafo
+  intorno), che il frontend separa dal testo, legge con `hbForm` e invia con `hbSubmitForm`; con il modulo Forms spento
+  non c'è. `link` è il pulsante (`null` senza): `title` è il suo testo o quello standard della lingua ("Scopri di
+  più"), `target` è `_blank` con "Nuova scheda". `image.node` è il `MediaItem`, `null` per un'immagine eliminata.
+  `days` sono i giorni prima di riproporlo a chi l'ha chiuso (0: alla pagina dopo; mai più dopo un form inviato).
+  Quando aprirlo lo decide il frontend: nel sito è 2 secondi dopo il caricamento.
+- **Banner**: `title` è il testo, `link` è `null` senza link.
+- **`hbOrari`**: `settimana` sono i prossimi 7 giorni da lunedì, con le fasce dei giorni speciali al posto della
+  settimana, come la `currentOpeningHours` di Google che salvava il prototipo; `settimanaNormale` è la settimana
+  senza giorni speciali, e `giorniSpeciali` sono quelli da oggi in poi, con `dal`, `al` (`Y-m-d`) e `nota` (nella
+  lingua, o in quella principale). Senza orari le settimane sono vuote. `slots` sono `09:00 - 13:00`, o
+  `9:00 AM - 1:00 PM` in inglese; `fasce` sono le stesse ore come `apertura` e `chiusura` in `HH:MM`, nel fuso del
+  sito (`generalSettings.timezone`). Una chiusura non dopo l'apertura è il giorno dopo: `00:00 - 00:00` è aperto
+  tutto il giorno. I nomi dei giorni sono di `WP_Locale` nella lingua chiesta, con la maiuscola (servono i pacchetti
+  di lingua). `fonte` è `manual` o `google`; `ultimoAggiornamento` (`d/m/Y H:i` nel
+  fuso del sito) c'è solo con la fonte Google, `displayName` è il nome del luogo su Google. L'ultimo errore di Google
+  resta nell'admin.
 
 ## Migrazione dal prototipo
 

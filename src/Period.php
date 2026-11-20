@@ -33,6 +33,11 @@ final class Period {
 		};
 	}
 
+	// Per i frontend headless: ISO 8601 in UTC, come 2026-12-01T09:00:00+00:00.
+	public static function iso( ?string $utc ): ?string {
+		return null === $utc ? null : gmdate( 'c', (int) strtotime( "{$utc} UTC" ) );
+	}
+
 	public static function local( ?string $utc ): ?string {
 		return null === $utc ? null : get_date_from_gmt( $utc, 'Y-m-d\TH:i' );
 	}

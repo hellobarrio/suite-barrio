@@ -23,7 +23,7 @@ sola differenza, l'updater da GitHub (`docs/release.md`).
 | Admin | Quattro pagine nuove nel menu Barrio: **Testi alternativi**, **Popup**, **Banner** e **Orari**, perché ci lavora chi gestisce i contenuti; Testi alternativi come il SEO, con le schede Immagini e Impostazioni. Blocchi, Ordinamento e Duplicazione sono strumenti per i contenuti con poche impostazioni: invece di tre voci, una pagina **Contenuti** con una scheda per modulo acceso (la pagina sparisce con tutti e tre spenti), solo per gli amministratori. Ordinamento e Duplicazione si usano dove si lavora, nelle liste di WordPress: Riordina accanto ad Aggiungi, Duplica tra le azioni. Menu: Bacheca, Form, SEO, Testi alternativi, Popup, Banner, Orari, Contenuti, Prestazioni, Estensioni, Impostazioni |
 | Capability | Nuove solo dove WordPress non ne ha una adatta: `barrio_manage_popups`, `barrio_manage_banners` e `barrio_manage_hours` (admin ed editor, dalla migrazione `0002` di ogni modulo), con la card Permessi nelle impostazioni del modulo. Anche Ordinamento, Duplicazione e Testi alternativi hanno i Permessi, per spegnerli a un ruolo: `barrio_reorder`, `barrio_duplicate` e `barrio_generate_alt` (dalla migrazione `0001`, a chi poteva già usarli), in più a quelle del core (`edit_post`, `edit_others_posts`, `edit_terms`, `upload_files`). Blocchi e le impostazioni chiedono `manage_options` |
 | Google | Orari e Testi alternativi usano il **service account di Google del core** (Barrio → Impostazioni), come l'AI del SEO: nessuna chiave API nei moduli. Places API (New) accetta i token OAuth dei service account (scope `cloud-platform`, progetto con fatturazione in `X-Goog-User-Project`). Le chiamate partono da un clic in admin o dalla sincronizzazione notturna degli orari, che il readme dichiara |
-| Headless | `hbPopup`, `hbBanner` e `hbOrari` restano con i nomi e le forme del prototipo nell'estensione `barrio-suite-wpgraphql`, un file per modulo. Ordinamento non ha GraphQL suo: `menuOrder` e `orderby: MENU_ORDER` sono già di WPGraphQL |
+| Headless | `hbPopup`, `hbBanner` e `hbOrari` restano con i nomi e le forme del prototipo nell'estensione `barrio-suite-wpgraphql`, un file per modulo, con i dati nuovi solo come campi in più. Ordinamento non ha GraphQL suo: `menuOrder` e `orderby: MENU_ORDER` sono già di WPGraphQL. Prima della release l'estensione si rifà da capo secondo gli standard di WordPress e dei plugin famosi ([PLAN-GRAPHQL.md](PLAN-GRAPHQL.md)) |
 | Revalidation | Come `barrio_seo_changed`: `barrio_popups_changed`, `barrio_banners_changed`, `barrio_hours_changed` e `barrio_ordering_changed`, usati dal ponte dell'estensione di migrazione verso la revalidation del prototipo (tag `wp:popup`, `wp:banner`, `wp:orari`, `wp:type:{tipo}`) e, più avanti, dall'estensione di revalidation |
 
 ## 1. Regole di visualizzazione (per i Popup)
@@ -56,9 +56,9 @@ tutte le pagine. Del core è solo ciò che Popup e Banner hanno in comune: il pe
 - **Contenuto**: titolo, testo formattato, immagine e un pulsante (testo, link, nuova scheda).
 - **Nel sito**: al centro con lo sfondo scuro (modale), in tutte le pagine. I colori sono custom property del CSS, che
   il tema può sovrascrivere come per i form. Niente template da sovrascrivere nel tema.
-- **Quando si apre**: dopo N secondi, dopo lo scroll di una percentuale della pagina, oppure all'uscita (il mouse che
-  lascia la finestra, solo desktop). Si apre sempre anche con un link a `#barrio-popup-{id}` o un elemento con
-  `data-barrio-popup="{id}"`, anche senza le altre regole (il trigger "clic" di Popup Maker).
+- **Quando si apre**: 2 secondi dopo il caricamento della pagina, senza scelte (apertura allo scroll, all'uscita e
+  secondi a scelta tolti dopo M8). Si apre sempre anche con un link a `#barrio-popup-{id}` o un elemento con
+  `data-barrio-popup="{id}"`, anche già chiuso (il trigger "clic" di Popup Maker).
 - **Form**: basta lo shortcode `[barrio_form]` nel testo. Un form inviato dentro il popup (`barrio:success`) lo chiude
   4 secondi dopo il messaggio e non lo ripropone più. Con Forms spento lo shortcode non stampa niente. L'HTML del popup
   si scrive su `wp_enqueue_scripts`, così il form carica i suoi asset in tempo anche con i temi a blocchi.
@@ -78,8 +78,8 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 ```
 
 - `settings` si legge e si scrive sempre intero e non si interroga in SQL, quindi è JSON (regola 4 di PLAN.md),
-  validato con il suo schema. Contiene `trigger` (`{type: delay|scroll|exit, delay: secondi, scroll: per cento}`: i
-  due valori restano, così cambiando apertura non si perdono), `new_tab` e `days` (§1).
+  validato con il suo schema. Contiene `new_tab` e `days` (§1); un'impostazione tolta dopo (`trigger`) si scarta
+  alla lettura, così il popup si risalva.
 - `image_id` non ha una foreign key verso `wp_posts` (regola 9), ma un CHECK `> 0`. Un'immagine eliminata si ignora: il
   popup esce senza. Il titolo non è mai vuoto (CHECK), ed è il nome del `<dialog>`.
 - Un pulsante con il link e senza testo usa il testo standard della lingua ("Scopri di più"); un testo senza link non
@@ -109,7 +109,8 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 
 - **Nel sito**: il popup in `wp_footer`, uno script module senza build (come i form). Il testo si salva già in HTML
   (TinyMCE, senza `wpautop`). Nel sito passa da `do_shortcode()`; in GraphQL gli shortcode si tolgono
-  (`strip_shortcodes`), perché un frontend headless non saprebbe mostrarli. Gli shortcode del prototipo
+  (`strip_shortcodes`), perché un frontend headless non saprebbe mostrarli, tranne quello del form, che il frontend
+  separa dal testo e legge con `hbForm`. Gli shortcode del prototipo
   (`[suite_barrio_popup]`, `[wpb_popup]`) li tiene l'estensione di migrazione come alias vuoti.
 - **Popup** (`barrio_manage_popups`), schede Popup e Impostazioni (Permessi, `manage_options`):
   - la tabella del plugin con colonne titolo, stato, periodo e lingue (con più lingue).
@@ -117,7 +118,8 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
     elimina;
   - "Nuovo popup" nella barra.
 - **Editor** (`?popup=ID`): nella barra il ritorno, il titolo, la lingua (con più lingue) e Salva.
-  - Due schede, come il builder dei form: Contenuto (per lingua) e Opzioni (Apertura e Periodo). Le stesse due schede
+  - Due schede, come il builder dei form: Contenuto (per lingua) e Opzioni (Apertura, con i giorni prima di
+    riproporlo, e Periodo). Le stesse due schede
     nell'editor dei banner, con Periodo nelle Opzioni.
   - A destra, sticky, l'anteprima: l'HTML del sito in un iframe con CSS e JS del frontend, come l'anteprima dei form
     (`POST /popups/preview`).
@@ -132,13 +134,14 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 
 ### 2.5 Da Popup Maker
 
-- **Presi**: modale; apertura dopo un tempo, allo scroll, all'uscita e al clic su un link; frequenza dopo la chiusura;
-  chiusura dopo l'invio di un form; programmazione; Esc e sfondo che chiudono; anteprima.
+- **Presi**: modale; apertura dopo un tempo fisso e al clic su un link; frequenza dopo la chiusura; chiusura dopo
+  l'invio di un form; programmazione; Esc e sfondo che chiudono; anteprima.
 - **Lasciati**:
   - statistiche di aperture e conversioni: ogni apertura è un dato in più da conservare (privacy by default);
   - test A/B;
   - temi, editor visuale, colori e posizione in angolo: bastano le custom property (tolti in M7);
   - regole di pagina, dispositivo e utente (tolte in M7);
+  - apertura allo scroll, all'uscita e dopo dei secondi a scelta (tolte dopo M8);
   - regole su referrer, parametri dell'URL e carrello WooCommerce: estensioni, se un sito le chiede;
   - più popup nella stessa pagina e popup dentro popup;
   - animazioni a scelta: una sola, spenta con `prefers-reduced-motion`.
@@ -557,7 +560,7 @@ blocco dei form:
 
 | Estensione | Cosa cambia |
 |---|---|
-| `barrio-suite-wpgraphql` | `popups.php`, `banners.php` e `hours.php`, ognuno solo con il suo modulo acceso e con priorità 9, come per form e SEO.<br>• `hbPopup(lang): HBPopup` (`id`, `title`, `content`, `link: HBPopupCta {url, title, target}`, `image: HBPopupImage {node: MediaItem}`).<br>• `hbBanner(lang): HBBanner` (`id`, `title` = il testo, `link: HBBannerCta {url, target}`).<br>• `hbOrari(lang): HBOrari` (`ultimoAggiornamento` d/m/Y H:i, `displayName`, `settimana [HBOrariGiorno {giorno, slots, chiuso}]` da lunedì, `slots` in 12 ore per l'inglese).<br>Popup e banner sono quelli di `shown()` del modulo, gli stessi del sito |
+| `barrio-suite-wpgraphql` | `popups.php`, `banners.php` e `hours.php`, ognuno solo con il suo modulo acceso e con priorità 9, come per form e SEO.<br>• `hbPopup(lang): HBPopup` (`id`, `title`, `content`, `link: HBPopupCta {url, title, target}`, `image: HBPopupImage {node: MediaItem}`).<br>• `hbBanner(lang): HBBanner` (`id`, `title` = il testo, `link: HBBannerCta {url, target}`).<br>• `hbOrari(lang): HBOrari` (`ultimoAggiornamento` d/m/Y H:i, `displayName`, `settimana [HBOrariGiorno {giorno, slots, chiuso}]` da lunedì, `slots` in 12 ore per l'inglese).<br>Popup e banner sono quelli di `shown()` del modulo, gli stessi del sito.<br>In più, come campi che il prototipo non aveva: `days`, `startsAt` ed `endsAt` (ISO 8601 in UTC) nel popup, il periodo nel banner; negli orari `fonte`, `settimanaNormale`, `giorniSpeciali` (`dal`, `al`, `nota`) e le `fasce` in HH:MM. `hbPopups` e `hbBanners` danno tutti quelli accesi e non scaduti, anche i programmati, nell'ordine in cui vincono. Lo shortcode del form resta nel testo del popup |
 | `barrio-suite-wpml` | Niente di nuovo. Nulla in `wpml-config.xml`: i testi di popup e banner e le note degli orari sono nel plugin |
 | `barrio-suite-migration` | Un file per modulo, con il suo comando `wp barrio <modulo> migrate [--dry-run]`, e il ponte di revalidation (dettagli in §11, M9) |
 
@@ -592,9 +595,10 @@ Blocchi, Duplicazione e Testi alternativi non hanno hook: nessuna estensione ne 
   fasce sono nei periodi di `currentOpeningHours` con `open.date`. `regularOpeningHours` e `currentOpeningHours` sono
   dello SKU Place Details Enterprise: circa 30 richieste al mese per sito. Da provare con un Place ID e un service
   account veri (l'API Places va abilitata nel progetto), e lo schema con il Rich Results Test su un sito pubblico.
-- **Nomi dei giorni in `hbOrari`**: con `switch_to_locale()` servono i pacchetti di lingua installati. Una lingua
-  chiesta dal frontend senza pacchetto avrebbe i giorni in inglese, mentre il prototipo aveva 12 lingue scritte a
-  mano.
+- **Nomi dei giorni in `hbOrari`** (provato in M8 su wp-env con il pacchetto italiano): con `switch_to_locale()`
+  servono i pacchetti di lingua installati, e i nomi di `WP_Locale` prendono la maiuscola, come nel prototipo. `lang`
+  segue la regola delle altre query: una lingua non attiva dà la principale, giorni e 24 ore compresi, mentre il
+  prototipo aveva 12 lingue scritte a mano e le 12 ore per qualsiasi `en`, anche senza WPML.
 - **`<dialog>`** (provato in M7 su Chrome): il focus torna dove era, la pagina non scorre, Tab resta nel popup. Da
   provare su Safari e con VoiceOver: l'albero di accessibilità di Chrome è dialog con il titolo come nome, poi Chiudi,
   il testo, il form e il pulsante.
@@ -605,6 +609,11 @@ Blocchi, Duplicazione e Testi alternativi non hanno hook: nessuna estensione ne 
   cima.
 - **Cache di pagina**: un popup o un banner creato o spento si vede solo quando la cache della pagina scade. Il
   JavaScript rispetta il periodo, ma non può far comparire un elemento che l'HTML non ha.
+- **Periodo e frontend headless** (da M8): `hbPopup` e `hbBanner` valutano il periodo alla richiesta, ma
+  `barrio_popups_changed` e `barrio_banners_changed` non partono quando un periodo inizia o finisce. Con `startsAt` ed
+  `endsAt` il frontend nasconde nel browser quello scaduto, ma con la cache di Next.js uno programmato compare solo
+  alla prossima revalidation: il ponte (M9) o l'estensione di revalidation devono programmarne una anche su
+  `starts_at` e `ends_at`.
 - **Gemini con le immagini**: quali modelli dell'elenco accettano immagini (il filtro attuale tiene ogni `gemini-*`);
   tempi per 500 immagini in massa.
 - **Lingua dell'alt con WPML**: con la traduzione dei media ogni lingua ha il suo allegato, che dovrebbe avere l'alt
@@ -630,15 +639,14 @@ Dai moduli più piccoli ai più grandi: i primi costruiscono la pagina Contenuti
 | M5 | **Orari**: opzione e schema, manuale, Google, blocco e shortcode, schema SEO, card | Una settimana con una chiusura dopo mezzanotte e un giorno speciale si vede giusta nel blocco e nello stato "aperto ora" con la cache di pagina; lo schema passa il Rich Results Test; la sincronizzazione Google simulata scrive settimana ed eccezioni, e un errore arriva nella Bacheca. Lo schema JSON rifiuta ore, giorni e date non validi |
 | M6 | **Banner**: migrazioni, `BannerRepository`, editor con l'anteprima del prototipo, sito, card | Ogni vincolo delle tabelle dimostrato; la riga della lingua principale sempre presente. Un banner in due lingue compare solo quando deve, anche con la cache di pagina, e il più recente vince; scorre e si ferma col mouse e col focus, resta fermo con `prefers-reduced-motion`, lo screen reader legge il testo una volta. Con il modulo spento nessuna query e nessun asset |
 | M7 | **Popup** e le **regole del §1**: migrazioni, `PopupRepository`, editor con anteprima, sito, card | Ogni vincolo delle tabelle dimostrato. Il popup compare solo quando deve e il più recente vince, si apre da tastiera e da un link, si chiude con Esc e rimette il focus, non ritorna per N giorni; un form inviato nel popup lo chiude. Controllo con lo screen reader (VoiceOver) e a 360px |
-| M8 | **GraphQL** in `barrio-suite-wpgraphql` | Lo snapshot dello schema di `hbPopup`, `hbBanner` e `hbOrari` coincide con il prototipo; `hello_standard` (`getPopup`, `getBanner`, `getOrari`) funziona senza modifiche contro wp-env |
+| M8 | **GraphQL** in `barrio-suite-wpgraphql` | Lo schema di `hbPopup`, `hbBanner` e `hbOrari` contiene ogni campo del prototipo, con lo stesso tipo; `hello_standard` (`getPopup`, `getBanner`, `getOrari`) funziona senza modifiche contro wp-env |
 | M9 | **Migrazione dal prototipo** in `barrio-suite-migration` | Su wp-env con il prototipo e i suoi dati: prova a vuoto e migrazione con gli stessi conteggi; popup, banner, orari e GraphQL uguali prima e dopo, tranne le correzioni previste |
 
 **Migrazione (M9)**: come per il SEO, il comando si può rilanciare e lascia com'è ciò che Barrio Suite ha già.
 
 - **Popup**: `wpb_popups` e `wpb_popups_translations` diventano righe di `popups` e `popups_i18n`, in una
   transazione per popup.
-  - Quello attivo resta acceso, con apertura dopo 2 secondi e 7 giorni (i valori di default del
-    prototipo); gli altri restano spenti.
+  - Quello attivo resta acceso, con 7 giorni (il valore di default del prototipo); gli altri restano spenti.
   - `image_url` senza `image_id` diventa un ID con `attachment_url_to_postid()`; il testo passa da `wpautop`.
   - Un campo tradotto vuoto prende quello della lingua principale, come le righe complete del §1.
 - **Banner**: `wpb_banners` e `wpb_banners_translations` diventano `banners` e `banners_i18n`. Il titolo diventa il

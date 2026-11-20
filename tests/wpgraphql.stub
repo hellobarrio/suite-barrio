@@ -48,6 +48,8 @@ namespace WPGraphQL\Data {
 namespace WPGraphQL\Model {
 	class Post {
 		public int $ID;
+
+		public function __construct( \WP_Post $post ) {}
 	}
 
 	class Term {
