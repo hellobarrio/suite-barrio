@@ -31,7 +31,6 @@ import {
 	ModuleCard,
 	Notice,
 	Permissions,
-	Select,
 	Table,
 	Text,
 	Toggle,
@@ -50,10 +49,7 @@ import { MediaField } from '../../../seo/assets/src/seo/ui.js';
 export const POPUPS = {
 	icon: 'format-chat',
 	title: __( 'Popups', 'barrio-suite' ),
-	description: __(
-		'A window in the middle of every page',
-		'barrio-suite'
-	),
+	description: __( 'A window in the middle of every page', 'barrio-suite' ),
 	color: 'linear-gradient(135deg, #701a75, #a21caf)',
 };
 
@@ -70,14 +66,13 @@ const CAPS = { barrio_manage_popups: __( 'Manage', 'barrio-suite' ) };
 const pageUrl = ( params = {} ) =>
 	'?' + new URLSearchParams( { page: 'barrio-popups', ...params } );
 
-// Un popup nuovo: dopo 2 secondi, e chi lo chiude non lo rivede per una settimana.
+// Un popup nuovo: chi lo chiude non lo rivede per una settimana.
 const blank = () => ( {
 	is_enabled: true,
 	starts_at: null,
 	ends_at: null,
 	image_id: null,
 	settings: {
-		trigger: { type: 'delay', delay: 2, scroll: 50 },
 		new_tab: false,
 		days: 7,
 	},
@@ -668,7 +663,6 @@ function PopupEditor( { id } ) {
 			.finally( () => setBusy( false ) );
 	};
 	const texts = { item: popup, lang, onChange: setPopup };
-	const { trigger } = settings;
 
 	return (
 		<div className="barrio-stack">
@@ -804,113 +798,18 @@ function PopupEditor( { id } ) {
 												? sprintf(
 														/* translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12". */
 														__(
-															'It also opens, always, from a link to %1$s or a button with %2$s.',
+															'It opens 2 seconds after the page loads, and always from a link to %1$s or a button with %2$s.',
 															'barrio-suite'
 														),
 														`#barrio-popup-${ popup.id }`,
 														`data-barrio-popup="${ popup.id }"`
 													)
 												: __(
-														'Once saved, it can also open from a link.',
+														'It opens 2 seconds after the page loads; once saved, also from a link.',
 														'barrio-suite'
 													)
 										}
 									>
-										<Select
-											label={ __(
-												'Opens',
-												'barrio-suite'
-											) }
-											value={ trigger.type }
-											options={ [
-												{
-													value: 'delay',
-													label: __(
-														'After some seconds',
-														'barrio-suite'
-													),
-												},
-												{
-													value: 'scroll',
-													label: __(
-														'After scrolling the page',
-														'barrio-suite'
-													),
-												},
-												{
-													value: 'exit',
-													label: __(
-														'When the mouse leaves the page',
-														'barrio-suite'
-													),
-												},
-											] }
-											help={
-												'exit' === trigger.type &&
-												__(
-													'Only on computers: phones have no mouse.',
-													'barrio-suite'
-												)
-											}
-											onChange={ ( type ) =>
-												setSettings( {
-													trigger: {
-														...trigger,
-														type,
-													},
-												} )
-											}
-										/>
-										{ 'delay' === trigger.type && (
-											<Text
-												type="number"
-												min={ 0 }
-												max={ 600 }
-												label={ __(
-													'Seconds',
-													'barrio-suite'
-												) }
-												value={ String(
-													trigger.delay
-												) }
-												onChange={ ( value ) =>
-													setSettings( {
-														trigger: {
-															...trigger,
-															delay: number(
-																value,
-																600
-															),
-														},
-													} )
-												}
-											/>
-										) }
-										{ 'scroll' === trigger.type && (
-											<Text
-												type="number"
-												min={ 0 }
-												max={ 100 }
-												label={ __(
-													'Page scrolled (%)',
-													'barrio-suite'
-												) }
-												value={ String(
-													trigger.scroll
-												) }
-												onChange={ ( value ) =>
-													setSettings( {
-														trigger: {
-															...trigger,
-															scroll: number(
-																value,
-																100
-															),
-														},
-													} )
-												}
-											/>
-										) }
 										<Text
 											type="number"
 											min={ 0 }

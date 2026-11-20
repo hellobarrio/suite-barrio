@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-19T15:56:12+00:00\n"
+"POT-Creation-Date: 2026-11-20T09:05:40+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite\n"
@@ -85,16 +85,16 @@ msgstr ""
 
 #: modules/banners/src/BannerRepository.php:123
 #: modules/banners/src/BannerRepository.php:133
-#: modules/banners/src/Module.php:226
-#: modules/banners/src/Module.php:252
+#: modules/banners/src/Module.php:228
+#: modules/banners/src/Module.php:254
 msgid "Banner not found."
 msgstr ""
 
-#: modules/banners/src/Module.php:91
+#: modules/banners/src/Module.php:93
 msgid "Announcement"
 msgstr ""
 
-#: modules/banners/src/Module.php:95
+#: modules/banners/src/Module.php:97
 #: build/barrio-admin.js:10
 #: build/barrio-admin.js:15
 msgid "Banners"
@@ -717,7 +717,7 @@ msgstr ""
 msgid "Too many submissions. Please try again in a few minutes."
 msgstr ""
 
-#: modules/hours/src/Module.php:109
+#: modules/hours/src/Module.php:111
 #: build/barrio-admin.js:45
 #: build/barrio-admin.js:46
 #: modules/hours/assets/block/index.js:17
@@ -725,40 +725,40 @@ msgstr ""
 msgid "Opening hours"
 msgstr ""
 
-#: modules/hours/src/Module.php:299
+#: modules/hours/src/Module.php:301
 msgid "Only administrators can change the source and the permissions."
 msgstr ""
 
-#: modules/hours/src/Module.php:307
+#: modules/hours/src/Module.php:309
 msgid "Enter the Place ID of the business to take the opening hours from Google."
 msgstr ""
 
-#: modules/hours/src/Module.php:357
+#: modules/hours/src/Module.php:359
 msgid "Choose Google as the source first."
 msgstr ""
 
 #. translators: %s: reason given by Google.
-#: modules/hours/src/Module.php:516
+#: modules/hours/src/Module.php:518
 #, php-format
 msgid "Google did not return the opening hours. %s"
 msgstr ""
 
-#: modules/hours/src/Module.php:520
+#: modules/hours/src/Module.php:522
 msgid "This place has no opening hours on Google: add them to its Google Business Profile, or write them here with the manual source."
 msgstr ""
 
-#: modules/hours/src/Module.php:534
+#: modules/hours/src/Module.php:536
 msgid "The answer of Google is not valid. Try again later."
 msgstr ""
 
 #. translators: %s: a date as written, like 2026-02-30.
-#: modules/hours/src/Module.php:584
-#: src/Period.php:54
+#: modules/hours/src/Module.php:586
+#: src/Period.php:59
 #, php-format
 msgid "%s is not a date."
 msgstr ""
 
-#: modules/hours/src/Module.php:588
+#: modules/hours/src/Module.php:590
 #: build/barrio-admin.js:45
 msgid "A special period cannot end before it starts."
 msgstr ""
@@ -770,7 +770,7 @@ msgid "Today: %s"
 msgstr ""
 
 #: modules/hours/src/Render.php:116
-#: modules/hours/src/Render.php:299
+#: modules/hours/src/Render.php:308
 msgid "Open 24 hours"
 msgstr ""
 
@@ -787,7 +787,7 @@ msgid "Open · closes %1$s at %2$s"
 msgstr ""
 
 #: modules/hours/src/Render.php:121
-#: modules/hours/src/Render.php:296
+#: modules/hours/src/Render.php:305
 #: build/barrio-admin.js:45
 msgid "Closed"
 msgstr ""
@@ -838,28 +838,28 @@ msgstr ""
 msgid "Performance"
 msgstr ""
 
-#: modules/popups/src/Module.php:96
-msgid "Learn more"
-msgstr ""
-
-#: modules/popups/src/Module.php:105
+#: modules/popups/src/Module.php:103
 msgid "Close"
 msgstr ""
 
-#: modules/popups/src/Module.php:115
+#: modules/popups/src/Module.php:129
+msgid "Learn more"
+msgstr ""
+
+#: modules/popups/src/Module.php:133
 #: build/barrio-admin.js:46
 #: build/barrio-admin.js:51
 msgid "Popups"
 msgstr ""
 
-#: modules/popups/src/Module.php:260
-#: modules/popups/src/Module.php:328
+#: modules/popups/src/Module.php:278
+#: modules/popups/src/Module.php:346
 #: modules/popups/src/PopupRepository.php:144
 #: modules/popups/src/PopupRepository.php:154
 msgid "Popup not found."
 msgstr ""
 
-#: modules/popups/src/Module.php:295
+#: modules/popups/src/Module.php:313
 msgid "The title of the popup"
 msgstr ""
 
@@ -2514,7 +2514,6 @@ msgid "Hours and special days, also from Google"
 msgstr ""
 
 #: build/barrio-admin.js:45
-#: build/barrio-admin.js:54
 msgid "Opens"
 msgstr ""
 
@@ -2901,35 +2900,11 @@ msgstr ""
 #. translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12".
 #: build/barrio-admin.js:54
 #, js-format
-msgid "It also opens, always, from a link to %1$s or a button with %2$s."
+msgid "It opens 2 seconds after the page loads, and always from a link to %1$s or a button with %2$s."
 msgstr ""
 
 #: build/barrio-admin.js:54
-msgid "Once saved, it can also open from a link."
-msgstr ""
-
-#: build/barrio-admin.js:54
-msgid "After some seconds"
-msgstr ""
-
-#: build/barrio-admin.js:54
-msgid "After scrolling the page"
-msgstr ""
-
-#: build/barrio-admin.js:54
-msgid "When the mouse leaves the page"
-msgstr ""
-
-#: build/barrio-admin.js:54
-msgid "Only on computers: phones have no mouse."
-msgstr ""
-
-#: build/barrio-admin.js:54
-msgid "Seconds"
-msgstr ""
-
-#: build/barrio-admin.js:54
-msgid "Page scrolled (%)"
+msgid "It opens 2 seconds after the page loads; once saved, also from a link."
 msgstr ""
 
 #: build/barrio-admin.js:54

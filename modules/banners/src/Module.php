@@ -31,6 +31,8 @@ final class Module {
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'admin_menu', [ self::class, 'menu' ] );
 		add_filter( 'barrio_admin_data', [ self::class, 'admin_data' ] );
+		// Le estensioni del modulo (WPGraphQL) si collegano qui, come a barrio_forms_loaded.
+		add_action( 'init', static fn() => do_action( 'barrio_banners_loaded' ), 5 );
 	}
 
 	public static function deactivate(): void {}

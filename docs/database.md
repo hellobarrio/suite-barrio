@@ -246,8 +246,8 @@ erDiagram
 
 - **`popups`**: `is_enabled` (`bp_enabled_chk`), il periodo in UTC come i banner (`bp_period_chk`), `image_id`
   (`bp_image_chk`; NULL senza immagine, nessuna foreign key verso `wp_posts`: un'immagine eliminata si ignora) e
-  `settings`, JSON letto e scritto intero (`bp_settings_chk`): apertura (dopo dei secondi, dopo lo scroll o
-  all'uscita), nuova scheda e giorni dopo la chiusura. L'indice `enabled_ends` serve agli accesi non scaduti.
+  `settings`, JSON letto e scritto intero (`bp_settings_chk`): nuova scheda e giorni dopo la chiusura. Una chiave
+  tolta dopo (l'apertura, `trigger`) si scarta alla lettura. L'indice `enabled_ends` serve agli accesi non scaduti.
 - **`popups_i18n`**: una riga completa per lingua, compresa la principale (`bpi_lang_chk`), con il titolo, mai vuoto
   (`bpi_title_chk`), il testo in HTML già filtrato (`wp_kses_post`; NULL senza testo), il testo del pulsante (NULL:
   quello standard) e il link, un percorso o un URL `http(s)` (`bpi_url_chk`). Un pulsante ha sempre un link

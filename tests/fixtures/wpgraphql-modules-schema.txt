@@ -1,0 +1,44 @@
+RootQuery.hbBanner(lang: String): HBBanner
+RootQuery.hbOrari(lang: String): HBOrari
+RootQuery.hbPopup(lang: String): HBPopup
+
+type HBBanner {
+  id: Int
+  link: HBBannerCta
+  title: String
+}
+
+type HBBannerCta {
+  target: String
+  url: String
+}
+
+type HBOrari {
+  displayName: String
+  settimana: [HBOrariGiorno]
+  ultimoAggiornamento: String
+}
+
+type HBOrariGiorno {
+  chiuso: Boolean
+  giorno: String
+  slots: [String]
+}
+
+type HBPopup {
+  content: String
+  id: Int!
+  image: HBPopupImage
+  link: HBPopupCta
+  title: String
+}
+
+type HBPopupCta {
+  target: String
+  title: String
+  url: String
+}
+
+type HBPopupImage {
+  node: MediaItem
+}
