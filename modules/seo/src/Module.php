@@ -3,6 +3,7 @@
 namespace BarrioSuite\Seo;
 
 use BarrioSuite\I18n;
+use BarrioSuite\Roles;
 use BarrioSuite\Seo\Api\RestContents;
 use BarrioSuite\Seo\Api\RestGenerate;
 use BarrioSuite\Seo\Api\RestRedirects;
@@ -97,11 +98,7 @@ final class Module {
 
 	// Disinstallando, se il sito lo ha scelto: tabelle e opzioni le elimina il core (src/Uninstall.php).
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			foreach ( self::CAPS as $cap ) {
-				$role->remove_cap( $cap );
-			}
-		}
+		Roles::remove( self::CAPS );
 		foreach ( self::META as $key ) {
 			delete_metadata( 'post', 0, "_barrio_seo_{$key}", '', true );
 			delete_metadata( 'term', 0, "_barrio_seo_{$key}", '', true );

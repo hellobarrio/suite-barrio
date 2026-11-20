@@ -171,6 +171,9 @@ final class OrderingTest extends WP_UnitTestCase {
 		$post = self::factory()->post->create( [ 'post_date' => '2026-02-01 10:00:00' ] );
 		$this->assertSame( [ $post, $c, $b, $a ], get_posts( $this->args( [ 'book', 'post' ] ) ), 'Not with a type that is not in manual order.' );
 
+		$this->go_to( home_url( '?post_type=book&feed=rss2' ) );
+		$this->assertSame( [ $c, $b, $a ], wp_list_pluck( $GLOBALS['wp_query']->posts, 'ID' ), 'The feed: who reads it takes the first ones as the newest.' );
+
 		$new = self::factory()->post->create( [ 'post_type' => 'book' ] );
 		$this->assertSame( [ $new, ...$manual ], get_posts( $this->args( 'book' ) ), 'A new content goes to the top.' );
 	}

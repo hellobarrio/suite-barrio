@@ -39,9 +39,7 @@ final class Module {
 
 	// Le tabelle e le opzioni le elimina il core (src/Uninstall.php); il transient non ha il prefisso barrio_.
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			$role->remove_cap( self::CAP );
-		}
+		Roles::remove( [ self::CAP ] );
 		delete_transient( BannerRepository::LIVE );
 	}
 
@@ -72,7 +70,8 @@ final class Module {
 
 	/**
 	 * Il testo una volta sola: le copie della scritta che scorre le aggiunge il JavaScript, nascoste agli screen reader.
-	 * Inizio e fine in secondi, per il JavaScript: con la cache di pagina l'HTML può essere vecchio.
+	 * Senza link prende comunque il focus, che ferma la scritta (WCAG 2.2.2). Inizio e fine in secondi, per il
+	 * JavaScript: con la cache di pagina l'HTML può essere vecchio.
 	 *
 	 * @param Banner $banner
 	 */
@@ -80,7 +79,7 @@ final class Module {
 		$text   = I18n::pick( $banner['i18n'], I18n::current() );
 		$inner  = '<span class="barrio-banner__track"><span class="barrio-banner__text">' . esc_html( $text['text'] ?? '' ) . '</span></span>';
 		$body   = empty( $text['link_url'] )
-			? "<div class=\"barrio-banner__body\">{$inner}</div>"
+			? "<div class=\"barrio-banner__body\" tabindex=\"0\">{$inner}</div>"
 			: sprintf( '<a class="barrio-banner__body" href="%s"%s>%s</a>', esc_url( $text['link_url'] ), $banner['new_tab'] ? ' target="_blank" rel="noopener"' : '', $inner );
 		$period = '';
 		$dates  = [

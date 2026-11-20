@@ -153,11 +153,13 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertFalse( $data['auto_update'] );
 		$this->assertTrue( $data['can_auto_update'] );
 
+		// Solo i plugin del test: nella cartella dei plugin del sito di prova può esserci un'estensione vera.
+		$ours = static fn(): array => array_values( array_intersect( (array) get_site_option( 'auto_update_plugins' ), [ 'akismet/akismet.php', $suite, self::DEMO ] ) );
 		$this->assertTrue( $this->auto_update( true )->get_data()['auto_update'] );
-		$this->assertSame( [ 'akismet/akismet.php', $suite ], get_site_option( 'auto_update_plugins' ) );
+		$this->assertSame( [ 'akismet/akismet.php', $suite ], $ours() );
 
 		$this->request( 'POST', 'install' );
-		$this->assertSame( [ 'akismet/akismet.php', $suite, self::DEMO ], get_site_option( 'auto_update_plugins' ) );
+		$this->assertSame( [ 'akismet/akismet.php', $suite, self::DEMO ], $ours() );
 
 		$this->assertFalse( $this->auto_update( false )->get_data()['auto_update'] );
 		$this->assertSame( [ 'akismet/akismet.php' ], get_site_option( 'auto_update_plugins' ), 'The other plugins keep theirs.' );
@@ -293,6 +295,8 @@ final class ExtensionsTest extends WP_UnitTestCase {
 	/** @return list<array{string, string, ?string, ?string, bool}> slug, nome, versione pubblicata, installata, attiva. */
 	private function extensions( WP_REST_Response $response ): array {
 		$this->assertSame( 200, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
-		return array_map( static fn( array $x ): array => [ $x['slug'], $x['name'], $x['version'], $x['installed'], $x['active'] ], $response->get_data()['extensions'] );
+		// Solo quelle del test: nella cartella dei plugin del sito di prova può esserci un'estensione vera.
+		$ours = array_filter( $response->get_data()['extensions'], static fn( array $x ): bool => in_array( $x['slug'], [ 'barrio-suite-demo', 'barrio-suite-mailchimp' ], true ) );
+		return array_values( array_map( static fn( array $x ): array => [ $x['slug'], $x['name'], $x['version'], $x['installed'], $x['active'] ], $ours ) );
 	}
 }

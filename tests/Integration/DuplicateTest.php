@@ -78,6 +78,8 @@ final class DuplicateTest extends WP_UnitTestCase {
 		];
 		$parent = self::factory()->post->create( [ 'post_type' => 'page' ] );
 		$image  = self::factory()->attachment->create();
+		// Un plugin che scrive un suo meta a ogni salvataggio: nella copia, prima che arrivino quelli dell'originale.
+		add_action( 'save_post', static fn( int $id ) => add_post_meta( $id, 'layout', 'predefinito', true ) );
 
 		foreach ( [ 'post', 'page', 'book' ] as $type ) {
 			$original = self::factory()->post->create(
@@ -97,6 +99,7 @@ final class DuplicateTest extends WP_UnitTestCase {
 				)
 			);
 			$this->assertSame( $content, get_post_field( 'post_content', $original ), 'The original is intact.' );
+			update_post_meta( $original, 'layout', 'largo' );
 			foreach ( get_object_taxonomies( $type ) as $taxonomy ) {
 				wp_set_object_terms( $original, $terms[ $taxonomy ] ?? [], $taxonomy );
 			}
@@ -194,6 +197,7 @@ final class DuplicateTest extends WP_UnitTestCase {
 		);
 		add_term_meta( $term, 'color', wp_slash( [ 'path' => 'a\\b' ] ) );
 		add_term_meta( $term, '_barrio_order', 3 );
+		add_action( 'created_category', static fn( int $id ) => add_term_meta( $id, 'color', 'predefinito', true ) );
 
 		$first  = Module::term( $term );
 		$second = Module::term( $term );
@@ -320,25 +324,35 @@ final class DuplicateTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( "post={$draft->ID}", implode( '', (array) wp_scripts()->get_data( 'barrio-duplicate', 'before' ) ) );
 	}
 
-	public function test_settings_turn_duplicate_off_for_a_type_and_are_validated(): void {
-		$this->assertSame(
+	public function test_by_default_only_the_types_with_pages_on_the_site_have_duplicate(): void {
+		$this->assertEquals(
 			[
-				'post_types' => [],
-				'taxonomies' => [],
+				'post_types' => (object) [],
+				'taxonomies' => (object) [],
 			],
 			$this->types( rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/duplicate' ) ) ),
-			'Everywhere by default.'
+			'Nothing chosen.'
 		);
-		$this->assertSame( 400, $this->put( [ 'post_types' => [ 'Le pagine!' ] ] )->get_status() );
-		$this->assertSame( 400, $this->put( [ 'taxonomies' => [ 'category', 'category' ] ] )->get_status() );
+		$pattern = get_post( self::factory()->post->create( [ 'post_type' => 'wp_block' ] ) );
+		$this->assertSame( [], Module::post_row_actions( [], $pattern ), 'A pattern has no page on the site.' );
+		$this->assertArrayHasKey( 'barrio_duplicate', Module::post_row_actions( [], get_post( self::factory()->post->create( [ 'post_type' => 'book' ] ) ) ) );
 
-		$this->put( [ 'post_types' => [ 'page' ] ] );
-		$this->assertSame(
+		$this->put( [ 'post_types' => [ 'wp_block' => true ] ] );
+		$this->assertArrayHasKey( 'barrio_duplicate', Module::post_row_actions( [], $pattern ), 'Turned on by hand.' );
+	}
+
+	public function test_settings_turn_duplicate_off_for_a_type_and_are_validated(): void {
+		$this->assertSame( 400, $this->put( [ 'post_types' => [ 'Le pagine!' => false ] ] )->get_status() );
+		$this->assertSame( 400, $this->put( [ 'taxonomies' => [ 'category' => 'no' ] ] )->get_status() );
+		$this->assertSame( 400, $this->put( [ 'taxonomies' => [ 'category' ] ] )->get_status() );
+
+		$this->put( [ 'post_types' => [ 'page' => false ] ] );
+		$this->assertEquals(
 			[
-				'post_types' => [ 'page' ],
-				'taxonomies' => [ 'post_tag' ],
+				'post_types' => (object) [ 'page' => false ],
+				'taxonomies' => (object) [ 'post_tag' => false ],
 			],
-			$this->types( $this->put( [ 'taxonomies' => [ 'post_tag' ] ] ) ),
+			$this->types( $this->put( [ 'taxonomies' => [ 'post_tag' => false ] ] ) ),
 			'A list that is not sent stays.'
 		);
 		$this->assertArrayNotHasKey( 'barrio_duplicate', wp_load_alloptions(), 'Read only in the admin.' );
@@ -394,27 +408,30 @@ final class DuplicateTest extends WP_UnitTestCase {
 		$types = Admin::content_types();
 		$this->assertContains(
 			[
-				'name'  => 'book',
-				'label' => 'Books',
+				'name'     => 'book',
+				'label'    => 'Books',
+				'viewable' => true,
 			],
 			$types['post_types']
 		);
+		$this->assertFalse( array_column( $types['post_types'], 'viewable', 'name' )['wp_block'] );
 		$this->assertNotContains( 'attachment', array_column( $types['post_types'], 'name' ) );
 		$this->assertContains(
 			[
-				'name'  => 'genre',
-				'label' => 'Genres',
-				'types' => [ 'Books' ],
+				'name'     => 'genre',
+				'label'    => 'Genres',
+				'viewable' => true,
+				'types'    => [ 'Books' ],
 			],
 			$types['taxonomies'],
 			'With its content types: two taxonomies can both be called Categories.'
 		);
 		$this->assertNotContains( 'link_category', array_column( $types['taxonomies'], 'name' ) );
-		$this->assertSame(
+		$this->assertEquals(
 			[
-				'disabled' => [
-					'post_types' => [],
-					'taxonomies' => [],
+				'chosen' => [
+					'post_types' => (object) [],
+					'taxonomies' => (object) [],
 				],
 			],
 			apply_filters( 'barrio_admin_data', [] )['duplicate'] ?? null,
@@ -445,7 +462,7 @@ final class DuplicateTest extends WP_UnitTestCase {
 		$this->assertSame( 404, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/duplicate' ) )->get_status() );
 	}
 
-	/** @return array<string, mixed> I tipi e le tassonomie spenti, senza i ruoli. */
+	/** @return array<string, mixed> Le scelte per tipo e per tassonomia, senza i ruoli. */
 	private function types( WP_REST_Response $response ): array {
 		return array_intersect_key( $response->get_data(), array_flip( [ 'post_types', 'taxonomies' ] ) );
 	}

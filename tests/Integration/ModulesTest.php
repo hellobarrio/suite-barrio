@@ -6,12 +6,14 @@ use BarrioSuite\Banners\BannerRepository;
 use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Privacy;
 use BarrioSuite\Forms\Repository\FormRepository;
+use BarrioSuite\Modules;
 use BarrioSuite\Plugin;
 use BarrioSuite\Seo\RedirectCode;
 use BarrioSuite\Seo\Repository\RedirectRepository;
 use Closure;
 use ReflectionFunction;
 use ReflectionMethod;
+use WP_Block_Type_Registry;
 use WP_Hook;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -148,6 +150,16 @@ final class ModulesTest extends WP_UnitTestCase {
 		$this->assertSame( 'Sale', BannerRepository::get( (int) $id )['i18n']['en']['text'] ?? null );
 	}
 
+	// Un'opzione che non esiste non resta in cache tra una richiesta e l'altra: ognuna letta nel sito va creata
+	// all'attivazione o da una migrazione. La prima richiesta scrive i transient, la seconda deve leggere tutto in
+	// autoload.
+	public function test_a_page_of_the_site_reads_every_option_from_autoload(): void {
+		delete_option( Modules::OPTION );
+		Plugin::activate();
+		$this->go_to_home();
+		$this->assertSame( [], array_values( preg_grep( "/option_name = '(_site)?(_transient_)?(timeout_)?barrio_/", $this->go_to_home() ) ) );
+	}
+
 	public function test_only_administrators_switch_modules(): void {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 
@@ -168,6 +180,39 @@ final class ModulesTest extends WP_UnitTestCase {
 		$GLOBALS['wp_filter']      = []; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- il server REST di WordPress.
 		Plugin::boot();
+	}
+
+	// Una richiesta della home con i soli hook del plugin e la cache delle opzioni vuota, come all'inizio di una
+	// richiesta senza cache degli oggetti. I blocchi si registrano di nuovo su init.
+	/** @return list<string> Le query della richiesta. */
+	private function go_to_home(): array {
+		foreach ( array_keys( WP_Block_Type_Registry::get_instance()->get_all_registered() ) as $name ) {
+			if ( str_starts_with( $name, 'barrio/' ) ) {
+				unregister_block_type( $name );
+			}
+		}
+		$GLOBALS['wp_filter']      = []; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- il server REST di WordPress.
+		wp_cache_flush();
+		$queries = [];
+		add_filter(
+			'query',
+			static function ( string $query ) use ( &$queries ): string {
+				$queries[] = $query;
+				return $query;
+			}
+		);
+		Plugin::boot();
+		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- le azioni del core.
+		do_action( 'init' );
+		$this->go_to( home_url( '/' ) );
+		do_action( 'template_redirect' );
+		do_action( 'wp_enqueue_scripts' );
+		// phpcs:enable
+		get_echo( 'wp_head' );
+		get_echo( 'wp_body_open' );
+		get_echo( 'wp_footer' );
+		return $queries;
 	}
 
 	/** @return list<string> Gli hook con una callback scritta nella cartella del modulo. */

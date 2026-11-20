@@ -49,9 +49,9 @@ final class Admin {
 	/**
 	 * I tipi di contenuto e le tassonomie degli strumenti di Contenuti: quelli con l'interfaccia di WordPress, senza
 	 * gli allegati. Le tassonomie solo di quei tipi (non le categorie dei link), con i nomi dei tipi che le usano:
-	 * due possono chiamarsi entrambe "Categorie".
+	 * due possono chiamarsi entrambe "Categorie". viewable: ha pagine nel sito.
 	 *
-	 * @return array{post_types: list<array{name: string, label: string}>, taxonomies: list<array{name: string, label: string, types: list<string>}>}
+	 * @return array{post_types: list<array{name: string, label: string, viewable: bool}>, taxonomies: list<array{name: string, label: string, viewable: bool, types: list<string>}>}
 	 */
 	public static function content_types(): array {
 		$types = get_post_types( [ 'show_ui' => true ], 'objects' );
@@ -62,9 +62,10 @@ final class Admin {
 			$used = array_intersect_key( $types, array_flip( $taxonomy->object_type ) );
 			if ( $used ) {
 				$taxonomies[] = [
-					'name'  => $taxonomy->name,
-					'label' => $taxonomy->labels->name,
-					'types' => array_values( array_map( $label, $used ) ),
+					'name'     => $taxonomy->name,
+					'label'    => $taxonomy->labels->name,
+					'viewable' => is_taxonomy_viewable( $taxonomy ),
+					'types'    => array_values( array_map( $label, $used ) ),
 				];
 			}
 		}
@@ -72,8 +73,9 @@ final class Admin {
 			'post_types' => array_values(
 				array_map(
 					static fn( WP_Post_Type $type ): array => [
-						'name'  => $type->name,
-						'label' => $label( $type ),
+						'name'     => $type->name,
+						'label'    => $label( $type ),
+						'viewable' => is_post_type_viewable( $type ),
 					],
 					$types
 				)

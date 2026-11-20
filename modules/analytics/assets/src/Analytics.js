@@ -38,7 +38,7 @@ export const ANALYTICS = {
 	color: 'linear-gradient(135deg, #78350f, #b45309)',
 };
 
-// Module::admin_data(), a chi legge le statistiche: missing ('account', 'property' o '') e yesterday. Con il modulo
+// Module::admin_data(), a chi legge le statistiche: missing ('account', 'property' o ''), yesterday e first. Con il modulo
 // spento manca; nel widget non c'è window.barrioAdmin, e non serve.
 const analyticsData = () => window.barrioAdmin?.analytics;
 
@@ -189,20 +189,26 @@ function useReport( query ) {
 		}
 		let current = true;
 		setState( {} );
-		apiFetch( { path } )
-			.then( ( report ) => current && setState( { report } ) )
-			.catch(
-				( error ) =>
-					current &&
-					setState( {
-						notice: {
-							status: 'error',
-							message: errorMessage( error ),
-						},
-					} )
-			);
+		// Mentre si scrive una data di Personalizzato parte una sola richiesta.
+		const timer = setTimeout(
+			() =>
+				apiFetch( { path } )
+					.then( ( report ) => current && setState( { report } ) )
+					.catch(
+						( error ) =>
+							current &&
+							setState( {
+								notice: {
+									status: 'error',
+									message: errorMessage( error ),
+								},
+							} )
+					),
+			path.includes( 'period=custom' ) ? 400 : 0
+		);
 		return () => {
 			current = false;
+			clearTimeout( timer );
 		};
 	}, [ path ] );
 	return state;
@@ -656,7 +662,7 @@ function Report( { report } ) {
 
 // Barrio → Statistiche → Panoramica.
 export function Overview() {
-	const { missing, yesterday } = analyticsData();
+	const { missing, yesterday, first } = analyticsData();
 	const [ period, setPeriod ] = useState( '28' );
 	// Personalizzato parte dagli ultimi 28 giorni.
 	const [ dates, setDates ] = useState( {
@@ -668,7 +674,7 @@ export function Overview() {
 		query = null;
 	} else if ( 'custom' === period ) {
 		query =
-			dates.from && dates.to && dates.from <= dates.to
+			dates.from >= first && dates.to && dates.from <= dates.to
 				? { period, ...dates }
 				: null;
 	}
@@ -698,6 +704,7 @@ export function Overview() {
 					<Text
 						type="date"
 						label={ __( 'From', 'barrio-suite' ) }
+						min={ first }
 						max={ dates.to || yesterday }
 						value={ dates.from }
 						onChange={ ( from ) => setDates( { ...dates, from } ) }
@@ -705,7 +712,7 @@ export function Overview() {
 					<Text
 						type="date"
 						label={ __( 'To', 'barrio-suite' ) }
-						min={ dates.from }
+						min={ dates.from || first }
 						max={ yesterday }
 						value={ dates.to }
 						onChange={ ( to ) => setDates( { ...dates, to } ) }

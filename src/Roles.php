@@ -51,6 +51,17 @@ final class Roles {
 	}
 
 	/**
+	 * Da ogni ruolo, alla disinstallazione di un modulo.
+	 *
+	 * @param list<string> $caps
+	 */
+	public static function remove( array $caps ): void {
+		foreach ( wp_roles()->role_objects as $role ) {
+			array_map( [ $role, 'remove_cap' ], $caps );
+		}
+	}
+
+	/**
 	 * @param list<string> $caps
 	 * @return array<string, mixed>
 	 */

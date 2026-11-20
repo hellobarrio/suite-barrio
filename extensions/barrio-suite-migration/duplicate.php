@@ -1,6 +1,6 @@
 <?php
 // Il passaggio della duplicazione del prototipo, che salvava i tipi e le tassonomie abilitati (nessuno di default):
-// Barrio Suite salva quelli spenti, quindi tutti gli altri si spengono e il sito resta com'era.
+// Barrio Suite salva una scelta per ognuno, così il sito resta com'era.
 
 use BarrioSuite\Admin;
 
@@ -23,7 +23,8 @@ function barrio_migration_duplicate_run( bool $dry_run, array &$report ): ?WP_Er
 	];
 	$settings = [];
 	foreach ( $enabled as $group => $names ) {
-		$settings[ $group ] = array_values( array_diff( array_column( $types[ $group ], 'name' ), $names ) );
+		$all                = array_column( $types[ $group ], 'name' );
+		$settings[ $group ] = array_combine( $all, array_map( static fn( string $name ): bool => in_array( $name, $names, true ), $all ) );
 	}
 	$on                = array_intersect( [ ...array_column( $types['post_types'], 'name' ), ...array_column( $types['taxonomies'], 'name' ) ], [ ...$enabled['post_types'], ...$enabled['taxonomies'] ] );
 	$report['notes'][] = 'Duplicate: only on ' . ( implode( ', ', $on ) ?: 'nothing' ) . ', as in Suite Barrio. The others can be turned on in Barrio → Contents → Duplicate.';

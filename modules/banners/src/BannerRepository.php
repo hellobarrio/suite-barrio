@@ -3,70 +3,28 @@
 namespace BarrioSuite\Banners;
 
 use BarrioSuite\Database\Db;
+use BarrioSuite\Database\PeriodRepository;
 use BarrioSuite\I18n;
 use BarrioSuite\Period;
 use WP_Error;
 
 /**
  * L'unico punto che legge e scrive le tabelle dei banner. Valida ogni scrittura con schema() e garantisce la riga dei
- * testi nella lingua principale, che nessun vincolo SQL può imporre. Ogni scrittura svuota il transient degli accesi,
- * letto nel sito, e fa partire barrio_banners_changed.
+ * testi nella lingua principale, che nessun vincolo SQL può imporre. Il resto, letture, accesi e transient, è in
+ * PeriodRepository.
  *
  * @phpstan-type Texts array<string, array{text: string, link_url: string|null}>
  * @phpstan-type Banner array{id: int, is_enabled: bool, new_tab: bool, starts_at: string|null, ends_at: string|null, i18n: Texts, created_at: string, updated_at: string}
  */
 final class BannerRepository {
 
-	// Gli accesi non scaduti con i testi: senza scadenza, così nel sito non c'è nessuna query. Vuoto con zero banner.
+	/** @use PeriodRepository<Banner> */
+	use PeriodRepository;
+
+	private const NAME = 'banners';
+
+	// Gli accesi non scaduti con i testi (PeriodRepository::live()). Vuoto con zero banner.
 	public const LIVE = 'barrio_banners_live';
-
-	/** @return Banner|null */
-	public static function get( int $id ): ?array {
-		global $wpdb;
-		return self::hydrate( Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Db::table( 'banners' ), $id ) ) )[0] ?? null;
-	}
-
-	/** @return list<Banner> I più recenti per primi. */
-	public static function all(): array {
-		global $wpdb;
-		return self::hydrate( Db::rows( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id DESC', Db::table( 'banners' ) ) ) );
-	}
-
-	/** @return list<Banner> Gli accesi non scaduti, i più recenti per primi: quelli che il sito può mostrare. */
-	public static function live(): array {
-		$live = get_transient( self::LIVE );
-		if ( is_array( $live ) ) {
-			/** @var list<Banner> $live */
-			return $live;
-		}
-		global $wpdb;
-		$live = self::hydrate( Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE is_enabled = 1 AND (ends_at IS NULL OR ends_at > %s) ORDER BY id DESC', Db::table( 'banners' ), gmdate( 'Y-m-d H:i:s' ) ) ) );
-		set_transient( self::LIVE, $live );
-		return $live;
-	}
-
-	/**
-	 * Quello del sito adesso: tra gli accesi nel loro periodo il più recente, così una promozione creata dopo vince su
-	 * quella di sempre.
-	 *
-	 * @return Banner|null
-	 */
-	public static function shown(): ?array {
-		foreach ( self::live() as $banner ) {
-			if ( 'active' === self::status( $banner ) ) {
-				return $banner;
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * @param Banner $banner
-	 * @return 'off'|'scheduled'|'active'|'expired'
-	 */
-	public static function status( array $banner ): string {
-		return Period::status( $banner['is_enabled'], $banner['starts_at'], $banner['ends_at'] );
-	}
 
 	/**
 	 * Crea ($id null) o sostituisce un banner. Date in UTC (Y-m-d H:i:s) o null; i testi per lingua, con la principale.
@@ -120,35 +78,10 @@ final class BannerRepository {
 			}
 		);
 		if ( null === $id ) {
-			return new WP_Error( 'barrio_banner_not_found', __( 'Banner not found.', 'barrio-suite' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		self::changed();
 		return $id;
-	}
-
-	// La copia è spenta: si accende dopo averla cambiata.
-	public static function duplicate( int $id ): int|WP_Error {
-		$banner = self::get( $id );
-		if ( null === $banner ) {
-			return new WP_Error( 'barrio_banner_not_found', __( 'Banner not found.', 'barrio-suite' ), [ 'status' => 404 ] );
-		}
-		return self::save( null, [ 'is_enabled' => false ] + $banner );
-	}
-
-	// Quanti ne ha cambiati.
-	public static function set_enabled( bool $enabled, int ...$ids ): int {
-		global $wpdb;
-		$count = Db::query( $wpdb->prepare( 'UPDATE %i SET is_enabled = %d, updated_at = %s WHERE id IN (', Db::table( 'banners' ), (int) $enabled, gmdate( 'Y-m-d H:i:s' ) ) . ( implode( ',', $ids ) ?: '0' ) . ')' );
-		self::changed();
-		return $count;
-	}
-
-	// Quanti ne ha eliminati; i testi seguono in CASCADE.
-	public static function delete( int ...$ids ): int {
-		global $wpdb;
-		$count = Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE id IN (', Db::table( 'banners' ) ) . ( implode( ',', $ids ) ?: '0' ) . ')' );
-		self::changed();
-		return $count;
 	}
 
 	/** @return array<string, mixed> Lo schema JSON di un banner da scrivere: fa i controlli che il database non sa fare. */
@@ -189,9 +122,8 @@ final class BannerRepository {
 		];
 	}
 
-	private static function changed(): void {
-		delete_transient( self::LIVE );
-		do_action( 'barrio_banners_changed' );
+	private static function not_found(): WP_Error {
+		return new WP_Error( 'barrio_banner_not_found', __( 'Banner not found.', 'barrio-suite' ), [ 'status' => 404 ] );
 	}
 
 	/**

@@ -98,9 +98,7 @@ final class Module {
 
 	// L'opzione la elimina il core (src/Uninstall.php).
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			$role->remove_cap( self::CAP );
-		}
+		Roles::remove( [ self::CAP ] );
 	}
 
 	public static function can(): bool {

@@ -3,14 +3,15 @@
 namespace BarrioSuite\Popups;
 
 use BarrioSuite\Database\Db;
+use BarrioSuite\Database\PeriodRepository;
 use BarrioSuite\I18n;
 use BarrioSuite\Period;
 use WP_Error;
 
 /**
  * L'unico punto che legge e scrive le tabelle dei popup. Valida ogni scrittura con schema() e garantisce la riga dei
- * testi nella lingua principale, che nessun vincolo SQL può imporre. Ogni scrittura svuota il transient degli accesi,
- * letto nel sito, e fa partire barrio_popups_changed.
+ * testi nella lingua principale, che nessun vincolo SQL può imporre. Il resto, letture, accesi e transient, è in
+ * PeriodRepository.
  *
  * @phpstan-type Settings array{new_tab: bool, days: int}
  * @phpstan-type Texts array<string, array{title: string, content: string|null, button_label: string|null, link_url: string|null}>
@@ -18,56 +19,13 @@ use WP_Error;
  */
 final class PopupRepository {
 
-	// Gli accesi non scaduti con i testi: senza scadenza, così nel sito non c'è nessuna query. Vuoto con zero popup.
+	/** @use PeriodRepository<Popup> */
+	use PeriodRepository;
+
+	private const NAME = 'popups';
+
+	// Gli accesi non scaduti con i testi (PeriodRepository::live()). Vuoto con zero popup.
 	public const LIVE = 'barrio_popups_live';
-
-	/** @return Popup|null */
-	public static function get( int $id ): ?array {
-		global $wpdb;
-		return self::hydrate( Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Db::table( 'popups' ), $id ) ) )[0] ?? null;
-	}
-
-	/** @return list<Popup> I più recenti per primi. */
-	public static function all(): array {
-		global $wpdb;
-		return self::hydrate( Db::rows( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id DESC', Db::table( 'popups' ) ) ) );
-	}
-
-	/** @return list<Popup> Gli accesi non scaduti, i più recenti per primi: quelli che il sito può mostrare. */
-	public static function live(): array {
-		$live = get_transient( self::LIVE );
-		if ( is_array( $live ) ) {
-			/** @var list<Popup> $live */
-			return $live;
-		}
-		global $wpdb;
-		$live = self::hydrate( Db::rows( $wpdb->prepare( 'SELECT * FROM %i WHERE is_enabled = 1 AND (ends_at IS NULL OR ends_at > %s) ORDER BY id DESC', Db::table( 'popups' ), gmdate( 'Y-m-d H:i:s' ) ) ) );
-		set_transient( self::LIVE, $live );
-		return $live;
-	}
-
-	/**
-	 * Quello del sito adesso: tra gli accesi nel loro periodo il più recente, così una promozione creata dopo vince su
-	 * quella di sempre.
-	 *
-	 * @return Popup|null
-	 */
-	public static function shown(): ?array {
-		foreach ( self::live() as $popup ) {
-			if ( 'active' === self::status( $popup ) ) {
-				return $popup;
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * @param Popup $popup
-	 * @return 'off'|'scheduled'|'active'|'expired'
-	 */
-	public static function status( array $popup ): string {
-		return Period::status( $popup['is_enabled'], $popup['starts_at'], $popup['ends_at'] );
-	}
 
 	/**
 	 * I testi come li scrive l'editor: HTML filtrato, vuoti a null.
@@ -141,35 +99,10 @@ final class PopupRepository {
 			}
 		);
 		if ( null === $id ) {
-			return new WP_Error( 'barrio_popup_not_found', __( 'Popup not found.', 'barrio-suite' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		self::changed();
 		return $id;
-	}
-
-	// La copia è spenta: si accende dopo averla cambiata.
-	public static function duplicate( int $id ): int|WP_Error {
-		$popup = self::get( $id );
-		if ( null === $popup ) {
-			return new WP_Error( 'barrio_popup_not_found', __( 'Popup not found.', 'barrio-suite' ), [ 'status' => 404 ] );
-		}
-		return self::save( null, [ 'is_enabled' => false ] + $popup );
-	}
-
-	// Quanti ne ha cambiati.
-	public static function set_enabled( bool $enabled, int ...$ids ): int {
-		global $wpdb;
-		$count = Db::query( $wpdb->prepare( 'UPDATE %i SET is_enabled = %d, updated_at = %s WHERE id IN (', Db::table( 'popups' ), (int) $enabled, gmdate( 'Y-m-d H:i:s' ) ) . ( implode( ',', $ids ) ?: '0' ) . ')' );
-		self::changed();
-		return $count;
-	}
-
-	// Quanti ne ha eliminati; i testi seguono in CASCADE.
-	public static function delete( int ...$ids ): int {
-		global $wpdb;
-		$count = Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE id IN (', Db::table( 'popups' ) ) . ( implode( ',', $ids ) ?: '0' ) . ')' );
-		self::changed();
-		return $count;
 	}
 
 	/** @return array<string, mixed> Lo schema JSON di un popup da scrivere: fa i controlli che il database non sa fare. */
@@ -233,11 +166,6 @@ final class PopupRepository {
 		];
 	}
 
-	private static function changed(): void {
-		delete_transient( self::LIVE );
-		do_action( 'barrio_popups_changed' );
-	}
-
 	/**
 	 * Le impostazioni salvate, senza quelle tolte dopo (l'apertura), che lo schema rifiuterebbe al prossimo salvataggio.
 	 *
@@ -247,6 +175,10 @@ final class PopupRepository {
 		/** @var Settings $settings */
 		$settings = array_intersect_key( (array) json_decode( $json, true ), self::schema()['properties']['settings']['properties'] );
 		return $settings;
+	}
+
+	private static function not_found(): WP_Error {
+		return new WP_Error( 'barrio_popup_not_found', __( 'Popup not found.', 'barrio-suite' ), [ 'status' => 404 ] );
 	}
 
 	/**

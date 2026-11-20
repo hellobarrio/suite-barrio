@@ -32,7 +32,7 @@ a.barrio-banner__body:focus-visible .barrio-banner__text {
 	text-decoration: underline;
 }
 
-a.barrio-banner__body:focus-visible {
+.barrio-banner__body:focus-visible {
 	outline: 2px solid currentcolor;
 	outline-offset: -4px;
 }

@@ -8,33 +8,24 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
 	PeriodCard,
-	STATUS,
+	PeriodList,
 	fillTexts,
-	periodText,
 	trimTexts,
 } from '../../../../assets/src/admin/period.js';
-import {
-	initialQuery,
-	localQuery,
-} from '../../../../assets/src/admin/query.js';
 import {
 	Bar,
 	Card,
 	Fixed,
 	Icon,
-	Lang,
 	LangNotice,
 	LangPicker,
 	Loading,
 	Lucide,
-	Menu,
 	ModuleCard,
 	Notice,
 	Permissions,
-	Table,
 	Toggle,
 	errorMessage,
-	langOption,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
 import { textIn } from '../../../forms/assets/src/builder/model.js';
@@ -44,10 +35,7 @@ import { TextIn } from '../../../forms/assets/src/builder/Texts.js';
 export const BANNERS = {
 	icon: 'megaphone',
 	title: __( 'Banners', 'barrio-suite' ),
-	description: __(
-		'Announcements at the top or bottom of pages',
-		'barrio-suite'
-	),
+	description: __( 'Announcements at the top of pages', 'barrio-suite' ),
 	color: 'linear-gradient(135deg, #164e63, #0e7490)',
 };
 
@@ -55,7 +43,7 @@ export const BANNERS = {
 const bannersData = window.barrioAdmin.banners;
 
 const { languages } = window.barrioAdmin;
-const [ main, ...others ] = languages;
+const [ main ] = languages;
 
 // La capability del modulo, nei Permessi (Module::CAP).
 const CAPS = { barrio_manage_banners: __( 'Manage', 'barrio-suite' ) };
@@ -74,325 +62,60 @@ const blank = () => ( {
 const textOf = ( banner ) =>
 	( banner.i18n[ main ] ?? Object.values( banner.i18n )[ 0 ] )?.text ?? '';
 
-// Il più recente per primo. status '' = tutti; lang '' = in qualsiasi lingua.
-const INITIAL = { ...initialQuery( 'id', 'desc' ), status: '', lang: '' };
-
-function BannerList() {
-	const [ banners, setBanners ] = useState( null );
-	const [ query, setQuery ] = useState( INITIAL );
-	const [ notice, setNotice ] = useState( null );
-
-	const fail = ( error ) =>
-		setNotice( { status: 'error', message: errorMessage( error ) } );
-	// Senza return: un effetto non deve restituire la Promise.
-	const load = () => {
-		apiFetch( { path: '/barrio/v1/banners' } )
-			.then( setBanners )
-			.catch( fail );
-	};
-	useEffect( load, [] );
-
-	const act = ( request, message ) => {
-		setNotice( null );
-		apiFetch( request )
-			.then( () => setNotice( { status: 'success', message } ) )
-			.catch( fail )
-			.finally( load );
-	};
-	const bulk = ( action, ids, message ) =>
-		act(
-			{
-				path: '/barrio/v1/banners/bulk',
-				method: 'POST',
-				data: { action, ids },
-			},
-			message
-		);
-	const turn = ( on, ids ) =>
-		bulk(
-			on ? 'enable' : 'disable',
-			ids,
-			on
-				? sprintf(
-						/* translators: %d: number of banners turned on. */
-						_n(
-							'%d banner turned on.',
-							'%d banners turned on.',
-							ids.length,
-							'barrio-suite'
-						),
-						ids.length
-					)
-				: sprintf(
-						/* translators: %d: number of banners turned off. */
-						_n(
-							'%d banner turned off.',
-							'%d banners turned off.',
-							ids.length,
-							'barrio-suite'
-						),
-						ids.length
-					)
-		);
-	const remove = ( ids ) => {
-		if (
-			// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
-			window.confirm(
-				sprintf(
-					/* translators: %d: number of banners to delete. */
-					_n(
-						'Delete %d banner permanently?',
-						'Delete %d banners permanently?',
-						ids.length,
-						'barrio-suite'
-					),
-					ids.length
-				)
-			)
-		) {
-			bulk(
-				'delete',
-				ids,
-				sprintf(
-					/* translators: %d: number of banners deleted. */
-					_n(
-						'%d banner deleted.',
-						'%d banners deleted.',
-						ids.length,
-						'barrio-suite'
-					),
-					ids.length
-				)
-			);
-		}
-	};
-
-	if ( ! banners ) {
-		return notice ? <Notice notice={ notice } /> : <Loading />;
-	}
-	const all = banners.map( ( banner ) => ( {
-		...banner,
-		text: textOf( banner ),
-		period: periodText( banner.starts_at, banner.ends_at ),
-		// Per ordinare: gli stati nell'ordine di STATUS, il periodo dall'inizio.
-		order: Object.keys( STATUS ).indexOf( banner.status ),
-		start: banner.starts_at ?? '',
-		translations: others.filter( ( lang ) => banner.i18n[ lang ] ),
-	} ) );
-	const count = ( status ) =>
-		all.filter( ( banner ) => banner.status === status ).length;
-	const visible = all.filter(
-		( banner ) => ! query.status || banner.status === query.status
-	);
-	// Con la lingua principale quelli non tradotti, con un'altra quelli tradotti in quella.
-	const inLanguage = ( lang ) =>
-		visible.filter( ( banner ) =>
-			lang === main
-				? ! banner.translations.length
-				: banner.translations.includes( lang )
-		);
-	const { rows, total } = localQuery(
-		( query.lang ? inLanguage( query.lang ) : visible ).map(
-			( banner ) => ( {
-				...banner,
-				count: banner.translations.length,
-			} )
+// I testi dell'elenco (PeriodList).
+const LIST = {
+	column: __( 'Text', 'barrio-suite' ),
+	title: __( 'Banners', 'barrio-suite' ),
+	search: __( 'Search banners', 'barrio-suite' ),
+	empty: __( 'No banners found.', 'barrio-suite' ),
+	all: __( 'All banners', 'barrio-suite' ),
+	add: __( 'New banner', 'barrio-suite' ),
+	duplicated: __( 'Banner duplicated: the copy is off.', 'barrio-suite' ),
+	on: ( n ) =>
+		sprintf(
+			/* translators: %d: number of banners turned on. */
+			_n(
+				'%d banner turned on.',
+				'%d banners turned on.',
+				n,
+				'barrio-suite'
+			),
+			n
 		),
-		query,
-		[ 'text', 'period' ]
-	);
-
-	const columns = [
-		{
-			key: 'text',
-			label: __( 'Text', 'barrio-suite' ),
-			sort: 'text',
-			render: ( banner ) => (
-				<a
-					className="barrio-table__title"
-					href={ pageUrl( { banner: banner.id } ) }
-				>
-					{ banner.text }
-				</a>
+	off: ( n ) =>
+		sprintf(
+			/* translators: %d: number of banners turned off. */
+			_n(
+				'%d banner turned off.',
+				'%d banners turned off.',
+				n,
+				'barrio-suite'
 			),
-		},
-		{
-			key: 'status',
-			label: __( 'Status', 'barrio-suite' ),
-			sort: 'order',
-			hideable: true,
-			render: ( banner ) => (
-				<span
-					className={ `barrio-badge ${ STATUS[ banner.status ][ 1 ] }` }
-				>
-					{ STATUS[ banner.status ][ 0 ] }
-				</span>
+			n
+		),
+	confirm: ( n ) =>
+		sprintf(
+			/* translators: %d: number of banners to delete. */
+			_n(
+				'Delete %d banner permanently?',
+				'Delete %d banners permanently?',
+				n,
+				'barrio-suite'
 			),
-		},
-		{
-			key: 'period',
-			label: __( 'Period', 'barrio-suite' ),
-			sort: 'start',
-			hideable: true,
-		},
-		others.length > 0 && {
-			key: 'translations',
-			label: __( 'Translations', 'barrio-suite' ),
-			sort: 'count',
-			hideable: true,
-			render: ( banner ) =>
-				banner.translations.length ? (
-					<span className="barrio-row is-nowrap">
-						{ banner.translations.map( ( lang ) => (
-							<span key={ lang } className="barrio-badge">
-								<Lang code={ lang } />
-							</span>
-						) ) }
-					</span>
-				) : (
-					'—'
-				),
-		},
-		{
-			key: 'actions',
-			label: (
-				<span className="screen-reader-text">
-					{ __( 'Actions', 'barrio-suite' ) }
-				</span>
+			n
+		),
+	deleted: ( n ) =>
+		sprintf(
+			/* translators: %d: number of banners deleted. */
+			_n(
+				'%d banner deleted.',
+				'%d banners deleted.',
+				n,
+				'barrio-suite'
 			),
-			className: 'is-narrow is-end',
-			render: ( banner ) => (
-				<Menu
-					label={ sprintf(
-						/* translators: %s: name of the row: a form, a page, a post or a term. */
-						__( 'Actions for "%s"', 'barrio-suite' ),
-						banner.text
-					) }
-					items={ [
-						{
-							label: __( 'Edit', 'barrio-suite' ),
-							icon: 'edit',
-							href: pageUrl( { banner: banner.id } ),
-						},
-						{
-							label: __( 'Duplicate', 'barrio-suite' ),
-							icon: 'admin-page',
-							onClick: () =>
-								act(
-									{
-										path: `/barrio/v1/banners/${ banner.id }/duplicate`,
-										method: 'POST',
-									},
-									__(
-										'Banner duplicated: the copy is off.',
-										'barrio-suite'
-									)
-								),
-						},
-						banner.is_enabled
-							? {
-									label: __( 'Turn off', 'barrio-suite' ),
-									icon: 'hidden',
-									onClick: () => turn( false, [ banner.id ] ),
-								}
-							: {
-									label: __( 'Turn on', 'barrio-suite' ),
-									icon: 'visibility',
-									onClick: () => turn( true, [ banner.id ] ),
-								},
-						{
-							label: __( 'Delete', 'barrio-suite' ),
-							icon: 'trash',
-							danger: true,
-							onClick: () => remove( [ banner.id ] ),
-						},
-					] }
-				/>
-			),
-		},
-	];
-
-	return (
-		<div className="barrio-stack">
-			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
-			<Table
-				columns={ columns }
-				rows={ rows }
-				total={ total }
-				query={ query }
-				initial={ INITIAL }
-				onQuery={ setQuery }
-				title={ __( 'Banners', 'barrio-suite' ) }
-				search={ __( 'Search banners', 'barrio-suite' ) }
-				empty={ __( 'No banners found.', 'barrio-suite' ) }
-				filters={ [
-					{
-						key: 'status',
-						label: __( 'Status', 'barrio-suite' ),
-						options: [
-							{
-								value: '',
-								label: __( 'All banners', 'barrio-suite' ),
-								count: all.length,
-							},
-							...Object.entries( STATUS ).map(
-								( [ value, [ label ] ] ) => ( {
-									value,
-									label,
-									count: count( value ),
-								} )
-							),
-						],
-					},
-					others.length > 0 && {
-						key: 'lang',
-						label: __( 'Language', 'barrio-suite' ),
-						options: [
-							{
-								value: '',
-								label: __( 'All languages', 'barrio-suite' ),
-								count: visible.length,
-							},
-							...languages.map( ( lang ) => ( {
-								...langOption( lang ),
-								count: inLanguage( lang ).length,
-							} ) ),
-						],
-					},
-				] }
-				bulk={ ( ids ) => [
-					{
-						label: __( 'Turn on', 'barrio-suite' ),
-						icon: 'visibility',
-						onClick: () => turn( true, ids ),
-					},
-					{
-						label: __( 'Turn off', 'barrio-suite' ),
-						icon: 'hidden',
-						onClick: () => turn( false, ids ),
-					},
-					{
-						label: __( 'Delete', 'barrio-suite' ),
-						icon: 'trash',
-						danger: true,
-						onClick: () => remove( ids ),
-					},
-				] }
-				toolbar={
-					<a
-						className="barrio-button is-primary"
-						href={ pageUrl( { banner: 'new' } ) }
-					>
-						<Icon name="plus-alt2" />
-						<span className="barrio-button__text">
-							{ __( 'New banner', 'barrio-suite' ) }
-						</span>
-					</a>
-				}
-			/>
-		</div>
-	);
-}
+			n
+		),
+};
 
 // Una finestra del browser con il banner in cima a una pagina finta, come nel prototipo. Il banner ha lo stile e lo
 // script del sito (Module::admin_data()): scorre, e rallenta fino a fermarsi sotto il mouse.
@@ -644,7 +367,7 @@ export function BannersTab() {
 	return /^[1-9]\d*$/.test( param ?? '' ) ? (
 		<BannerEditor id={ Number( param ) } />
 	) : (
-		<BannerList />
+		<PeriodList name="banners" label={ textOf } texts={ LIST } />
 	);
 }
 

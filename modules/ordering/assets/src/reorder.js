@@ -19,6 +19,10 @@ import { flatten, toTree } from './tree.js';
 
 const { list, title: name } = window.barrioReorder;
 
+// ponytail: la modale ha tutto l'elenco; oltre qualche centinaio di voci il trascinamento va a scatti (67 ms a passo
+// con 1.011 pagine), con le pagine quando un sito lo chiede.
+const MANY = 300;
+
 const title = ( item ) => item.title || __( '(no title)', 'barrio-suite' );
 
 // Un livello dell'albero: si sposta tra fratelli, e ogni elemento porta con sé i suoi figli.
@@ -164,6 +168,11 @@ function ReorderModal( { onClose } ) {
 						Object.keys( tree ).length > 1 &&
 						__(
 							'Items move among those with the same parent: the parent is changed in the item itself.',
+							'barrio-suite'
+						) }{ ' ' }
+					{ saved?.length > MANY &&
+						__(
+							'With this many items, moving them can be slow.',
 							'barrio-suite'
 						) }
 				</p>

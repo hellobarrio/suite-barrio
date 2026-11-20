@@ -14,11 +14,16 @@ export const DUPLICATE = {
 	),
 };
 
-// Module::admin_data(): i tipi e le tassonomie spenti. Con il modulo spento manca.
+// Module::admin_data(): chosen, i tipi e le tassonomie accesi o spenti a mano. Con il modulo spento manca.
 export const duplicateData = window.barrioAdmin.duplicate;
 
 // Admin::content_types(): i tipi e le tassonomie con l'interfaccia.
 const { contentTypes } = window.barrioAdmin;
+
+// Senza una scelta, Duplica c'è dove il tipo ha pagine nel sito (Module::enabled()).
+const isOn = ( chosen, group, name ) =>
+	chosen[ group ][ name ] ??
+	contentTypes[ group ].find( ( type ) => type.name === name ).viewable;
 
 // Una card per elenco, come le card di Prestazioni: una riga per tipo.
 const CARDS = {
@@ -26,7 +31,7 @@ const CARDS = {
 		icon: 'admin-page',
 		title: __( 'Content types', 'barrio-suite' ),
 		description: __(
-			'Duplicate in the list, in the bulk actions and in the editor. The copy is a draft of whoever duplicates it, with the content, the custom fields and the terms of the original.',
+			'Duplicate in the list, in the bulk actions and in the editor. The copy is a draft of whoever duplicates it, with the content, the custom fields and the terms of the original. On by default for the types with pages on the site: other plugins may keep the data of their own types elsewhere, and the copy would miss it.',
 			'barrio-suite'
 		),
 	},
@@ -43,19 +48,22 @@ const CARDS = {
 // La capability del modulo, nei Permessi (Module::CAP).
 const CAPS = { barrio_duplicate: __( 'Duplicate', 'barrio-suite' ) };
 
-const enabled = ( group, disabled ) =>
-	contentTypes[ group ].filter( ( { name } ) => ! disabled.includes( name ) );
-
 // Per la card Contenuti della Bacheca, dalle impostazioni salvate: un numero per strumento.
 export const duplicateStats = () => [
 	[
 		__( 'Lists with Duplicate', 'barrio-suite' ),
-		enabled( 'post_types', duplicateData.disabled.post_types ).length +
-			enabled( 'taxonomies', duplicateData.disabled.taxonomies ).length,
+		[ 'post_types', 'taxonomies' ].reduce(
+			( count, group ) =>
+				count +
+				contentTypes[ group ].filter( ( { name } ) =>
+					isOn( duplicateData.chosen, group, name )
+				).length,
+			0
+		),
 	],
 ];
 
-// GET e PUT /barrio/v1/duplicate, con il Salva della barra (general/General.js). Si salvano i tipi spenti e le
+// GET e PUT /barrio/v1/duplicate, con il Salva della barra (general/General.js). Si salvano le scelte e le
 // capability dei ruoli.
 export const duplicateSection = {
 	id: 'duplicate',
@@ -71,13 +79,11 @@ export const duplicateSection = {
 		<>
 			<TypeCards
 				cards={ CARDS }
-				checked={ ( group, name ) => ! draft[ group ].includes( name ) }
+				checked={ ( group, name ) => isOn( draft, group, name ) }
 				onChange={ ( group, name, on ) =>
 					set( {
 						...draft,
-						[ group ]: on
-							? draft[ group ].filter( ( item ) => item !== name )
-							: [ ...draft[ group ], name ],
+						[ group ]: { ...draft[ group ], [ name ]: on },
 					} )
 				}
 			/>

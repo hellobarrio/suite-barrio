@@ -232,7 +232,7 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$dry = barrio_migration_seo_run( true );
 
 		$this->assertIsArray( $dry );
-		$this->assertFalse( get_option( 'barrio_seo' ) );
+		$this->assertSame( [], get_option( 'barrio_seo' ) );
 		$this->assertFalse( metadata_exists( 'post', $this->post, '_barrio_seo_title' ) );
 		$this->assertSame( 0, RedirectRepository::count() );
 		$this->assertFalse( Modules::is_enabled( 'seo' ) );

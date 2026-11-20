@@ -122,7 +122,7 @@ final class BannersTest extends WP_UnitTestCase {
 		$id   = $this->create();
 		$page = get_permalink( self::factory()->post->create( [ 'post_type' => 'page' ] ) );
 
-		$this->assertStringContainsString( '<span class="barrio-banner__text">Saldi</span>', $this->page( $page ) );
+		$this->assertStringContainsString( '<div class="barrio-banner__body" tabindex="0"><span class="barrio-banner__track"><span class="barrio-banner__text">Saldi</span>', $this->page( $page ), 'Without a link it still takes the focus, which stops the text.' );
 		$this->assertTrue( wp_style_is( 'barrio-banners' ) );
 		$this->lang = 'en';
 		$this->assertStringContainsString( '<a class="barrio-banner__body" href="/en/sale/"><span class="barrio-banner__track"><span class="barrio-banner__text">Sale</span>', $this->page( home_url( '/' ) ) );

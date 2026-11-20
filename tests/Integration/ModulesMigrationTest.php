@@ -238,9 +238,7 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 		$this->migrate( 'duplicate' );
 		$duplicate = get_option( 'barrio_duplicate' );
 
-		$this->assertContains( 'post', $duplicate['post_types'] );
-		$this->assertNotContains( 'page', $duplicate['post_types'] );
-		$this->assertContains( 'category', $duplicate['taxonomies'] );
+		$this->assertSame( [ false, true, false ], [ $duplicate['post_types']['post'], $duplicate['post_types']['page'], $duplicate['taxonomies']['category'] ] );
 	}
 
 	public function test_alt_text_keeps_the_generation_on_upload_and_not_the_keys(): void {

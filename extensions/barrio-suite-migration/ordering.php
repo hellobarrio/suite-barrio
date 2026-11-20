@@ -16,7 +16,7 @@ function barrio_migration_ordering_run( bool $dry_run, array &$report ): ?WP_Err
 		return new WP_Error( 'barrio_migration_no_prototype', 'There are no ordering settings of Suite Barrio in this database.' );
 	}
 
-	if ( false !== get_option( 'barrio_ordering' ) ) {
+	if ( get_option( 'barrio_ordering' ) ) {
 		$report['notes'][] = 'Ordering: Barrio Suite already has its settings, they stay as they are.';
 	} else {
 		$valid             = static fn( mixed $names ): array => array_values( array_unique( array_filter( (array) $names, static fn( mixed $name ): bool => is_string( $name ) && preg_match( '/^[a-z0-9_-]{1,32}$/', $name ) ) ) );

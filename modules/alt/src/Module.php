@@ -44,6 +44,9 @@ final class Module {
 
 	private const PER_PAGE = 20;
 
+	// Il file più pesante che si manda a Google: la dimensione large ne pesa una frazione.
+	private const MAX_BYTES = 5 * MB_IN_BYTES;
+
 	public static function boot(): void {
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'admin_menu', [ self::class, 'menu' ] );
@@ -62,9 +65,7 @@ final class Module {
 
 	// L'opzione la elimina il core (src/Uninstall.php); gli alt sono del core e restano.
 	public static function uninstall(): void {
-		foreach ( wp_roles()->role_objects as $role ) {
-			$role->remove_cap( self::CAP );
-		}
+		Roles::remove( [ self::CAP ] );
 	}
 
 	public static function menu(): void {
@@ -215,7 +216,8 @@ final class Module {
 			remove_filter( 'posts_clauses', $by );
 		}
 		if ( $ids ) {
-			// ponytail: un controllo per immagine; con decine di migliaia di immagini senza alt, a pagine.
+			// Il tipo MIME e edit_post leggono l'allegato: una query per tutti invece di una per immagine.
+			_prime_post_caches( wp_parse_id_list( (array) $query->posts ), false, false );
 			$can = static fn( int|WP_Post $id ): bool => is_int( $id ) && self::supported( (string) get_post_mime_type( $id ) ) && current_user_can( 'edit_post', $id );
 			return new WP_REST_Response( [ 'ids' => array_values( array_filter( (array) $query->posts, $can ) ) ] );
 		}
@@ -459,8 +461,8 @@ final class Module {
 	}
 
 	/**
-	 * L'immagine per Google, come inlineData: la dimensione large, o il file caricato se è più piccolo, mai l'originale
-	 * grande. In AVIF (il modulo Prestazioni), GIF o HEIC si converte in JPEG.
+	 * L'immagine per Google, come inlineData: la dimensione large, o il file caricato se è più piccolo; mai un file oltre
+	 * MAX_BYTES. In AVIF (il modulo Prestazioni), GIF o HEIC si converte in JPEG.
 	 *
 	 * @return array{mimeType: string, data: string}|WP_Error
 	 */
@@ -491,9 +493,14 @@ final class Module {
 			}
 			[ $file, $temp, $mime ] = [ $saved['path'], $saved['path'], 'image/jpeg' ];
 		}
-		$data = is_file( $file ) ? file_get_contents( $file ) : false; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- un file dei media di questo sito.
+		// Senza la dimensione large (spenta dal tema, o non generata) il file caricato può essere di qualunque peso.
+		$size = is_file( $file ) ? (int) filesize( $file ) : 0;
+		$data = $size && $size <= self::MAX_BYTES ? file_get_contents( $file ) : false; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- un file dei media di questo sito.
 		if ( '' !== $temp ) {
 			wp_delete_file( $temp );
+		}
+		if ( $size > self::MAX_BYTES ) {
+			return new WP_Error( 'barrio_alt_size', __( 'The image is too large to send to Google.', 'barrio-suite' ), [ 'status' => 413 ] );
 		}
 		if ( false === $data ) {
 			return new WP_Error( 'barrio_alt_file', __( 'The image file is missing.', 'barrio-suite' ), [ 'status' => 404 ] );

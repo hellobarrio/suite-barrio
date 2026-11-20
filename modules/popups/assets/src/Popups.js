@@ -7,35 +7,26 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
 	PeriodCard,
-	STATUS,
+	PeriodList,
 	fillTexts,
-	periodText,
 	trimTexts,
 } from '../../../../assets/src/admin/period.js';
-import {
-	initialQuery,
-	localQuery,
-} from '../../../../assets/src/admin/query.js';
 import {
 	Bar,
 	Card,
 	Fixed,
 	Group,
 	Icon,
-	Lang,
 	LangNotice,
 	LangPicker,
 	Loading,
 	Lucide,
-	Menu,
 	ModuleCard,
 	Notice,
 	Permissions,
-	Table,
 	Text,
 	Toggle,
 	errorMessage,
-	langOption,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
 import {
@@ -57,7 +48,7 @@ export const POPUPS = {
 const popupsData = window.barrioAdmin.popups;
 
 const { languages } = window.barrioAdmin;
-const [ main, ...others ] = languages;
+const [ main ] = languages;
 const MAIN = main.toUpperCase();
 
 // La capability del modulo, nei Permessi (Module::CAP).
@@ -92,325 +83,55 @@ const titleOf = ( popup ) =>
 const number = ( value, max ) =>
 	Math.min( max, Math.max( 0, parseInt( value, 10 ) || 0 ) );
 
-// Il più recente per primo. status '' = tutti; lang '' = in qualsiasi lingua.
-const INITIAL = { ...initialQuery( 'id', 'desc' ), status: '', lang: '' };
-
-function PopupList() {
-	const [ popups, setPopups ] = useState( null );
-	const [ query, setQuery ] = useState( INITIAL );
-	const [ notice, setNotice ] = useState( null );
-
-	const fail = ( error ) =>
-		setNotice( { status: 'error', message: errorMessage( error ) } );
-	// Senza return: un effetto non deve restituire la Promise.
-	const load = () => {
-		apiFetch( { path: '/barrio/v1/popups' } )
-			.then( setPopups )
-			.catch( fail );
-	};
-	useEffect( load, [] );
-
-	const act = ( request, message ) => {
-		setNotice( null );
-		apiFetch( request )
-			.then( () => setNotice( { status: 'success', message } ) )
-			.catch( fail )
-			.finally( load );
-	};
-	const bulk = ( action, ids, message ) =>
-		act(
-			{
-				path: '/barrio/v1/popups/bulk',
-				method: 'POST',
-				data: { action, ids },
-			},
-			message
-		);
-	const turn = ( on, ids ) =>
-		bulk(
-			on ? 'enable' : 'disable',
-			ids,
-			on
-				? sprintf(
-						/* translators: %d: number of popups turned on. */
-						_n(
-							'%d popup turned on.',
-							'%d popups turned on.',
-							ids.length,
-							'barrio-suite'
-						),
-						ids.length
-					)
-				: sprintf(
-						/* translators: %d: number of popups turned off. */
-						_n(
-							'%d popup turned off.',
-							'%d popups turned off.',
-							ids.length,
-							'barrio-suite'
-						),
-						ids.length
-					)
-		);
-	const remove = ( ids ) => {
-		if (
-			// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
-			window.confirm(
-				sprintf(
-					/* translators: %d: number of popups to delete. */
-					_n(
-						'Delete %d popup permanently?',
-						'Delete %d popups permanently?',
-						ids.length,
-						'barrio-suite'
-					),
-					ids.length
-				)
-			)
-		) {
-			bulk(
-				'delete',
-				ids,
-				sprintf(
-					/* translators: %d: number of popups deleted. */
-					_n(
-						'%d popup deleted.',
-						'%d popups deleted.',
-						ids.length,
-						'barrio-suite'
-					),
-					ids.length
-				)
-			);
-		}
-	};
-
-	if ( ! popups ) {
-		return notice ? <Notice notice={ notice } /> : <Loading />;
-	}
-	const all = popups.map( ( popup ) => ( {
-		...popup,
-		title: titleOf( popup ),
-		period: periodText( popup.starts_at, popup.ends_at ),
-		// Per ordinare: gli stati nell'ordine di STATUS, il periodo dall'inizio.
-		order: Object.keys( STATUS ).indexOf( popup.status ),
-		start: popup.starts_at ?? '',
-		translations: others.filter( ( lang ) => popup.i18n[ lang ] ),
-	} ) );
-	const count = ( status ) =>
-		all.filter( ( popup ) => popup.status === status ).length;
-	const visible = all.filter(
-		( popup ) => ! query.status || popup.status === query.status
-	);
-	// Con la lingua principale quelli non tradotti, con un'altra quelli tradotti in quella.
-	const inLanguage = ( lang ) =>
-		visible.filter( ( popup ) =>
-			lang === main
-				? ! popup.translations.length
-				: popup.translations.includes( lang )
-		);
-	const { rows, total } = localQuery(
-		( query.lang ? inLanguage( query.lang ) : visible ).map(
-			( popup ) => ( {
-				...popup,
-				count: popup.translations.length,
-			} )
+// I testi dell'elenco (PeriodList).
+const LIST = {
+	column: __( 'Title', 'barrio-suite' ),
+	title: __( 'Popups', 'barrio-suite' ),
+	search: __( 'Search popups', 'barrio-suite' ),
+	empty: __( 'No popups found.', 'barrio-suite' ),
+	all: __( 'All popups', 'barrio-suite' ),
+	add: __( 'New popup', 'barrio-suite' ),
+	duplicated: __( 'Popup duplicated: the copy is off.', 'barrio-suite' ),
+	on: ( n ) =>
+		sprintf(
+			/* translators: %d: number of popups turned on. */
+			_n(
+				'%d popup turned on.',
+				'%d popups turned on.',
+				n,
+				'barrio-suite'
+			),
+			n
 		),
-		query,
-		[ 'title', 'period' ]
-	);
-
-	const columns = [
-		{
-			key: 'title',
-			label: __( 'Title', 'barrio-suite' ),
-			sort: 'title',
-			render: ( popup ) => (
-				<a
-					className="barrio-table__title"
-					href={ pageUrl( { popup: popup.id } ) }
-				>
-					{ popup.title }
-				</a>
+	off: ( n ) =>
+		sprintf(
+			/* translators: %d: number of popups turned off. */
+			_n(
+				'%d popup turned off.',
+				'%d popups turned off.',
+				n,
+				'barrio-suite'
 			),
-		},
-		{
-			key: 'status',
-			label: __( 'Status', 'barrio-suite' ),
-			sort: 'order',
-			hideable: true,
-			render: ( popup ) => (
-				<span
-					className={ `barrio-badge ${ STATUS[ popup.status ][ 1 ] }` }
-				>
-					{ STATUS[ popup.status ][ 0 ] }
-				</span>
+			n
+		),
+	confirm: ( n ) =>
+		sprintf(
+			/* translators: %d: number of popups to delete. */
+			_n(
+				'Delete %d popup permanently?',
+				'Delete %d popups permanently?',
+				n,
+				'barrio-suite'
 			),
-		},
-		{
-			key: 'period',
-			label: __( 'Period', 'barrio-suite' ),
-			sort: 'start',
-			hideable: true,
-		},
-		others.length > 0 && {
-			key: 'translations',
-			label: __( 'Translations', 'barrio-suite' ),
-			sort: 'count',
-			hideable: true,
-			render: ( popup ) =>
-				popup.translations.length ? (
-					<span className="barrio-row is-nowrap">
-						{ popup.translations.map( ( lang ) => (
-							<span key={ lang } className="barrio-badge">
-								<Lang code={ lang } />
-							</span>
-						) ) }
-					</span>
-				) : (
-					'—'
-				),
-		},
-		{
-			key: 'actions',
-			label: (
-				<span className="screen-reader-text">
-					{ __( 'Actions', 'barrio-suite' ) }
-				</span>
-			),
-			className: 'is-narrow is-end',
-			render: ( popup ) => (
-				<Menu
-					label={ sprintf(
-						/* translators: %s: name of the row: a form, a page, a post or a term. */
-						__( 'Actions for "%s"', 'barrio-suite' ),
-						popup.title
-					) }
-					items={ [
-						{
-							label: __( 'Edit', 'barrio-suite' ),
-							icon: 'edit',
-							href: pageUrl( { popup: popup.id } ),
-						},
-						{
-							label: __( 'Duplicate', 'barrio-suite' ),
-							icon: 'admin-page',
-							onClick: () =>
-								act(
-									{
-										path: `/barrio/v1/popups/${ popup.id }/duplicate`,
-										method: 'POST',
-									},
-									__(
-										'Popup duplicated: the copy is off.',
-										'barrio-suite'
-									)
-								),
-						},
-						popup.is_enabled
-							? {
-									label: __( 'Turn off', 'barrio-suite' ),
-									icon: 'hidden',
-									onClick: () => turn( false, [ popup.id ] ),
-								}
-							: {
-									label: __( 'Turn on', 'barrio-suite' ),
-									icon: 'visibility',
-									onClick: () => turn( true, [ popup.id ] ),
-								},
-						{
-							label: __( 'Delete', 'barrio-suite' ),
-							icon: 'trash',
-							danger: true,
-							onClick: () => remove( [ popup.id ] ),
-						},
-					] }
-				/>
-			),
-		},
-	];
-
-	return (
-		<div className="barrio-stack">
-			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
-			<Table
-				columns={ columns }
-				rows={ rows }
-				total={ total }
-				query={ query }
-				initial={ INITIAL }
-				onQuery={ setQuery }
-				title={ __( 'Popups', 'barrio-suite' ) }
-				search={ __( 'Search popups', 'barrio-suite' ) }
-				empty={ __( 'No popups found.', 'barrio-suite' ) }
-				filters={ [
-					{
-						key: 'status',
-						label: __( 'Status', 'barrio-suite' ),
-						options: [
-							{
-								value: '',
-								label: __( 'All popups', 'barrio-suite' ),
-								count: all.length,
-							},
-							...Object.entries( STATUS ).map(
-								( [ value, [ label ] ] ) => ( {
-									value,
-									label,
-									count: count( value ),
-								} )
-							),
-						],
-					},
-					others.length > 0 && {
-						key: 'lang',
-						label: __( 'Language', 'barrio-suite' ),
-						options: [
-							{
-								value: '',
-								label: __( 'All languages', 'barrio-suite' ),
-								count: visible.length,
-							},
-							...languages.map( ( lang ) => ( {
-								...langOption( lang ),
-								count: inLanguage( lang ).length,
-							} ) ),
-						],
-					},
-				] }
-				bulk={ ( ids ) => [
-					{
-						label: __( 'Turn on', 'barrio-suite' ),
-						icon: 'visibility',
-						onClick: () => turn( true, ids ),
-					},
-					{
-						label: __( 'Turn off', 'barrio-suite' ),
-						icon: 'hidden',
-						onClick: () => turn( false, ids ),
-					},
-					{
-						label: __( 'Delete', 'barrio-suite' ),
-						icon: 'trash',
-						danger: true,
-						onClick: () => remove( ids ),
-					},
-				] }
-				toolbar={
-					<a
-						className="barrio-button is-primary"
-						href={ pageUrl( { popup: 'new' } ) }
-					>
-						<Icon name="plus-alt2" />
-						<span className="barrio-button__text">
-							{ __( 'New popup', 'barrio-suite' ) }
-						</span>
-					</a>
-				}
-			/>
-		</div>
-	);
-}
+			n
+		),
+	deleted: ( n ) =>
+		sprintf(
+			/* translators: %d: number of popups deleted. */
+			_n( '%d popup deleted.', '%d popups deleted.', n, 'barrio-suite' ),
+			n
+		),
+};
 
 /**
  * Il testo formattato con l'editor classico di WordPress, ridotto a grassetto, corsivo, elenchi e link. Si scrive in
@@ -860,7 +581,7 @@ export function PopupsTab() {
 	return /^[1-9]\d*$/.test( param ?? '' ) ? (
 		<PopupEditor id={ Number( param ) } />
 	) : (
-		<PopupList />
+		<PeriodList name="popups" label={ titleOf } texts={ LIST } />
 	);
 }
 
