@@ -312,19 +312,16 @@ final class Module {
 			'settings'   => rest_sanitize_value_from_schema( $settings, $schema['settings'], 'settings' ),
 			'i18n'       => [ $lang => [ 'title' => $texts['title'] ?: __( 'The title of the popup', 'barrio-suite' ) ] + $texts ],
 		];
-		$html  = I18n::in( $lang, static fn(): string => self::html( $popup, true ) );
-		$forms = str_contains( $html, 'data-barrio-form' ) ? Render::head() : '';
+		// Un form nel testo accoda da sé CSS e JS (Render::form()).
+		$html = I18n::in( $lang, static fn(): string => self::html( $popup, true ) );
+		wp_enqueue_style( 'barrio-popups' );
+		wp_add_inline_style( 'barrio-popups', 'body{margin:0;min-height:100vh;padding:24px;box-sizing:border-box;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}.barrio-preview-line{height:10px;margin-bottom:14px;border-radius:5px;background:#e5e7eb}.barrio-preview-backdrop{position:fixed;inset:0;background:rgb(0 0 0/50%)}.barrio-popup{animation:none}' );
 		return new WP_REST_Response(
 			[
-				'html' => sprintf(
-					'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="%1$s">%2$s' // phpcs:ignore WordPress.WP.EnqueuedResources -- non è una pagina di WordPress.
-					. '<style>body{margin:0;min-height:100vh;padding:24px;box-sizing:border-box;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}.barrio-preview-line{height:10px;margin-bottom:14px;border-radius:5px;background:#e5e7eb}.barrio-preview-backdrop{position:fixed;inset:0;background:rgb(0 0 0/50%%)}.barrio-popup{animation:none}</style></head>'
-					. '<body>%3$s%4$s%5$s</body></html>',
-					esc_url( add_query_arg( 'ver', BARRIO_SUITE_VERSION, plugins_url( 'assets/frontend/popup.css', __DIR__ ) ) ),
-					$forms,
-					str_repeat( '<div class="barrio-preview-line"></div>', 12 ),
-					'<div class="barrio-preview-backdrop"></div>',
-					str_replace( ' data-barrio-form', ' data-barrio-form data-barrio-preview', $html )
+				'html' => Render::page(
+					str_repeat( '<div class="barrio-preview-line"></div>', 12 )
+					. '<div class="barrio-preview-backdrop"></div>'
+					. str_replace( ' data-barrio-form', ' data-barrio-form data-barrio-preview', $html )
 				),
 			]
 		);

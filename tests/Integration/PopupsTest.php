@@ -8,8 +8,10 @@ use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Popups\Module;
 use BarrioSuite\Popups\PopupRepository;
+use ReflectionProperty;
 use WP_REST_Request;
 use WP_REST_Response;
+use WP_Script_Modules;
 use WP_UnitTestCase;
 
 // Il modulo Popup: quale popup si apre e quando, anche in due lingue; la riga della lingua principale; il transient che
@@ -284,6 +286,9 @@ final class PopupsTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_preview_is_the_open_popup_even_unsaved(): void {
+		// Ogni richiesta REST parte da zero; nei test gli asset li ha già stampati un test precedente.
+		wp_styles()->done = [];
+		( new ReflectionProperty( WP_Script_Modules::class, 'done' ) )->setValue( wp_script_modules(), [] );
 		$form     = FormRepository::create( 'Newsletter', [], [], new FormVersion( [ new Field( 'email', 'email', [ 'it' => [ 'label' => 'Email' ] ], true ) ] ) );
 		$settings = $this->popup()['settings'];
 		$response = $this->request(

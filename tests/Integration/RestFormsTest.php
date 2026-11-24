@@ -7,8 +7,10 @@ use BarrioSuite\Forms\Admin;
 use BarrioSuite\Forms\Model\Entry;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
+use ReflectionProperty;
 use WP_REST_Request;
 use WP_REST_Response;
+use WP_Script_Modules;
 use WP_UnitTestCase;
 
 // Le rotte del builder, chiamate in JSON come fa il builder.
@@ -221,6 +223,9 @@ final class RestFormsTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_preview_renders_the_unsaved_form(): void {
+		// Ogni richiesta REST parte da zero; nei test gli asset li ha già stampati un test precedente.
+		wp_styles()->done = [];
+		( new ReflectionProperty( WP_Script_Modules::class, 'done' ) )->setValue( wp_script_modules(), [] );
 		$html = $this->request( 'POST', '/forms/preview', self::FORM )->get_data()['html'];
 
 		$this->assertStringStartsWith( '<!doctype html>', $html );
