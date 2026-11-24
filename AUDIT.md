@@ -10,7 +10,7 @@ Le voci di §1–§5 sono state corrette sul branch `con-updater` e portate su `
 
 | Id | Stato | Cosa resta |
 |---|---|---|
-| X-2 | Fatto | Commit sui due branch e push su `origin` (`stable` e `senza-updater`); l'esito della CI su GitHub va guardato lì |
+| X-2 | Fatto | Commit sui due branch e push su `origin` (`stable` e `senza-updater`); la CI su GitHub è verde sui due branch, 9 job ciascuno |
 | CORE-12 | Non toccato | I sorgenti restano nello zip. Il repository è pubblico, quindi per WordPress.org il link nel readme dovrebbe bastare: è una scelta |
 | CONT-12 | Non toccato | Non è una modifica: i blocchi registrati solo in JavaScript vanno contati sui siti dei clienti prima di usare il modulo |
 | PBH-11 | Non toccato | L'audit stesso lo rimanda a quando si rimette mano all'editor di popup e banner |
@@ -23,7 +23,7 @@ Le voci di §1–§5 sono state corrette sul branch `con-updater` e portate su `
 | EXT-3 | Fatto, da controllare | L'utente dell'application password di ogni frontend headless deve avere `edit_posts`, altrimenti il limite per IP vale per tutto il sito |
 | UI-4 | Fatto, da guardare | Il bordo di campi e bottoni è `--barrio-border` (`#949494`): è la modifica che si vede di più |
 | LIVE-4 | Fatto, da provare a mano | Sotto i 1100 px il clic su un campo porta al pannello delle proprietà |
-| TEST-1, TEST-2, TEST-3 | Fatto | Provati in locale (WordPress 6.9, PHP 8.4, multisite); su GitHub girano dal primo push |
+| TEST-1, TEST-2, TEST-3 | Fatto | Verdi in locale e su GitHub: MySQL 8.0 e MariaDB 10.5, con e senza WPGraphQL, WordPress 6.9, PHP 8.4, multisite |
 
 Differenze dalla "Modifica minima" scritta qui sotto: UI-6 annuncia il conteggio con `speak()` a scrittura ferma, non con `role="status"`; PBH-3 crea il bottone di pausa in `banner.js`, così esiste solo mentre la scritta scorre; SEO-8 taglia il titolo a 255 caratteri invece di rifiutarlo; EXT-4 ha solo il transient; UI-2 tiene il colore del plugin, con un'eccezione a stylelint per `--wpds-color-stroke-focus`.
 
