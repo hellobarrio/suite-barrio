@@ -358,8 +358,9 @@ function barrio_wpgraphql_submit( array $input ): array {
 	$files                = array_filter( $files );
 
 	// Con l'application password di un frontend headless l'IP è quello del suo server, lo stesso per tutti
-	// i visitatori: il limite per IP bloccherebbe l'intero sito. Vale solo per le richieste anonime.
-	$ip = is_user_logged_in() ? null : sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+	// i visitatori: il limite per IP bloccherebbe l'intero sito. Solo per chi può scrivere contenuti (edit_posts),
+	// come l'utente del frontend: un Sottoscrittore resta limitato come un anonimo.
+	$ip = current_user_can( 'edit_posts' ) ? null : sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
 	try {
 		$entry = I18n::in( $lang, static fn() => Submission::process( $form, $values, $files, $ip ?: null ) );
 	} finally {

@@ -15,7 +15,7 @@ use WP_Error;
  *
  * @phpstan-type Settings array{new_tab: bool, days: int}
  * @phpstan-type Texts array<string, array{title: string, content: string|null, button_label: string|null, link_url: string|null}>
- * @phpstan-type Popup array{id: int, is_enabled: bool, starts_at: string|null, ends_at: string|null, image_id: int|null, settings: Settings, i18n: Texts, created_at: string, updated_at: string}
+ * @phpstan-type Popup array{id: int, is_enabled: bool, starts_at: string|null, ends_at: string|null, image_id: int|null, settings: Settings, i18n: Texts}
  */
 final class PopupRepository {
 
@@ -42,7 +42,7 @@ final class PopupRepository {
 			// Senza testo (un paragrafo vuoto dell'editor) non c'è contenuto.
 			'content'      => '' === trim( str_replace( '&nbsp;', ' ', wp_strip_all_tags( $content ) ) ) ? null : $content,
 			'button_label' => '' === $label ? null : $label,
-			// Un link non valido diventa '' e lo schema lo rifiuta.
+			// Un link non valido diventa '' e save() lo rifiuta.
 			'link_url'     => '' === $link ? null : esc_url_raw( $link ),
 		];
 	}
@@ -54,7 +54,7 @@ final class PopupRepository {
 	 */
 	public static function save( ?int $id, array $popup ): int|WP_Error {
 		$popup['i18n'] = is_array( $popup['i18n'] ?? null ) ? array_map( [ self::class, 'texts' ], $popup['i18n'] ) : null;
-		$valid         = rest_validate_value_from_schema( $popup, self::schema(), 'popup' );
+		$valid         = self::link_error( $popup['i18n'] ) ?? rest_validate_value_from_schema( $popup, self::schema(), 'popup' );
 		if ( is_wp_error( $valid ) ) {
 			return new WP_Error( 'rest_invalid_param', $valid->get_error_message(), [ 'status' => 400 ] );
 		}
@@ -211,8 +211,6 @@ final class PopupRepository {
 				'image_id'   => null === $row['image_id'] ? null : (int) $row['image_id'],
 				'settings'   => self::settings( (string) $row['settings'] ),
 				'i18n'       => $i18n[ (int) $row['id'] ] ?? [],
-				'created_at' => (string) $row['created_at'],
-				'updated_at' => (string) $row['updated_at'],
 			],
 			$rows
 		);

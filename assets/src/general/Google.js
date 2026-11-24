@@ -23,8 +23,9 @@ import {
  * @param {Object}                  props.google   Lo stato salvato: status, email, project.
  * @param {string}                  props.value    Il file scelto e non ancora salvato.
  * @param {(value: string) => void} props.onChange
+ * @param {() => void}              props.onRemove Toglie la chiave salvata, anche una che non si legge più.
  */
-function Account( { google, value, onChange } ) {
+function Account( { google, value, onChange, onRemove } ) {
 	const input = useRef();
 	const [ name, setName ] = useState( '' );
 	const connected = 'saved' === google.status;
@@ -103,6 +104,15 @@ function Account( { google, value, onChange } ) {
 					</span>
 				</button>
 			) }
+			{ ! value && 'none' !== google.status && (
+				<button
+					type="button"
+					className="barrio-button is-danger"
+					onClick={ onRemove }
+				>
+					{ __( 'Remove key', 'barrio-suite' ) }
+				</button>
+			) }
 		</div>
 	);
 }
@@ -123,9 +133,13 @@ function useChoices( connected, onNotice ) {
 				( [ locations, models ] ) =>
 					current && setChoices( { locations, models } )
 			)
-			.catch( ( error ) =>
-				onNotice( { status: 'error', message: errorMessage( error ) } )
-			);
+			.catch( ( error ) => {
+				onNotice( { status: 'error', message: errorMessage( error ) } );
+				// Senza le scelte di Google restano quelle salvate, non "Loading from Google…".
+				if ( current ) {
+					setChoices( {} );
+				}
+			} );
 		return () => {
 			current = false;
 		};
@@ -230,10 +244,27 @@ export const googleSection = {
 			data: draft.ai,
 		} ),
 	} ),
-	Cards: ( { data, draft, set, onNotice } ) => {
+	Cards: ( { data, draft, set, onData, onNotice } ) => {
 		const connected = 'saved' === data.google.status;
 		const setAi = ( key ) => ( value ) =>
 			set( { ...draft, ai: { ...draft.ai, [ key ]: value } } );
+		// Subito e non con Salva: la chiave lascia il database anche con altre modifiche in sospeso.
+		const remove = () =>
+			// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
+			window.confirm(
+				__(
+					'Remove the service account from this site? The AI and the other services of Google stop working until you upload a key again.',
+					'barrio-suite'
+				)
+			) &&
+			apiFetch( { path: '/barrio/v1/google', method: 'DELETE' } )
+				.then( ( google ) => onData( { ...data, google } ) )
+				.catch( ( error ) =>
+					onNotice( {
+						status: 'error',
+						message: errorMessage( error ),
+					} )
+				);
 		return (
 			<>
 				<Card
@@ -251,6 +282,7 @@ export const googleSection = {
 						onChange={ ( value ) =>
 							set( { ...draft, service_account: value } )
 						}
+						onRemove={ remove }
 					/>
 					<Details title={ __( 'How to create it', 'barrio-suite' ) }>
 						<ol className="barrio-howto">

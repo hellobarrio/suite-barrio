@@ -5,11 +5,8 @@ import { getSettings, gmdateI18n } from '@wordpress/date';
 import { useEffect, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
-import {
-	setTranslation,
-	textIn,
-} from '../../../modules/forms/assets/src/builder/model.js';
-import { TextIn } from '../../../modules/forms/assets/src/builder/Texts.js';
+import { setTranslation, textIn } from './i18n.js';
+import { TextIn } from './texts.js';
 import { initialQuery, localQuery } from './query.js';
 import {
 	Card,
@@ -32,7 +29,7 @@ const [ main, ...others ] = languages;
 const MAIN = main.toUpperCase();
 
 // Period::status(): il nome e il colore del badge.
-export const STATUS = {
+const STATUS = {
 	active: [ __( 'Active', 'barrio-suite' ), 'is-success' ],
 	scheduled: [ __( 'Scheduled', 'barrio-suite' ), 'is-warning' ],
 	expired: [ __( 'Expired', 'barrio-suite' ), '' ],
@@ -43,7 +40,7 @@ export const STATUS = {
 const dateText = ( local ) =>
 	gmdateI18n( getSettings().formats.datetimeAbbreviated, `${ local }:00Z` );
 
-export function periodText( start, end ) {
+function periodText( start, end ) {
 	if ( start && end ) {
 		return `${ dateText( start ) } – ${ dateText( end ) }`;
 	}
@@ -394,6 +391,12 @@ export function PeriodList( { name, label, texts } ) {
 	} ) );
 	const count = ( status ) =>
 		all.filter( ( item ) => item.status === status ).length;
+	// Tra gli attivi il sito mostra solo il più recente (PeriodRepository::shown()).
+	const shown = Math.max(
+		...items
+			.filter( ( item ) => 'active' === item.status )
+			.map( ( item ) => item.id )
+	);
 	const visible = all.filter(
 		( item ) => ! query.status || item.status === query.status
 	);
@@ -429,13 +432,20 @@ export function PeriodList( { name, label, texts } ) {
 			label: __( 'Status', 'barrio-suite' ),
 			sort: 'order',
 			hideable: true,
-			render: ( item ) => (
-				<span
-					className={ `barrio-badge ${ STATUS[ item.status ][ 1 ] }` }
-				>
-					{ STATUS[ item.status ][ 0 ] }
-				</span>
-			),
+			render: ( item ) =>
+				'active' === item.status && item.id !== shown ? (
+					<span className="barrio-badge">
+						{ __( 'Active, behind a newer one', 'barrio-suite' ) }
+					</span>
+				) : (
+					<span
+						className={ `barrio-badge ${
+							STATUS[ item.status ][ 1 ]
+						}` }
+					>
+						{ STATUS[ item.status ][ 0 ] }
+					</span>
+				),
 		},
 		{
 			key: 'period',

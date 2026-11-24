@@ -93,7 +93,7 @@ function Robots( { label, value, onChange, inSitemap } ) {
 				</>
 			}
 		>
-			<div className="barrio-checks">
+			<div className="barrio-checks" role="group" aria-label={ label }>
 				<Toggle
 					label={ __( 'Show in search results', 'barrio-suite' ) }
 					checked={ value.index }

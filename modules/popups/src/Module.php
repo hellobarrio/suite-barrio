@@ -13,7 +13,8 @@ use WP_REST_Response;
 
 /**
  * Popup (PLAN-MODULI.md §2): un <dialog> modale in wp_footer, in tutte le pagine, il più recente tra gli accesi nel loro
- * periodo. Nel sito nessuna query (PopupRepository::live()), e CSS e JS solo con un popup.
+ * periodo. Sceglierlo non costa query (PopupRepository::live()); stamparlo sì, per l'immagine e per un form nel testo.
+ * CSS e JS solo con un popup.
  *
  * @phpstan-import-type Popup from PopupRepository
  */
@@ -69,7 +70,8 @@ final class Module {
 
 	/**
 	 * Chiuso finché il JavaScript non lo apre; $open per l'anteprima, che non ha JavaScript. Le regole per il browser:
-	 * la chiave della chiusura in localStorage, inizio e fine in secondi, i giorni.
+	 * la chiave della chiusura in localStorage, la fine in secondi (con la cache di pagina l'HTML può essere vecchio;
+	 * l'inizio no: si stampa solo ciò che è già iniziato), i giorni.
 	 *
 	 * @param Popup $popup
 	 */
@@ -77,12 +79,10 @@ final class Module {
 		$settings = $popup['settings'];
 		$text     = I18n::pick( $popup['i18n'], I18n::current() );
 		$id       = "barrio-popup-{$popup['id']}";
-		$time     = static fn( ?string $utc ): ?int => null === $utc ? null : (int) strtotime( "{$utc} UTC" );
 		$rules    = [
-			'key'   => "barrio_popups_{$popup['id']}",
-			'start' => $time( $popup['starts_at'] ),
-			'end'   => $time( $popup['ends_at'] ),
-			'days'  => $settings['days'],
+			'key'  => "barrio_popups_{$popup['id']}",
+			'end'  => null === $popup['ends_at'] ? null : (int) strtotime( "{$popup['ends_at']} UTC" ),
+			'days' => $settings['days'],
 		];
 		$content  = self::content( $text );
 		$button   = empty( $text['link_url'] ) ? '' : sprintf(
@@ -115,7 +115,9 @@ final class Module {
 	 */
 	public static function content( array $text ): string {
 		$content = shortcode_unautop( (string) ( $text['content'] ?? '' ) );
-		return shortcode_exists( 'barrio_form' ) ? $content : (string) preg_replace( '/' . get_shortcode_regex( [ 'barrio_form' ] ) . '/', '', $content );
+		// Senza il modulo Form lo shortcode c'è ma è vuoto (Plugin::boot()): shortcode_exists() non basta.
+		$forms = '__return_empty_string' !== ( $GLOBALS['shortcode_tags']['barrio_form'] ?? '__return_empty_string' );
+		return $forms ? $content : (string) preg_replace( '/' . get_shortcode_regex( [ 'barrio_form' ] ) . '/', '', $content );
 	}
 
 	/**

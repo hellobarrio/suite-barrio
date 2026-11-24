@@ -170,6 +170,10 @@ final class RestRedirects {
 		$note   = trim( (string) $request['note'] );
 		$error  = static fn( string $message ): WP_Error => new WP_Error( 'barrio_invalid_redirect', $message, [ 'status' => 400 ] );
 
+		// Byte non UTF-8 (/caf%E9): nessuna richiesta lo troverebbe, e wpdb ne rifiuta la query.
+		if ( ! wp_is_valid_utf8( $source ) ) {
+			return $error( __( 'The source has characters that are not valid: write accented letters as they are, like é, not as percent codes.', 'barrio-suite' ) );
+		}
 		if ( null !== $target && ! preg_match( Redirects::TARGET, $target ) ) {
 			return $error( __( 'The destination must start with / or with http:// or https://.', 'barrio-suite' ) );
 		}

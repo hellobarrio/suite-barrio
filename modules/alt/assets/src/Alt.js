@@ -21,6 +21,7 @@ import {
 	Table,
 	Text,
 	Toggle,
+	discard,
 	errorMessage,
 } from '../../../../assets/src/admin/ui.js';
 
@@ -36,7 +37,7 @@ export const ALT = {
 };
 
 // Module::admin_data(), a chi genera. Con il modulo spento manca.
-export const altData = window.barrioAdmin.alt;
+const altData = window.barrioAdmin.alt;
 
 // La capability del modulo, nei Permessi (Module::CAP).
 const CAPS = { barrio_generate_alt: __( 'Generate', 'barrio-suite' ) };
@@ -56,11 +57,13 @@ const params = ( query ) =>
 	);
 
 // Gli errori di Module::generate() che riguardano solo quell'immagine: "Genera tutti" la salta e va avanti.
+// barrio_ai_empty: Google non dà un testo per un'immagine che i suoi filtri bloccano, e lo rifarebbe a ogni tentativo.
 const SKIP = [
 	'barrio_alt_file',
 	'barrio_alt_format',
 	'barrio_alt_size',
 	'barrio_alt_not_image',
+	'barrio_ai_empty',
 ];
 
 const generate = ( id, save = false ) =>
@@ -119,15 +122,7 @@ function AltModal( { row, start, onSaved, onClose } ) {
 				setBusy( false );
 			} );
 	};
-	const close = () => {
-		if (
-			! dirty ||
-			// eslint-disable-next-line no-alert -- le modifiche non salvate non si perdono con Esc o un clic fuori.
-			window.confirm( __( 'Discard the changes?', 'barrio-suite' ) )
-		) {
-			onClose();
-		}
-	};
+	const close = () => discard( dirty ) && onClose();
 
 	return (
 		<Dialog
@@ -228,6 +223,10 @@ export const altSection = {
 				className="barrio-wide"
 				icon="format-image"
 				title={ __( 'Generation', 'barrio-suite' ) }
+				description={ __(
+					'The alt text is written in the Media Library. An image already placed in a content keeps the alt text it has there: the one of the library is used by featured images, by the images the theme prints and by the images inserted from now on.',
+					'barrio-suite'
+				) }
 			>
 				<Toggle
 					label={ __( 'Generate after the upload', 'barrio-suite' ) }
@@ -349,11 +348,14 @@ export function AltText() {
 		setRunning( true );
 		let done = 0;
 		let skipped = 0;
+		let empty = 0;
+		let current;
 		try {
 			for ( const id of ids ) {
 				if ( stopped.current ) {
 					break;
 				}
+				current = id;
 				setNotice( {
 					status: 'info',
 					message: sprintf(
@@ -377,8 +379,11 @@ export function AltText() {
 				try {
 					await generate( id, true );
 					done++;
+					empty = 0;
 				} catch ( error ) {
-					if ( ! SKIP.includes( error?.code ) ) {
+					empty = 'barrio_ai_empty' === error?.code ? empty + 1 : 0;
+					// Tre risposte vuote di fila: è il modello che non risponde, non le immagini.
+					if ( ! SKIP.includes( error?.code ) || empty > 2 ) {
 						throw error;
 					}
 					skipped++;
@@ -396,8 +401,8 @@ export function AltText() {
 					? `${ message } ${ sprintf(
 							/* translators: %d: number of images skipped. */
 							_n(
-								'%d skipped: its file is missing, too large or in a format Google does not read.',
-								'%d skipped: their file is missing, too large or in a format Google does not read.',
+								'%d skipped: its file is missing, too large or in a format Google does not read, or Google returned no text for it.',
+								'%d skipped: their file is missing, too large or in a format Google does not read, or Google returned no text for them.',
 								skipped,
 								'barrio-suite'
 							),
@@ -406,7 +411,15 @@ export function AltText() {
 					: message,
 			} );
 		} catch ( error ) {
-			fail( error );
+			setNotice( {
+				status: 'error',
+				message: sprintf(
+					/* translators: 1: ID of the image in the Media Library, 2: error message. */
+					__( 'Image %1$d: %2$s', 'barrio-suite' ),
+					current,
+					errorMessage( error )
+				),
+			} );
 		} finally {
 			setRunning( false );
 			setReload( ( n ) => n + 1 );
@@ -426,7 +439,7 @@ export function AltText() {
 					: setNotice( {
 							status: 'success',
 							message: __(
-								'Every image has its alt text.',
+								'Every image in the Media Library has its alt text.',
 								'barrio-suite'
 							),
 						} )
@@ -556,7 +569,10 @@ export function AltText() {
 				search={ __( 'Search images', 'barrio-suite' ) }
 				empty={
 					'missing' === query.alt && ! query.search
-						? __( 'Every image has its alt text.', 'barrio-suite' )
+						? __(
+								'Every image in the Media Library has its alt text.',
+								'barrio-suite'
+							)
 						: __( 'No images found.', 'barrio-suite' )
 				}
 				filters={ [

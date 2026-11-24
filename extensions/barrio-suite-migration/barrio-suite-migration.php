@@ -106,8 +106,11 @@ function barrio_migration_prototype( string $module ): bool {
 }
 
 function barrio_migration_modules_notice(): void {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
 	$held = array_filter( array_keys( BARRIO_MIGRATION_MODULES ), static fn( string $module ): bool => 'held' === get_option( "barrio_migration_{$module}" ) && ! Modules::is_enabled( $module ) );
-	if ( $held && current_user_can( 'manage_options' ) ) {
+	if ( $held ) {
 		printf(
 			'<div class="notice notice-warning"><p>%s</p></div>',
 			sprintf(
@@ -192,6 +195,11 @@ function barrio_migration_module_run( string $module, bool $dry_run ): array|WP_
 		'alt'       => barrio_migration_alt_run( $dry_run, $report ),
 		'analytics' => barrio_migration_analytics_run( $dry_run, $report ),
 	};
+	// Il modulo del prototipo acceso ma mai configurato: senza lo scambio quello di Barrio Suite resterebbe spento.
+	if ( $error && 'barrio_migration_no_prototype' === $error->get_error_code() && barrio_migration_prototype( BARRIO_MIGRATION_MODULES[ $module ] ) ) {
+		$report['notes'][] = $error->get_error_message() . ' Nothing to migrate.';
+		$error             = null;
+	}
 	if ( $error || $dry_run ) {
 		return $error ?? $report;
 	}
@@ -231,8 +239,8 @@ function barrio_migration_translations( string $table, string $key, string $main
 	$texts = [];
 	if ( barrio_migration_table_exists( $table ) ) {
 		foreach ( Db::rows( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id', $table ) ) as $text ) {
-			$lang = str_replace( '_', '-', strtolower( trim( (string) $text['lang'] ) ) );
-			if ( $lang !== $main && preg_match( '/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/', $lang ) ) {
+			$lang = barrio_migration_lang( (string) $text['lang'], $main );
+			if ( $lang !== $main ) {
 				$texts[ (int) $text[ $key ] ][ $lang ] = $text;
 			}
 		}

@@ -1,7 +1,9 @@
 /*
  * Pagine admin di Barrio Suite: card bianche, bottoni scuri, tabelle con
- * ricerca. Variabili su :root (il foglio c'è solo nelle pagine di Barrio):
- * arrivano anche a popover e modale, fuori da .barrio-admin.
+ * ricerca. Variabili su :root: arrivano anche a popover e modale, fuori da
+ * .barrio-admin. Il foglio si carica anche fuori dalle pagine di Barrio (la
+ * lista di un tipo con Ordinamento, la Bacheca di WordPress): su :root solo
+ * nomi --barrio-*.
  *
  * Spazi e misure sono multipli di 4. Lo spazio dentro un elemento non supera
  * quello che lo separa dagli altri (20px tra le card, 20px dentro, 16px tra i
@@ -14,9 +16,15 @@
 	--barrio-text: #3c434a;
 	--barrio-muted: #646970;
 	--barrio-line: #e2e4e7;
+
+	/* Il bordo che fa riconoscere un controllo: 3:1 sul bianco (WCAG 1.4.11). */
+	--barrio-border: #949494;
 	--barrio-soft: #f6f7f7;
 	--barrio-accent: #2271b1;
 	--barrio-danger: #d63638;
+	--barrio-danger-soft: #fcf0f1;
+	--barrio-success: #1a7f37;
+	--barrio-success-soft: #edfaef;
 	--barrio-radius: 16px;
 	--barrio-radius-small: 8px;
 	--barrio-control: 36px;
@@ -29,11 +37,35 @@
 	--barrio-top: 48px;
 	--barrio-bar: calc(var(--barrio-control) + 18px);
 	--barrio-below-bar: calc(var(--barrio-top) + var(--barrio-bar) + var(--barrio-gap));
+}
 
-	/* I componenti di WordPress (schede, modale) hanno il colore dei bottoni. */
+/*
+ * I componenti di WordPress (schede, modale, menu) con il colore dei bottoni.
+ * Sui contenitori di Barrio e non su :root: WordPress dichiara le stesse
+ * variabili su body (lo schema di colori dell'utente) e il fuoco su :root
+ * (--wpds-color-stroke-focus, da WordPress 7.1), e vince il più vicino. Il
+ * token si imposta qui perché il ThemeProvider che lo calcola non c'è nella
+ * 6.9: da riguardare a ogni versione maggiore.
+ */
+.barrio-admin,
+.barrio-menu,
+.barrio-picker,
+.barrio-filters {
 	--wp-admin-theme-color: #1d2327;
+	--wp-admin-theme-color--rgb: 29, 35, 39;
 	--wp-admin-theme-color-darker-10: #000;
 	--wp-admin-theme-color-darker-20: #000;
+
+	/* stylelint-disable-next-line plugin-wpds/no-setting-wpds-custom-properties */
+	--wpds-color-stroke-focus: #1d2327;
+}
+
+/*
+ * Il controllo che il browser porta in vista (Shift+Tab) non finisce sotto la
+ * barra sticky.
+ */
+html:has(.barrio-bar) {
+	scroll-padding-top: var(--barrio-below-bar);
 }
 
 @media (max-width: 782px) {
@@ -186,7 +218,7 @@
 	padding: 0 16px;
 
 	/* Lo stesso bordo dei campi: nella barra stanno accanto alla ricerca. */
-	border: 1px solid #c3c4c7;
+	border: 1px solid var(--barrio-border);
 	border-radius: var(--barrio-radius-small);
 	background: #fff;
 	color: var(--barrio-ink);
@@ -234,7 +266,8 @@
 }
 
 .barrio-button.is-danger:hover {
-	background: #fcf0f1;
+	background: var(--barrio-danger-soft);
+	color: #b32d2e;
 }
 
 .barrio-button:is(:disabled, [aria-disabled="true"]) {
@@ -264,8 +297,8 @@
 }
 
 .barrio-icon-button.is-danger:hover {
-	background: #fcf0f1;
-	color: var(--barrio-danger);
+	background: var(--barrio-danger-soft);
+	color: #b32d2e;
 }
 
 .barrio-icon-button:disabled {
@@ -316,6 +349,10 @@
 	overflow-wrap: anywhere;
 }
 
+.barrio-field__error {
+	color: var(--barrio-danger);
+}
+
 /* Il codice di una lingua con la sua bandiera, se c'è (Lang in ui.js). */
 .barrio-lang {
 	display: inline-flex;
@@ -364,7 +401,7 @@
 	height: var(--barrio-control);
 	min-height: 0;
 	padding: 0 12px;
-	border: 1px solid #c3c4c7;
+	border: 1px solid var(--barrio-border);
 	border-radius: var(--barrio-radius-small);
 	background-color: #fff;
 	box-shadow: none;
@@ -389,7 +426,9 @@
 
 .barrio-admin .barrio-input:focus {
 	border-color: var(--barrio-ink);
-	outline: none;
+
+	/* Trasparente e non none: con i colori forzati è lui a mostrare il fuoco. */
+	outline: 2px solid transparent;
 	box-shadow: 0 0 0 1px var(--barrio-ink);
 }
 
@@ -410,7 +449,7 @@
 	gap: 8px;
 	min-height: var(--barrio-control);
 	padding: 4px 4px 4px 12px;
-	border: 1px solid #c3c4c7;
+	border: 1px solid var(--barrio-border);
 	border-radius: var(--barrio-radius-small);
 	background: #fff;
 }
@@ -485,7 +524,7 @@
 	margin: 0;
 	border: 0;
 	border-radius: 10px;
-	background: #c3c4c7;
+	background: var(--barrio-border);
 	box-shadow: none;
 	appearance: none;
 	cursor: pointer;
@@ -520,6 +559,31 @@
 	cursor: default;
 }
 
+/*
+ * Con i colori forzati gli sfondi dell'autore spariscono: bordo e stato con i
+ * colori di sistema.
+ */
+@media (forced-colors: active) {
+
+	.barrio-admin input[type="checkbox"].barrio-switch {
+		border: 1px solid ButtonText;
+	}
+
+	.barrio-admin input[type="checkbox"].barrio-switch::before {
+		top: 1px;
+		left: 1px;
+		background: ButtonText;
+	}
+
+	.barrio-admin input[type="checkbox"].barrio-switch:checked {
+		background: Highlight;
+	}
+
+	.barrio-admin input[type="checkbox"].barrio-switch:checked::before {
+		background: HighlightText;
+	}
+}
+
 /* Etichetta a sinistra e controllo a destra, nelle card delle impostazioni. */
 .barrio-wide .barrio-field {
 	grid-template-columns: minmax(140px, 1fr) 2fr;
@@ -538,7 +602,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: flex-end;
-	gap: 8px 24px;
+	gap: 16px 24px;
 }
 
 .barrio-wide .barrio-checks {
@@ -624,6 +688,16 @@
 	font-size: 12px;
 	white-space: nowrap;
 	text-overflow: ellipsis;
+}
+
+/*
+ * Qui le card sono una sotto l'altra, e sul telefono il title non si legge.
+ */
+@media (max-width: 782px) {
+
+	.barrio-module__head p {
+		white-space: normal;
+	}
 }
 
 /* I bottoni restano in fondo anche quando la card accanto ha più numeri. */
@@ -812,13 +886,13 @@
 
 .barrio-notice.is-success {
 	border-color: #b8e6bf;
-	background: #edfaef;
+	background: var(--barrio-success-soft);
 	color: #1e4620;
 }
 
 .barrio-notice.is-error {
 	border-color: #f0b8b8;
-	background: #fcf0f1;
+	background: var(--barrio-danger-soft);
 	color: #5f1414;
 }
 
@@ -826,6 +900,11 @@
 	border-color: #f0dc9c;
 	background: #fcf9e8;
 	color: #4d3a00;
+}
+
+.barrio-notice.is-info {
+	border-color: var(--barrio-line);
+	background: #fff;
 }
 
 .barrio-badge {
@@ -842,8 +921,8 @@
 }
 
 .barrio-badge.is-success {
-	background: #edfaef;
-	color: #1a7f37;
+	background: var(--barrio-success-soft);
+	color: var(--barrio-success);
 }
 
 .barrio-badge.is-warning {
@@ -884,7 +963,8 @@
 	min-height: var(--barrio-control);
 }
 
-.barrio-admin .barrio-section-head :is(h2, h3) {
+.barrio-admin .barrio-section-head :is(h2, h3),
+.barrio-admin .barrio-details h3 {
 	margin: 0;
 	color: var(--barrio-muted);
 	font-size: 12px;
@@ -924,8 +1004,8 @@
 }
 
 .barrio-account.is-on .barrio-account__icon {
-	background: #edfaef;
-	color: #1a7f37;
+	background: var(--barrio-success-soft);
+	color: var(--barrio-success);
 	box-shadow: none;
 }
 
@@ -981,7 +1061,8 @@
 
 /*
  * Base auto: la modale è alta quanto il contenuto, e il corpo si stringe solo
- * all'altezza massima.
+ * all'altezza massima. Classi interne di Modal (WordPress 7.1): da riguardare
+ * a ogni versione maggiore.
  */
 .barrio-modal .components-modal__content {
 	display: flex;
@@ -1011,6 +1092,13 @@
 	align-content: start;
 	min-height: 0;
 	padding: var(--barrio-gap) var(--barrio-modal-padding) var(--barrio-modal-padding);
+}
+
+/* Si scorre su un asse solo, e la pagina dietro resta ferma. */
+.barrio-modal__body,
+.barrio-picker__list,
+.barrio-filters,
+.barrio-code {
 	overflow-x: hidden;
 	overflow-y: auto;
 	overscroll-behavior: none;
@@ -1050,15 +1138,9 @@
 }
 
 .barrio-admin .barrio-details h3 {
-	margin: 0;
 
 	/* Riga alta quanto il testo: il maiuscolo sta al centro della freccia. */
 	line-height: 1;
-	color: var(--barrio-muted);
-	font-size: 12px;
-	font-weight: 600;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
 }
 
 .barrio-details summary:hover h3 {
@@ -1442,7 +1524,10 @@ button.barrio-table__title {
 	border-color: var(--barrio-line);
 }
 
-/* Le schede che non stanno (sui telefoni) scorrono in orizzontale. */
+/*
+ * Le schede che non stanno (sui telefoni) scorrono in orizzontale. Classi
+ * interne di TabPanel (WordPress 7.1): da riguardare a ogni versione maggiore.
+ */
 .barrio-admin .components-tab-panel__tabs {
 	margin-bottom: var(--barrio-gap);
 	border-bottom: 1px solid var(--barrio-line);
@@ -1504,7 +1589,7 @@ button.barrio-table__title {
 }
 
 .barrio-fieldcard:hover {
-	border-color: #c3c4c7;
+	border-color: var(--barrio-border);
 }
 
 .barrio-fieldcard.is-selected {
@@ -1596,7 +1681,7 @@ button.barrio-table__title {
 
 .barrio-preview-note {
 	padding: 12px;
-	border: 1px dashed #c3c4c7;
+	border: 1px dashed var(--barrio-border);
 	border-radius: var(--barrio-radius-small);
 	color: var(--barrio-muted);
 	text-align: center;
@@ -1901,7 +1986,7 @@ a.barrio-badge {
 }
 
 .barrio-badge.is-error {
-	background: #fcf0f1;
+	background: var(--barrio-danger-soft);
 	color: #b32d2e;
 }
 
@@ -1922,7 +2007,7 @@ a.barrio-badge {
 	min-height: 0;
 	margin: 0 0 4px;
 	padding: 0 12px;
-	border: 1px solid #c3c4c7;
+	border: 1px solid var(--barrio-border);
 	border-radius: var(--barrio-radius-small);
 	box-shadow: none;
 	font-size: 14px;
@@ -1932,7 +2017,7 @@ a.barrio-badge {
 .barrio-picker .barrio-picker__search:focus,
 .barrio-menu .barrio-picker__search:focus {
 	border-color: var(--barrio-ink);
-	outline: none;
+	outline: 2px solid transparent;
 	box-shadow: 0 0 0 1px var(--barrio-ink);
 }
 
@@ -1942,9 +2027,6 @@ a.barrio-badge {
 	max-height: 300px;
 	margin: 0;
 	padding: 0;
-	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: none;
 	border: 0;
 }
 
@@ -1981,9 +2063,6 @@ a.barrio-badge {
 	min-width: 240px;
 	max-height: min(480px, 70vh);
 	padding: 4px;
-	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: none;
 }
 
 .barrio-filters .barrio-picker {
@@ -2010,17 +2089,9 @@ a.barrio-badge {
 	text-transform: uppercase;
 }
 
-/* Un .barrio-button fuori da .barrio-admin. */
 .barrio-filters__clear {
-	justify-content: center;
-	height: var(--barrio-control);
 	margin-top: 4px;
 	border-color: transparent;
-	border-radius: var(--barrio-radius-small);
-}
-
-.barrio-filters__clear:hover {
-	background: var(--barrio-soft);
 }
 
 .barrio-button__count {
@@ -2099,7 +2170,7 @@ a.barrio-badge {
 
 .barrio-launch.is-done {
 	border: 1px solid #b8e6bf;
-	background: #edfaef;
+	background: var(--barrio-success-soft);
 	color: #1e4620;
 }
 
@@ -2114,7 +2185,7 @@ a.barrio-badge {
 }
 
 .barrio-launch.is-done .barrio-launch__icon {
-	background: #1a7f37;
+	background: var(--barrio-success);
 	color: #fff;
 }
 
@@ -2187,7 +2258,7 @@ a.barrio-badge {
 }
 
 .barrio-steps .is-done .barrio-steps__mark {
-	background: #1a7f37;
+	background: var(--barrio-success);
 	color: #fff;
 }
 
@@ -2203,7 +2274,8 @@ a.barrio-badge {
  * campi e pulsanti di WordPress con lo stile delle pagine Barrio. Solo nelle
  * modali: nell'editor il pannello resta come il resto della barra laterale.
  * !important perché le regole di WordPress (anche di emotion) sono più
- * specifiche.
+ * specifiche. Classi e valori interni dei componenti di WordPress 7.1: da
+ * riguardare a ogni versione maggiore.
  */
 .barrio-modal .components-base-control__label,
 .barrio-modal .components-input-control__label,
@@ -2218,7 +2290,7 @@ a.barrio-badge {
 .barrio-modal .components-textarea-control__input,
 .barrio-modal .components-form-token-field__input-container,
 .barrio-modal .components-input-control__backdrop {
-	border-color: #c3c4c7 !important;
+	border-color: var(--barrio-border) !important;
 	border-radius: var(--barrio-radius-small) !important;
 }
 
@@ -2228,7 +2300,7 @@ a.barrio-badge {
 	border: 0 !important;
 	border-radius: var(--barrio-radius-small);
 	background: #fff;
-	box-shadow: inset 0 0 0 1px #c3c4c7 !important;
+	box-shadow: inset 0 0 0 1px var(--barrio-border) !important;
 	color: var(--barrio-ink) !important;
 	font-weight: 500;
 }
@@ -2245,9 +2317,6 @@ a.barrio-badge {
 	max-height: 320px;
 	margin: 0;
 	padding: 12px;
-	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: none;
 	border-radius: var(--barrio-radius-small);
 	background: #f6f7f7;
 	font-size: 12px;

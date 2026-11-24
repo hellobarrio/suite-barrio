@@ -96,6 +96,21 @@ trait PeriodRepository {
 		return $count;
 	}
 
+	/**
+	 * Un link che lo schema rifiuterebbe citando la sua espressione regolare: qui il messaggio dice cosa scrivere.
+	 *
+	 * @param mixed $i18n I testi per lingua, con link_url.
+	 */
+	private static function link_error( mixed $i18n ): ?WP_Error {
+		foreach ( is_array( $i18n ) ? $i18n : [] as $text ) {
+			$link = is_array( $text ) ? ( $text['link_url'] ?? null ) : null;
+			if ( is_string( $link ) && ! preg_match( '#^(/|https?://)#', $link ) ) {
+				return new WP_Error( 'barrio_link', __( 'The link must be a path like /contacts/ or an address that starts with http:// or https://.', 'barrio-suite' ) );
+			}
+		}
+		return null;
+	}
+
 	private static function changed(): void {
 		delete_transient( self::LIVE );
 		do_action( 'barrio_' . self::NAME . '_changed' );

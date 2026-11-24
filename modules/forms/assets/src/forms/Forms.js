@@ -23,7 +23,7 @@ import { Builder } from '../builder/Builder.js';
 import { Entries } from '../entries/Entries.js';
 import { Entry } from '../entries/Entry.js';
 import { Settings } from '../settings/Settings.js';
-import { entriesUrl, formsData, pageUrl } from '../ui.js';
+import { entriesUrl, formsData, pageUrl, shortcode } from '../ui.js';
 
 const STATUS = {
 	active: [ __( 'Active', 'barrio-suite' ), 'is-success' ],
@@ -81,8 +81,10 @@ function FormList() {
 		const question = toTrash
 			? sprintf(
 					/* translators: 1: form name; 2: number of entries. */
-					__(
+					_n(
+						'"%1$s" has %2$d entry, so it cannot be deleted: move it to the trash? The entry is kept.',
 						'"%1$s" has %2$d entries, so it cannot be deleted: move it to the trash? The entries are kept.',
+						form.entries,
 						'barrio-suite'
 					),
 					form.title,
@@ -342,7 +344,7 @@ function FormList() {
 										onClick: () =>
 											window.navigator.clipboard
 												.writeText(
-													`[barrio_form id="${ form.id }"]`
+													shortcode( form.id )
 												)
 												.then( copied ),
 									},

@@ -35,6 +35,23 @@ final class MigratorTest extends WP_UnitTestCase {
 		$this->assertSame( '0002_broken.php: Table already exists', $error?->get_error_message() );
 		$this->assertSame( [ '0001_first.php' ], $GLOBALS['barrio_migrations_ran'] );
 		$this->assertSame( 1, $migrator->version() );
+
+		// Per un minuto le richieste dopo ricevono lo stesso errore, senza prendere il lock e rieseguirla.
+		$locks = 0;
+		add_filter(
+			'query',
+			static function ( string $query ) use ( &$locks ): string {
+				$locks += (int) str_contains( $query, 'GET_LOCK' );
+				return $query;
+			}
+		);
+		$again = ( new Migrator( 'test', self::FIXTURES . '/failing' ) )->run();
+		$this->assertSame( '0002_broken.php: Table already exists', $again?->get_error_message() );
+		$this->assertSame( 0, $locks );
+
+		delete_transient( 'barrio_test_db_version_failed' );
+		$this->assertNotNull( $migrator->run() );
+		$this->assertSame( 1, $locks, 'Then it tries again.' );
 	}
 
 	public function test_does_nothing_while_another_connection_holds_the_lock(): void {
@@ -42,7 +59,7 @@ final class MigratorTest extends WP_UnitTestCase {
 		$other = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
 		$other->query( "SELECT GET_LOCK('barrio_migrate_" . md5( DB_NAME . '.' . $wpdb->prefix . 'test' ) . "', 0)" );
 
-		$this->assertNull( ( new Migrator( 'test', self::FIXTURES . '/ok' ) )->run() );
+		$this->assertNull( ( new Migrator( 'test', self::FIXTURES . '/ok', 0 ) )->run() );
 		$this->assertSame( [], $GLOBALS['barrio_migrations_ran'] );
 
 		$other->close();

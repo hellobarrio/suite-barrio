@@ -11,7 +11,11 @@ final class Admin {
 	// Si apre con una delle due capability, che i ruoli hanno anche separate (Form → Impostazioni →
 	// Permessi): ognuno ci trova solo ciò che può fare (assets/src/forms/Forms.js).
 	public static function menu(): void {
-		\BarrioSuite\Admin::add_page( 'barrio-forms', __( 'Forms', 'barrio-suite' ), current_user_can( 'barrio_manage_entries' ) ? 'barrio_manage_entries' : 'barrio_manage_forms' );
+		$hook = \BarrioSuite\Admin::add_page( 'barrio-forms', __( 'Forms', 'barrio-suite' ), current_user_can( 'barrio_manage_entries' ) ? 'barrio_manage_entries' : 'barrio_manage_forms' );
+		if ( $hook ) {
+			// Il logo delle email (Impostazioni) si sceglie dalla libreria dei media.
+			add_action( "load-{$hook}", 'wp_enqueue_media' );
+		}
 	}
 
 	/**

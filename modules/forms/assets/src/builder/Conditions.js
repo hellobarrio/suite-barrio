@@ -155,16 +155,18 @@ function Rule( { rule, fields, onChange, onRemove } ) {
 	if ( [ 'empty', 'not_empty' ].includes( rule.operator ) ) {
 		valueControl = null;
 	} else if ( source?.choices && [ '=', '!=' ].includes( rule.operator ) ) {
+		const choices = source.choices.map( ( c ) => ( {
+			value: c.value,
+			label: c.label || c.value,
+		} ) );
+		// Un valore che non è più tra le scelte (tolta, o scritto con un altro operatore) resta visibile.
+		if ( rule.value && ! choices.some( ( c ) => c.value === rule.value ) ) {
+			choices.push( { value: rule.value, label: rule.value } );
+		}
 		valueControl = (
 			<Select
 				{ ...valueProps }
-				options={ [
-					{ value: '', label: '—' },
-					...source.choices.map( ( c ) => ( {
-						value: c.value,
-						label: c.label || c.value,
-					} ) ),
-				] }
+				options={ [ { value: '', label: '—' }, ...choices ] }
 			/>
 		);
 	}
@@ -176,7 +178,8 @@ function Rule( { rule, fields, onChange, onRemove } ) {
 				hideLabel
 				value={ rule.field }
 				options={ options }
-				onChange={ ( field ) => onChange( { field } ) }
+				// Il valore era una scelta del campo di prima.
+				onChange={ ( field ) => onChange( { field, value: '' } ) }
 			/>
 			<button
 				type="button"

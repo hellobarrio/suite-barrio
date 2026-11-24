@@ -14,7 +14,8 @@ use WP_REST_Response;
  * Si sceglie in Barrio → Impostazioni (GET e PUT /barrio/v1/smtp), anche con i moduli spenti.
  *
  * La password si definisce con la costante BARRIO_SMTP_PASSWORD in wp-config.php, oppure si salva
- * cifrata (Crypto): se i salt di WordPress cambiano va inserita di nuovo.
+ * cifrata (Crypto): se i salt di WordPress cambiano va inserita di nuovo. DELETE /barrio/v1/smtp/password
+ * la toglie dal database.
  *
  * @phpstan-type Settings array{host: string, port: int, encryption: 'none'|'ssl'|'tls', username: string, from_email: string, from_name: string}
  */
@@ -150,6 +151,15 @@ final class Smtp {
 		);
 		register_rest_route(
 			'barrio/v1',
+			'/smtp/password',
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ self::class, 'delete_password' ],
+				'permission_callback' => $admin,
+			]
+		);
+		register_rest_route(
+			'barrio/v1',
 			'/smtp/test-email',
 			[
 				'methods'             => 'POST',
@@ -182,6 +192,11 @@ final class Smtp {
 		if ( is_string( $request['password'] ) && '' !== $request['password'] ) {
 			self::save_password( $request['password'] );
 		}
+		return self::get();
+	}
+
+	public static function delete_password(): WP_REST_Response {
+		delete_option( self::PASSWORD_OPTION );
 		return self::get();
 	}
 

@@ -58,6 +58,11 @@ final class DuplicateTest extends WP_UnitTestCase {
 
 	public function test_a_page_a_post_and_a_custom_type_are_copied_with_content_meta_and_terms(): void {
 		global $wpdb;
+		// In una rete solo il super admin salva HTML non filtrato, come l'amministratore di un sito singolo.
+		if ( is_multisite() ) {
+			grant_super_admin( get_current_user_id() );
+			kses_init();
+		}
 		// Gli attributi dei blocchi in JSON, con <, ", & e \ scritti come \u003c, \u0022…: le barre si perdono senza wp_slash().
 		$content = serialize_blocks(
 			[
@@ -403,7 +408,7 @@ final class DuplicateTest extends WP_UnitTestCase {
 		Admin::menu();
 		Module::menu();
 		// Un altro modulo della pagina la chiede di nuovo.
-		Admin::contents_tab( 'edit_posts' );
+		Admin::contents_tab();
 		$this->assertSame( [ 'barrio-contents' ], $pages() );
 		$types = Admin::content_types();
 		$this->assertContains(

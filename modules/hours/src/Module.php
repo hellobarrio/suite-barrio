@@ -38,6 +38,8 @@ final class Module {
 	private const SCOPE  = 'https://www.googleapis.com/auth/cloud-platform';
 	private const PLACES = 'https://places.googleapis.com/v1/places/';
 
+	private const TIME = '^([01][0-9]|2[0-3]):[0-5][0-9]$';
+
 	// Giorni ISO: 1 = lunedì.
 	private const DEFAULTS = [
 		'source'     => 'manual',
@@ -141,11 +143,9 @@ final class Module {
 		$admin  = static fn(): bool => current_user_can( 'manage_options' );
 		$schema = self::schema();
 		$args   = $schema + [ 'roles' => Roles::schema( [ self::CAP ] ) ];
-		// Le date che lo schema non controlla: esistono, e un intervallo non finisce prima di iniziare.
-		$args['exceptions']['validate_callback'] = static function ( mixed $value, WP_REST_Request $request, string $param ): true|WP_Error {
-			$valid = rest_validate_request_arg( $value, $request, $param );
-			return is_wp_error( $valid ) ? $valid : self::check_dates( (array) $value );
-		};
+
+		$args['week']['validate_callback']       = [ self::class, 'validate' ];
+		$args['exceptions']['validate_callback'] = [ self::class, 'validate' ];
 		register_rest_route(
 			'barrio/v1',
 			'/hours',
@@ -180,7 +180,7 @@ final class Module {
 				'callback'            => [ self::class, 'preview' ],
 				'permission_callback' => [ self::class, 'can' ],
 				'args'                => [
-					'week'       => $schema['week'] + [ 'required' => true ],
+					'week'       => $args['week'] + [ 'required' => true ],
 					'exceptions' => $args['exceptions'] + [ 'required' => true ],
 					'lang'       => [
 						'type'    => 'string',
@@ -200,7 +200,7 @@ final class Module {
 	public static function schema(): array {
 		$time  = [
 			'type'    => 'string',
-			'pattern' => '^([01][0-9]|2[0-3]):[0-5][0-9]$',
+			'pattern' => self::TIME,
 		];
 		$date  = [
 			'type'    => 'string',
@@ -259,6 +259,32 @@ final class Module {
 				],
 			],
 		];
+	}
+
+	/**
+	 * La settimana e i giorni speciali di una richiesta. Le ore prima dello schema, che per un campo lasciato vuoto
+	 * risponderebbe con la sua espressione regolare; dopo, le date che lo schema non controlla: esistono, e un
+	 * intervallo non finisce prima di iniziare.
+	 */
+	public static function validate( mixed $value, WP_REST_Request $request, string $param ): true|WP_Error {
+		$times = [];
+		if ( is_array( $value ) ) {
+			array_walk_recursive(
+				$value,
+				static function ( mixed $time, int|string $key ) use ( &$times ): void {
+					if ( 'open' === $key || 'close' === $key ) {
+						$times[] = $time;
+					}
+				}
+			);
+		}
+		foreach ( $times as $time ) {
+			if ( ! is_string( $time ) || ! preg_match( '/' . self::TIME . '/', $time ) ) {
+				return new WP_Error( 'rest_invalid_param', __( 'Write every opening and closing time, like 09:00.', 'barrio-suite' ), [ 'status' => 400 ] );
+			}
+		}
+		$valid = rest_validate_request_arg( $value, $request, $param );
+		return is_wp_error( $valid ) || 'exceptions' !== $param ? $valid : self::check_dates( (array) $value );
 	}
 
 	/**
@@ -400,8 +426,9 @@ final class Module {
 	}
 
 	/**
-	 * I giorni speciali da currentOpeningHours (i prossimi 7 giorni): per ogni data di specialDays le fasce che si aprono
-	 * quel giorno, nessuna se è chiuso. Una fascia più lunga di un giorno chiude a mezzanotte.
+	 * I giorni speciali da currentOpeningHours (i prossimi 7 giorni): per ogni data di specialDays le fasce di quel
+	 * giorno, nessuna se è chiuso. Come nella settimana, una fascia più lunga di un giorno si divide a mezzanotte, e il
+	 * giorno speciale ne prende il suo pezzo: un luogo sempre aperto è un solo periodo lungo i 7 giorni.
 	 *
 	 * @param array<mixed> $current
 	 * @return list<Special>
@@ -413,17 +440,26 @@ final class Module {
 			if ( null === $date ) {
 				continue;
 			}
+			// Minuti dalla mezzanotte del giorno speciale, negativi nei giorni prima.
+			$at    = static fn( array $point ): int => (int) round( ( strtotime( self::date( (array) ( $point['date'] ?? [] ) ) ?? $date ) - strtotime( $date ) ) / DAY_IN_SECONDS ) * 1440 + self::minutes( array_diff_key( $point, [ 'day' => 0 ] ) );
 			$hours = [];
 			foreach ( (array) ( $current['periods'] ?? [] ) as $period ) {
-				$open = (array) ( $period['open'] ?? [] );
-				if ( self::date( (array) ( $open['date'] ?? [] ) ) !== $date ) {
+				$open  = (array) ( $period['open'] ?? [] );
+				$close = (array) ( $period['close'] ?? [] );
+				$from  = self::date( (array) ( $open['date'] ?? [] ) );
+				if ( null === $from || $from > $date ) {
 					continue;
 				}
-				// Minuti dalla mezzanotte del giorno speciale; senza close è sempre aperto.
-				$start   = self::minutes( array_diff_key( $open, [ 'day' => 0 ] ) );
-				$close   = (array) ( $period['close'] ?? [] );
-				$days    = isset( $period['close'] ) ? (int) round( ( strtotime( self::date( (array) ( $close['date'] ?? [] ) ) ?? $date ) - strtotime( $date ) ) / DAY_IN_SECONDS ) : 2;
-				$end     = $days * 1440 + self::minutes( array_diff_key( $close, [ 'day' => 0 ] ) );
+				$start = $at( $open );
+				// Senza close, o con close tagliato alla fine dei 7 giorni (truncated), resta aperto.
+				$end = $close && empty( $close['truncated'] ) ? $at( $close ) : 2 * 1440;
+				if ( $start < 0 ) {
+					// Aperto da prima: una notte resta del giorno in cui apre, come in google_week().
+					if ( $end - max( $start, -1440 ) <= 1440 ) {
+						continue;
+					}
+					$start = 0;
+				}
 				$hours[] = [
 					'open'  => self::time( $start ),
 					'close' => $end - $start > 1440 ? '00:00' : self::time( $end ),

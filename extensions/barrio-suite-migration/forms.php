@@ -31,6 +31,17 @@ const BARRIO_MIGRATION_CHOICES = [ 'select', 'radio', 'checkbox' ];
 // Le estensioni che il prototipo elencava senza controllarle: un campo file di Barrio Suite vuole l'elenco.
 const BARRIO_MIGRATION_EXTENSIONS = [ 'jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv', 'zip' ];
 
+/**
+ * Solo le estensioni che WordPress ammette su questo sito: con le altre il form non si salverebbe.
+ *
+ * @param list<string> $extensions
+ * @return list<string>
+ */
+function barrio_migration_extensions( array $extensions = BARRIO_MIGRATION_EXTENSIONS ): array {
+	$allowed = explode( '|', implode( '|', array_keys( get_allowed_mime_types() ) ) );
+	return array_values( array_intersect( $extensions, $allowed ) ) ?: array_values( array_intersect( BARRIO_MIGRATION_EXTENSIONS, $allowed ) );
+}
+
 function barrio_migration_forms_boot(): void {
 	// Per gli shortcode che la migrazione non riscrive (nei file del tema) o non ancora riscritti. Dopo il
 	// prototipo, che li registra al caricamento: se il suo modulo Forms è acceso restano suoi.
@@ -113,11 +124,10 @@ function barrio_migration_run( bool $dry_run ): array|WP_Error {
 		// Dalla versione 1.1 del modulo: prima i form avevano una lingua sola.
 		'i18n'    => "{$wpdb->prefix}wpb_forms_translations",
 	];
-	$exists = static fn( string $table ): bool => Db::var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) === $table;
-	if ( ! $exists( $tables['forms'] ) || ! $exists( $tables['entries'] ) ) {
+	if ( ! barrio_migration_table_exists( $tables['forms'] ) || ! barrio_migration_table_exists( $tables['entries'] ) ) {
 		return new WP_Error( 'barrio_migration_no_prototype', 'The tables of the Suite Barrio forms are not in this database.' );
 	}
-	if ( ! $exists( $tables['i18n'] ) ) {
+	if ( ! barrio_migration_table_exists( $tables['i18n'] ) ) {
 		$tables['i18n'] = null;
 	}
 
@@ -220,7 +230,7 @@ function barrio_migration_form( array $row, array $tables, string $main, bool $d
 	}
 	$archive = $form['fields'];
 	foreach ( $extras as $key => $extra ) {
-		$archive[] = new Field( $key, $extra['type'], [ $main => [ 'label' => $extra['label'] ] ], false, 'file' === $extra['type'] ? [ 'extensions' => array_values( $extra['extensions'] ) ?: BARRIO_MIGRATION_EXTENSIONS ] : [] );
+		$archive[] = new Field( $key, $extra['type'], [ $main => [ 'label' => $extra['label'] ] ], false, 'file' === $extra['type'] ? [ 'extensions' => barrio_migration_extensions( array_values( $extra['extensions'] ) ) ] : [] );
 	}
 
 	$stored    = []; // Le copie nella cartella protetta, da eliminare se la transazione si annulla.
@@ -325,7 +335,8 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 		// prototipo salvava, quindi le registrazioni e le regole delle condizioni restano uguali.
 		$values = [];
 		foreach ( in_array( $type, BARRIO_MIGRATION_CHOICES, true ) ? $main_options : [] as $o => $option ) {
-			$value = mb_substr( sanitize_text_field( wp_strip_all_tags( (string) $option ) ), 0, 255 );
+			// Senza spazi ai bordi o doppi, anche non separabili: Barrio Suite non salva una scelta che li ha.
+			$value = trim( (string) preg_replace( '/\s+/u', ' ', mb_substr( sanitize_text_field( wp_strip_all_tags( (string) $option ) ), 0, 255 ) ) );
 			if ( '' !== $value && ! in_array( $value, $values, true ) ) {
 				$values[ $o ] = $value;
 			}
@@ -336,7 +347,7 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 		$config = match ( $type ) {
 			// Nel prototipo un limite vuoto era ''.
 			'number' => array_map( 'floatval', array_filter( array_intersect_key( $field, array_flip( [ 'min', 'max' ] ) ), 'is_numeric' ) ),
-			'file'   => [ 'extensions' => BARRIO_MIGRATION_EXTENSIONS ],
+			'file'   => [ 'extensions' => barrio_migration_extensions() ],
 			default  => $values ? [ 'choices' => array_values( $values ) ] : [],
 		};
 		if ( in_array( $type, BARRIO_MIGRATION_CHOICES, true ) && ! $values ) {
@@ -460,6 +471,7 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 	$integrations = [];
 	if ( ! empty( $settings['mailchimp_enabled'] ) ) {
 		$consent        = $key_of( $settings['mailchimp_optin_field'] ?? '' );
+		$warnings[]     = "Form \"{$title}\": Mailchimp subscribes new contacts without the confirmation email, as in Suite Barrio. To ask for it, choose \"Ask to confirm by email\" in the Integrations tab of the form.";
 		$integrations[] = new Integration(
 			'mailchimp',
 			array_filter(

@@ -16,9 +16,11 @@ final class Migrator {
 	// Dal database, sotto il lock: la cache delle opzioni può essere vecchia.
 	private ?int $current = null;
 
+	// $wait: i secondi di attesa del lock; i test non aspettano.
 	public function __construct(
 		private readonly string $module,
 		private readonly string $dir,
+		private readonly int $wait = 5,
 	) {}
 
 	public function version(): int {
@@ -35,13 +37,18 @@ final class Migrator {
 		if ( $this->is_current() ) {
 			return null;
 		}
+		// Una migrazione appena fallita non si ritenta a ogni richiesta, in fila dietro il lock.
+		$failed = get_transient( $this->option() . '_failed' );
+		if ( is_string( $failed ) ) {
+			return new WP_Error( 'barrio_migration_failed', $failed );
+		}
 
 		global $wpdb;
 		// I nomi dei lock valgono per tutto il server MySQL, quindi includono il database;
 		// md5 li tiene entro i 64 caratteri ammessi.
 		$lock = 'barrio_migrate_' . md5( DB_NAME . '.' . $wpdb->prefix . $this->module ); // @phpstan-ignore constant.notFound (definita in wp-config.php)
 		// Si aspetta chi sta migrando: senza modulo uno shortcode finirebbe come testo nella cache di pagina.
-		if ( '1' !== $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock ) ) ) {
+		if ( '1' !== $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock, $this->wait ) ) ) {
 			return null;
 		}
 
@@ -57,7 +64,9 @@ final class Migrator {
 				try {
 					( require $file )( $wpdb );
 				} catch ( Throwable $e ) {
-					return new WP_Error( 'barrio_migration_failed', basename( $file ) . ': ' . $e->getMessage() );
+					$message = basename( $file ) . ': ' . $e->getMessage();
+					set_transient( $this->option() . '_failed', $message, MINUTE_IN_SECONDS );
+					return new WP_Error( 'barrio_migration_failed', $message );
 				}
 				update_option( $this->option(), $version, true );
 				$this->current = $version;

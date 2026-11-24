@@ -9,12 +9,13 @@ import {
 	Dialog,
 	Icon,
 	Loading,
-	Lucide,
 	Menu,
 	Notice,
+	SaveButton,
 	Select,
 	Table,
 	Text,
+	discard,
 	errorMessage,
 } from '../../../../../assets/src/admin/ui.js';
 
@@ -44,15 +45,9 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 		note: redirect.note ?? '',
 	} ) );
 	const [ draft, setDraft ] = useState( initial );
-	const close = () => {
-		if (
-			JSON.stringify( draft ) === JSON.stringify( initial ) ||
-			// eslint-disable-next-line no-alert -- le modifiche non salvate non si perdono con Esc o un clic fuori.
-			window.confirm( __( 'Discard the changes?', 'barrio-suite' ) )
-		) {
-			onClose();
-		}
-	};
+	const close = () =>
+		discard( JSON.stringify( draft ) !== JSON.stringify( initial ) ) &&
+		onClose();
 	const [ busy, setBusy ] = useState( false );
 	const [ notice, setNotice ] = useState( null );
 	// Il Salva sta nel piede della modale, fuori dal form: lo invia con l'attributo form.
@@ -97,19 +92,7 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 					>
 						{ __( 'Cancel', 'barrio-suite' ) }
 					</button>
-					<button
-						type="submit"
-						form={ form }
-						className="barrio-button is-primary"
-						disabled={ busy }
-					>
-						<Lucide name="save" />
-						<span className="barrio-button__text">
-							{ busy
-								? __( 'Saving…', 'barrio-suite' )
-								: __( 'Save', 'barrio-suite' ) }
-						</span>
-					</button>
+					<SaveButton type="submit" form={ form } busy={ busy } />
 				</>
 			}
 			size="medium"

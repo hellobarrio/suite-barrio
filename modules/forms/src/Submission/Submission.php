@@ -153,12 +153,22 @@ final class Submission {
 	}
 
 	private static function submissions( string $ip ): int {
-		return (int) get_transient( self::rate_key( $ip ) );
+		return self::window( $ip )[0];
+	}
+
+	/** @return array{int, int} I tentativi e la fine della finestra, che parte dal primo. */
+	private static function window( string $ip ): array {
+		$saved = get_transient( self::rate_key( $ip ) );
+		return is_array( $saved ) && ( $saved[1] ?? 0 ) > time() ? [ (int) $saved[0], (int) $saved[1] ] : [ 0, time() + self::RATE_WINDOW ];
 	}
 
 	private static function count( ?string $ip ): void {
 		if ( $ip ) {
-			set_transient( self::rate_key( $ip ), self::submissions( $ip ) + 1, self::RATE_WINDOW );
+			[ $count, $ends ] = self::window( $ip );
+			// La scadenza resta la fine della finestra: riscriverla a ogni tentativo terrebbe bloccato chi riprova.
+			// ponytail: lettura e scrittura separate, una raffica in parallelo passa il limite; un contatore
+			// atomico chiede un object cache.
+			set_transient( self::rate_key( $ip ), [ $count + 1, $ends ], $ends - time() );
 		}
 	}
 

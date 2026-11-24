@@ -30,9 +30,9 @@ const BARRIO_MIGRATION_SEO_SLUG = '/^[a-z0-9_-]{1,32}$/';
 function barrio_migration_seo_boot(): void {
 	// Altrimenti i meta uscirebbero due volte, e in GraphQL vincerebbero le impostazioni di Barrio Suite, ancora
 	// vuote. Una volta sola: chi riaccende il modulo prima della migrazione lo sceglie.
-	if ( barrio_migration_seo_prototype() && false === get_option( 'barrio_migration_seo' ) ) {
+	if ( barrio_migration_prototype( 'seo' ) && false === get_option( 'barrio_migration_seo' ) ) {
 		Modules::set( 'seo', false );
-		update_option( 'barrio_migration_seo', 'held', false );
+		update_option( 'barrio_migration_seo', 'held' );
 	}
 	add_action( 'admin_notices', 'barrio_migration_seo_notice' );
 	add_action( 'barrio_seo_changed', 'barrio_migration_seo_revalidate', 10, 2 );
@@ -55,13 +55,8 @@ function barrio_migration_seo_boot(): void {
 	}
 }
 
-// Il prototipo è attivo con il suo modulo SEO acceso (Suite Barrio → Strumenti).
-function barrio_migration_seo_prototype(): bool {
-	return function_exists( 'suite_barrio_tools_module_enabled' ) && suite_barrio_tools_module_enabled( 'seo' );
-}
-
 function barrio_migration_seo_notice(): void {
-	if ( 'held' === get_option( 'barrio_migration_seo' ) && ! Modules::is_enabled( 'seo' ) && current_user_can( 'manage_options' ) ) {
+	if ( current_user_can( 'manage_options' ) && 'held' === get_option( 'barrio_migration_seo' ) && ! Modules::is_enabled( 'seo' ) ) {
 		printf(
 			'<div class="notice notice-warning"><p>%s</p></div>',
 			sprintf(
@@ -129,7 +124,8 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 	$options = array_filter( [ 'suite_barrio_meta_settings', 'suite_barrio_meta_content', 'suite_barrio_schema_settings', 'suite_barrio_redirects' ], static fn( string $name ): bool => false !== get_option( $name ) );
 	$content = (array) get_option( 'suite_barrio_meta_content', [] );
 	$meta    = [ ...barrio_migration_seo_meta( 'post', $content, $report ), ...barrio_migration_seo_meta( 'term', $content, $report ) ];
-	if ( ! $options && ! $report['counts'] ) {
+	// Con il SEO del prototipo acceso ma mai configurato si prosegue: senza lo scambio quello di Barrio Suite resterebbe spento.
+	if ( ! $options && ! $report['counts'] && ! barrio_migration_prototype( 'seo' ) ) {
 		return new WP_Error( 'barrio_migration_no_prototype', 'There are no SEO settings or meta of Suite Barrio in this database.' );
 	}
 
@@ -178,7 +174,7 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 	}
 	update_option( 'suite_barrio_tools_modules', [ 'seo' => 0 ] + (array) get_option( 'suite_barrio_tools_modules', [] ) );
 	Modules::set( 'seo', true );
-	update_option( 'barrio_migration_seo', 'migrated', false );
+	update_option( 'barrio_migration_seo', 'migrated' );
 	// Finché il prototipo è attivo, il ponte fa rileggere tutto al frontend headless.
 	barrio_migration_seo_revalidate( 'settings' );
 	barrio_migration_seo_revalidate( 'redirects' );
@@ -442,6 +438,7 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 	$settings['index']['archives']['author']['index'] = false;
 
 	$type     = (string) ( $schema['business_type'] ?? '' );
+	$types    = $schemas['organization']['properties']['type']['enum'];
 	$email    = sanitize_email( (string) ( $schema['email'] ?? '' ) );
 	$country  = strtoupper( trim( (string) ( $schema['country'] ?? '' ) ) );
 	$currency = strtoupper( trim( (string) ( $schema['offer_currency'] ?? '' ) ) );
@@ -468,8 +465,12 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 			'availability' => in_array( $offer['availability'] ?? '', [ 'InStock', 'OutOfStock', 'PreOrder', 'LimitedAvailability', 'Discontinued' ], true ) ? $offer['availability'] : '',
 		];
 	}
+	// Architect e InteriorDesigner, che il prototipo offriva, non sono tipi di schema.org.
+	if ( '' !== $type && ! in_array( $type, $types, true ) ) {
+		$report['warnings'][] = "Organization: Barrio Suite does not have the type \"{$type}\", it becomes LocalBusiness. Choose another one in SEO → Organization.";
+	}
 	$settings['organization'] = [
-		'type'        => in_array( $type, $schemas['organization']['properties']['type']['enum'], true ) ? $type : 'LocalBusiness',
+		'type'        => in_array( $type, $types, true ) ? $type : 'LocalBusiness',
 		'name'        => $line( $schema['business_name'] ?? '' ),
 		'logo'        => $media( $schema['logo'] ?? '', 'logo' ),
 		'image'       => $media( $schema['image'] ?? '', 'image' ),

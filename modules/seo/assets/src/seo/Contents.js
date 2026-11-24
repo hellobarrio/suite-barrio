@@ -3,7 +3,7 @@
 // sua lingua (descrizione predefinita, nome del sito). Filtri e ordinamento nel browser (GET /seo/contents); le modifiche
 // passano dalla REST del core, una richiesta per contenuto, nella modale con lo stesso pannello dell'editor.
 import apiFetch from '@wordpress/api-fetch';
-import { useEffect, useMemo, useState } from '@wordpress/element';
+import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
@@ -14,11 +14,12 @@ import {
 	Dialog,
 	Lang,
 	Loading,
-	Lucide,
 	Menu,
 	Notice,
 	Picker,
+	SaveButton,
 	Table,
+	discard,
 	errorMessage,
 	langOption,
 } from '../../../../../assets/src/admin/ui.js';
@@ -60,6 +61,29 @@ function fromUrl() {
 	);
 }
 
+// ponytail: 200 righe a richiesta, una richiesta alla volta, e la tabella aspetta l'ultima; filtri e
+// ordinamento sul server quando un tipo ha decine di megabyte di testo.
+async function load( type, wanted ) {
+	const byId = new Map();
+	let result;
+	for ( let page = 1; wanted() && page <= ( result?.pages ?? 1 ); page++ ) {
+		result = await apiFetch( {
+			path: `/barrio/v1/seo/contents/${ key( type ) }?page=${ page }`,
+		} );
+		for ( const row of result.rows ) {
+			const had = byId.get( row.id );
+			// Un contenuto che il plugin multilingua mostra in più lingue può tornare in un'altra pagina: resta della prima.
+			if (
+				! had ||
+				languages.indexOf( row.lang ) < languages.indexOf( had.lang )
+			) {
+				byId.set( row.id, row );
+			}
+		}
+	}
+	return { contexts: result?.contexts ?? {}, rows: [ ...byId.values() ] };
+}
+
 const seoMeta = ( meta ) =>
 	Object.fromEntries(
 		Object.entries( meta ).filter( ( [ name ] ) =>
@@ -72,15 +96,7 @@ function SeoModal( { row, context, onSave, onClose } ) {
 	const [ busy, setBusy ] = useState( false );
 	const [ notice, setNotice ] = useState( null );
 	const dirty = JSON.stringify( meta ) !== JSON.stringify( row.meta );
-	const close = () => {
-		if (
-			! dirty ||
-			// eslint-disable-next-line no-alert -- le modifiche non salvate non si perdono con Esc o un clic fuori.
-			window.confirm( __( 'Discard the changes?', 'barrio-suite' ) )
-		) {
-			onClose();
-		}
-	};
+	const close = () => discard( dirty ) && onClose();
 	const save = () => {
 		setBusy( true );
 		setNotice( null );
@@ -106,19 +122,11 @@ function SeoModal( { row, context, onSave, onClose } ) {
 					>
 						{ __( 'Cancel', 'barrio-suite' ) }
 					</button>
-					<button
-						type="button"
-						className="barrio-button is-primary"
-						disabled={ busy || ! dirty }
+					<SaveButton
+						busy={ busy }
+						disabled={ ! dirty }
 						onClick={ save }
-					>
-						<Lucide name="save" />
-						<span className="barrio-button__text">
-							{ busy
-								? __( 'Saving…', 'barrio-suite' )
-								: __( 'Save', 'barrio-suite' ) }
-						</span>
-					</button>
+					/>
 				</>
 			}
 			size="medium"
@@ -151,6 +159,10 @@ export function Contents() {
 	const [ editing, setEditing ] = useState( null );
 	const [ generating, setGenerating ] = useState( false );
 
+	// Il tipo mostrato ora: una risposta o una generazione partite per un altro tipo non toccano questa tabella.
+	const shown = useRef( type );
+	shown.current = type;
+
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );
 
@@ -162,9 +174,15 @@ export function Contents() {
 			'',
 			pageUrl( { [ param( type ) ]: type.name } )
 		);
-		apiFetch( { path: `/barrio/v1/seo/contents/${ key( type ) }` } )
+		load( type, () => current )
 			.then( ( result ) => current && setData( result ) )
-			.catch( fail );
+			.catch( ( error ) => {
+				if ( current ) {
+					fail( error );
+					// Una tabella vuota, non solo l'avviso: da lì si sceglie un altro tipo.
+					setData( { contexts: {}, rows: [] } );
+				}
+			} );
 		return () => {
 			current = false;
 		};
@@ -196,10 +214,21 @@ export function Contents() {
 	);
 
 	if ( ! rows ) {
-		return notice ? <Notice notice={ notice } /> : <Loading />;
+		return <Loading />;
 	}
 
 	const editable = canEditSeo && !! type.rest;
+	const patch = ( id, meta ) =>
+		shown.current === type &&
+		setData(
+			( now ) =>
+				now && {
+					...now,
+					rows: now.rows.map( ( row ) =>
+						row.id === id ? { ...row, meta } : row
+					),
+				}
+		);
 	// Una richiesta per contenuto; la riga prende i meta che restituisce la REST del core.
 	const save = ( ids, meta ) =>
 		Promise.all(
@@ -209,14 +238,7 @@ export function Contents() {
 					method: 'POST',
 					data: { meta },
 				} ).then( ( response ) =>
-					setData( ( now ) => ( {
-						...now,
-						rows: now.rows.map( ( row ) =>
-							row.id === id
-								? { ...row, meta: seoMeta( response.meta ) }
-								: row
-						),
-					} ) )
+					patch( id, seoMeta( response.meta ) )
 				)
 			)
 		);
@@ -246,6 +268,9 @@ export function Contents() {
 		setGenerating( true );
 		try {
 			for ( const [ index, id ] of ids.entries() ) {
+				if ( shown.current !== type ) {
+					return;
+				}
 				setNotice( {
 					status: 'info',
 					message: sprintf(

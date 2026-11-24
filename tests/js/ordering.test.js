@@ -18,3 +18,13 @@ test( 'the tree of the list and back, with the parents before the children', () 
 	assert.deepEqual( flatten( { ...tree, 0: [ 3, 1 ] } ), [ 3, 1, 2, 4, 5 ] );
 	assert.deepEqual( flatten( toTree( [] ) ), [] );
 } );
+
+// Riordina confronta con questo, non con l'elenco piatto: se no Salva sarebbe acceso senza aver toccato niente.
+test( 'a child listed before its parent comes after it in the tree', () => {
+	const saved = [
+		{ id: 12, parent: 11 },
+		{ id: 11, parent: 0 },
+		{ id: 10, parent: 0 },
+	];
+	assert.deepEqual( flatten( toTree( saved ) ), [ 11, 12, 10 ] );
+} );

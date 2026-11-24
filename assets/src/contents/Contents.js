@@ -35,55 +35,33 @@ const CONTENTS = {
 	color: 'linear-gradient(135deg, #4c1d95, #6d28d9)',
 };
 
-// Costante: General ricarica le sezioni quando cambia l'array.
-const BLOCKS_SECTIONS = [ blocksSection ];
-const ORDERING_SECTIONS = [ orderingSection ];
-const DUPLICATE_SECTIONS = [ duplicateSection ];
+// Per strumento: la scheda della pagina ([ tab, nome, componente ]) e i numeri della card. Si chiama una volta per
+// strumento, qui sotto: le sezioni restano lo stesso array (General le ricarica quando cambia).
+const tool = ( data, id, module, section, stats ) => {
+	const sections = [ section ];
+	return (
+		data &&
+		canManageOptions && {
+			tab: [
+				id,
+				module.title,
+				() => <General title={ module.title } sections={ sections } />,
+			],
+			stats,
+		}
+	);
+};
 
-// Per strumento: la scheda della pagina ([ tab, nome, componente ]) e i numeri della card.
 const TOOLS = [
-	blocksData &&
-		canManageOptions && {
-			tab: [
-				'blocks',
-				BLOCKS.title,
-				() => (
-					<General
-						title={ BLOCKS.title }
-						sections={ BLOCKS_SECTIONS }
-					/>
-				),
-			],
-			stats: blocksStats,
-		},
-	orderingData &&
-		canManageOptions && {
-			tab: [
-				'ordering',
-				ORDERING.title,
-				() => (
-					<General
-						title={ ORDERING.title }
-						sections={ ORDERING_SECTIONS }
-					/>
-				),
-			],
-			stats: orderingStats,
-		},
-	duplicateData &&
-		canManageOptions && {
-			tab: [
-				'duplicate',
-				DUPLICATE.title,
-				() => (
-					<General
-						title={ DUPLICATE.title }
-						sections={ DUPLICATE_SECTIONS }
-					/>
-				),
-			],
-			stats: duplicateStats,
-		},
+	tool( blocksData, 'blocks', BLOCKS, blocksSection, blocksStats ),
+	tool( orderingData, 'ordering', ORDERING, orderingSection, orderingStats ),
+	tool(
+		duplicateData,
+		'duplicate',
+		DUPLICATE,
+		duplicateSection,
+		duplicateStats
+	),
 ].filter( Boolean );
 
 export const contentsPage = {

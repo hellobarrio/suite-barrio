@@ -5,8 +5,13 @@ import { test } from 'node:test';
 import {
 	choiceRows,
 	fillTranslations,
+	keyProblem,
+	plainLabel,
+	presetRows,
 	renameChoice,
+	ruleFields,
 	setTranslation,
+	stable,
 	textIn,
 	toValue,
 	trimTranslations,
@@ -65,6 +70,169 @@ test( 'choices are values in config and labels in the texts', () => {
 	assert.deepEqual(
 		renameChoice( { value: 'si', label: 'Sì' }, 'Sì, certo', [ 'si' ] ),
 		{ value: 'si', label: 'Sì, certo' }
+	);
+} );
+
+test( 'a value typed over the value of another choice keeps both labels', () => {
+	let field = { config: {}, i18n: { it: { label: 'Voto' } } };
+	// Come l'editor delle scelte: le righe restano in mano a chi le modifica, il campo ne deriva.
+	let rows = [
+		{ value: '1', label: 'Pessimo' },
+		{ value: '2', label: 'Scarso' },
+		{ value: '', label: 'Ottimo' },
+	];
+	for ( const value of [ '1', '10' ] ) {
+		rows = rows.map( ( row, i ) => ( 2 === i ? { ...row, value } : row ) );
+		field = withChoices( field, 'it', rows );
+	}
+	assert.deepEqual( choiceRows( field, 'it' ), rows );
+	assert.equal( rows[ 0 ].label, 'Pessimo' );
+
+	// Rilette dal campo a ogni tasto, due righe con lo stesso valore hanno una sola etichetta.
+	const typing = withChoices( field, 'it', [
+		rows[ 0 ],
+		{ value: '1', label: 'Ottimo' },
+	] );
+	assert.equal( choiceRows( typing, 'it' )[ 0 ].label, 'Ottimo' );
+} );
+
+test( 'a field key is checked like on the server', () => {
+	assert.equal( keyProblem( 'email_2', [ 'email' ] ), null );
+	assert.equal( keyProblem( 'Nome Azienda', [] ), 'format' );
+	assert.equal( keyProblem( '2nd', [] ), 'format' );
+	assert.equal( keyProblem( '', [] ), 'format' );
+	assert.equal( keyProblem( 'a'.repeat( 65 ), [] ), 'format' );
+	assert.equal( keyProblem( 'a'.repeat( 64 ), [] ), null );
+	assert.equal( keyProblem( 'email', [ 'name', 'email' ] ), 'taken' );
+} );
+
+test( 'presets take their labels from the file or from the browser', () => {
+	assert.deepEqual(
+		presetRows(
+			{
+				choices: [
+					[ 'yes', 'sì' ],
+					[ 'no', '' ],
+				],
+			},
+			'it'
+		),
+		[
+			{ value: 'yes', label: 'Sì' },
+			{ value: 'no', label: 'No' },
+		]
+	);
+	// I paesi in ordine alfabetico nella lingua del form, i giorni nel loro ordine.
+	assert.deepEqual(
+		presetRows(
+			{
+				intl: 'region',
+				choices: [
+					[ 'IT', '' ],
+					[ 'FR', '' ],
+				],
+			},
+			'it'
+		),
+		[
+			{ value: 'FR', label: 'Francia' },
+			{ value: 'IT', label: 'Italia' },
+		]
+	);
+	assert.deepEqual(
+		presetRows(
+			{
+				intl: 'weekday',
+				choices: [
+					[ 'mon', '' ],
+					[ 'tue', '' ],
+				],
+			},
+			'it'
+		).map( ( row ) => row.label ),
+		[ 'Lunedì', 'Martedì' ]
+	);
+} );
+
+test( 'rules list the fields with a plain label and their choices', () => {
+	const consent = {
+		key: 'privacy',
+		type: 'consent',
+		config: {},
+		i18n: {
+			it: { label: 'Accetto la <a href="/privacy/">privacy</a> ' },
+			en: {
+				label: 'I accept the <a href="/privacy/">privacy policy</a>',
+			},
+		},
+	};
+	assert.equal(
+		plainLabel( consent, 'en', 'it' ),
+		'I accept the privacy policy'
+	);
+	// Senza etichetta resta la chiave.
+	assert.equal(
+		plainLabel( { key: 'utm', i18n: { it: { label: '' } } }, 'it', 'it' ),
+		'utm'
+	);
+	assert.deepEqual(
+		ruleFields(
+			[
+				consent,
+				{ key: 'next', type: 'page_break', config: {}, i18n: {} },
+				{
+					key: 'tipo',
+					type: 'select',
+					config: { choices: [ 'azienda' ] },
+					i18n: {
+						it: { label: 'Tipo', options: { azienda: 'Azienda' } },
+					},
+				},
+			],
+			'it'
+		),
+		[
+			{
+				key: 'privacy',
+				type: 'consent',
+				label: 'Accetto la privacy',
+				choices: null,
+			},
+			{
+				key: 'tipo',
+				type: 'select',
+				label: 'Tipo',
+				choices: [ { value: 'azienda', label: 'Azienda' } ],
+			},
+		]
+	);
+} );
+
+test( 'a text removed and written again is not a change', () => {
+	const field = {
+		key: 'nome',
+		i18n: {
+			it: { label: 'Nome' },
+			en: { label: 'Name', placeholder: 'Mario' },
+		},
+	};
+	const again = setTranslation(
+		setTranslation( field, 'en', 'label', '' ),
+		'en',
+		'label',
+		'Name'
+	);
+	// Stessi testi, in un altro ordine: per JSON.stringify sarebbero due form diversi.
+	assert.notEqual( JSON.stringify( again ), JSON.stringify( field ) );
+	assert.equal( stable( again ), stable( field ) );
+	assert.notEqual(
+		stable( setTranslation( field, 'en', 'label', 'Nom' ) ),
+		stable( field )
+	);
+	// L'ordine degli elenchi invece conta.
+	assert.notEqual(
+		stable( { fields: [ 1, 2 ] } ),
+		stable( { fields: [ 2, 1 ] } )
 	);
 } );
 

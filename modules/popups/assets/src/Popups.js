@@ -21,19 +21,16 @@ import {
 	LangNotice,
 	LangPicker,
 	Loading,
-	Lucide,
 	ModuleCard,
 	Notice,
 	Permissions,
+	SaveButton,
 	Text,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
-import {
-	setTranslation,
-	textIn,
-} from '../../../forms/assets/src/builder/model.js';
-import { TextIn } from '../../../forms/assets/src/builder/Texts.js';
+import { setTranslation, textIn } from '../../../../assets/src/admin/i18n.js';
+import { TextIn } from '../../../../assets/src/admin/texts.js';
 import { MediaField } from '../../../seo/assets/src/seo/ui.js';
 
 // Anche nella card Moduli di Barrio → Impostazioni.
@@ -251,6 +248,7 @@ function ContentIn( { popup, lang, onChange } ) {
 // L'HTML del sito in un iframe, con lo stile del popup e, se il testo ha un form, i suoi asset (Module::preview()).
 function Preview( { popup, lang } ) {
 	const [ html, setHtml ] = useState( null );
+	const [ error, setError ] = useState( null );
 	const data = JSON.stringify( {
 		lang,
 		image_id: popup.image_id,
@@ -267,8 +265,11 @@ function Preview( { popup, lang } ) {
 					data: JSON.parse( data ),
 				} )
 					.then( ( result ) => current && setHtml( result.html ) )
-					// L'anteprima resta quella di prima.
-					.catch( () => {} ),
+					// L'anteprima resta quella di prima; se è la prima, l'errore al posto della rotella.
+					.catch(
+						( failure ) =>
+							current && setError( errorMessage( failure ) )
+					),
 			300
 		);
 		return () => {
@@ -285,9 +286,11 @@ function Preview( { popup, lang } ) {
 					<span />
 					<span className="barrio-browser__url" />
 				</div>
-				{ null === html ? (
-					<Loading />
-				) : (
+				{ null === html && error && (
+					<Notice notice={ { status: 'error', message: error } } />
+				) }
+				{ null === html && ! error && <Loading /> }
+				{ null !== html && (
 					// allow-same-origin: con l'origine opaca gli script module del form non si caricherebbero.
 					<iframe
 						className="barrio-popup-frame"
@@ -406,19 +409,11 @@ function PopupEditor( { id } ) {
 				}
 			>
 				<LangPicker value={ lang } onChange={ setLang } />
-				<button
-					type="button"
-					className="barrio-button is-primary"
-					disabled={ busy || ( popup.id && ! dirty ) }
+				<SaveButton
+					busy={ busy }
+					disabled={ popup.id && ! dirty }
 					onClick={ save }
-				>
-					<Lucide name="save" />
-					<span className="barrio-button__text">
-						{ busy
-							? __( 'Saving…', 'barrio-suite' )
-							: __( 'Save', 'barrio-suite' ) }
-					</span>
-				</button>
+				/>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<LangNotice lang={ lang } />
@@ -630,7 +625,11 @@ export function PopupsCard() {
 			notice={ notice }
 			stats={
 				popups && [
-					[ __( 'Active now', 'barrio-suite' ), count( 'active' ) ],
+					// Il sito ne mostra uno solo, il più recente.
+					[
+						__( 'Active now', 'barrio-suite' ),
+						Math.min( 1, count( 'active' ) ),
+					],
 					[ __( 'Scheduled', 'barrio-suite' ), count( 'scheduled' ) ],
 					[ __( 'All popups', 'barrio-suite' ), popups.length ],
 				]

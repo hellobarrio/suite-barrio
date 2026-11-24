@@ -96,6 +96,16 @@ final class AiTest extends WP_UnitTestCase {
 
 		update_option( 'barrio_google', 'saved-with-other-salts' );
 		$this->assertSame( 'unreadable', $this->request( 'GET', '/barrio/v1/google' )->get_data()['status'] );
+
+		$this->assertSame(
+			[
+				'status'  => 'none',
+				'email'   => '',
+				'project' => '',
+			],
+			$this->request( 'DELETE', '/barrio/v1/google' )->get_data()
+		);
+		$this->assertFalse( get_option( 'barrio_google' ), 'The private key leaves the database.' );
 	}
 
 	public function test_a_file_that_is_not_a_service_account_key_is_rejected(): void {
@@ -136,6 +146,7 @@ final class AiTest extends WP_UnitTestCase {
 	public function test_only_administrators_manage_google_and_ai_and_seo_editors_generate(): void {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 		$this->assertSame( 403, $this->request( 'GET', '/barrio/v1/google' )->get_status() );
+		$this->assertSame( 403, $this->request( 'DELETE', '/barrio/v1/google' )->get_status() );
 		$this->assertSame( 403, $this->request( 'PUT', '/barrio/v1/ai', [ 'model' => self::MODEL ] )->get_status() );
 		$this->assertSame( 403, $this->request( 'GET', '/barrio/v1/ai/models' )->get_status() );
 		$this->assertSame( 403, $this->request( 'GET', '/barrio/v1/ai/locations' )->get_status() );
@@ -306,6 +317,10 @@ final class AiTest extends WP_UnitTestCase {
 		$this->responses[] = $this->answer( '{"title":"Vacanze sul Lago","description":"","keywords":[]}' );
 
 		$this->assertSame( 'Vacanze sul Lago', $this->request( 'POST', '/barrio/v1/seo/generate' )->get_data()['title'] );
+
+		$this->responses[] = $this->answer( '{"title":"x","description":"","keywords":[]}' );
+		$this->request( 'POST', '/barrio/v1/seo/generate', [ 'title' => str_repeat( 'a', 300 ) ] );
+		$this->assertStringContainsString( 'Title: ' . str_repeat( 'a', 255 ) . "\nURL", end( $this->requests )['body']['contents'][0]['parts'][0]['text'], 'A title has a limit, like the text.' );
 	}
 
 	public function test_errors_of_google_are_reported(): void {

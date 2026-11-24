@@ -1,5 +1,5 @@
 // Il punteggio SEO, ispirato ai test di Rank Math: controlli superati o no, ognuno con un peso. Si calcola
-// solo qui, non si salva; lo usano il pannello e la tabella dei contenuti. Lo prova tests/js/score.test.js.
+// solo qui, non si salva; lo usano il pannello e la tabella dei contenuti. Lo prova tests/js/seo.test.js.
 import { text } from './title.js';
 
 // Il peso di ogni controllo. Quelli sul contenuto valgono solo dove c'è un contenuto (non nei termini).

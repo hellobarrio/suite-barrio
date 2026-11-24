@@ -150,10 +150,10 @@ function barrio_recaptcha_request( string $method, string $path, ?array $body = 
 	);
 }
 
-// Nelle sole pagine con un form.
+// Dove si stampa un form: anche in ogni pagina del sito, se è nel testo del popup acceso.
 function barrio_recaptcha_enqueue(): void {
 	$site_key = barrio_recaptcha_site_key();
-	if ( null === $site_key ) {
+	if ( null === $site_key || wp_script_is( 'barrio-recaptcha' ) ) {
 		return;
 	}
 	wp_enqueue_script( 'barrio-recaptcha', 'https://www.google.com/recaptcha/enterprise.js?render=' . rawurlencode( $site_key ), [], null, true ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- la versione dello script la decide Google.
@@ -218,7 +218,7 @@ function barrio_recaptcha_notice(): void {
 		return;
 	}
 	// Anche con il service account illeggibile (salt diversi dopo un clone): il controllo è spento senza errori.
-	if ( array_filter( barrio_forms_integration_settings( 'recaptcha' ) ) && null === barrio_recaptcha_site_key() ) {
+	if ( null === Google::account() && '' !== trim( (string) ( barrio_forms_integration_settings( 'recaptcha' )['site_key'] ?? '' ) ) ) {
 		printf(
 			'<div class="notice notice-warning"><p>%s</p></div>',
 			esc_html__( 'reCAPTCHA is off: there is no Google service account, or it can no longer be read (for example after the site was moved). Add it again in Barrio → Settings.', 'barrio-suite-recaptcha' )

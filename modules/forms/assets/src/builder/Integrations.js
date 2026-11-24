@@ -6,7 +6,7 @@
 // translatable.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 import {
 	Card,
@@ -22,8 +22,8 @@ import {
 } from '../../../../../assets/src/admin/ui.js';
 import { formsData } from '../ui.js';
 import { Conditions } from './Conditions.js';
-import { ruleFields } from './Fields.js';
-import { TextIn } from './Texts.js';
+import { ruleFields } from './model.js';
+import { TextIn } from '../../../../../assets/src/admin/texts.js';
 
 const { languages } = window.barrioAdmin;
 const { integrations } = formsData;
@@ -34,16 +34,28 @@ export const formIntegrations = Object.entries( integrations ).filter(
 	( [ , definition ] ) => Object.keys( definition.form_settings ).length
 );
 
-const fieldOptions = ( fields, types ) => [
-	{ value: '', label: '—' },
-	...fields
+// value: il campo salvato. Se è stato eliminato o rinominato resta in elenco, come nelle regole
+// (Conditions.js), invece di sembrare "—".
+function fieldOptions( fields, types, value ) {
+	const options = fields
 		.filter( ( f ) => ! types || types.includes( f.type ) )
-		.map( ( f ) => ( { value: f.key, label: f.label } ) ),
-];
+		.map( ( f ) => ( { value: f.key, label: f.label } ) );
+	if ( value && ! options.some( ( option ) => option.value === value ) ) {
+		options.push( {
+			value,
+			label: sprintf(
+				/* translators: %s: field key. */
+				__( '%s (missing field)', 'barrio-suite' ),
+				value
+			),
+		} );
+	}
+	return [ { value: '', label: '—' }, ...options ];
+}
 
 export function IntegrationsTab( { form, lang, update } ) {
 	const [ added, setAdded ] = useState( null );
-	const fields = ruleFields( form.fields );
+	const fields = ruleFields( form.fields, main );
 	const used = form.integrations.map( ( integration ) => integration.slug );
 	const available = formIntegrations.filter(
 		( [ slug ] ) => ! used.includes( slug )
@@ -310,7 +322,8 @@ export function SettingControl( {
 				value={ value }
 				options={ fieldOptions(
 					fields,
-					format.split( ':' )[ 1 ]?.split( ',' )
+					format.split( ':' )[ 1 ]?.split( ',' ),
+					value
 				) }
 				onChange={ onChange }
 			/>
@@ -431,7 +444,7 @@ function FieldMap( { label, help, value, fields, onChange } ) {
 								label={ __( 'Field', 'barrio-suite' ) }
 								hideLabel
 								value={ key }
-								options={ fieldOptions( fields ) }
+								options={ fieldOptions( fields, null, key ) }
 								onChange={ ( v ) => set( i, [ remote, v ] ) }
 							/>
 							<button

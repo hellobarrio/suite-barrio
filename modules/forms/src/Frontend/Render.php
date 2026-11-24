@@ -90,7 +90,9 @@ final class Render {
 			$forward = isset( $next[ $i ] )
 				? '<button type="button" class="barrio-form__next" data-barrio-next>' . esc_html( $next[ $i ] ) . '</button>'
 				: '<button type="submit" class="barrio-form__submit">' . esc_html( $submit ) . '</button>';
-			$html   .= "<div class=\"barrio-form__step\" data-barrio-step>{$fields}<div class=\"barrio-form__nav\">{$back}{$forward}</div></div>";
+			// Dal secondo già nascosti: il JS è differito e il form intero comparirebbe per un attimo.
+			$hidden = $i > 0 ? ' hidden' : '';
+			$html  .= "<div class=\"barrio-form__step\" data-barrio-step{$hidden}>{$fields}<div class=\"barrio-form__nav\">{$back}{$forward}</div></div>";
 		}
 
 		// Campi di servizio della pipeline (Submission): _barrio_js e _barrio_url li compila il JS.
@@ -108,6 +110,8 @@ final class Render {
 			'required' => __( 'This field is required.', 'barrio-suite' ),
 			'fileSize' => __( 'The file is too large.', 'barrio-suite' ),
 			'preview'  => __( 'Preview: the form is valid, but nothing has been sent.', 'barrio-suite' ),
+			'sending'  => __( 'Sending…', 'barrio-suite' ),
+			'outdated' => __( 'This form has changed. Please reload the page and try again.', 'barrio-suite' ),
 		];
 
 		return sprintf(

@@ -68,6 +68,8 @@ final class PopupsTest extends WP_UnitTestCase {
 		foreach ( $invalid as $name => $body ) {
 			$this->assertSame( 400, $this->request( 'POST', '/barrio/v1/popups', $body )->get_status(), $name );
 		}
+		$anchor = $this->request( 'POST', '/barrio/v1/popups', $this->popup( [], [ 'i18n' => [ 'it' => $this->text( 'Newsletter', '#contatti' ) ] ] ) );
+		$this->assertSame( 'The link must be a path like /contacts/ or an address that starts with http:// or https://.', $anchor->as_error()->get_error_message(), 'In words, not the regular expression of the schema.' );
 		$this->assertSame( [], PopupRepository::all(), 'Nothing was written.' );
 	}
 
@@ -194,7 +196,7 @@ final class PopupsTest extends WP_UnitTestCase {
 				]
 			)
 		);
-		$this->assertMatchesRegularExpression( '/data-barrio-popup-rules="[^"]*&quot;start&quot;:\d+,&quot;end&quot;:\d+/', $this->page( $page ), 'The period for the script, with page caching.' );
+		$this->assertMatchesRegularExpression( '/data-barrio-popup-rules="[^"]*&quot;end&quot;:\d+/', $this->page( $page ), 'The end for the script, with page caching: what is printed has already started.' );
 		PopupRepository::set_enabled( false, $id );
 		$this->assertSame( '', $this->page( $page ), 'Off.' );
 	}
@@ -253,10 +255,9 @@ final class PopupsTest extends WP_UnitTestCase {
 		preg_match( '/data-barrio-popup-rules="([^"]+)"/', $html, $match );
 		$this->assertSame(
 			[
-				'key'   => "barrio_popups_{$id}",
-				'start' => null,
-				'end'   => null,
-				'days'  => 3,
+				'key'  => "barrio_popups_{$id}",
+				'end'  => null,
+				'days' => 3,
 			],
 			json_decode( html_entity_decode( $match[1] ?? '' ), true )
 		);
@@ -275,7 +276,8 @@ final class PopupsTest extends WP_UnitTestCase {
 		$this->assertTrue( wp_style_is( 'barrio-forms' ), 'Enqueued with the popup, before the head is printed.' );
 
 		$shortcode = $GLOBALS['shortcode_tags']['barrio_form'];
-		remove_shortcode( 'barrio_form' );
+		// Come lo lascia Plugin::boot() senza il modulo Form.
+		add_shortcode( 'barrio_form', '__return_empty_string' );
 		$html = $this->page( home_url( '/' ) );
 		add_shortcode( 'barrio_form', $shortcode );
 		$this->assertStringContainsString( '<div class="barrio-popup__content"><p>Iscriviti</p></div>', $html, 'Without the Forms module the shortcode prints nothing.' );

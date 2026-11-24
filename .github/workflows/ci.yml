@@ -32,7 +32,7 @@ jobs:
       - run: npm run test:js
 
   test:
-    name: test (${{ matrix.db }}${{ matrix.graphql && ', WPGraphQL' || '' }})
+    name: test (${{ matrix.db }}, PHP ${{ matrix.php }}, ${{ matrix.wp }}${{ matrix.graphql && ', WPGraphQL' || '' }}${{ matrix.multisite && ', multisite' || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,6 +41,15 @@ jobs:
         db: ['mysql:8.0', 'mariadb:10.5']
         # Con WPGraphQL girano anche i test di barrio-suite-wpgraphql (WpGraphqlTest).
         graphql: [false, true]
+        php: ['8.2']
+        # Il nome dell'archivio su wordpress.org.
+        wp: ['latest']
+        multisite: [false]
+        # Una combinazione in più ciascuno: il WordPress minimo, il PHP più recente e una rete di siti.
+        include:
+          - { db: 'mariadb:10.5', graphql: false, php: '8.2', wp: 'wordpress-6.9', multisite: false }
+          - { db: 'mysql:8.0', graphql: true, php: '8.4', wp: 'latest', multisite: false }
+          - { db: 'mysql:8.0', graphql: false, php: '8.2', wp: 'latest', multisite: true }
     services:
       db:
         image: ${{ matrix.db }}
@@ -66,22 +75,33 @@ jobs:
       WORDPRESS_DB_USER: root
       WORDPRESS_DB_PASSWORD: password
       WP_GRAPHQL: ${{ matrix.graphql && '1' || '' }}
+      WP_MULTISITE: ${{ matrix.multisite && '1' || '' }}
       MAILPIT: 127.0.0.1
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php }}
           extensions: mysqli
           coverage: none
       - run: composer install --no-progress
+      # build/ non è nel repository, e i test leggono gli script compilati (OrderingTest).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
       - name: Download WordPress
         run: |
           mkdir -p "$WP_CORE_DIR"
-          curl -sSfL https://wordpress.org/latest.tar.gz | tar xz --strip-components=1 -C "$WP_CORE_DIR"
+          curl -sSfL https://wordpress.org/${{ matrix.wp }}.tar.gz | tar xz --strip-components=1 -C "$WP_CORE_DIR"
       - name: Download WPGraphQL
         if: matrix.graphql
         run: |
           curl -sSfL -o /tmp/wp-graphql.zip https://downloads.wordpress.org/plugin/wp-graphql.latest-stable.zip
           unzip -q /tmp/wp-graphql.zip -d "$WP_CORE_DIR/wp-content/plugins"
+      # Nella cartella dei plugin, come in un sito: ExtensionsTest cerca Barrio Suite tra i plugin installati.
+      - run: rsync -a --exclude=node_modules --exclude=.git ./ "$WP_CORE_DIR/wp-content/plugins/barrio-suite/"
       - run: vendor/bin/phpunit
+        working-directory: ${{ env.WP_CORE_DIR }}/wp-content/plugins/barrio-suite

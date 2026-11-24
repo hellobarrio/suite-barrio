@@ -46,12 +46,15 @@ import './admin.css';
 const params = new URLSearchParams( window.location.search );
 
 // Costante: General ricarica le sezioni quando cambia l'array.
-const ALT_SECTIONS = [ altSection ];
-const ANALYTICS_SECTIONS = [ analyticsSection ];
-const BANNERS_SETTINGS = [ bannersSettingsSection ];
-const POPUPS_SETTINGS = [ popupsSettingsSection ];
 const HOURS_SECTIONS = [ hoursSection ];
-const HOURS_SETTINGS = [ hoursSettingsSection ];
+
+// La scheda Impostazioni di un modulo. Si chiama una volta per pagina, qui sotto: le sezioni restano lo stesso array.
+const settingsTab = ( ...sections ) =>
+	window.barrioAdmin.canManageOptions && [
+		'settings',
+		__( 'Settings', 'barrio-suite' ),
+		() => <General sections={ sections } />,
+	];
 
 // Il nome della pagina dopo "Barrio Suite" (senza, la Bacheca mostra la versione), la descrizione e
 // il contenuto.
@@ -74,16 +77,7 @@ const PAGES = {
 				page="barrio-analytics"
 				tabs={ [
 					[ '', __( 'Overview', 'barrio-suite' ), Overview ],
-					window.barrioAdmin.canManageOptions && [
-						'settings',
-						__( 'Settings', 'barrio-suite' ),
-						() => (
-							<General
-								title={ __( 'Settings', 'barrio-suite' ) }
-								sections={ ANALYTICS_SECTIONS }
-							/>
-						),
-					],
+					settingsTab( analyticsSection ),
 				].filter( Boolean ) }
 			/>
 		),
@@ -131,16 +125,7 @@ const PAGES = {
 				page="barrio-alt"
 				tabs={ [
 					[ '', __( 'Images', 'barrio-suite' ), AltText ],
-					window.barrioAdmin.canManageOptions && [
-						'settings',
-						__( 'Settings', 'barrio-suite' ),
-						() => (
-							<General
-								title={ __( 'Settings', 'barrio-suite' ) }
-								sections={ ALT_SECTIONS }
-							/>
-						),
-					],
+					settingsTab( altSection ),
 				].filter( Boolean ) }
 			/>
 		),
@@ -156,16 +141,7 @@ const PAGES = {
 				page="barrio-popups"
 				tabs={ [
 					[ '', POPUPS.title, PopupsTab ],
-					window.barrioAdmin.canManageOptions && [
-						'settings',
-						__( 'Settings', 'barrio-suite' ),
-						() => (
-							<General
-								title={ __( 'Settings', 'barrio-suite' ) }
-								sections={ POPUPS_SETTINGS }
-							/>
-						),
-					],
+					settingsTab( popupsSettingsSection ),
 				].filter( Boolean ) }
 			/>
 		),
@@ -181,16 +157,7 @@ const PAGES = {
 				page="barrio-banners"
 				tabs={ [
 					[ '', BANNERS.title, BannersTab ],
-					window.barrioAdmin.canManageOptions && [
-						'settings',
-						__( 'Settings', 'barrio-suite' ),
-						() => (
-							<General
-								title={ __( 'Settings', 'barrio-suite' ) }
-								sections={ BANNERS_SETTINGS }
-							/>
-						),
-					],
+					settingsTab( bannersSettingsSection ),
 				].filter( Boolean ) }
 			/>
 		),
@@ -215,16 +182,7 @@ const PAGES = {
 							/>
 						),
 					],
-					window.barrioAdmin.canManageOptions && [
-						'settings',
-						__( 'Settings', 'barrio-suite' ),
-						() => (
-							<General
-								title={ __( 'Settings', 'barrio-suite' ) }
-								sections={ HOURS_SETTINGS }
-							/>
-						),
-					],
+					settingsTab( hoursSettingsSection ),
 				].filter( Boolean ) }
 			/>
 		),

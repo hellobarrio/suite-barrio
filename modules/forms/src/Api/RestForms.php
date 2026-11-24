@@ -152,7 +152,12 @@ final class RestForms {
 		/* translators: %s: title of the copied form. */
 		$title = mb_substr( sprintf( __( '%s (copy)', 'barrio-suite' ), $form->title ), 0, 191 );
 		// create() ignora gli id: campi, notifiche e integrazioni diventano righe nuove.
-		return new WP_REST_Response( self::view( FormRepository::create( $title, $form->i18n, $form->notifications, $form->current, $form->integrations ) ), 201 );
+		try {
+			return new WP_REST_Response( self::view( FormRepository::create( $title, $form->i18n, $form->notifications, $form->current, $form->integrations ) ), 201 );
+		} catch ( InvalidArgumentException $e ) {
+			// Un form salvato quando era valido: un tipo di file che WordPress non ammette più.
+			return self::invalid( $e );
+		}
 	}
 
 	// Il form non salvato, con il render del sito, o una sua notifica: per le anteprime del builder.
@@ -161,7 +166,8 @@ final class RestForms {
 		foreach ( $version->fields as $field ) {
 			$error = FieldTypes::check( $field );
 			if ( null !== $error ) {
-				return new WP_Error( 'barrio_invalid_form', "Field '{$field->key}': {$error}", [ 'status' => 400 ] );
+				/* translators: 1: field key, 2: what is wrong with the field. */
+				return new WP_Error( 'barrio_invalid_form', sprintf( __( 'Field \'%1$s\': %2$s', 'barrio-suite' ), $field->key, $error ), [ 'status' => 400 ] );
 			}
 		}
 		$now           = gmdate( 'Y-m-d H:i:s' );
@@ -364,11 +370,15 @@ final class RestForms {
 				? FormRepository::create( $request['title'], $request['i18n'], $notifications, self::version( $request['fields'] ), $integrations )
 				: FormRepository::save( $id, $request['base_version'], $request['title'], $request['i18n'], $notifications, self::version( $request['fields'] ), $integrations );
 		} catch ( InvalidArgumentException $e ) {
-			// Config dei campi, condizioni, chiavi ripetute, impostazioni delle integrazioni: errori di chi
-			// scrive il form, non del server.
-			return new WP_Error( 'barrio_invalid_form', $e->getMessage(), [ 'status' => 400 ] );
+			return self::invalid( $e );
 		}
 		return $form instanceof WP_Error ? $form : new WP_REST_Response( self::view( $form ), null === $id ? 201 : 200 );
+	}
+
+	// Config dei campi, condizioni, chiavi ripetute, impostazioni delle integrazioni: errori di chi scrive
+	// il form, non del server. I Repository fanno l'escape del messaggio, che il builder mostra come testo.
+	private static function invalid( InvalidArgumentException $e ): WP_Error {
+		return new WP_Error( 'barrio_invalid_form', wp_specialchars_decode( $e->getMessage(), ENT_QUOTES ), [ 'status' => 400 ] );
 	}
 
 	/**

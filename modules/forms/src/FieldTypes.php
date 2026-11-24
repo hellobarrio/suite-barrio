@@ -176,7 +176,20 @@ final class FieldTypes {
 		}
 		// Un pattern non valido farebbe rifiutare ogni invio: meglio scoprirlo qui che dal visitatore.
 		if ( isset( $field->config['pattern'] ) && false === @preg_match( self::regex( (string) $field->config['pattern'] ), '' ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			return 'config[pattern] is not a valid regular expression.';
+			return __( 'The pattern is not a valid regular expression.', 'barrio-suite' );
+		}
+		// Il valore inviato passa da line(): una scelta con spazi ai bordi o doppi non si potrebbe mai inviare.
+		foreach ( (array) ( $field->config['choices'] ?? [] ) as $choice ) {
+			if ( self::line( $choice ) !== $choice ) {
+				/* translators: %s: the value of a choice. */
+				return sprintf( __( 'The choice "%s" has spaces at the start, at the end or doubled.', 'barrio-suite' ), $choice );
+			}
+		}
+		// Sul sito FileStore::extensions() la toglierebbe senza dirlo.
+		$refused = 'file' === $field->type ? array_diff( (array) $field->config['extensions'], FileStore::extensions( $field ) ) : [];
+		if ( $refused ) {
+			/* translators: %s: file extensions, for example "DWG, EXE". */
+			return sprintf( __( 'WordPress does not allow these file types: %s.', 'barrio-suite' ), strtoupper( implode( ', ', $refused ) ) );
 		}
 		return Conditions::check( $field->conditions );
 	}
@@ -193,7 +206,9 @@ final class FieldTypes {
 			'textarea'   => [ self::text( $raw ) ],
 			'consent'    => [ in_array( $raw, [ true, 1, '1', 'on', 'true' ], true ) ? '1' : '' ],
 			// Il valore fisso viene dalla config, non dal client.
-			'hidden'     => [ isset( $field->config['param'] ) ? self::line( $raw ) : (string) ( $field->config['value'] ?? '' ) ],
+			// Dall'URL può arrivare più lungo del limite (un click id): si taglia, perché l'errore sarebbe su
+			// un campo che non si vede.
+			'hidden'     => [ isset( $field->config['param'] ) ? mb_substr( self::line( $raw ), 0, self::max_length( $field ) ) : (string) ( $field->config['value'] ?? '' ) ],
 			'file'       => [ is_array( $raw ) && UPLOAD_ERR_NO_FILE !== ( $raw['error'] ?? UPLOAD_ERR_NO_FILE ) ? self::line( $raw['name'] ?? '' ) : '' ],
 			'page_break' => [],
 			default      => [ self::line( $raw ) ],
@@ -415,9 +430,9 @@ final class FieldTypes {
 		return '#^(?:' . str_replace( '#', '\#', $pattern ) . ')$#u';
 	}
 
-	// Una riga: spazi e a capo compressi.
+	// Una riga: spazi e a capo compressi. Con u anche gli spazi Unicode (il non separabile), come \s in form.js.
 	private static function line( mixed $raw ): string {
-		return (string) preg_replace( '/\s+/', ' ', self::text( $raw ) );
+		return (string) preg_replace( '/\s+/u', ' ', self::text( $raw ) );
 	}
 
 	// Testo senza caratteri di controllo (tranne tab e a capo) né UTF-8 non valido. Per il resto si
@@ -426,7 +441,9 @@ final class FieldTypes {
 		if ( ! is_scalar( $raw ) ) {
 			return '';
 		}
-		return trim( (string) preg_replace( '/[\x00-\x08\x0B-\x1F\x7F]/', '', str_replace( "\r\n", "\n", wp_check_invalid_utf8( (string) $raw, true ) ) ) );
+		$text = (string) preg_replace( '/[\x00-\x08\x0B-\x1F\x7F]/', '', str_replace( "\r\n", "\n", wp_check_invalid_utf8( (string) $raw, true ) ) );
+		// Come trim() in form.js, che toglie anche gli spazi Unicode.
+		return (string) preg_replace( '/^\s+|\s+\z/u', '', $text );
 	}
 
 	/** @param array<string, string|int|float|bool|null> $attrs false e null omettono l'attributo. */

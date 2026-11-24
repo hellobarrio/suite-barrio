@@ -130,7 +130,16 @@ export function Sortable( { ids, items, label, onMove, children } ) {
 			>
 				{ items.map( ( item, i ) => (
 					<SortableItem key={ ids[ i ] } id={ ids[ i ] }>
-						{ ( handle ) => children( item, i, handle ) }
+						{ ( handle ) =>
+							children( item, i, {
+								...handle,
+								'aria-label': sprintf(
+									/* translators: %s: name of the item. */
+									__( 'Move %s', 'barrio-suite' ),
+									label( item )
+								),
+							} )
+						}
 					</SortableItem>
 				) ) }
 			</SortableContext>

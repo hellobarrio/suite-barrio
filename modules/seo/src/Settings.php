@@ -14,8 +14,8 @@ final class Settings {
 
 	private const OPTION = 'barrio_seo';
 
-	// Le 16 voci del prototipo.
-	private const ORGANIZATION_TYPES = [ 'LocalBusiness', 'Organization', 'Restaurant', 'Hotel', 'Store', 'MedicalBusiness', 'LegalService', 'FinancialService', 'InteriorDesigner', 'Architect', 'Attorney', 'Dentist', 'Physician', 'RealEstateAgent', 'LodgingBusiness', 'ProfessionalService' ];
+	// Le voci del prototipo, senza Architect e InteriorDesigner: schema.org non li ha.
+	private const ORGANIZATION_TYPES = [ 'LocalBusiness', 'Organization', 'Restaurant', 'Hotel', 'Store', 'MedicalBusiness', 'LegalService', 'FinancialService', 'Attorney', 'Dentist', 'Physician', 'RealEstateAgent', 'LodgingBusiness', 'ProfessionalService' ];
 
 	// Una chiave assente nelle mappe per tipo e per tassonomia vale indicizzato e segui; per llms vedi Llms::preset().
 	private const DEFAULTS = [

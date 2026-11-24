@@ -43,8 +43,9 @@ tutte le pagine. Del core è solo ciò che Popup e Banner hanno in comune: il pe
 - **Lingue**: come nei form, ogni lingua ha la sua riga di testi completa. Nell'editor un testo non tradotto è quello
   della lingua principale, e al salvataggio la riga si completa (`fillTranslations`). Nel sito e in GraphQL si legge
   la riga della lingua, o quella principale se la lingua non ne ha una: la stessa regola ovunque.
-- **Nel sito**: il server valuta il periodo e stampa il popup. Il JavaScript ricontrolla periodo e frequenza: con la
-  cache di pagina l'HTML può essere vecchio, il browser no.
+- **Nel sito**: il server valuta il periodo e stampa il popup. Il JavaScript ricontrolla la fine e la frequenza: con
+  la cache di pagina l'HTML può essere vecchio, il browser no (l'inizio no: il server stampa solo ciò che è già
+  iniziato).
 - **Niente query a ogni pagina**: gli accesi e non scaduti, con i loro testi, stanno in un transient senza scadenza
   (`barrio_popups_live`, come `barrio_banners_live`) che ogni scrittura elimina; con zero popup è un array vuoto. CSS
   e JS solo con un popup.
@@ -98,7 +99,7 @@ popups_i18n   (popup_id, lang) → popups CASCADE; lang utf8mb4_bin
 | XSS salvato nell'admin: il titolo letto con `textContent` e riscritto con `innerHTML` | React, che non scrive HTML dai dati |
 | Cambiando lingua nell'editor tornano i valori letti all'apertura: risalvando si perde la modifica appena salvata. Nei primi 600 ms la traduzione può finire nella lingua principale | I testi di tutte le lingue nello stato dell'editor e un solo Salva, come nel builder |
 | Il limite di popup c'è solo nell'interfaccia | Niente limite: compare il più recente nel suo periodo |
-| Shortcode e GraphQL usano regole diverse per le traduzioni (campo per campo nel sito, riga intera in GraphQL), per l'immagine (URL o ID) e per il testo (`wpautop` solo nel sito) | Una funzione sola (`Popups::live()`), usata dal sito e da GraphQL; righe di testo complete (§1); l'immagine è sempre un ID |
+| Shortcode e GraphQL usano regole diverse per le traduzioni (campo per campo nel sito, riga intera in GraphQL), per l'immagine (URL o ID) e per il testo (`wpautop` solo nel sito) | Una funzione sola (`PeriodRepository::shown()`), usata dal sito e da GraphQL; righe di testo complete (§1); l'immagine è sempre un ID |
 | `CREATE TABLE` e `SHOW COLUMNS` a ogni richiesta; CSS in linea in ogni pagina, anche senza popup; due query per pagina | Migrazioni del Migrator; transient e asset solo dove serve (§1) |
 | `LONGTEXT NOT NULL DEFAULT ''`, nessuna foreign key tra popup e traduzioni, nessun CHECK | Lo schema del §2.2 |
 | GraphQL risponde anche con il modulo spento | L'estensione registra lo schema solo con il modulo acceso |
@@ -154,12 +155,13 @@ Il banner del prototipo e di `hello_standard`, scelto così in M6 (prima aveva p
 del §1, tolte):
 
 - **Contenuto**: una riga di testo per lingua, tutta cliccabile se ha un link (nuova scheda a scelta).
-- **Nel sito**: in cima a tutte le pagine (`wp_body_open`), una scritta che scorre e rallenta fino a fermarsi sotto
-  il mouse, col focus e col tocco. Colori nelle custom property del CSS, che il tema può cambiare; l'altezza in
+- **Nel sito**: in cima a tutte le pagine (`wp_body_open`; in un tema che non lo chiama, da `wp_footer` e poi
+  spostato in cima dal JavaScript), una scritta che scorre e rallenta fino a fermarsi sotto il mouse, col focus e
+  col tocco, e un bottone di pausa che la tiene ferma (WCAG 2.2.2). Colori nelle custom property del CSS, che il tema può cambiare; l'altezza in
   `--barrio-banner-height`, per i temi con l'header fisso.
 - **Periodo**: inizio e fine facoltativi; lo stato si calcola (Spento, Programmato, Attivo, Scaduto). Con più banner
   accesi compare il più recente, così una promozione vince su quello di sempre finché dura. Il JavaScript ricontrolla
-  il periodo, per la cache di pagina.
+  la fine, per la cache di pagina.
 - **Lingue**: come nel §1, righe di testi complete.
 
 ### 3.2 Dati (migrazione `0001`)
@@ -182,7 +184,7 @@ banners_i18n  (banner_id, lang) → banners CASCADE; lang utf8mb4_bin
 | Un solo banner attivo, senza periodo; compare solo dove il tema stampa lo shortcode | Il periodo, il più recente tra gli accesi e l'inserimento automatico |
 | La scritta si ripete 30 volte per gli screen reader, e il nome del link è il testo ripetuto 30 volte | Il testo si legge una volta: le copie sono `aria-hidden` |
 | Scorre senza modo di fermarla (WCAG 2.2.2) e ignora `prefers-reduced-motion`; si ferma solo col mouse | Si ferma anche col focus (senza link il banner ha `tabindex="0"`) e col tocco; resta ferma con `prefers-reduced-motion` |
-| Salta di 20px a ogni giro (`GAP` copiato dal frontend senza lo spazio nel CSS); le copie non hanno spazio tra loro; la larghezza si misura una volta, prima dei font | Una Web Animation sulla larghezza misurata dopo il caricamento dei font (`document.fonts.ready`) e al ridimensionamento, con lo spazio nel CSS |
+| Salta di 20px a ogni giro (`GAP` copiato dal frontend senza lo spazio nel CSS); le copie non hanno spazio tra loro; la larghezza si misura una volta, prima dei font | Una Web Animation sulla larghezza rimisurata a ogni cambio di dimensione (`ResizeObserver`, che vede anche l'arrivo dei font), con lo spazio nel CSS |
 | XSS salvato nell'admin (`innerHTML` del titolo); il limite di banner solo nell'interfaccia; cambio di lingua che riporta i valori vecchi | Come per i popup (§2.3) |
 | Due tabelle create a ogni richiesta, senza foreign key; da 2 a 4 query per pagina; CSS e JS in ogni pagina | Lo schema del §3.2; il transient `barrio_banners_live`, e asset solo con un banner |
 | Un link tradotto vuoto toglie il link in GraphQL e lo tiene nel sito | Righe di testo complete, una regola sola (§1) |
@@ -320,7 +322,8 @@ blocco dei form:
   compaiono solo se il tipo li supporta, e `removeEditorPanel` non toglie i primi due. Per chi ha la restrizione la
   REST dei tipi non li elenca; il supporto resta, e con lui le revisioni;
 - in JavaScript: il default di `levelOptions` nei blocchi che lo hanno senza un valore loro (il titolo, non il titolo
-  del sito) e la scorciatoia `# `, che creerebbe un H1.
+  del sito) e, nel blocco Titolo, le trasformazioni che creerebbero un H1: la scorciatoia `# `, `/h1` con Invio e un
+  H1 incollato o convertito da HTML, che diventa H2.
 
 ### 5.2 Dati
 
@@ -619,8 +622,8 @@ di WordPress. Il nuovo modulo legge gli stessi report con il service account del
 - **Opzione `barrio_analytics`** (non in autoload: si legge solo nell'admin), con il suo JSON Schema: `property`
   (`properties/123456789`; vuota, non scelta) e `replace_dashboard` (spento).
 - **Nessuna tabella**: i dati sono di Google, e il plugin non ne tiene una copia.
-- **Cache**: il transient `barrio_analytics_{md5(proprietà, periodo)}` tiene per un'ora la risposta intera di
-  `GET /analytics/report`, con l'ora in cui è arrivata. Sotto i dati si legge "aggiornati alle 10:32".
+- **Cache**: un transient per parte, `barrio_analytics_{md5(proprietà, periodo, parte)}`, tiene per un'ora la
+  risposta di `GET /analytics/report`, con l'ora in cui è arrivata. Sotto i dati si legge "aggiornati alle 10:32".
   - Un errore non si mette in cache.
   - Un'altra proprietà ha altre chiavi.
   - La disinstallazione lascia scadere i transient (`src/Uninstall.php`).
@@ -634,7 +637,7 @@ di WordPress. Il nuovo modulo legge gli stessi report con il service account del
 | OAuth per sito: un client con l'URI di reindirizzamento da creare in Google Cloud per ogni sito, e un utente Google che autorizza. Se quell'utente lascia l'agenzia o revoca l'accesso, le statistiche si fermano | Il service account del core, Visualizzatore della proprietà: niente consenso né URI |
 | Client secret e refresh token in chiaro in `wp_options`, mentre il commento in cima al file dice "criptati" | Nessuna credenziale nel modulo: il service account lo cifra il core (`Crypto`) |
 | Un 401 di Google cancella il refresh token: un errore scollega il sito | L'errore si mostra e non si cancella niente |
-| `fetch_period` è senza cache e aperta a `edit_posts`: ogni cambio di periodo fa 7 chiamate a Google (20 s ciascuna), e un collaboratore legge tutte le statistiche | Due chiamate batch, la cache di un'ora, `barrio_view_analytics` con i Permessi |
+| `fetch_period` è senza cache e aperta a `edit_posts`: ogni cambio di periodo fa 7 chiamate a Google (20 s ciascuna), e un collaboratore legge tutte le statistiche | Tre chiamate batch, una per parte del report, la cache di un'ora, `barrio_view_analytics` con i Permessi |
 | Nelle settimane e nei mesi gli utenti si sommano giorno per giorno: chi torna 5 giorni conta 5 | Le dimensioni di settimana e mese di GA (§9.1) |
 | I periodi finiscono oggi, con la giornata a metà, e "30 giorni" sono 31 (`30daysAgo`–`today`). Nessun confronto. Personalizzato non controlla l'ordine delle date | Periodi che finiscono ieri, il confronto, le date controllate nello schema della rotta, dal 2019 (prima di GA4 nessuna proprietà ha dati) e con una sola richiesta mentre si scrive |
 | Pagine per percorso e titolo: la stessa pagina compare due volte se il titolo cambia. Il link usa `home_url()`, sbagliato nei siti headless | Per host e percorso, il titolo da WordPress, il link all'host di GA |
@@ -737,7 +740,8 @@ Blocchi, Duplicazione, Testi alternativi e Statistiche non hanno hook: nessuna e
   il testo, il form e il pulsante.
 - **TinyMCE in React** (provato in M7): `wp.oldEditor.initialize` va chiamato dopo `DOMContentLoaded`, perché WordPress
   stampa le impostazioni in fondo alla pagina. Ogni lingua ha il suo editor (`key`), distrutto allo smontaggio.
-- **Banner e temi classici**: serve `wp_body_open`, che i temi chiamano dal 2019; controllare quelli dei clienti. Sui
+- **Banner e temi classici**: senza `wp_body_open`, che i temi chiamano dal 2019, il banner esce da `wp_footer` e il
+  JavaScript lo porta in cima: nei temi dei clienti controllare che non copra l'header. Sui
   siti classici del prototipo con lo shortcode del banner in un punto preciso dell'header il banner si sposta in
   cima.
 - **Cache di pagina**: un popup o un banner creato o spento si vede solo quando la cache della pagina scade. Il

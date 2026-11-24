@@ -78,8 +78,10 @@ barrio_forms_register_integration( 'mailchimp', [
 | `process` | `callable( Entry $entry, Form $form, array $settings, array $global ): true\|WP_Error` |
 
 Ogni proprietà è una stringa (`type: string`), con `title` e `description` per l'etichetta e l'aiuto:
-nelle pagine admin diventa un campo di testo. Interruttori, numeri e tendine si aggiungeranno quando
-un'estensione ne avrà bisogno. Formati del plugin, per cui basta `format`:
+nelle pagine admin diventa un campo di testo. Con `enum` diventa una tendina delle sole scelte elencate, e
+`labels` (`valore => etichetta`, già tradotta) dà il testo di ognuna; senza `labels` si vede il valore, e la
+prima voce, vuota, vale "nessuna scelta" (come lo `status` di `barrio-suite-mailchimp`). Interruttori e numeri
+si aggiungeranno quando un'estensione ne avrà bisogno. Formati del plugin, per cui basta `format`:
 
 | `format` | Valore | Controllo |
 |---|---|---|
@@ -156,6 +158,7 @@ le aspetta.
 | `barrio_popups_changed` | azione | — | È cambiato un popup: creato, modificato, acceso, spento, duplicato o eliminato. Per svuotare la cache di un frontend |
 | `barrio_banners_changed` | azione | — | È cambiato un banner: creato, modificato, acceso, spento, duplicato o eliminato. Per svuotare la cache di un frontend |
 | `barrio_ordering_changed` | azione | `string $kind`, `string $name` | È cambiato l'ordine manuale di un tipo di contenuto (`'post'`, `'page'`) o di una tassonomia (`'term'`, `'category'`): un nuovo ordine salvato, o l'ordine manuale acceso o spento. Per svuotare la cache di un frontend |
+| `barrio_ordering_items` | filtro | `list<array{id, title, status, parent}> $items`, `string $kind`, `string $name` | Le voci della modale Riordina di un elenco, che si leggono senza i filtri delle query di WordPress: un plugin multilingua tiene quelle di una lingua (lo fa `barrio-suite-wpml` con la lingua dell'admin), e solo quelle si possono salvare |
 
 ## Nel browser
 
@@ -199,9 +202,10 @@ i frontend Next.js del prototipo funzionano senza modifiche. Senza WPGraphQL non
   per campo), come nel prototipo; un'eccezione la gestisce WPGraphQL, con il messaggio solo nel suo debug
   (`debug` resta nello schema, sempre `null`).
 - **Antispam**: un client GraphQL non ha il segno del JavaScript, quindi restano il limite per IP e i
-  captcha. Il limite vale solo per le richieste anonime: un frontend con l'application password invia dal
-  suo server, con lo stesso IP per tutti i visitatori. La registrazione non salva l'utente della richiesta
-  (è quello del frontend, non chi compila).
+  captcha. Il limite non vale per le richieste di un utente con `edit_posts`: un frontend con l'application
+  password invia dal suo server, con lo stesso IP per tutti i visitatori, e il suo utente deve avere quella
+  capability (da Autore in su; un Sottoscrittore resta limitato come un anonimo). La registrazione non salva
+  l'utente della richiesta (è quello del frontend, non chi compila).
 - **`hbForms`**: come `GET /barrio/v1/forms`, solo per chi può modificare gli articoli o gestire le
   registrazioni (nel prototipo era pubblico); senza permesso è un errore GraphQL.
 
@@ -216,7 +220,9 @@ logica a parte.
 
 - **`seo`** (`HBSeoPost`) su ogni post type pubblico in GraphQL: `Seo\Meta::post()`. `title` è senza il nome del
   sito, `robots` è `index,follow` e simili, `ogType` è `article` solo per gli articoli (nel prototipo sempre),
-  `isInSitemap` vale per i contenuti pubblicati, indicizzati e senza password.
+  `isInSitemap` vale per i contenuti pubblicati, indicizzati e senza password. Di un contenuto non pubblico
+  (bozza, privato, in attesa) `seo` è `null` per chi non lo può modificare, e `hbSchemaRaw` non ne dà la pagina:
+  WPGraphQL ne mostra solo il titolo.
 - **`hbSeoSite`**: nome del sito, separatore, ordine, descrizione e immagine predefinite, icona del sito.
   `robotsDefault` è sempre `index,follow`: l'indicizzazione è per tipo e per contenuto.
 - **`hbSchemaRaw(uri)`**: il JSON-LD di `Seo\Schema`, con `JSON_HEX_TAG` perché finisce in un `<script>`. L'URI si
@@ -225,7 +231,9 @@ logica a parte.
 - **`hbSitemap`**: gli URL di `wp-sitemap.xml` in tutte le lingue (`Seo\Sitemaps::each()`, gli stessi che conta
   SEO → Impostazioni), anche con "Scoraggia i motori di ricerca", perché il WordPress di un sito headless spesso
   non va indicizzato. `loc` è relativo; `type` è `post`, `term` o `user` (gli archivi degli autori, se
-  indicizzati); `priority` è sempre `null`.
+  indicizzati); `priority` è sempre `null`. Il campo è pubblico e leggere tutti gli URL costa: l'elenco sta in un
+  transient per un giorno al più, svuotato dagli stessi hook che svuotano llms.txt (contenuti, termini, impostazioni
+  del SEO, nome del sito).
 - **`hbRedirects`**: tutti i redirect. `from` ha la `/` finale dei permalink (le sorgenti nel database non ce
   l'hanno), perché i frontend del prototipo la confrontano con il percorso della pagina; non l'hanno quelle con
   la query string o con un'estensione (`/pagina.html`). Un 410 ha `to` null. `note` solo per chi ha

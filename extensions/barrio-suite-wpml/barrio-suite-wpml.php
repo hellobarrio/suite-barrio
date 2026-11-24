@@ -84,6 +84,23 @@ add_filter(
 	static fn( array $flags ): array => array_filter( array_map( static fn( array $language ): string => (string) ( $language['country_flag_url'] ?? '' ), barrio_wpml_languages() ) ) + $flags
 );
 
+// Riordina (il modulo Ordinamento) elenca solo le voci della lingua scelta nell'admin, come la lista di WordPress da
+// cui si apre; con "tutte le lingue" l'elenco resta intero. wpml_object_id dà la traduzione nella lingua: è la voce
+// stessa se è di quella lingua, o se il suo tipo non si traduce.
+add_filter(
+	'barrio_ordering_items',
+	static function ( array $items, string $kind, string $name ): array {
+		$lang = apply_filters( 'wpml_current_language', null ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WPML.
+		if ( ! is_string( $lang ) || 'all' === $lang ) {
+			return $items;
+		}
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtro di WPML.
+		return array_filter( $items, static fn( array $item ): bool => (int) apply_filters( 'wpml_object_id', $item['id'], $name, false, $lang ) === $item['id'] );
+	},
+	10,
+	3
+);
+
 // Nelle pagine di Barrio Suite (la Bacheca è barrio, le altre barrio-…) la lingua si sceglie nella barra
 // della pagina: il selettore di WPML nella barra di WordPress sceglierebbe solo i contenuti mostrati in
 // admin, e confonderebbe. WPML lo decide in init, prima che la schermata sia nota: si guarda la pagina richiesta.

@@ -55,7 +55,7 @@ final class Module {
 	}
 
 	public static function menu(): void {
-		Admin::contents_tab( 'manage_options' );
+		Admin::contents_tab();
 	}
 
 	/**
@@ -280,13 +280,17 @@ final class Module {
 
 	/**
 	 * L'elenco da riordinare, nell'ordine di adesso: per i contenuti quelli di "Tutti" nella lista di WordPress. Il
-	 * genitore conta solo nei tipi gerarchici, e uno che non è nell'elenco (nel cestino) vale la radice.
+	 * genitore conta solo nei tipi gerarchici, e uno che non è nell'elenco (nel cestino) vale la radice. Le query del
+	 * Repository non passano dai filtri di WordPress: un plugin multilingua toglie qui le voci delle altre lingue
+	 * (barrio_ordering_items), e ogni lingua ha il suo ordine.
 	 *
 	 * @return list<Item>
 	 */
 	private static function items( string $kind, string $name ): array {
-		$post  = 'post' === $kind;
-		$rows  = $post ? OrderRepository::posts( $name, array_values( get_post_stati( [ 'show_in_admin_all_list' => true ] ) ) ) : OrderRepository::terms( $name );
+		$post = 'post' === $kind;
+		$rows = $post ? OrderRepository::posts( $name, array_values( get_post_stati( [ 'show_in_admin_all_list' => true ] ) ) ) : OrderRepository::terms( $name );
+		/** @var list<Item> $rows */
+		$rows  = array_values( (array) apply_filters( 'barrio_ordering_items', $rows, $kind, $name ) );
 		$tree  = $post ? is_post_type_hierarchical( $name ) : is_taxonomy_hierarchical( $name );
 		$found = array_flip( array_column( $rows, 'id' ) );
 		return array_map(

@@ -101,6 +101,11 @@ final class AltTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'Un lago tra le montagne', get_post_meta( $image, '_wp_attachment_image_alt', true ) );
 		$this->assertSame( 'Scritto a mano', get_post_meta( $typed, '_wp_attachment_image_alt', true ) );
+		$this->assertCount( 1, $this->requests, 'Google is not called when there is nothing to write.' );
+
+		// Il pulsante genera anche sopra un alt scritto: si vede prima di salvare.
+		$this->request( 'POST', "/barrio/v1/alt/{$typed}" );
+		$this->assertCount( 2, $this->requests );
 	}
 
 	public function test_a_small_image_goes_as_it_is_other_formats_as_jpeg_and_svg_not_at_all(): void {
@@ -126,6 +131,23 @@ final class AltTest extends WP_UnitTestCase {
 		$this->assertCount( 2, $this->requests );
 	}
 
+	// I codici sono anche un contratto con la massa (SKIP in Alt.js), che salta queste immagini.
+	public function test_a_missing_file_and_one_over_5_mb_never_go_to_google(): void {
+		$missing = self::factory()->attachment->create_object( 'manca.jpg', 0, [ 'post_mime_type' => 'image/jpeg' ] );
+		$heavy   = self::factory()->attachment->create_object( 'pesante.jpg', 0, [ 'post_mime_type' => 'image/jpeg' ] );
+		$file    = (string) get_attached_file( $heavy );
+		wp_mkdir_p( dirname( $file ) );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- un file di prova.
+		file_put_contents( $file, str_repeat( 'a', 5 * MB_IN_BYTES + 1 ) );
+
+		$codes = array_map( fn( int $id ): string => (string) $this->request( 'POST', "/barrio/v1/alt/{$id}", [ 'save' => true ] )->as_error()?->get_error_code(), [ $missing, $heavy ] );
+		wp_delete_file( $file );
+
+		$this->assertSame( [ 'barrio_alt_file', 'barrio_alt_size' ], $codes );
+		$this->assertFalse( image_get_intermediate_size( $heavy, 'large' ) );
+		$this->assertSame( [], $this->requests );
+	}
+
 	public function test_after_the_upload_a_cron_event_writes_the_alt_if_it_is_still_empty(): void {
 		$off = $this->image( 'canola.jpg' );
 		$this->assertFalse( wp_next_scheduled( 'barrio_alt_generate', [ $off ] ) );
@@ -142,6 +164,7 @@ final class AltTest extends WP_UnitTestCase {
 		do_action( 'barrio_alt_generate', $typed );
 		$this->assertSame( 'Un lago tra le montagne', get_post_meta( $image, '_wp_attachment_image_alt', true ) );
 		$this->assertSame( 'Scritto mentre si aspettava', get_post_meta( $typed, '_wp_attachment_image_alt', true ) );
+		$this->assertCount( 1, $this->requests );
 
 		Module::deactivate();
 		$this->assertFalse( wp_next_scheduled( 'barrio_alt_generate', [ $typed ] ) );
@@ -187,6 +210,26 @@ final class AltTest extends WP_UnitTestCase {
 		$this->assertSame( [ $own => true ], array_filter( $rows ) );
 		$this->assertFalse( $rows[ $others ] );
 		$this->assertSame( [ $own ], $this->request( 'GET', '/barrio/v1/alt/images', [ 'fields' => 'ids' ] )->get_data()['ids'] );
+		// Il titolo del contenuto a cui è allegata solo a chi lo può leggere, come nella libreria di WordPress.
+		$editor = self::factory()->user->create( [ 'role' => 'editor' ] );
+		wp_update_post(
+			[
+				'ID'          => $own,
+				'post_parent' => self::factory()->post->create(
+					[
+						'post_type'   => 'page',
+						'post_title'  => 'Listino riservato',
+						'post_status' => 'private',
+						'post_author' => $editor,
+					]
+				),
+			]
+		);
+		$parent = fn(): string => array_column( $this->request( 'GET', '/barrio/v1/alt/images' )->get_data()['rows'], 'parent', 'id' )[ $own ];
+		$this->assertSame( '', $parent() );
+		wp_set_current_user( $editor );
+		$this->assertSame( 'Private: Listino riservato', $parent() );
+		wp_set_current_user( $author );
 		$this->assertSame( 403, $this->request( 'PUT', '/barrio/v1/alt/settings', [ 'on_upload' => true ] )->get_status() );
 		$this->assertStringNotContainsString( 'barrio-alt-generate', $this->button( $others ) );
 		$this->assertStringContainsString( 'barrio-alt-generate', $this->button( $own ) );

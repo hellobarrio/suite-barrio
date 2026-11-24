@@ -331,12 +331,30 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 		$this->assertSame( 'migrated', get_option( 'barrio_migration_popups' ) );
 	}
 
-	public function test_without_data_of_the_prototype_it_is_an_error(): void {
+	public function test_without_data_and_with_the_prototype_module_off_it_is_an_error(): void {
 		delete_option( 'suite_barrio_orari_settings' );
 		delete_option( 'suite_barrio_orari_data' );
+		update_option( 'suite_barrio_tools_modules', [ 'orari' => 0 ] );
+		Modules::set( 'hours', false );
 
 		$this->assertWPError( barrio_migration_module_run( 'hours', false ) );
-		$this->assertTrue( suite_barrio_tools_module_enabled( 'orari' ) );
+		$this->assertFalse( Modules::is_enabled( 'hours' ) );
+	}
+
+	// Altrimenti il modulo trattenuto spento non si riaccenderebbe mai, e l'avviso resterebbe.
+	public function test_without_data_and_with_the_prototype_module_on_the_modules_are_swapped(): void {
+		delete_option( 'suite_barrio_orari_settings' );
+		delete_option( 'suite_barrio_orari_data' );
+		Modules::set( 'hours', false );
+
+		$dry = $this->migrate( 'hours', true );
+		$this->assertFalse( Modules::is_enabled( 'hours' ) );
+
+		$this->assertSame( $dry, $this->migrate( 'hours' ) );
+		$this->assertSame( [ 'There are no opening hours of Suite Barrio in this database. Nothing to migrate.' ], $dry['notes'] );
+		$this->assertFalse( suite_barrio_tools_module_enabled( 'orari' ) );
+		$this->assertTrue( Modules::is_enabled( 'hours' ) );
+		$this->assertSame( 'migrated', get_option( 'barrio_migration_hours' ) );
 	}
 
 	public function test_while_a_prototype_module_is_on_the_module_is_turned_off_once(): void {

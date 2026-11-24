@@ -3,7 +3,8 @@
 // proprio, con i preset. In un'altra lingua (lang) restano solo i testi: la struttura si cambia
 // nella lingua principale.
 import { arrayMove } from '@dnd-kit/sortable';
-import { useState } from '@wordpress/element';
+import { speak } from '@wordpress/a11y';
+import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import { Handle, Sortable } from '../../../../../assets/src/admin/sortable.js';
@@ -21,7 +22,11 @@ import {
 import { formsData } from '../ui.js';
 import {
 	choiceRows,
+	keyProblem,
+	plainLabel,
+	presetRows,
 	renameChoice,
+	ruleFields,
 	setTranslation,
 	textIn,
 	uniqueKey,
@@ -29,7 +34,7 @@ import {
 } from './model.js';
 import { Conditions } from './Conditions.js';
 import { SettingControl } from './Integrations.js';
-import { TextIn } from './Texts.js';
+import { TextIn } from '../../../../../assets/src/admin/texts.js';
 
 const { languages } = window.barrioAdmin;
 const { types, presets } = formsData;
@@ -56,16 +61,27 @@ const ICONS = {
 	page_break: 'editor-insertmore',
 };
 
-// Etichetta senza HTML (il consenso ha un link), per gli elenchi.
-const plain = ( field, lang = main ) =>
-	( textIn( field, lang, main ).label ?? '' )
-		.replace( /<[^>]*>/g, '' )
-		.trim() || field.key;
 // Il consenso ha come etichetta il suo testo, l'interruzione di pagina il pulsante: si mostra il tipo.
 const fieldTitle = ( field, lang ) =>
 	[ 'consent', 'page_break' ].includes( field.type )
 		? types[ field.type ].label
-		: plain( field, lang );
+		: plainLabel( field, lang, main );
+
+// Le scelte con cui nasce un campo: un preset le sostituisce senza chiedere.
+const firstChoices = () => [
+	{ value: 'option_1', label: __( 'Option 1', 'barrio-suite' ) },
+	{ value: 'option_2', label: __( 'Option 2', 'barrio-suite' ) },
+];
+
+// Gli stessi controlli del server sulla chiave, detti prima di salvare.
+export const keyError = ( key, others ) =>
+	( {
+		format: __(
+			'A key starts with a lowercase letter and has only lowercase letters, digits and underscores.',
+			'barrio-suite'
+		),
+		taken: __( 'Another field already uses this key.', 'barrio-suite' ),
+	} )[ keyProblem( key, others ) ];
 
 function newField( type, keys ) {
 	const label =
@@ -88,64 +104,44 @@ function newField( type, keys ) {
 		},
 	};
 	return types[ type ].schema.properties.choices
-		? withChoices( field, main, [
-				{ value: 'option_1', label: __( 'Option 1', 'barrio-suite' ) },
-				{ value: 'option_2', label: __( 'Option 2', 'barrio-suite' ) },
-			] )
+		? withChoices( field, main, firstChoices() )
 		: field;
 }
 
-// Con intl i nomi li dà il browser, nella lingua principale del form.
-function presetRows( { choices, intl } ) {
-	const date = ( options, time ) =>
-		new Intl.DateTimeFormat( main, { ...options, timeZone: 'UTC' } ).format(
-			time
-		);
-	const name = {
-		region: ( value ) =>
-			new Intl.DisplayNames( main, { type: 'region' } ).of( value ),
-		language: ( value ) =>
-			new Intl.DisplayNames( main, { type: 'language' } ).of( value ),
-		// Il 1° gennaio 2024 era un lunedì.
-		weekday: ( value, i ) =>
-			date( { weekday: 'long' }, Date.UTC( 2024, 0, 1 + i ) ),
-		month: ( value, i ) =>
-			date( { month: 'long' }, Date.UTC( 2024, i, 1 ) ),
-	}[ intl ];
-	const rows = choices.map( ( [ value, label ], i ) => {
-		const text = label || name?.( value, i ) || value;
-		return {
-			value,
-			label: text.charAt( 0 ).toLocaleUpperCase( main ) + text.slice( 1 ),
-		};
-	} );
-	return [ 'region', 'language' ].includes( intl )
-		? rows.sort( ( x, y ) => x.label.localeCompare( y.label, main ) )
-		: rows;
-}
-
-// I campi che una regola può usare: per un campo quelli che lo precedono, per una notifica o
-// un'integrazione tutti.
-export const ruleFields = ( fields ) =>
-	fields
-		.filter( ( f ) => 'page_break' !== f.type )
-		.map( ( f ) => ( {
-			key: f.key,
-			type: f.type,
-			label: plain( f ),
-			choices: f.config.choices ? choiceRows( f, main ) : null,
-		} ) );
-
-export function FieldsTab( { fields, saved, lang, onChange } ) {
+// selected sta nel Builder: cambiando scheda questa si smonta, e il campo scelto deve restare.
+export function FieldsTab( {
+	fields,
+	saved,
+	lang,
+	selected,
+	onSelect: setSelected,
+	onChange,
+} ) {
 	const translating = lang !== main;
-	const [ selected, setSelected ] = useState( fields.length ? 0 : null );
 	const [ added, setAdded ] = useState( null );
 	const [ ids, moveIds ] = useStableIds( fields.length );
 	const field = fields[ selected ];
+	const root = useRef();
+	const list = useRef();
+	// Verso il pannello delle proprietà, l'ultimo figlio di root: view dopo aver scelto un campo, focus dopo
+	// averne aggiunto uno.
+	const [ toPanel, setToPanel ] = useState( null );
+	useEffect( () => {
+		const panel = root.current?.lastElementChild;
+		if ( 'focus' === toPanel?.to ) {
+			panel.querySelector( 'input, textarea' )?.focus();
+		} else if (
+			toPanel &&
+			// Solo in colonna, dove il pannello sta sotto l'elenco e non è più sticky.
+			'static' === window.getComputedStyle( panel ).position
+		) {
+			panel.scrollIntoView( { block: 'nearest' } );
+		}
+	}, [ toPanel ] );
 
 	// Il campo nuovo va sotto quello scelto, o in fondo.
 	const add = ( type ) => {
-		const at = null === selected ? fields.length : selected + 1;
+		const at = field ? selected + 1 : fields.length;
 		const created = newField(
 			type,
 			fields.map( ( f ) => f.key )
@@ -157,11 +153,15 @@ export function FieldsTab( { fields, saved, lang, onChange } ) {
 		] );
 		setSelected( at );
 		setAdded( at );
+		setToPanel( { to: 'focus' } );
 	};
 	const remove = ( i ) => {
 		onChange( fields.filter( ( f, j ) => i !== j ) );
-		// Con un campo in meno le card si rimontano: quella aggiunta prima non deve tornare in vista.
+		// Con un campo in meno le card si rimontano: quella aggiunta prima non deve tornare in vista,
+		// e il focus, che era sul cestino, andrebbe perso.
 		setAdded( null );
+		list.current.focus();
+		speak( __( 'Field removed.', 'barrio-suite' ) );
 		if ( i === selected ) {
 			setSelected( null );
 		} else if ( i < selected ) {
@@ -171,7 +171,7 @@ export function FieldsTab( { fields, saved, lang, onChange } ) {
 
 	let panel = (
 		<Card
-			className="barrio-panel"
+			className="barrio-panel barrio-scroll-target"
 			title={ __( 'Field properties', 'barrio-suite' ) }
 			description={ __(
 				'Select a field to edit its properties.',
@@ -203,7 +203,7 @@ export function FieldsTab( { fields, saved, lang, onChange } ) {
 	}
 
 	return (
-		<div className="barrio-fields">
+		<div className="barrio-fields" ref={ root }>
 			<div>
 				<SectionHead
 					title={ __(
@@ -215,7 +215,11 @@ export function FieldsTab( { fields, saved, lang, onChange } ) {
 						<AddField onAdd={ add } />
 					</Fixed>
 				</SectionHead>
-				<div className="barrio-fields__list">
+				<div
+					className="barrio-fields__list"
+					ref={ list }
+					tabIndex={ -1 }
+				>
 					{ fields.length ? (
 						<Sortable
 							ids={ ids }
@@ -235,7 +239,17 @@ export function FieldsTab( { fields, saved, lang, onChange } ) {
 									isNew={ i === added }
 									handle={ handle }
 									locked={ translating }
-									onSelect={ () => setSelected( i ) }
+									onSelect={ ( event ) => {
+										setSelected( i );
+										// Dalla maniglia il campo si sposta, non si apre.
+										if (
+											! event.target.closest(
+												'.barrio-handle'
+											)
+										) {
+											setToPanel( { to: 'view' } );
+										}
+									} }
 									onRemove={ () => remove( i ) }
 								/>
 							) }
@@ -327,7 +341,11 @@ function FieldCard( {
 				<button
 					type="button"
 					className="barrio-icon-button is-danger"
-					aria-label={ __( 'Remove field', 'barrio-suite' ) }
+					aria-label={ sprintf(
+						/* translators: %s: name of the field or of the choice to remove. */
+						__( 'Remove %s', 'barrio-suite' ),
+						fieldTitle( field, lang )
+					) }
 					disabled={ locked }
 					onClick={ ( event ) => {
 						event.stopPropagation();
@@ -390,7 +408,7 @@ function Preview( { field, lang } ) {
 				<span className="barrio-preview-choices">
 					<span>
 						<input type="checkbox" disabled />{ ' ' }
-						{ plain( field, lang ) }
+						{ plainLabel( field, lang, main ) }
 					</span>
 				</span>
 			);
@@ -464,6 +482,7 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 		set( { config } );
 	};
 	const input = ! NO_INPUT.includes( field.type );
+	const badKey = keyError( field.key, keys );
 	const setting = ( [ name, prop ] ) =>
 		'choices' === name ? (
 			<Choices
@@ -486,7 +505,7 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 
 	return (
 		<Card
-			className="barrio-panel"
+			className="barrio-panel barrio-scroll-target"
 			title={ __( 'Field properties', 'barrio-suite' ) }
 			actions={
 				<span className="barrio-badge">
@@ -549,10 +568,20 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 			<Details title={ __( 'Advanced', 'barrio-suite' ) }>
 				<Text
 					label={ __( 'Key', 'barrio-suite' ) }
-					help={ __(
-						'Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores.',
-						'barrio-suite'
-					) }
+					help={
+						badKey ? (
+							<span className="barrio-field__error">
+								{ badKey }
+							</span>
+						) : (
+							__(
+								'Generated from the label until you change it or save the form. Used in merge tags, like {{email}}, and in exports: lowercase letters, digits and underscores.',
+								'barrio-suite'
+							)
+						)
+					}
+					aria-invalid={ !! badKey }
+					maxLength={ 64 }
 					disabled={ translating }
 					value={ field.key }
 					onChange={ ( key ) => set( { key } ) }
@@ -579,7 +608,7 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 				<Fixed lang={ lang }>
 					<Conditions
 						value={ field.conditions }
-						fields={ ruleFields( previous ) }
+						fields={ ruleFields( previous, main ) }
 						actions={ [
 							{
 								value: 'show',
@@ -606,9 +635,32 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 function Choices( { field, saved, lang, onChange } ) {
 	const translating = lang !== main;
 	const own = field.i18n[ lang ]?.options ?? {};
-	const rows = choiceRows( field, main );
+	// Le righe stanno qui e il campo ne deriva: rilette dal campo, due righe con lo stesso valore
+	// (capita mentre si scrive: "1" prima di "10") avrebbero una sola etichetta, l'ultima.
+	const [ rows, setRows ] = useState( () => choiceRows( field, main ) );
 	const [ ids, moveIds ] = useStableIds( rows.length );
-	const set = ( next ) => onChange( withChoices( field, main, next ) );
+	const box = useRef();
+	const set = ( next ) => {
+		setRows( next );
+		onChange( withChoices( field, main, next ) );
+	};
+	const applyPreset = ( preset ) => {
+		const written =
+			rows.some( ( row ) => row.label || row.value ) &&
+			JSON.stringify( rows ) !== JSON.stringify( firstChoices() );
+		if (
+			! written ||
+			// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
+			window.confirm(
+				__(
+					'Replace the choices you wrote with this preset?',
+					'barrio-suite'
+				)
+			)
+		) {
+			set( presetRows( preset, main ) );
+		}
+	};
 	const edit = ( i, row ) =>
 		set( rows.map( ( r, j ) => ( i === j ? row : r ) ) );
 
@@ -625,7 +677,7 @@ function Choices( { field, saved, lang, onChange } ) {
 						icon="list-view"
 						items={ Object.values( presets ).map( ( preset ) => ( {
 							label: `${ preset.label } (${ preset.choices.length })`,
-							onClick: () => set( presetRows( preset ) ),
+							onClick: () => applyPreset( preset ),
 						} ) ) }
 					/>
 					<button
@@ -640,7 +692,7 @@ function Choices( { field, saved, lang, onChange } ) {
 					</button>
 				</Fixed>
 			</SectionHead>
-			<div className="barrio-choices">
+			<div className="barrio-choices" ref={ box } tabIndex={ -1 }>
 				<Sortable
 					ids={ ids }
 					items={ rows }
@@ -712,14 +764,20 @@ function Choices( { field, saved, lang, onChange } ) {
 							<button
 								type="button"
 								className="barrio-icon-button is-danger"
-								aria-label={ __(
-									'Remove choice',
-									'barrio-suite'
+								aria-label={ sprintf(
+									/* translators: %s: name of the field or of the choice to remove. */
+									__( 'Remove %s', 'barrio-suite' ),
+									row.label || row.value || i + 1
 								) }
 								disabled={ translating || rows.length === 1 }
-								onClick={ () =>
-									set( rows.filter( ( r, j ) => i !== j ) )
-								}
+								onClick={ () => {
+									set( rows.filter( ( r, j ) => i !== j ) );
+									// Le righe si rimontano e il focus, che era su questo bottone, andrebbe perso.
+									box.current.focus();
+									speak(
+										__( 'Choice removed.', 'barrio-suite' )
+									);
+								} }
 							>
 								<Icon name="no-alt" />
 							</button>

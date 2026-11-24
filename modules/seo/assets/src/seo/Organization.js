@@ -152,7 +152,15 @@ function Preview( { organization, description } ) {
 				'barrio-suite'
 			) }
 		>
-			<pre className="barrio-code">{ preview }</pre>
+			{ /* Scorre: senza il focus da tastiera se ne leggono solo le prime righe. */ }
+			<pre
+				className="barrio-code"
+				tabIndex="0"
+				role="region"
+				aria-label={ __( 'Preview', 'barrio-suite' ) }
+			>
+				{ preview }
+			</pre>
 		</Card>
 	);
 }

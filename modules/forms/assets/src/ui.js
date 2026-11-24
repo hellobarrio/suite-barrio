@@ -17,9 +17,11 @@ export const pageUrl = ( params = {} ) =>
 export const entriesUrl = ( params ) =>
 	pageUrl( { tab: 'entries', ...params } );
 
+export const shortcode = ( id ) => `[barrio_form id="${ id }"]`;
+
 // Si copia con un clic dove il browser lo permette (HTTPS o localhost); altrimenti si seleziona.
 export function Shortcode( { id, onCopy } ) {
-	const code = `[barrio_form id="${ id }"]`;
+	const code = shortcode( id );
 	if ( ! window.navigator.clipboard ) {
 		return (
 			<code className="barrio-chip">

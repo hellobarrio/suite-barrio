@@ -55,11 +55,18 @@ export const orderingStats = () => [
 	],
 ];
 
+// Gli elenchi in ordine alfabetico, salvati e della pagina: spegnere e riaccendere un interruttore non è una modifica.
+const sorted = ( list ) => [ ...list ].sort();
+
 // GET e PUT /barrio/v1/ordering/settings, con il Salva della barra.
 export const orderingSection = {
 	id: 'ordering',
 	load: () => apiFetch( { path: '/barrio/v1/ordering/settings' } ),
-	value: ( { role_names: names, ...settings } ) => settings,
+	value: ( { role_names: names, ...settings } ) => ( {
+		...settings,
+		post_types: sorted( settings.post_types ),
+		taxonomies: sorted( settings.taxonomies ),
+	} ),
 	save: ( draft ) =>
 		apiFetch( {
 			path: '/barrio/v1/ordering/settings',
@@ -75,7 +82,7 @@ export const orderingSection = {
 					set( {
 						...draft,
 						[ group ]: on
-							? [ ...draft[ group ], name ]
+							? sorted( [ ...draft[ group ], name ] )
 							: draft[ group ].filter(
 									( item ) => item !== name
 								),

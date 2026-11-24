@@ -138,10 +138,13 @@ final class Llms {
 		}
 
 		$menus = '';
-		foreach ( wp_get_nav_menus() as $menu ) {
+		// Solo i menu che il tema mostra: quelli senza posizione restano da un tema precedente.
+		$shown = array_filter( get_nav_menu_locations() );
+		foreach ( $shown ? wp_get_nav_menus( [ 'include' => $shown ] ) : [] as $menu ) {
 			$links = [];
 			foreach ( wp_get_nav_menu_items( $menu->term_id ) ?: [] as $item ) {
-				if ( $item->url && $item->title ) {
+				$post = 'post_type' === $item->type ? get_post( (int) $item->object_id ) : null;
+				if ( $item->url && $item->title && ( ! $post || Meta::post( $post )['index'] ) ) {
 					$links[] = self::link( $item->title, $item->url );
 				}
 			}
