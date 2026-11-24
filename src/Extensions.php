@@ -6,7 +6,6 @@ use DateTimeImmutable;
 use Plugin_Upgrader;
 use stdClass;
 use WP_Ajax_Upgrader_Skin;
-use WP_Automatic_Updater;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -78,41 +77,40 @@ final class Extensions {
 	}
 
 	/**
-	 * Ogni notte i nostri plugin con gli aggiornamenti automatici accesi passano all'ultima versione,
-	 * con l'aggiornatore automatico di WordPress: controlla la compatibilità e, se dopo l'aggiornamento
-	 * il sito dà un errore fatale, torna alla versione di prima.
+	 * Ogni notte i nostri plugin con gli aggiornamenti automatici accesi passano all'ultima versione, con il
+	 * giro degli aggiornamenti automatici di WordPress: controlla la compatibilità, torna alla versione di prima
+	 * se il sito dà un errore fatale, e manda l'email con l'esito. Nello stesso giro WordPress applica anche gli
+	 * altri aggiornamenti automatici accesi, che farebbe comunque entro dodici ore.
 	 */
 	public static function nightly(): void {
 		$ours = array_column( self::installed(), 'file' );
 		if ( ! array_intersect( $ours, (array) get_site_option( 'auto_update_plugins', [] ) ) ) {
 			return;
 		}
-		require_once ABSPATH . 'wp-admin/includes/admin.php';
-		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 		// Il catalogo e le versioni di adesso, non quelli dell'ultimo controllo di WordPress.
 		delete_site_transient( self::CACHE );
 		self::$catalog = null;
 		delete_site_transient( 'update_plugins' );
-		wp_update_plugins();
-		$updates     = get_site_transient( 'update_plugins' );
-		$updater     = new WP_Automatic_Updater();
 		self::$night = true;
-		foreach ( $updates instanceof stdClass ? $updates->response : [] as $item ) {
-			if ( in_array( $item->plugin, $ours, true ) && ! self::is_checkout( dirname( $item->plugin ) ) ) {
-				$updater->update( 'plugin', $item );
-			}
-		}
+		wp_maybe_auto_update();
 		self::$night = false;
 	}
 
 	/**
-	 * Nel suo giro con WP-Cron WordPress non aggiorna i nostri plugin: lo fa nightly(). Fuori da WP-Cron
-	 * il filtro non cambia niente, così in Plugin il link degli aggiornamenti automatici resta il solito.
+	 * Nel suo giro con WP-Cron WordPress non aggiorna i nostri plugin: lo fa nightly(), che lascia fuori le
+	 * copie di sviluppo. Fuori da WP-Cron il filtro non cambia niente, così in Plugin il link degli
+	 * aggiornamenti automatici resta il solito.
 	 *
 	 * @param bool|null $update
 	 */
 	public static function at_night( mixed $update, object $item ): mixed {
-		return ! self::$night && wp_doing_cron() && self::REPO === ( $item->id ?? null ) ? false : $update;
+		if ( self::REPO !== ( $item->id ?? null ) ) {
+			return $update;
+		}
+		if ( self::$night ) {
+			return self::is_checkout( dirname( (string) ( $item->plugin ?? '' ) ) ) ? false : $update;
+		}
+		return wp_doing_cron() ? false : $update;
 	}
 
 	/**
@@ -254,7 +252,11 @@ final class Extensions {
 
 		$error = null;
 		if ( 'install' === $action && null === $local && null !== $item ) {
-			$error = self::install( self::DOWNLOAD . "{$slug}.zip", false ) ?? activate_plugin( (string) ( self::installed()[ $slug ]['file'] ?? '' ) );
+			$error = self::install( self::DOWNLOAD . "{$slug}.zip" );
+			// Come WordPress in Plugin → Aggiungi: installare non basta per attivare.
+			if ( null === $error && current_user_can( 'activate_plugins' ) ) {
+				$error = activate_plugin( (string) ( self::installed()[ $slug ]['file'] ?? '' ) );
+			}
 			// Una nuova estensione si aggiorna da sola come le altre.
 			if ( null === $error && self::auto_update() ) {
 				self::set_auto_update( true );
@@ -262,7 +264,7 @@ final class Extensions {
 		} elseif ( 'update' === $action && self::is_checkout( $slug ) ) {
 			$error = new WP_Error( 'barrio_checkout', __( 'This is a development copy with git: update it with git.', 'barrio-suite' ), [ 'status' => 409 ] );
 		} elseif ( 'update' === $action && null !== $local && null !== $item ) {
-			$error = self::install( self::DOWNLOAD . "{$slug}.zip", true );
+			$error = self::upgrade( $local['file'], $item );
 		} elseif ( 'activate' === $action && null !== $local ) {
 			$error = activate_plugin( $local['file'] );
 		} elseif ( 'deactivate' === $action && null !== $local && ! is_plugin_active_for_network( $local['file'] ) ) {
@@ -368,13 +370,52 @@ final class Extensions {
 		return $result instanceof WP_Error ? $result : new WP_Error( 'barrio_filesystem', __( 'WordPress cannot delete plugin files on this server: delete the extension from Plugins.', 'barrio-suite' ) );
 	}
 
-	// Con l'installatore di WordPress, come Plugin → Aggiungi nuovo; $overwrite sostituisce la versione installata.
-	private static function install( string $package, bool $overwrite ): ?WP_Error {
+	// Con l'installatore di WordPress, come Plugin → Aggiungi nuovo.
+	private static function install( string $package ): ?WP_Error {
+		return self::upgrader( static fn( Plugin_Upgrader $upgrader ): mixed => $upgrader->install( $package ) );
+	}
+
+	/**
+	 * Con bulk_upgrade(), come "Aggiorna ora" in Plugin, e non install(): tiene la copia della versione di prima
+	 * e la rimette se i file nuovi non si scrivono tutti, e il plugin resta attivo. Il pacchetto lo legge dal
+	 * transient degli aggiornamenti: gli si dà il nostro, senza passare dal controllo di WordPress, che senza
+	 * wordpress.org non vede nemmeno i nostri plugin.
+	 *
+	 * @param Item $item La voce del catalogo.
+	 */
+	private static function upgrade( string $file, array $item ): ?WP_Error {
+		$updates           = get_site_transient( 'update_plugins' );
+		$updates           = $updates instanceof stdClass ? $updates : new stdClass();
+		$updates->response = [
+			$file => (object) [
+				'plugin'       => $file,
+				'slug'         => dirname( $file ),
+				'new_version'  => $item['version'],
+				'package'      => self::DOWNLOAD . dirname( $file ) . '.zip',
+				'requires'     => $item['requires'],
+				'requires_php' => $item['requires_php'],
+			],
+		] + (array) ( $updates->response ?? [] );
+		set_site_transient( 'update_plugins', $updates );
+		return self::upgrader(
+			static function ( Plugin_Upgrader $upgrader ) use ( $file ): mixed {
+				$results = $upgrader->bulk_upgrade( [ $file ] );
+				$result  = is_array( $results ) ? $results[ $file ] ?? false : false;
+				// Riuscito, il risultato è l'array con i dettagli dell'installazione.
+				return is_array( $result ) ? true : $result;
+			}
+		);
+	}
+
+	/**
+	 * @param callable(Plugin_Upgrader): mixed $run
+	 */
+	private static function upgrader( callable $run ): ?WP_Error {
 		// Fuori da wp-admin, come in WP_REST_Plugins_Controller.
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 		$skin   = new WP_Ajax_Upgrader_Skin();
-		$result = ( new Plugin_Upgrader( $skin ) )->install( $package, [ 'overwrite_package' => $overwrite ] );
+		$result = $run( new Plugin_Upgrader( $skin ) );
 		wp_clean_plugins_cache();
 		if ( true === $result ) {
 			return null;

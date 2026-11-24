@@ -55,6 +55,10 @@ final class ExtensionsTest extends WP_UnitTestCase {
 			3
 		);
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		// In una rete i plugin li installa e li aggiorna solo il super admin.
+		if ( is_multisite() ) {
+			grant_super_admin( get_current_user_id() );
+		}
 		// I test scrivono nella cartella dei plugin dell'installazione di prova.
 		add_filter( 'filesystem_method', static fn(): string => 'direct' );
 		add_filter( 'upgrader_pre_download', fn(): string => $this->zip() );
@@ -126,7 +130,18 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$this->catalog['barrio-suite-demo'] = self::item( 'Barrio Suite Demo', '0.2.0' );
 		$this->zip_version                  = '0.2.0';
 		$this->request( 'GET', refresh: true );
-		$this->assertSame( [ 'barrio-suite-demo', 'Barrio Suite Demo', '0.2.0', '0.2.0', true ], $this->extensions( $this->request( 'POST', 'update' ) )[0] );
+		$backup = null;
+		add_filter(
+			'upgrader_pre_install',
+			static function ( mixed $response, array $extra ) use ( &$backup ): mixed {
+				$backup = $extra['temp_backup']['slug'] ?? null;
+				return $response;
+			},
+			10,
+			2
+		);
+		$this->assertSame( [ 'barrio-suite-demo', 'Barrio Suite Demo', '0.2.0', '0.2.0', true ], $this->extensions( $this->request( 'POST', 'update' ) )[0], 'Updated, and still active.' );
+		$this->assertSame( 'barrio-suite-demo', $backup, 'WordPress keeps a copy of the old version to restore it if the update fails.' );
 
 		$this->assertFalse( $this->extensions( $this->request( 'POST', 'deactivate' ) )[0][4] );
 		$this->assertFalse( is_plugin_active( self::DEMO ) );
@@ -177,6 +192,9 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertTrue( $steps()['updates'] );
 
 		add_filter( 'user_has_cap', static fn( array $caps ): array => [ 'activate_plugins' => false ] + $caps );
+		if ( is_multisite() ) {
+			revoke_super_admin( get_current_user_id() );
+		}
 		$this->assertArrayNotHasKey( 'updates', $steps(), 'Like the administrator of a site of a multisite.' );
 	}
 
@@ -214,8 +232,10 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertSame( '0.1.0', $this->extensions( $this->request( 'GET' ) )[0][3], 'Automatic updates are off.' );
 
 		$this->auto_update( true );
+		reset_phpmailer_instance();
 		Extensions::nightly();
 		$this->assertSame( '0.2.0', $this->extensions( $this->request( 'GET' ) )[0][3] );
+		$this->assertStringContainsString( 'Barrio Suite Demo', tests_retrieve_phpmailer_instance()->get_sent()->body, 'The email of WordPress about automatic updates.' );
 
 		// Di giorno, nel giro di WP-Cron di WordPress, no; fuori da WP-Cron il filtro non cambia niente.
 		$ours = (object) [ 'id' => Extensions::REPO ];
@@ -256,6 +276,15 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->request( 'POST', 'install' )->get_status() );
 		$this->assertSame( 403, $this->request( 'POST', 'delete' )->get_status() );
 		$this->assertDirectoryDoesNotExist( WP_PLUGIN_DIR . '/barrio-suite-demo' );
+
+		// Come in WordPress: chi può solo installare non attiva. In una rete installa solo il super admin, che può tutto.
+		if ( is_multisite() ) {
+			return;
+		}
+		wp_get_current_user()->add_cap( 'install_plugins' );
+		$this->assertSame( 200, $this->request( 'POST', 'install' )->get_status() );
+		$this->assertFileExists( WP_PLUGIN_DIR . '/' . self::DEMO );
+		$this->assertFalse( is_plugin_active( self::DEMO ) );
 	}
 
 	/** @return array<string, string> */

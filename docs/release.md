@@ -11,8 +11,10 @@ cherry-pick, e questi file non si toccano):
   passaggio della messa online, che `Extensions.js` passa alle due pagine con `settingsSections` e
   `launchSteps`), `dev/release.js` e lo script `release` di `package.json`, questo file;
 - l'header `Update URI` di Barrio Suite e delle estensioni, e la sezione "External services" del readme;
-- `languages/`: le stringhe dell'updater ci sono solo qui. Dopo un cherry-pick si rigenerano in ogni branch
-  invece di risolvere i conflitti.
+- `tests/Integration/ExtensionsTest.php`, che prova la pagina Estensioni di ognuno dei due branch;
+- `languages/`, del core e di `barrio-suite-migration` (il cui file principale ha una riga in più, `Update URI`):
+  le stringhe dell'updater ci sono solo qui. Dopo un cherry-pick si rigenerano in ogni branch invece di risolvere
+  i conflitti.
 
 ## Pubblicazione
 

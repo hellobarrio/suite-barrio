@@ -102,20 +102,26 @@ export function Extensions() {
 				short( extension.name )
 			)
 		);
-	const button = ( extension, action, label, style = '' ) => (
-		<button
-			type="button"
-			className={ `barrio-button ${ style }` }
-			disabled={ !! busy }
-			onClick={ () =>
-				confirmed( extension, action ) && act( extension, action )
-			}
-		>
-			{ `${ extension.slug }-${ action }` === busy
+	const button = ( extension, action, label, style = '' ) => {
+		const text =
+			`${ extension.slug }-${ action }` === busy
 				? __( 'Please wait…', 'barrio-suite' )
-				: label }
-		</button>
-	);
+				: label;
+		return (
+			<button
+				type="button"
+				className={ `barrio-button ${ style }` }
+				// Con il nome dell'estensione: i bottoni delle card sono uguali.
+				aria-label={ `${ text } ${ short( extension.name ) }` }
+				disabled={ !! busy }
+				onClick={ () =>
+					confirmed( extension, action ) && act( extension, action )
+				}
+			>
+				{ text }
+			</button>
+		);
+	};
 	const term = search.trim().toLowerCase();
 	const found = data.extensions.filter( ( extension ) =>
 		`${ extension.name } ${ extension.description }`
@@ -166,14 +172,20 @@ export function Extensions() {
 				}
 			/>
 			<p className="barrio-field__help">
-				{ createInterpolateElement(
-					__(
-						'Every extension is a separate plugin: it can also be deactivated or deleted from Plugins. Account settings, like API keys, are in <a>Forms → Settings</a>; each form chooses in its Integrations tab whether to use an extension and how.',
-						'barrio-suite'
-					),
-					// eslint-disable-next-line jsx-a11y/anchor-has-content -- il testo arriva da createInterpolateElement.
-					{ a: <a href={ pageUrl( { tab: 'settings' } ) } /> }
+				{ __(
+					'Every extension is a separate plugin: it can also be deactivated or deleted from Plugins.',
+					'barrio-suite'
 				) }
+				{ window.barrioAdmin.forms && ' ' }
+				{ window.barrioAdmin.forms &&
+					createInterpolateElement(
+						__(
+							'The account settings of the forms integrations, like API keys, are in <a>Forms → Settings</a>; each form chooses in its Integrations tab whether to use one and how.',
+							'barrio-suite'
+						),
+						// eslint-disable-next-line jsx-a11y/anchor-has-content -- il testo arriva da createInterpolateElement.
+						{ a: <a href={ pageUrl( { tab: 'settings' } ) } /> }
+					) }
 			</p>
 			{ found.map( ( extension ) => {
 				const update =
