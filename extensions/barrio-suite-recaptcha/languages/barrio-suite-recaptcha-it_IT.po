@@ -1,5 +1,3 @@
-# Copyright (C) 2026 Hellobarrio
-# This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
 "Project-Id-Version: Barrio Suite reCAPTCHA 0.1.0\n"
@@ -11,9 +9,9 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2026-11-17T08:48:31+00:00\n"
 "PO-Revision-Date: 2026-11-17 08:54+0000\n"
+"Language: it_IT\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite-recaptcha\n"
-"Language: it_IT\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
 #. Plugin Name of the plugin
@@ -31,44 +29,36 @@ msgstr "Controllo invisibile di reCAPTCHA Enterprise sui form di Barrio Suite, c
 msgid "Hellobarrio"
 msgstr "Hellobarrio"
 
-#: barrio-suite-recaptcha.php:34
-msgid "An invisible check by Google reCAPTCHA Enterprise on every form. It is off until all three settings are filled in."
-msgstr "Un controllo invisibile di Google reCAPTCHA Enterprise su ogni form. Resta disattivato finché non compili tutte e tre le impostazioni."
-
-#: barrio-suite-recaptcha.php:38
-msgid "Google Cloud project ID"
-msgstr "ID progetto Google Cloud"
-
-#: barrio-suite-recaptcha.php:42
+#: barrio-suite-recaptcha.php:43
 msgid "Site key"
 msgstr "Chiave del sito"
 
-#: barrio-suite-recaptcha.php:43
-msgid "A score-based key that allows the domains of the site."
-msgstr "Una chiave basata sul punteggio che consente i domini del sito."
-
-#: barrio-suite-recaptcha.php:47
-msgid "API key"
-msgstr "Chiave API"
-
-#: barrio-suite-recaptcha.php:48
-msgid "A Google Cloud API key that can use the reCAPTCHA Enterprise API."
-msgstr "Una chiave API di Google Cloud che può usare l'API reCAPTCHA Enterprise."
-
-#: barrio-suite-recaptcha.php:105
+#: barrio-suite-recaptcha.php:168
 msgid "Your submission could not be accepted."
 msgstr "Non è stato possibile accettare il tuo invio."
 
-#: barrio-suite-recaptcha.php:132
+#: barrio-suite-recaptcha.php:187
 msgid "The spam check is not available right now. Please try again in a few minutes."
 msgstr "Il controllo antispam non è disponibile in questo momento. Riprova tra qualche minuto."
 
-#: barrio-suite-recaptcha.php:151
-msgid "reCAPTCHA is off: its settings are incomplete, or the API key can no longer be read (for example after the site was moved). Enter them again in Barrio → Forms → Settings."
-msgstr "reCAPTCHA è disattivato: le sue impostazioni sono incomplete, oppure la chiave API non è più leggibile (per esempio dopo lo spostamento del sito). Inseriscile di nuovo in Barrio → Form → Impostazioni."
+#: barrio-suite-recaptcha.php:39
+msgid "An invisible check by Google reCAPTCHA Enterprise on every form, with the Google service account of Barrio → Settings. It is off until a site key is chosen."
+msgstr "Un controllo invisibile di Google reCAPTCHA Enterprise su ogni form, con il service account di Google di Barrio → Impostazioni. È spento finché non si sceglie una chiave del sito."
 
-#. translators: %s: error from Google, for example "HTTP 400 API key not valid".
-#: barrio-suite-recaptcha.php:163
+#: barrio-suite-recaptcha.php:44
+msgid "The score-based keys of the Google Cloud project of the service account. The service account needs the reCAPTCHA Enterprise Agent role, and the key must allow the domains of the site."
+msgstr "Le chiavi a punteggio del progetto Google Cloud del service account. Il service account ha bisogno del ruolo Agente reCAPTCHA Enterprise, e la chiave deve consentire i domini del sito."
+
+#: barrio-suite-recaptcha.php:83
+msgid "Add the Google service account in Barrio → Settings first."
+msgstr "Aggiungi prima il service account di Google in Barrio → Impostazioni."
+
+#: barrio-suite-recaptcha.php:206
+msgid "reCAPTCHA is off: there is no Google service account, or it can no longer be read (for example after the site was moved). Add it again in Barrio → Settings."
+msgstr "reCAPTCHA è spento: manca il service account di Google, o non si legge più (per esempio dopo lo spostamento del sito). Aggiungilo di nuovo in Barrio → Impostazioni."
+
+#. translators: %s: error from Google, for example "HTTP 403 Permission denied".
+#: barrio-suite-recaptcha.php:218
 #, php-format
-msgid "reCAPTCHA could not check the last form submission, so the form was not sent: %s. Check the reCAPTCHA settings in Barrio → Forms → Settings."
-msgstr "reCAPTCHA non è riuscito a verificare l'ultimo invio di un form, quindi il form non è stato inviato: %s. Controlla le impostazioni di reCAPTCHA in Barrio → Form → Impostazioni."
+msgid "reCAPTCHA could not check the last form submission, so the form was not sent: %s. Check the service account in Barrio → Settings and the site key in Barrio → Forms → Settings."
+msgstr "reCAPTCHA non ha potuto controllare l'ultimo invio, quindi il form non è stato inviato: %s. Controlla il service account in Barrio → Impostazioni e la chiave del sito in Barrio → Form → Impostazioni."

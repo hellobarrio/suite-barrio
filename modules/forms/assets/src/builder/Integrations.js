@@ -1,9 +1,11 @@
 // Integrazioni delle estensioni (Integrations.php): la scheda del builder con le impostazioni per
 // form, e SettingControl, usato anche per le impostazioni globali e per la config dei campi. Ogni
-// controllo viene dallo schema: title, description, enum (etichette in labels), array, number e i
-// formati del plugin field, field:tipi e field_map; il resto è un testo (le password le gestisce
-// Settings.js). In un'altra lingua si cambiano solo le impostazioni translatable.
-import { useState } from '@wordpress/element';
+// controllo viene dallo schema: title, description, enum (etichette in labels), options (una rotta REST
+// con le scelte), array, number e i formati del plugin field, field:tipi e field_map; il resto è un
+// testo (le password le gestisce Settings.js). In un'altra lingua si cambiano solo le impostazioni
+// translatable.
+import apiFetch from '@wordpress/api-fetch';
+import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import {
@@ -15,6 +17,7 @@ import {
 	Select,
 	Text,
 	Toggle,
+	errorMessage,
 	useScrollIntoView,
 } from '../../../../../assets/src/admin/ui.js';
 import { formsData } from '../ui.js';
@@ -243,6 +246,40 @@ function IntegrationCard( {
 	);
 }
 
+/**
+ * Le scelte che un'estensione legge da un servizio (per esempio le chiavi di reCAPTCHA), da GET path come
+ * { value, label }. Il valore salvato resta anche se il servizio non lo elenca più; un errore va sotto il menu.
+ *
+ * @param {Object}                  props
+ * @param {string}                  props.path
+ * @param {string}                  props.label
+ * @param {string}                  props.help
+ * @param {string}                  props.value
+ * @param {(value: string) => void} props.onChange
+ */
+function RemoteSelect( { path, label, help, value, onChange } ) {
+	const [ options, setOptions ] = useState( [] );
+	const [ error, setError ] = useState( '' );
+	useEffect( () => {
+		apiFetch( { path } )
+			.then( setOptions )
+			.catch( ( reason ) => setError( errorMessage( reason ) ) );
+	}, [ path ] );
+	const saved =
+		value && ! options.some( ( option ) => option.value === value )
+			? [ { value, label: value } ]
+			: [];
+	return (
+		<Select
+			label={ label }
+			help={ [ help, error ].filter( Boolean ).join( ' ' ) }
+			value={ value }
+			options={ [ { value: '', label: '—' }, ...saved, ...options ] }
+			onChange={ onChange }
+		/>
+	);
+}
+
 // fields: i campi del form ({ key, type, label }), per i formati field e field_map.
 export function SettingControl( {
 	name,
@@ -275,6 +312,17 @@ export function SettingControl( {
 					fields,
 					format.split( ':' )[ 1 ]?.split( ',' )
 				) }
+				onChange={ onChange }
+			/>
+		);
+	}
+	if ( schema.options ) {
+		return (
+			<RemoteSelect
+				path={ schema.options }
+				label={ label }
+				help={ help }
+				value={ value }
 				onChange={ onChange }
 			/>
 		);

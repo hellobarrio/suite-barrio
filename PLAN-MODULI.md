@@ -576,8 +576,9 @@ di WordPress. Il nuovo modulo legge gli stessi report con il service account del
   - I periodi fissi usano le date relative di GA (`28daysAgo`, `yesterday`), che valgono nel fuso della proprietà
     senza conti nel plugin.
   - Personalizzato: date `Y-m-d`, `from` non dopo `to`, `to` non dopo ieri.
-- **Confronto**: ogni numero ha la variazione rispetto al periodo subito prima, della stessa durata (un secondo
-  `dateRanges` nella stessa richiesta). Nessuna variazione se prima era zero. Per il rimbalzo, scendere è verde.
+- **Confronto**: nella Panoramica ogni numero ha la variazione rispetto al periodo subito prima, della stessa durata
+  (un secondo `dateRanges` nella stessa richiesta). Nessuna variazione se prima era zero. Per il rimbalzo, scendere è
+  verde. La card e il widget della Bacheca mostrano solo i numeri.
 - **Numeri**, quelli del prototipo: Utenti (`activeUsers`), Visualizzazioni (`screenPageViews`), Sessioni, Durata
   media della sessione, Frequenza di rimbalzo.
 - **Andamento**: visualizzazioni e utenti, per giorno fino a 92 giorni, per settimana ISO fino a 366, poi per mese.
@@ -602,8 +603,10 @@ di WordPress. Il nuovo modulo legge gli stessi report con il service account del
   su `load-index.php` il modulo stampa l'intestazione dell'admin, l'app delle pagine Barrio con la sola Panoramica e
   il piede, prima che WordPress prepari i widget.
 - **Google**:
-  - una pagina fa due chiamate `properties/{id}:batchRunReports` (al più 5 report ciascuna), da una sola richiesta
-    del browser alla REST, e si mostra prima che arrivino i dati;
+  - il report ha tre parti, numeri, andamento ed elenchi: ognuna è una richiesta del browser alla REST e una chiamata
+    `properties/{id}:batchRunReports`, e il browser le chiede insieme. GA esegue i report di una chiamata uno dopo
+    l'altro, e a freddo su 12 mesi uno solo può metterci 15 secondi: in una chiamata sola i 12 mesi passavano i 20
+    secondi del timeout (ora 30). La pagina si mostra prima che arrivino i dati, e ogni parte appena arriva;
   - le chiamate partono solo quando qualcuno apre la pagina, la card o il widget, e al più una volta l'ora per
     periodo: niente cron;
   - un errore mostra il messaggio di Google, come in `Ai`. Il 403 sulla proprietà diventa "Il service account non
@@ -661,10 +664,10 @@ di WordPress. Il nuovo modulo legge gli stessi report con il service account del
   - card Bacheca di WordPress, con l'interruttore "Sostituisci la Bacheca di WordPress";
   - card Permessi.
 - **REST**:
-  - `GET /analytics/report?period=7|28|90|365|custom&from&to` (`barrio_view_analytics`);
+  - `GET /analytics/report?period=7|28|90|365|custom&from&to&part=numbers|trend|lists` (`barrio_view_analytics`);
   - `GET`/`PUT /analytics` (`manage_options`; con i ruoli di `src/Roles.php`);
   - `GET /analytics/properties` (`manage_options`).
-- **Bacheca**: una card con tre righe, utenti e visualizzazioni di 28 giorni con la variazione e la pagina più vista.
+- **Bacheca**: una card con tre righe, utenti e visualizzazioni di 28 giorni senza la variazione e la pagina più vista.
   Senza proprietà dice "Da configurare"; con un errore, il motivo.
 - **Widget** (`wp_add_dashboard_widget`):
   - usa lo script `build/barrio-analytics.js`, una entry come `barrio-reorder.js`, con gli stili di

@@ -164,36 +164,43 @@ function AltModal( { row, start, onSaved, onClose } ) {
 			<div className="barrio-stack">
 				<Notice notice={ notice } />
 				<img className="barrio-alt-preview" src={ row.thumb } alt="" />
-				<Text
-					multiline
-					rows={ 3 }
-					label={ __( 'Alt text', 'barrio-suite' ) }
-					help={
-						altData.ai
-							? __(
-									'What the image shows, for people who cannot see it. Leave it empty for a decorative image.',
-									'barrio-suite'
-								)
-							: AI_SETUP
-					}
-					value={ alt }
-					onChange={ setAlt }
-					actions={
-						<button
-							type="button"
-							className="barrio-button"
-							disabled={ busy || ! altData.ai || ! row.supported }
-							onClick={ fill }
-						>
-							<Icon name="lightbulb" />
-							<span className="barrio-button__text">
-								{ busy
-									? __( 'Generating…', 'barrio-suite' )
-									: __( 'Generate with AI', 'barrio-suite' ) }
-							</span>
-						</button>
-					}
-				/>
+				<div className="barrio-alt-text">
+					<Text
+						multiline
+						rows={ 3 }
+						label={ __( 'Alt text', 'barrio-suite' ) }
+						help={
+							altData.ai
+								? __(
+										'What the image shows, for people who cannot see it. Leave it empty for a decorative image.',
+										'barrio-suite'
+									)
+								: AI_SETUP
+						}
+						value={ alt }
+						onChange={ setAlt }
+						actions={
+							<button
+								type="button"
+								className="barrio-button"
+								disabled={
+									busy || ! altData.ai || ! row.supported
+								}
+								onClick={ fill }
+							>
+								<Icon name="lightbulb" />
+								<span className="barrio-button__text">
+									{ busy
+										? __( 'Generating…', 'barrio-suite' )
+										: __(
+												'Generate with AI',
+												'barrio-suite'
+											) }
+								</span>
+							</button>
+						}
+					/>
+				</div>
 				<Text
 					label={ __( 'Title', 'barrio-suite' ) }
 					value={ title }

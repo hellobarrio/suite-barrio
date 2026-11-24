@@ -56,6 +56,10 @@ final class Module {
 		'countries' => [ [ 'countryId' ], 'activeUsers' ],
 	];
 
+	// Le parti del report, una chiamata a Google ciascuna: GA esegue i report di una chiamata uno dopo l'altro, e a freddo
+	// su 12 mesi uno solo può metterci 15 secondi, quindi il JavaScript le chiede insieme.
+	private const PARTS = [ 'numbers', 'trend', 'lists' ];
+
 	// Le dimensioni dell'andamento, con il nome per il JavaScript e il passo tra due punti.
 	private const UNITS = [
 		'date'           => [ 'day', '+1 day' ],
@@ -134,6 +138,11 @@ final class Module {
 					// Solo con custom, nel fuso del sito.
 					'from'   => $date,
 					'to'     => $date,
+					'part'   => [
+						'type'     => 'string',
+						'enum'     => self::PARTS,
+						'required' => true,
+					],
 				],
 			]
 		);
@@ -227,7 +236,7 @@ final class Module {
 	}
 
 	/**
-	 * I numeri, l'andamento e gli elenchi del periodo, dalla cache o da Google. Un errore non va in cache: la prossima
+	 * I numeri, l'andamento o gli elenchi del periodo, dalla cache o da Google. Un errore non va in cache: la prossima
 	 * apertura riprova.
 	 */
 	public static function report( WP_REST_Request $request ): WP_REST_Response|WP_Error {
@@ -244,10 +253,11 @@ final class Module {
 			return $period;
 		}
 		$property = self::settings()['property'];
-		$key      = 'barrio_analytics_' . md5( (string) wp_json_encode( [ $property, $period['ranges'] ] ) );
+		$part     = (string) $request['part'];
+		$key      = 'barrio_analytics_' . md5( (string) wp_json_encode( [ $property, $period['ranges'], $part ] ) );
 		$report   = get_transient( $key );
 		if ( ! is_array( $report ) ) {
-			$report = self::fetch( $property, $period );
+			$report = self::fetch( $property, $period, $part );
 			if ( is_wp_error( $report ) ) {
 				return $report;
 			}
@@ -348,85 +358,90 @@ final class Module {
 	}
 
 	/**
-	 * I report della pagina in due chiamate batchRunReports, al più 5 report ciascuna. I numeri hanno anche il periodo
-	 * prima, per il confronto; andamento ed elenchi solo il periodo.
+	 * Una parte del report in una chiamata batchRunReports. I numeri hanno anche il periodo prima, per il confronto;
+	 * andamento ed elenchi solo il periodo.
 	 *
 	 * @param Period $period
 	 * @return array<string, mixed>|WP_Error
 	 */
-	private static function fetch( string $property, array $period ): array|WP_Error {
+	private static function fetch( string $property, array $period, string $part ): array|WP_Error {
 		$names   = static fn( array $names ): array => array_map( static fn( string $name ): array => [ 'name' => $name ], $names );
 		$current = [ $period['ranges'][0] ];
 		// Chi torna più giorni conta una volta nella settimana e nel mese: le dimensioni di GA, non la somma dei giorni.
-		$unit     = $period['days'] <= 92 ? 'date' : ( $period['days'] <= 366 ? 'isoYearIsoWeek' : 'yearMonth' );
-		$requests = [
-			[
-				'dateRanges' => $period['ranges'],
-				'metrics'    => $names( array_values( self::METRICS ) ),
-			],
-			[
-				'dateRanges' => $current,
-				'dimensions' => $names( [ $unit ] ),
-				'metrics'    => $names( [ 'screenPageViews', 'activeUsers' ] ),
-				'orderBys'   => [ [ 'dimension' => [ 'dimensionName' => $unit ] ] ],
-			],
-		];
-		foreach ( self::LISTS as [ $dimensions, $metric ] ) {
-			$requests[] = [
-				'dateRanges' => $current,
-				'dimensions' => $names( $dimensions ),
-				'metrics'    => $names( [ $metric ] ),
-				'orderBys'   => [
-					[
-						'metric' => [ 'metricName' => $metric ],
-						'desc'   => true,
-					],
+		$unit = $period['days'] <= 92 ? 'date' : ( $period['days'] <= 366 ? 'isoYearIsoWeek' : 'yearMonth' );
+		if ( 'numbers' === $part ) {
+			$requests = [
+				[
+					'dateRanges' => $period['ranges'],
+					'metrics'    => $names( array_values( self::METRICS ) ),
 				],
-				'limit'      => 10,
 			];
-		}
-		$reports = [];
-		foreach ( array_chunk( $requests, 5 ) as $chunk ) {
-			$body = self::request( self::DATA . "{$property}:batchRunReports", [ 'requests' => $chunk ] );
-			if ( is_wp_error( $body ) ) {
-				return $body;
-			}
-			$reports = [ ...$reports, ...array_values( array_filter( (array) ( $body['reports'] ?? [] ), 'is_array' ) ) ];
-		}
-
-		$numbers = array_fill_keys(
-			array_keys( self::METRICS ),
-			[
-				'value'    => 0.0,
-				'previous' => 0.0,
-			]
-		);
-		foreach ( self::rows( $reports[0] ?? [] ) as [ $dimensions, $values ] ) {
-			$range = 'previous' === ( $dimensions['dateRange'] ?? '' ) ? 'previous' : 'value';
-			foreach ( array_keys( self::METRICS ) as $index => $key ) {
-				$numbers[ $key ][ $range ] = $values[ $index ] ?? 0.0;
-			}
-		}
-
-		// Le pagine con titolo e link; negli altri il valore di GA (Organic Search, mobile, IT), che il JavaScript traduce.
-		$lists = [];
-		foreach ( array_keys( self::LISTS ) as $index => $list ) {
-			$lists[ $list ] = array_map(
-				static fn( array $row ): array => 'pages' === $list ? self::page( $row ) : [
-					'name'  => (string) reset( $row[0] ),
-					'value' => $row[1][0] ?? 0.0,
+		} elseif ( 'trend' === $part ) {
+			$requests = [
+				[
+					'dateRanges' => $current,
+					'dimensions' => $names( [ $unit ] ),
+					'metrics'    => $names( [ 'screenPageViews', 'activeUsers' ] ),
+					'orderBys'   => [ [ 'dimension' => [ 'dimensionName' => $unit ] ] ],
 				],
-				self::rows( $reports[ $index + 2 ] ?? [] )
+			];
+		} else {
+			$requests = [];
+			foreach ( self::LISTS as [ $dimensions, $metric ] ) {
+				$requests[] = [
+					'dateRanges' => $current,
+					'dimensions' => $names( $dimensions ),
+					'metrics'    => $names( [ $metric ] ),
+					'orderBys'   => [
+						[
+							'metric' => [ 'metricName' => $metric ],
+							'desc'   => true,
+						],
+					],
+					'limit'      => 10,
+				];
+			}
+		}
+		$body = self::request( self::DATA . "{$property}:batchRunReports", [ 'requests' => $requests ] );
+		if ( is_wp_error( $body ) ) {
+			return $body;
+		}
+		$reports = array_values( array_filter( (array) ( $body['reports'] ?? [] ), 'is_array' ) );
+
+		$data = [];
+		if ( 'numbers' === $part ) {
+			$data['numbers'] = array_fill_keys(
+				array_keys( self::METRICS ),
+				[
+					'value'    => 0.0,
+					'previous' => 0.0,
+				]
 			);
+			foreach ( self::rows( $reports[0] ?? [] ) as [ $dimensions, $values ] ) {
+				$range = 'previous' === ( $dimensions['dateRange'] ?? '' ) ? 'previous' : 'value';
+				foreach ( array_keys( self::METRICS ) as $index => $key ) {
+					$data['numbers'][ $key ][ $range ] = $values[ $index ] ?? 0.0;
+				}
+			}
+		} elseif ( 'trend' === $part ) {
+			$data['trend'] = [
+				'unit'   => self::UNITS[ $unit ][0],
+				'points' => self::trend( $unit, self::rows( $reports[0] ?? [] ), $period ),
+			];
+		} else {
+			// Le pagine con titolo e link; negli altri il valore di GA (Organic Search, mobile, IT), che il JavaScript traduce.
+			foreach ( array_keys( self::LISTS ) as $index => $list ) {
+				$data[ $list ] = array_map(
+					static fn( array $row ): array => 'pages' === $list ? self::page( $row ) : [
+						'name'  => (string) reset( $row[0] ),
+						'value' => $row[1][0] ?? 0.0,
+					],
+					self::rows( $reports[ $index ] ?? [] )
+				);
+			}
 		}
 
-		return [
-			'numbers'     => $numbers,
-			'trend'       => [
-				'unit'   => self::UNITS[ $unit ][0],
-				'points' => self::trend( $unit, self::rows( $reports[1] ?? [] ), $period ),
-			],
-			...$lists,
+		return $data + [
 			// GA nasconde i gruppi con pochi utenti (Google Signals): i totali possono superare la somma degli elenchi.
 			'thresholded' => [] !== array_filter( $reports, static fn( array $report ): bool => ! empty( $report['metadata']['subjectToThresholding'] ) ),
 			'updated'     => wp_date( (string) get_option( 'time_format' ) ),
@@ -549,7 +564,8 @@ final class Module {
 			$url,
 			[
 				'method'  => null === $body ? 'GET' : 'POST',
-				'timeout' => 20,
+				// GA a freddo può metterci 15 secondi su un report di 12 mesi.
+				'timeout' => 30,
 				'headers' => [
 					'Authorization' => "Bearer {$token}",
 					'Content-Type'  => 'application/json',

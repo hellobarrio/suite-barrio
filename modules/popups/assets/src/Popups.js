@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
+	LinkField,
 	PeriodCard,
 	PeriodList,
 	fillTexts,
@@ -25,7 +26,6 @@ import {
 	Notice,
 	Permissions,
 	Text,
-	Toggle,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
@@ -465,46 +465,39 @@ function PopupEditor( { id } ) {
 											}
 										/>
 									</Fixed>
-									<TextIn
-										{ ...texts }
-										name="link_url"
-										optional
-										label={ __(
-											'Button link',
-											'barrio-suite'
-										) }
+									<LinkField
+										item={ popup }
+										lang={ lang }
+										label={ __( 'Button', 'barrio-suite' ) }
 										help={ __(
-											'Optional: with a link the popup has a button. A path like /contacts/ or a full address.',
+											'Optional: with a link the popup has a button.',
 											'barrio-suite'
 										) }
-										spellCheck={ false }
-									/>
-									<TextIn
-										{ ...texts }
-										name="button_label"
-										optional
-										label={ __(
+										text="button_label"
+										textLabel={ __(
 											'Button text',
 											'barrio-suite'
 										) }
-										help={ __(
+										textHelp={ __(
 											'Leave empty for "Learn more".',
 											'barrio-suite'
 										) }
-										maxLength={ 255 }
+										fallback={ __(
+											'Learn more',
+											'barrio-suite'
+										) }
+										newTab={ ( item ) =>
+											item.settings.new_tab
+										}
+										withNewTab={ ( item, on ) => ( {
+											...item,
+											settings: {
+												...item.settings,
+												new_tab: on,
+											},
+										} ) }
+										onChange={ setPopup }
 									/>
-									<Fixed lang={ lang }>
-										<Toggle
-											label={ __(
-												'Open the link in a new tab',
-												'barrio-suite'
-											) }
-											checked={ settings.new_tab }
-											onChange={ ( on ) =>
-												setSettings( { new_tab: on } )
-											}
-										/>
-									</Fixed>
 								</Card>
 							) : (
 								<Fixed lang={ lang }>

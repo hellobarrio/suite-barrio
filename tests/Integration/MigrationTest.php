@@ -242,7 +242,7 @@ final class MigrationTest extends WP_UnitTestCase {
 	}
 
 	public function test_global_settings_go_where_barrio_suite_keeps_them(): void {
-		barrio_migration_run( false );
+		$report = barrio_migration_run( false );
 
 		$this->assertSame(
 			[
@@ -257,6 +257,9 @@ final class MigrationTest extends WP_UnitTestCase {
 		);
 		$this->assertSame( 'saved', Smtp::password_status() );
 		$this->assertSame( 'abc123-us21', Integrations::settings( 'mailchimp' )['api_key'] );
+		$this->assertSame( [ 'site_key' => 'site-key-123' ], Integrations::settings( 'recaptcha' ), 'Not the project and the API key: the service account replaces them.' );
+		$this->assertIsArray( $report );
+		$this->assertNotEmpty( preg_grep( '/^reCAPTCHA: the API key of Suite Barrio is not migrated/', $report['warnings'] ) );
 		$this->assertSame( 730, Privacy::settings()['retention_days'] );
 		$this->assertSame( [ '#ffffff', '#123456' ], [ Notifications::settings()['background_color'], Notifications::settings()['accent_color'] ] );
 	}
@@ -529,6 +532,14 @@ final class MigrationTest extends WP_UnitTestCase {
 			]
 		);
 		update_option( 'suite_barrio_forms_mailchimp', [ 'api_key' => 'abc123-us21' ] );
+		update_option(
+			'suite_barrio_forms_recaptcha',
+			[
+				'project_id' => 'sito-vecchio',
+				'site_key'   => 'site-key-123',
+				'api_key'    => 'AIza-vecchia',
+			]
+		);
 		update_option(
 			'suite_barrio_forms_retention',
 			[

@@ -311,6 +311,9 @@
 	color: var(--barrio-muted);
 	font-size: 12px;
 	font-weight: 400;
+
+	/* Un indirizzo lungo, per esempio in un errore di Google, va a capo. */
+	overflow-wrap: anywhere;
 }
 
 /* Il codice di una lingua con la sua bandiera, se c'è (Lang in ui.js). */
@@ -396,6 +399,45 @@
 	color: var(--barrio-muted);
 }
 
+/*
+ * Il link di una CTA (LinkField in period.js), come il campo Link di ACF:
+ * alto e bordato come un campo, il testo sopra l'indirizzo, poi i pulsanti.
+ */
+.barrio-link {
+	display: flex;
+	box-sizing: border-box;
+	align-items: center;
+	gap: 8px;
+	min-height: var(--barrio-control);
+	padding: 4px 4px 4px 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: var(--barrio-radius-small);
+	background: #fff;
+}
+
+.barrio-link > .dashicons,
+.barrio-link__tab {
+	flex: none;
+	color: var(--barrio-muted);
+}
+
+.barrio-link__text {
+	display: grid;
+	flex: 1;
+	min-width: 0;
+}
+
+.barrio-link__text > * {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.barrio-link__text > :last-child:not(:first-child) {
+	color: var(--barrio-muted);
+	font-size: 12px;
+}
+
 /* Toggle in ui.js: il testo a sinistra, l'interruttore a destra. */
 .barrio-toggle {
 	display: flex;
@@ -410,8 +452,13 @@
 	cursor: pointer;
 }
 
-.barrio-toggle .barrio-field__help {
+.barrio-toggle .barrio-field__help,
+.barrio-field__label .barrio-field__help {
 	margin-top: 4px;
+}
+
+.barrio-field__label .barrio-field__help {
+	display: block;
 }
 
 /*
@@ -483,10 +530,14 @@
 	padding-top: 8px;
 }
 
-/* Più interruttori in riga (i Permessi), all'altezza dell'etichetta. */
+/*
+ * Più interruttori in riga (i Permessi, l'Indicizzazione del SEO), all'altezza
+ * dell'etichetta e sul bordo destro della card, come gli altri.
+ */
 .barrio-checks {
 	display: flex;
 	flex-wrap: wrap;
+	justify-content: flex-end;
 	gap: 8px 24px;
 }
 
@@ -503,11 +554,6 @@
 
 .barrio-wide .barrio-blocks {
 	padding-top: 8px;
-}
-
-/* I Permessi: gli interruttori sul bordo destro della card, come gli altri. */
-.barrio-permissions .barrio-checks {
-	justify-content: flex-end;
 }
 
 @media (max-width: 782px) {
@@ -2152,6 +2198,49 @@ a.barrio-badge {
 
 /* SEO: le modali dei contenuti e dei redirect, e l'anteprima del JSON-LD. */
 
+/*
+ * Il pannello SEO dell'editor a blocchi nella modale di Contenuti: etichette,
+ * campi e pulsanti di WordPress con lo stile delle pagine Barrio. Solo nelle
+ * modali: nell'editor il pannello resta come il resto della barra laterale.
+ * !important perché le regole di WordPress (anche di emotion) sono più
+ * specifiche.
+ */
+.barrio-modal .components-base-control__label,
+.barrio-modal .components-input-control__label,
+.barrio-modal .components-form-token-field__label {
+	color: var(--barrio-ink) !important;
+	font-size: 14px !important;
+	font-weight: 500 !important;
+	text-transform: none !important;
+}
+
+.barrio-modal .components-text-control__input,
+.barrio-modal .components-textarea-control__input,
+.barrio-modal .components-form-token-field__input-container,
+.barrio-modal .components-input-control__backdrop {
+	border-color: #c3c4c7 !important;
+	border-radius: var(--barrio-radius-small) !important;
+}
+
+.barrio-modal .components-button.is-secondary {
+	justify-content: center;
+	height: var(--barrio-control);
+	border: 0 !important;
+	border-radius: var(--barrio-radius-small);
+	background: #fff;
+	box-shadow: inset 0 0 0 1px #c3c4c7 !important;
+	color: var(--barrio-ink) !important;
+	font-weight: 500;
+}
+
+.barrio-modal .components-button.is-secondary:hover:not(:disabled) {
+	background: var(--barrio-soft);
+}
+
+.barrio-modal .components-button.is-secondary:focus-visible {
+	box-shadow: 0 0 0 2px var(--barrio-ink) !important;
+}
+
 .barrio-code {
 	max-height: 320px;
 	margin: 0;
@@ -2185,8 +2274,12 @@ a.barrio-badge {
 	width: auto;
 }
 
-/* Nella modale del giorno speciale l'orario sta tra due linee. */
-.barrio-modal__body .barrio-hours-day {
+/*
+ * Nelle modali il campo principale sta tra due linee: l'orario del giorno
+ * speciale, il testo alternativo.
+ */
+.barrio-modal__body .barrio-hours-day,
+.barrio-modal__body .barrio-alt-text {
 	padding-block: 16px;
 	border-block: 1px solid var(--barrio-line);
 }

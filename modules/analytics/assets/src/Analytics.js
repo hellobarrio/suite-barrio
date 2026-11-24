@@ -173,12 +173,13 @@ const daysBefore = ( date, days ) => {
 };
 
 /**
- * GET /analytics/report: { report } quando arriva, { notice } con un errore, {} mentre si carica. Senza query non
- * chiama Google.
+ * GET /analytics/report, una richiesta per parte, tutte insieme (Module::PARTS): { report } con le parti arrivate,
+ * { notice } con un errore, {} mentre si carica. Senza query non chiama Google.
  *
  * @param {Object|null} query period, e from e to con custom.
+ * @param {string}      parts Le parti, separate da spazi.
  */
-function useReport( query ) {
+function useReport( query, parts = 'numbers trend lists' ) {
 	const [ state, setState ] = useState( {} );
 	const path =
 		query &&
@@ -192,25 +193,43 @@ function useReport( query ) {
 		// Mentre si scrive una data di Personalizzato parte una sola richiesta.
 		const timer = setTimeout(
 			() =>
-				apiFetch( { path } )
-					.then( ( report ) => current && setState( { report } ) )
-					.catch(
-						( error ) =>
-							current &&
-							setState( {
-								notice: {
-									status: 'error',
-									message: errorMessage( error ),
-								},
-							} )
-					),
+				parts.split( ' ' ).forEach( ( part ) =>
+					apiFetch( { path: `${ path }&part=${ part }` } )
+						.then(
+							( data ) =>
+								current &&
+								setState( ( { report, notice } ) =>
+									notice
+										? { notice }
+										: {
+												report: {
+													...report,
+													...data,
+													thresholded:
+														report?.thresholded ||
+														data.thresholded,
+												},
+											}
+								)
+						)
+						.catch(
+							( error ) =>
+								current &&
+								setState( {
+									notice: {
+										status: 'error',
+										message: errorMessage( error ),
+									},
+								} )
+						)
+				),
 			path.includes( 'period=custom' ) ? 400 : 0
 		);
 		return () => {
 			current = false;
 			clearTimeout( timer );
 		};
-	}, [ path ] );
+	}, [ path, parts ] );
 	return state;
 }
 
@@ -239,8 +258,8 @@ function Change( { number, lower } ) {
 	);
 }
 
-// I 5 numeri con la variazione; trattini mentre si caricano.
-export const Numbers = ( { numbers } ) => (
+// I 5 numeri, con la variazione nella Panoramica; trattini mentre si caricano.
+export const Numbers = ( { numbers, compare } ) => (
 	<dl className="barrio-numbers">
 		{ NUMBERS.map( ( [ key, label, format ] ) => (
 			<div key={ key } className="barrio-number">
@@ -249,7 +268,7 @@ export const Numbers = ( { numbers } ) => (
 					<strong>
 						{ numbers ? format( numbers[ key ].value ) : '—' }
 					</strong>
-					{ numbers && (
+					{ numbers && compare && (
 						<Change
 							number={ numbers[ key ] }
 							lower={ 'bounce' === key }
@@ -605,9 +624,13 @@ function Setup( { missing } ) {
 function Report( { report } ) {
 	return (
 		<>
-			<Numbers numbers={ report?.numbers } />
+			<Numbers numbers={ report?.numbers } compare />
 			<Card icon="chart-line" title={ __( 'Trend', 'barrio-suite' ) }>
-				{ report ? <Chart trend={ report.trend } /> : <Loading /> }
+				{ report?.trend ? (
+					<Chart trend={ report.trend } />
+				) : (
+					<Loading />
+				) }
 			</Card>
 			<div className="barrio-lists">
 				<List
@@ -725,9 +748,9 @@ export function Overview() {
 	);
 }
 
-// Il widget della Bacheca di WordPress (widget.js): numeri e andamento degli ultimi 28 giorni.
+// Il widget della Bacheca di WordPress (widget.js): numeri e andamento degli ultimi 28 giorni, senza confronto.
 export function Widget() {
-	const { report, notice } = useReport( { period: '28' } );
+	const { report, notice } = useReport( { period: '28' }, 'numbers trend' );
 	return (
 		<div className="barrio-admin barrio-widget">
 			<p className="barrio-note">
@@ -737,7 +760,7 @@ export function Widget() {
 			{ ! notice && (
 				<>
 					<Numbers numbers={ report?.numbers } />
-					{ report ? (
+					{ report?.trend ? (
 						<Chart trend={ report.trend } height={ 160 } />
 					) : (
 						<Loading />
@@ -751,21 +774,17 @@ export function Widget() {
 	);
 }
 
-// Nella Bacheca: utenti e visualizzazioni degli ultimi 28 giorni con la variazione, e la pagina più vista.
+// Nella Bacheca: utenti e visualizzazioni degli ultimi 28 giorni, senza confronto, e la pagina più vista.
 export function AnalyticsCard() {
 	const data = analyticsData();
 	const { report, notice } = useReport(
-		data && ! data.missing ? { period: '28' } : null
+		data && ! data.missing ? { period: '28' } : null,
+		'numbers lists'
 	);
 	if ( ! data ) {
 		return null;
 	}
-	const number = ( key ) => {
-		const text = formatNumber( report.numbers[ key ].value );
-		return report.numbers[ key ].previous
-			? `${ text } · ${ formatChange( report.numbers[ key ] ) }`
-			: text;
-	};
+	const number = ( key ) => formatNumber( report.numbers[ key ].value );
 	let stats = null;
 	if ( data.missing ) {
 		stats = [
@@ -774,7 +793,7 @@ export function AnalyticsCard() {
 				__( 'To be set up', 'barrio-suite' ),
 			],
 		];
-	} else if ( report ) {
+	} else if ( report?.numbers && report.pages ) {
 		stats = [
 			[ __( 'Users in 28 days', 'barrio-suite' ), number( 'users' ) ],
 			[ __( 'Views in 28 days', 'barrio-suite' ), number( 'views' ) ],

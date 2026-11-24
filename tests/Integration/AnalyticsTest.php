@@ -70,10 +70,10 @@ final class AnalyticsTest extends WP_UnitTestCase {
 	}
 
 	public function test_each_period_asks_its_dates_dimensions_and_comparison(): void {
-		$this->report( '7' );
-		$this->report( '90' );
-		$this->report( '365' );
-		$this->report(
+		$this->page( '7' );
+		$this->page( '90' );
+		$this->page( '365' );
+		$this->page(
 			'custom',
 			[
 				'from' => '2025-01-01',
@@ -81,10 +81,10 @@ final class AnalyticsTest extends WP_UnitTestCase {
 			]
 		);
 
-		$this->assertCount( 8, $this->requests, 'Two batchRunReports for each page.' );
+		$this->assertCount( 12, $this->requests, 'One batchRunReports for each part: GA runs the reports of a call one after the other.' );
 		$this->assertSame( 'https://analyticsdata.googleapis.com/v1beta/properties/123456:batchRunReports', $this->requests[0]['url'] );
 		$requests = array_merge( ...array_map( static fn( array $request ): array => $request['body']['requests'], $this->requests ) );
-		$this->assertCount( 24, $requests, 'Six reports for each page, five in the first call.' );
+		$this->assertCount( 24, $requests, 'Six reports for each page: the numbers, the trend and four lists.' );
 		[ $numbers, $trend ] = $requests;
 
 		$this->assertSame(
@@ -138,6 +138,7 @@ final class AnalyticsTest extends WP_UnitTestCase {
 			)->get_status()
 		);
 		$this->assertSame( 400, $this->report( '30' )->get_status() );
+		$this->assertSame( 400, $this->request( 'GET', '/barrio/v1/analytics/report', [ 'period' => '7' ] )->get_status(), 'Without a part.' );
 	}
 
 	public function test_the_answer_becomes_numbers_trend_and_lists(): void {
@@ -150,7 +151,7 @@ final class AnalyticsTest extends WP_UnitTestCase {
 		);
 		$this->set_permalink_structure( '/%postname%/' );
 
-		$report = $this->report( '7' )->get_data();
+		$report = $this->page( '7' );
 
 		$this->assertSame(
 			[
@@ -197,14 +198,15 @@ final class AnalyticsTest extends WP_UnitTestCase {
 	}
 
 	public function test_weeks_and_months_start_on_monday_and_on_the_first(): void {
-		$weeks  = array_column( $this->report( '365' )->get_data()['trend']['points'], 'date' );
+		$weeks  = array_column( $this->report( '365', [], 'trend' )->get_data()['trend']['points'], 'date' );
 		$months = array_column(
 			$this->report(
 				'custom',
 				[
 					'from' => '2024-01-15',
 					'to'   => '2025-06-10',
-				]
+				],
+				'trend'
 			)->get_data()['trend']['points'],
 			'date'
 		);
@@ -216,17 +218,17 @@ final class AnalyticsTest extends WP_UnitTestCase {
 	}
 
 	public function test_a_second_opening_reads_the_cache_and_another_property_does_not(): void {
-		$this->report( '28' );
-		$this->report( '28' );
-		$this->assertCount( 2, $this->requests, 'The card and the widget ask the same report as the page: no more calls.' );
+		$this->page( '28' );
+		$this->page( '28' );
+		$this->assertCount( 3, $this->requests, 'The card and the widget ask the same parts as the page: no more calls.' );
 
-		$this->report( '7' );
-		$this->assertCount( 4, $this->requests );
+		$this->page( '7' );
+		$this->assertCount( 6, $this->requests );
 
 		$this->request( 'PUT', '/barrio/v1/analytics', [ 'property' => 'properties/999' ] );
-		$this->report( '28' );
-		$this->assertCount( 6, $this->requests );
-		$this->assertStringContainsString( 'properties/999:', $this->requests[5]['url'] );
+		$this->page( '28' );
+		$this->assertCount( 9, $this->requests );
+		$this->assertStringContainsString( 'properties/999:', $this->requests[8]['url'] );
 	}
 
 	public function test_an_error_is_not_cached_and_the_missing_access_names_the_service_account(): void {
@@ -259,7 +261,7 @@ final class AnalyticsTest extends WP_UnitTestCase {
 
 		$this->error = null;
 		$this->assertSame( 200, $this->report( '28' )->get_status() );
-		$this->assertCount( 4, $this->requests, 'The errors were not cached: the third opening asks Google again.' );
+		$this->assertCount( 3, $this->requests, 'The errors were not cached: the third opening asks Google again.' );
 	}
 
 	public function test_without_service_account_or_property_nothing_calls_google_and_there_is_no_widget(): void {
@@ -377,8 +379,22 @@ final class AnalyticsTest extends WP_UnitTestCase {
 	}
 
 	/** @param array<string, string> $params */
-	private function report( string $period, array $params = [] ): WP_REST_Response {
-		return $this->request( 'GET', '/barrio/v1/analytics/report', [ 'period' => $period ] + $params );
+	private function report( string $period, array $params = [], string $part = 'numbers' ): WP_REST_Response {
+		return $this->request( 'GET', '/barrio/v1/analytics/report', [ 'period' => $period ] + $params + [ 'part' => $part ] );
+	}
+
+	/**
+	 * Le tre parti, come le chiede la pagina.
+	 *
+	 * @param array<string, string> $params
+	 * @return array<string, mixed>
+	 */
+	private function page( string $period, array $params = [] ): array {
+		$data = [];
+		foreach ( [ 'numbers', 'trend', 'lists' ] as $part ) {
+			$data = $this->report( $period, $params, $part )->get_data() + $data;
+		}
+		return $data;
 	}
 
 	/** @param array<string, mixed> $params */

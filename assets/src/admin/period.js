@@ -9,9 +9,12 @@ import {
 	setTranslation,
 	textIn,
 } from '../../../modules/forms/assets/src/builder/model.js';
+import { TextIn } from '../../../modules/forms/assets/src/builder/Texts.js';
 import { initialQuery, localQuery } from './query.js';
 import {
 	Card,
+	Dialog,
+	Group,
 	Icon,
 	Lang,
 	Loading,
@@ -26,6 +29,7 @@ import {
 
 const { languages } = window.barrioAdmin;
 const [ main, ...others ] = languages;
+const MAIN = main.toUpperCase();
 
 // Period::status(): il nome e il colore del badge.
 export const STATUS = {
@@ -92,6 +96,205 @@ export const PeriodCard = ( { item, description, onChange } ) => (
 		/>
 	</Card>
 );
+
+/**
+ * Il link di una CTA, come il campo Link di ACF: nella card il testo, l'indirizzo e la nuova scheda, con Modifica e
+ * Rimuovi; si scrive in una modale e si applica alla bozza, salvata con la barra. Indirizzo e testo si traducono come
+ * TextIn (in un'altra lingua vuoto vale quello principale); la nuova scheda vale per tutte le lingue.
+ *
+ * @param {Object}                                props
+ * @param {Object}                                props.item        Il popup o il banner, con link_url nei testi.
+ * @param {string}                                props.lang
+ * @param {string}                                props.label
+ * @param {string}                                props.help
+ * @param {string}                                [props.text]      Il testo del link nei testi (button_label), se c'è.
+ * @param {string}                                [props.textLabel]
+ * @param {string}                                [props.textHelp]
+ * @param {string}                                [props.fallback]  Il testo mostrato senza testo, come "Learn more".
+ * @param {(item: Object) => boolean}             props.newTab      Se il link dell'elemento apre una nuova scheda.
+ * @param {(item: Object, on: boolean) => Object} props.withNewTab  L'elemento con la nuova scheda cambiata.
+ * @param {(item: Object) => void}                props.onChange
+ */
+export function LinkField( {
+	item,
+	lang,
+	label,
+	help,
+	text,
+	textLabel,
+	textHelp,
+	fallback,
+	newTab,
+	withNewTab,
+	onChange,
+} ) {
+	const [ draft, setDraft ] = useState( null );
+	const shown = textIn( item, lang, main );
+	const keys = [ 'link_url', text ].filter( Boolean );
+	// Toglie il link in tutte le lingue: le altre senza il principale non avrebbero niente da tradurre.
+	const remove = () =>
+		onChange(
+			others.reduce(
+				( next, code ) =>
+					keys.reduce(
+						( row, key ) => setTranslation( row, code, key, '' ),
+						next
+					),
+				{
+					...item,
+					i18n: {
+						...item.i18n,
+						[ main ]: {
+							...item.i18n[ main ],
+							...Object.fromEntries(
+								keys.map( ( key ) => [ key, null ] )
+							),
+						},
+					},
+				}
+			)
+		);
+	let field;
+	if ( shown.link_url ) {
+		field = (
+			<div className="barrio-link">
+				<Icon name="admin-links" />
+				<span className="barrio-link__text">
+					{ text && <strong>{ shown[ text ] || fallback }</strong> }
+					<span>{ shown.link_url }</span>
+				</span>
+				{ newTab( item ) && (
+					<span
+						className="barrio-link__tab"
+						title={ __(
+							'Open the link in a new tab',
+							'barrio-suite'
+						) }
+					>
+						<Icon name="external" />
+					</span>
+				) }
+				<button
+					type="button"
+					className="barrio-icon-button"
+					aria-label={ __( 'Edit link', 'barrio-suite' ) }
+					onClick={ () => setDraft( item ) }
+				>
+					<Icon name="edit" />
+				</button>
+				{ lang === main && (
+					<button
+						type="button"
+						className="barrio-icon-button"
+						aria-label={ __( 'Remove link', 'barrio-suite' ) }
+						onClick={ remove }
+					>
+						<Icon name="trash" />
+					</button>
+				) }
+			</div>
+		);
+	} else if ( lang === main ) {
+		field = (
+			<button
+				type="button"
+				className="barrio-button"
+				onClick={ () => setDraft( item ) }
+			>
+				<Icon name="admin-links" />
+				<span className="barrio-button__text">
+					{ __( 'Add link', 'barrio-suite' ) }
+				</span>
+			</button>
+		);
+	} else {
+		field = (
+			<p className="barrio-field__help">
+				{ sprintf(
+					/* translators: %s: code of the main language, like IT. */
+					__(
+						'Empty in %s, so there is nothing to translate.',
+						'barrio-suite'
+					),
+					MAIN
+				) }
+			</p>
+		);
+	}
+	const texts = { item: draft, lang, onChange: setDraft };
+	return (
+		<Group label={ label } help={ help }>
+			{ field }
+			{ draft && (
+				<Dialog
+					size="medium"
+					title={ label }
+					onRequestClose={ () => setDraft( null ) }
+					footer={
+						<>
+							<button
+								type="button"
+								className="barrio-button"
+								onClick={ () => setDraft( null ) }
+							>
+								{ __( 'Cancel', 'barrio-suite' ) }
+							</button>
+							<button
+								type="button"
+								className="barrio-button is-primary"
+								disabled={
+									! textIn( draft, lang, main ).link_url
+								}
+								onClick={ () => {
+									onChange( draft );
+									setDraft( null );
+								} }
+							>
+								{ __( 'Apply', 'barrio-suite' ) }
+							</button>
+						</>
+					}
+				>
+					<TextIn
+						{ ...texts }
+						name="link_url"
+						optional
+						label={ __( 'Link', 'barrio-suite' ) }
+						help={ __(
+							'A path like /contacts/ or a full address.',
+							'barrio-suite'
+						) }
+						spellCheck={ false }
+					/>
+					{ text && (
+						<TextIn
+							{ ...texts }
+							name={ text }
+							optional
+							label={ textLabel }
+							help={ textHelp }
+							maxLength={ 255 }
+						/>
+					) }
+					<Toggle
+						label={ __(
+							'Open the link in a new tab',
+							'barrio-suite'
+						) }
+						help={
+							others.length > 0 &&
+							__( 'In every language.', 'barrio-suite' )
+						}
+						checked={ newTab( draft ) }
+						onChange={ ( on ) =>
+							setDraft( withNewTab( draft, on ) )
+						}
+					/>
+				</Dialog>
+			) }
+		</Group>
+	);
+}
 
 // Al caricamento le altre lingue tengono solo i testi diversi da quelli della lingua principale.
 export const trimTexts = ( record ) =>
