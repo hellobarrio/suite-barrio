@@ -8,14 +8,11 @@
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Text Domain:       barrio-suite
- * Domain Path:       /languages
  */
 
 defined( 'ABSPATH' ) || exit;
 
 define( 'BARRIO_SUITE_VERSION', '0.1.0' );
-
-load_plugin_textdomain( 'barrio-suite', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 spl_autoload_register(
 	static function ( string $class_name ): void {

@@ -8,7 +8,6 @@
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Text Domain:       barrio-suite-wpgraphql
- * Domain Path:       /languages
  * Requires Plugins:  barrio-suite
  */
 
@@ -18,8 +17,6 @@
 // init. Le descrizioni dello schema non si traducono: lo schema deve essere lo stesso in ogni lingua.
 
 defined( 'ABSPATH' ) || exit;
-
-load_plugin_textdomain( 'barrio-suite-wpgraphql', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 foreach ( [ 'forms', 'seo', 'popups', 'banners', 'hours' ] as $barrio_module ) {
 	require __DIR__ . "/{$barrio_module}.php";

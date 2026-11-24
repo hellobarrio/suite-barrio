@@ -8,7 +8,6 @@
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Text Domain:       barrio-suite-wpml
- * Domain Path:       /languages
  * Requires Plugins:  barrio-suite
  */
 
@@ -16,8 +15,6 @@
 // (BarrioSuite\I18n); senza WPML attivo i filtri di WPML restituiscono null e non cambia niente.
 
 defined( 'ABSPATH' ) || exit;
-
-load_plugin_textdomain( 'barrio-suite-wpml', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 /** @return array<string, array<string, mixed>> Le lingue attive per codice (it, en-us, pt-br). */
 function barrio_wpml_languages(): array {

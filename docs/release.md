@@ -13,13 +13,15 @@ file non si toccano):
 - l'header `Update URI` di Barrio Suite e delle estensioni (solo in `con-updater`), la sezione "External
   services" del readme e questo file;
 - `tests/Integration/ExtensionsTest.php`, che prova la pagina Estensioni di ognuno dei due branch;
-- `languages/`, del core e delle estensioni (in `con-updater` il loro file principale ha una riga in più,
-  `Update URI`): le stringhe dell'updater ci sono solo in `con-updater`. Dopo un cherry-pick si rigenerano in
-  ogni branch invece di risolvere i conflitti.
+- le traduzioni: qui solo quelle della migrazione, che non va nella directory. Per WordPress.org le
+  traduzioni arrivano da translate.wordpress.org, quindi il core e le altre estensioni non hanno `languages/`,
+  `Domain Path` e `load_plugin_textdomain()` (richiesta della revisione). In `con-updater` restano: senza
+  directory WordPress non scarica i language pack. Dopo un cherry-pick che tocca `languages/` qui si toglie
+  (`git rm`); la migrazione si rigenera in tutti e due i branch.
 
 ## Pubblicazione
 
-`npm run zip` prepara lo zip di Barrio Suite (con `readme.txt`, traduzioni e sorgenti JS) e
+`npm run zip` prepara lo zip di Barrio Suite (con `readme.txt` e sorgenti JS) e
 `npm run zip:extensions` quelli delle estensioni. Tutte, tranne la migrazione, si pubblicano nella directory
 di WordPress.org con l'account `hellobarrio`. La migrazione resta uno zip da caricare da Plugin → Carica plugin.
 

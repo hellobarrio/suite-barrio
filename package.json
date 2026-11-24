@@ -5,7 +5,6 @@
 		"uninstall.php",
 		"readme.txt",
 		"package.json",
-		"languages",
 		"src",
 		"assets/src",
 		"build",

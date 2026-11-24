@@ -8,7 +8,6 @@
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Text Domain:       barrio-suite-recaptcha
- * Domain Path:       /languages
  * Requires Plugins:  barrio-suite
  */
 
@@ -21,8 +20,6 @@
 use BarrioSuite\Google;
 
 defined( 'ABSPATH' ) || exit;
-
-load_plugin_textdomain( 'barrio-suite-recaptcha', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 const BARRIO_RECAPTCHA_ACTION = 'barrio_form';
 // L'ultimo errore di Google, finché un invio non viene verificato di nuovo.

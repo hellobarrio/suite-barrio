@@ -8,7 +8,6 @@
  * Author:            Hellobarrio
  * License:           GPL-2.0-or-later
  * Text Domain:       barrio-suite-mailchimp
- * Domain Path:       /languages
  * Requires Plugins:  barrio-suite
  */
 
@@ -20,8 +19,6 @@ use BarrioSuite\Forms\Model\Entry;
 use BarrioSuite\Forms\Model\Form;
 
 defined( 'ABSPATH' ) || exit;
-
-load_plugin_textdomain( 'barrio-suite-mailchimp', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 add_action(
 	'barrio_forms_loaded',
