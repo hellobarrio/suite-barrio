@@ -200,7 +200,7 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
   - **Azioni di massa**: indicizza, noindex, predefinito.
 
   L'elenco viene da `GET /barrio/v1/seo/contents`; le modifiche passano dalla REST del core (`meta`), una richiesta per contenuto come nell'elenco dei form. Questa tabella prende il posto del selettore di contenuti dell'advisor del prototipo.
-  A pagine di 200 righe (`?page=`), che il browser chiede una dopo l'altra e unisce: ogni riga porta il testo intero per il punteggio, e il limite è nei byte, non nel numero (2.000 articoli da 9 KB erano 18,6 MB di JSON e 61 MB di memoria in una risposta sola, `docs/audit-seo.md` §5). `// ponytail: filtri e ordinamento nel browser (localQuery); sul server, come per le Registrazioni, se un tipo arriva a decine di megabyte`.
+  A pagine di 200 righe (`?page=`), che il browser chiede una dopo l'altra e unisce: ogni riga porta il testo intero per il punteggio, e il limite è nei byte, non nel numero (2.000 articoli da 9 KB erano 18,6 MB di JSON e 61 MB di memoria in una risposta sola). `// ponytail: filtri e ordinamento nel browser (localQuery); sul server, come per le Registrazioni, se un tipo arriva a decine di megabyte`.
 - **SEO → Redirect**: la tabella del plugin con ricerca, filtri (codice, automatici), ordinamento e pagine sul server.
   - **Menu ⋯**: modifica ed elimina; tra le azioni di massa, elimina.
   - **"Aggiungi redirect"** nell'intestazione: una modale con sorgente, codice, destinazione (disattivata con il 410) e nota.
@@ -260,13 +260,13 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
   anima con una custom property registrata (`@property`), senza animazione con `prefers-reduced-motion`.
   Sull'icona della sidebar c'è il numero, nel colore del livello.
 - **Bacheca**: card SEO con contenuti indicizzati, contenuti senza descrizione e redirect, più i link a Contenuti e Impostazioni. La Bacheca si apre con `read` e ogni card controlla la sua capability.
-- **Messa online**: il passaggio `seo` è fatto con la descrizione e l'immagine predefinite e con nome e logo dell'organizzazione.
+- **Messa online**: il passaggio `seo` è fatto con la descrizione e l'immagine predefinite, il logo dell'organizzazione e il nome dell'azienda. Il nome si legge e si salva in Dati aziendali: con quel modulo spento il campo non c'è e il passaggio non lo chiede.
 
 ## 6. Estensioni e hook
 
 | Estensione | Nel modulo SEO |
 |---|---|
-| `barrio-suite-wpgraphql` | Solo con il modulo acceso, e con i dati di `Seo\Meta`:<br>• `seo` (`HBSeoPost`) sui post type pubblici;<br>• `hbSeoSite`, `hbSchemaRaw(uri)`, `hbSitemap`, `hbRedirects`, `hbLlms` e `hbLlmsFull`.<br>Nomi e forme sono quelli del prototipo (`loc` relativo, `title` senza il nome del sito). Registra con priorità 9, come per i form.<br>L'**indirizzo del frontend** è un'impostazione dell'estensione, in GraphQL → Settings con l'API delle impostazioni di WPGraphQL (prima lo faceva, senza dirlo, l'URL dello schema del prototipo). Nelle risposte GraphQL l'estensione porta su quell'indirizzo gli URL delle pagine (canonical, schema, llms) con il filtro `barrio_seo_url`; le immagini restano su WordPress |
+| `barrio-suite-wpgraphql` | Solo con il modulo acceso, e con i dati di `Seo\Meta`:<br>• `seo` (`HbSeo`) sui post type pubblici e sui termini;<br>• `hbSeoSettings`, `hbSeoSchema(uri)`, `hbSitemap`, `hbRedirects`, `hbLlms` e `hbLlmsFull`.<br>Nomi e tipi sono quelli di [PLAN-GRAPHQL.md](PLAN-GRAPHQL.md) §3.2; la forma è quella del prototipo (`loc` relativo, `title` senza il nome del sito). Registra con priorità 9, come per i form.<br>L'**indirizzo del frontend** è un'impostazione dell'estensione, in GraphQL → Settings con l'API delle impostazioni di WPGraphQL (prima lo faceva, senza dirlo, l'URL dello schema del prototipo). Nelle risposte GraphQL l'estensione porta su quell'indirizzo gli URL delle pagine (canonical, schema, llms) con il filtro `barrio_seo_url`; le immagini restano su WordPress |
 | `barrio-suite-wpml` | I filtri delle lingue del core e `barrio_switch_language` (`wpml_switch_language`). Un `wpml-config.xml` per i meta: index, follow e collection si copiano, titolo, descrizione e parole chiave si traducono, l'immagine si copia una volta; sostituisce il codice di copia del prototipo. Le sitemap delle altre lingue in robots.txt (§8) |
 | `barrio-suite-migration` | `wp barrio seo migrate [--dry-run]` (fase S7, in `seo.php`). Tiene spento il modulo SEO di Barrio Suite finché il SEO del prototipo è acceso e non migrato. Finché il prototipo resta attivo, fa anche da ponte verso la sua revalidation di Next.js |
 
@@ -393,7 +393,7 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
 - **Ordine degli aggiornamenti sui siti del prototipo**: il core con il modulo SEO e l'estensione di migrazione aggiornata vanno installati insieme. Sui siti dove la migrazione è già stata tolta dopo i form, va reinstallata prima di aggiornare il core.
 - **Impostazioni di WPGraphQL** (S6, fatto): `register_graphql_settings_field` regge il campo dell'indirizzo del
   frontend, nelle impostazioni generali (GraphQL → Settings): salvato dal suo form, con la `/` finale tolta.
-- **Lingua dei contenuti in GraphQL**: `seo` e `hbSchemaRaw` usano i testi predefiniti (descrizione,
+- **Lingua dei contenuti in GraphQL**: `seo` e `hbSeoSchema` usano i testi predefiniti (descrizione,
   descrizione dell'organizzazione) e `inLanguage` della lingua della richiesta, non del contenuto, perché il core
   non sa la lingua di un contenuto. Conta solo per i contenuti senza descrizione, riassunto e testo; se un sito
   tradotto ne ha bisogno, un filtro della lingua di un contenuto nell'estensione WPML.
@@ -403,7 +403,7 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
 - **Migrazione provata** (S7): sul sito dei test di wp-env (8889) con il prototipo attivo, WPGraphQL e dati SEO del
   prototipo (impostazioni, schema con offerte e zone servite, cinque contenuti, una categoria, tre redirect). Attivata
   l'estensione, il modulo SEO di Barrio Suite si spegne. Prova a vuoto, migrazione e database danno gli stessi
-  conteggi. `<head>` e GraphQL (`nodeByUri { seo }`, `hbSchemaRaw`, `hbSeoSite`, `hbSitemap`, `hbRedirects`) di home,
+  conteggi. `<head>` e GraphQL (`nodeByUri { seo }`, `hbSchemaRaw`, `hbSeoSite`, `hbSitemap`, `hbRedirects`: i nomi di allora, oggi `hbSeoSchema` e `hbSeoSettings`) di home,
   due pagine, due articoli e una categoria cambiano solo per le correzioni previste: titolo con il separatore, un solo
   canonical, home con canonical e `og:url` suoi, `og:type` website sulle pagine, canonical GraphQL sull'indirizzo del
   frontend, `#organization`, breadcrumb come nodo a sé con i titoli dei contenuti, CollectionPage sulla categoria,
@@ -416,8 +416,8 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
   la traduzione ("display as translated" di WooCommerce Multilingual), resta della lingua principale e non si ripete.
   Ogni lingua ha il suo contesto per il pannello e il punteggio (descrizione predefinita, nome del sito).
 - **Temi senza `title-tag`**: stampano il loro `<title>`, e il modulo non può cambiarlo. Da controllare sui temi classici dei clienti.
-- **Costo dei redirect** (misurato, `docs/audit-seo.md` §4-§5): una SELECT sulla UNIQUE da 0,2 ms a ogni richiesta del frontend, due con una query string. Il flag "nessun redirect" in un'opzione autoload non serve.
-- **llms-full.txt** (misurato, `docs/audit-seo.md` §4-§5): 0,12–0,39 secondi a cache vuota, 2 MB. Il transient deve stare in `max_allowed_packet`: con più tipi lunghi e più lingue può non starci, e allora si rigenera a ogni richiesta.
+- **Costo dei redirect** (misurato): una SELECT sulla UNIQUE da 0,2 ms a ogni richiesta del frontend, due con una query string. Il flag "nessun redirect" in un'opzione autoload non serve.
+- **llms-full.txt** (misurato): 0,12–0,39 secondi a cache vuota, 2 MB. Il transient deve stare in `max_allowed_packet`: con più tipi lunghi e più lingue può non starci, e allora si rigenera a ogni richiesta.
 - **Altri plugin SEO**: con Yoast o Rank Math attivi, e il modulo acceso di default, i meta escono due volte finché non si spegne il modulo. La card Moduli e il readme lo dicono; il core non contiene codice per riconoscerli. Se servisse un avviso automatico, sarebbe un'estensione.
 - **Meta dall'editor a blocchi** (S3, fatto): quando cambia un meta qualsiasi (anche le note a piè di pagina)
   l'editor rimanda tutti i meta del contenuto, con null o vuoti quelli assenti. Per il core null vuol dire
