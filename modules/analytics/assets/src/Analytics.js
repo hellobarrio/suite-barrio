@@ -259,7 +259,7 @@ function Change( { number, lower } ) {
 }
 
 // I 5 numeri, con la variazione nella Panoramica; trattini mentre si caricano.
-export const Numbers = ( { numbers, compare } ) => (
+const Numbers = ( { numbers, compare } ) => (
 	<dl className="barrio-numbers">
 		{ NUMBERS.map( ( [ key, label, format ] ) => (
 			<div key={ key } className="barrio-number">
@@ -314,7 +314,7 @@ const BOTTOM = 24;
  * @param {Object} props.trend  { unit: day|week|month, points: [ { date, views, users } ] }.
  * @param {number} props.height
  */
-export function Chart( { trend, height = 240 } ) {
+function Chart( { trend, height = 240 } ) {
 	const [ ref, width ] = useWidth();
 	const [ active, setActive ] = useState( null );
 	const { unit, points } = trend;
@@ -565,7 +565,7 @@ function List( { icon, title, metric, rows, name } ) {
 // La pagina: il titolo del contenuto, con il link al sito che GA ha registrato (il frontend nei siti headless).
 const pageName = ( row ) =>
 	row.url ? (
-		<a href={ row.url } target="_blank" rel="noreferrer" title={ row.path }>
+		<a href={ row.url } target="_blank" rel="noreferrer" title={ row.url }>
 			{ row.name }
 		</a>
 	) : (

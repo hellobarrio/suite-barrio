@@ -65,6 +65,12 @@ final class SmtpTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'port' => 2525 ] + self::SMTP, $this->get()['smtp'] );
 		$this->assertSame( 'saved', $this->get()['password_status'] );
 		$this->assertSame( 's3cret-pass', $this->configured()->Password );
+
+		// Si toglie: una password vuota nel PUT lascia quella salvata.
+		$deleted = rest_do_request( new WP_REST_Request( 'DELETE', '/barrio/v1/smtp/password' ) )->get_data();
+		$this->assertSame( [ 'none', 2525 ], [ $deleted['password_status'], $deleted['smtp']['port'] ] );
+		$this->assertFalse( get_option( 'barrio_smtp_password' ) );
+		$this->assertSame( '', $this->configured()->Password );
 	}
 
 	public function test_invalid_settings_are_rejected(): void {
@@ -88,6 +94,7 @@ final class SmtpTest extends WP_UnitTestCase {
 		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/smtp' ) )->get_status() );
 		$this->assertSame( 403, $this->put( [ 'smtp' => self::SMTP ] )->get_status() );
 		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'POST', '/barrio/v1/smtp/test-email' ) )->get_status() );
+		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'DELETE', '/barrio/v1/smtp/password' ) )->get_status() );
 	}
 
 	public function test_phpmailer_is_configured_for_every_email(): void {

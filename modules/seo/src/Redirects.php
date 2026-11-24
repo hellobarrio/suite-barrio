@@ -49,13 +49,20 @@ final class Redirects {
 	 * @return Redirect|null
 	 */
 	public static function match( string $request_uri ): ?array {
-		$source   = self::path( $request_uri );
+		$source = self::path( $request_uri );
+		// Byte non UTF-8 (/caf%E9, un vecchio link in Latin-1): wpdb rifiuterebbe la query e Db lancerebbe un'eccezione.
+		if ( ! wp_is_valid_utf8( $source ) ) {
+			return null;
+		}
 		$redirect = RedirectRepository::find( $source );
 		$query    = (string) wp_parse_url( $request_uri, PHP_URL_QUERY );
 		if ( null === $redirect && '' !== $query ) {
 			$redirect = RedirectRepository::find( explode( '?', $source, 2 )[0] );
 			if ( null !== $redirect && null !== $redirect['target'] ) {
-				$redirect['target'] .= ( str_contains( $redirect['target'], '?' ) ? '&' : '?' ) . $query;
+				// Prima del frammento: dopo il # la query non arriverebbe al server.
+				$parts              = explode( '#', $redirect['target'], 2 );
+				$parts[0]          .= ( str_contains( $parts[0], '?' ) ? '&' : '?' ) . $query;
+				$redirect['target'] = implode( '#', $parts );
 			}
 		}
 		return $redirect;
@@ -82,7 +89,8 @@ final class Redirects {
 	public static function loops( string $source, ?string $target, callable $next ): bool {
 		$seen = [];
 		for ( $at = self::local( $target ); null !== $at && ! isset( $seen[ $at ] ); $at = self::local( $next( $at ) ) ) {
-			if ( $at === $source ) {
+			// Anche con una query string in più: nel sito ricade sul redirect della sorgente senza query (match()).
+			if ( $at === $source || explode( '?', $at, 2 )[0] === $source ) {
 				return true;
 			}
 			$seen[ $at ] = true;
@@ -139,7 +147,13 @@ final class Redirects {
 				}
 			);
 		}
-		if ( $moved ) {
+		// Un contenuto appena pubblicato su un indirizzo lasciato da un altro: il redirect automatico che parte da lì lo nasconderebbe.
+		$freed = 0;
+		foreach ( array_diff_key( $after, $before ) as $to ) {
+			$stale  = RedirectRepository::find( self::path( $to ) );
+			$freed += null !== $stale && $stale['is_auto'] ? RedirectRepository::delete( $stale['id'] ) : 0;
+		}
+		if ( $moved || $freed ) {
 			do_action( 'barrio_seo_changed', 'redirects' );
 		}
 	}

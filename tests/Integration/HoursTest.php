@@ -95,6 +95,12 @@ final class HoursTest extends WP_UnitTestCase {
 			$this->assertSame( 400, $this->request( 'PUT', '/barrio/v1/hours', $body )->get_status(), $name );
 		}
 		$this->assertSame( [ $this->slot( '09:00', '13:00' ) ], Module::settings()['week'][1], 'Nothing was written.' );
+
+		$message = 'Write every opening and closing time, like 09:00.';
+		$empty   = $this->request( 'PUT', '/barrio/v1/hours', [ 'week' => $this->week( [ 1 => [ $this->slot( '', '13:00' ) ] ] ) ] );
+		$this->assertSame( $message, $empty->get_data()['data']['params']['week'], 'In words, not the regular expression of the schema.' );
+		$special = $this->request( 'PUT', '/barrio/v1/hours', [ 'exceptions' => [ $this->special( '2030-12-24', '2030-12-24', [ $this->slot( '09:00', '25:00' ) ] ) ] ] );
+		$this->assertSame( $message, $special->get_data()['data']['params']['exceptions'] );
 	}
 
 	public function test_a_week_with_a_closing_after_midnight_and_a_special_day_in_the_block_and_the_status(): void {
@@ -265,6 +271,63 @@ final class HoursTest extends WP_UnitTestCase {
 		$this->request( 'POST', '/barrio/v1/hours/sync' );
 		$this->assertSame( array_fill( 1, 7, [ $this->slot( '00:00', '00:00' ) ] ), Module::settings()['week'] );
 		$this->assertSame( '', Module::settings()['google']['error'] );
+	}
+
+	// La forma dei periodi è quella vera di Places (New), letta il 24 novembre 2026: un luogo sempre aperto ha un solo
+	// periodo, dalla mezzanotte di oggi alle 23:59 del sesto giorno dopo, con truncated all'inizio e alla fine.
+	public function test_a_google_special_day_inside_a_period_of_more_days_is_not_closed(): void {
+		$at      = static fn( string $date, int $hour, int $minute = 0, bool $truncated = false ): array => [
+			'day'    => (int) gmdate( 'w', (int) strtotime( $date ) ),
+			'hour'   => $hour,
+			'minute' => $minute,
+			'date'   => array_combine( [ 'year', 'month', 'day' ], array_map( 'intval', explode( '-', $date ) ) ),
+		] + ( $truncated ? [ 'truncated' => true ] : [] );
+		$days    = static fn( string ...$dates ): array => array_map( static fn( string $date ): array => [ 'date' => $at( $date, 0 )['date'] ], $dates );
+		$hours   = static fn( array $current ): array => array_column( Module::google_exceptions( $current ), 'hours', 'from' );
+		$all_day = [ Module::ALL_DAY ];
+
+		$always = [
+			'periods'     => [
+				[
+					'open'  => $at( '2030-11-24', 0, 0, true ),
+					'close' => $at( '2030-11-30', 23, 59, true ),
+				],
+			],
+			'specialDays' => $days( '2030-11-24', '2030-11-26', '2030-11-30' ),
+		];
+		$this->assertSame(
+			[
+				'2030-11-24' => $all_day,
+				'2030-11-26' => $all_day,
+				'2030-11-30' => $all_day,
+			],
+			$hours( $always )
+		);
+
+		$three = [
+			'periods'     => [
+				[
+					'open'  => $at( '2030-12-24', 8 ),
+					'close' => $at( '2030-12-26', 20 ),
+				],
+				// Una notte sola: resta del giorno in cui apre, come nella settimana.
+				[
+					'open'  => $at( '2030-12-27', 20 ),
+					'close' => $at( '2030-12-28', 2 ),
+				],
+			],
+			'specialDays' => $days( '2030-12-24', '2030-12-25', '2030-12-26', '2030-12-27', '2030-12-28' ),
+		];
+		$this->assertSame(
+			[
+				'2030-12-24' => [ $this->slot( '08:00', '00:00' ) ],
+				'2030-12-25' => $all_day,
+				'2030-12-26' => [ $this->slot( '00:00', '20:00' ) ],
+				'2030-12-27' => [ $this->slot( '20:00', '02:00' ) ],
+				'2030-12-28' => [],
+			],
+			$hours( $three )
+		);
 	}
 
 	public function test_the_nightly_sync_runs_at_3_site_time_only_with_google(): void {

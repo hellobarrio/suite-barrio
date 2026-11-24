@@ -3,6 +3,8 @@
 namespace BarrioSuite\Tests\Integration;
 
 use BarrioSuite\I18n;
+use WP_REST_Request;
+use WP_REST_Response;
 use WP_UnitTestCase;
 
 // L'estensione barrio-suite-wpml (caricata da tests/bootstrap.php). WPML non si installa in CI:
@@ -51,6 +53,44 @@ final class WpmlTest extends WP_UnitTestCase {
 		// In admin WPML può rispondere "all": vale la lingua principale.
 		$current = 'all';
 		$this->assertSame( 'it', I18n::current() );
+	}
+
+	public function test_reorder_lists_only_the_items_of_the_admin_language(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		update_option( 'barrio_ordering', [ 'post_types' => [ 'page' ] ] );
+		$pages = self::factory()->post->create_many( 3, [ 'post_type' => 'page' ] );
+		// Come WPML: la traduzione nella lingua chiesta, la voce stessa se è di quella lingua, null se non ne ha.
+		$language = [
+			$pages[0] => 'it',
+			$pages[1] => 'en',
+			$pages[2] => 'it',
+		];
+		add_filter( 'wpml_object_id', static fn( int $id, string $type, bool $original, string $lang ): ?int => 'page' === $type && $lang === $language[ $id ] ? $id : null, 10, 4 );
+		$current = 'it';
+		add_filter(
+			'wpml_current_language',
+			static function () use ( &$current ): string {
+				return $current;
+			}
+		);
+		$request = static function ( string $method, array $ids = [] ): WP_REST_Response {
+			$request = new WP_REST_Request( $method, '/barrio/v1/ordering/post/page' );
+			$request->set_body_params( [ 'ids' => $ids ] );
+			return rest_do_request( $request );
+		};
+		$listed  = static fn(): array => array_column( (array) $request( 'GET' )->get_data(), 'id' );
+
+		$this->assertEqualsCanonicalizing( [ $pages[0], $pages[2] ], $listed() );
+		$this->assertSame( 400, $request( 'PUT', [ $pages[1], $pages[0] ] )->get_status(), 'Not an item of this language.' );
+		$this->assertSame( [ $pages[2], $pages[0] ], array_column( (array) $request( 'PUT', [ $pages[2], $pages[0] ] )->get_data(), 'id' ) );
+		$this->assertSame( 0, (int) get_post_field( 'menu_order', $pages[1] ), 'The other language keeps its order.' );
+		$current = 'en';
+		$this->assertSame( [ $pages[1] ], $listed() );
+		// "Tutte le lingue" nell'admin di WPML.
+		$current = 'all';
+		$this->assertCount( 3, $listed() );
+
+		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- il server REST di WordPress.
 	}
 
 	public function test_the_wpml_language_switcher_is_hidden_only_on_the_barrio_pages(): void {

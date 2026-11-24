@@ -26,7 +26,8 @@ function init( form ) {
 	);
 	const steps = [ ...form.querySelectorAll( '[data-barrio-step]' ) ];
 	const status = form.querySelector( '.barrio-form__message' );
-	const messages = JSON.parse( form.dataset.messages );
+	// Non form.dataset: un campo con chiave "dataset" lo sostituirebbe (come per action, più sotto).
+	const messages = JSON.parse( form.getAttribute( 'data-messages' ) );
 	const params = new URLSearchParams( window.location.search );
 	let current = 0;
 
@@ -161,7 +162,11 @@ function init( form ) {
 			go( step, false );
 		}
 		failed[ 0 ]?.el.querySelector( CONTROLS )?.focus();
-		status.textContent = body.message ?? messages.error;
+		// Errori per campi che questa pagina non ha: è una copia vecchia del form, da una cache di pagina.
+		const outdated = Object.keys( errors ).length > failed.length;
+		status.textContent = outdated
+			? messages.outdated
+			: ( body.message ?? messages.error );
 		form.dispatchEvent(
 			new CustomEvent( 'barrio:error', { bubbles: true, detail: body } )
 		);
@@ -175,12 +180,13 @@ function init( form ) {
 			return;
 		}
 		// Anteprima del builder: si ferma qui.
-		if ( 'barrioPreview' in form.dataset ) {
+		if ( form.hasAttribute( 'data-barrio-preview' ) ) {
 			status.textContent = messages.preview;
 			return;
 		}
 		form.setAttribute( 'aria-busy', 'true' );
-		status.textContent = '';
+		status.textContent = messages.sending;
+		let leaving = false;
 		try {
 			const data = new FormData( form );
 			for ( const fn of beforeSubmit ) {
@@ -203,6 +209,8 @@ function init( form ) {
 				} )
 			);
 			if ( body.redirect ) {
+				// Resta occupato mentre il browser naviga: un secondo clic sarebbe un secondo invio.
+				leaving = true;
 				window.location.assign( body.redirect );
 				return;
 			}
@@ -217,7 +225,9 @@ function init( form ) {
 			// Rete assente, risposta non JSON, un beforeSubmit fallito.
 			failure( { message: messages.error } );
 		} finally {
-			form.removeAttribute( 'aria-busy' );
+			if ( ! leaving ) {
+				form.removeAttribute( 'aria-busy' );
+			}
 		}
 	}
 
@@ -245,6 +255,14 @@ function init( form ) {
 			next();
 		} else {
 			submit();
+		}
+	} );
+
+	// Tornando indietro dalla pagina di ringraziamento il browser può mostrare questa com'era.
+	window.addEventListener( 'pageshow', ( event ) => {
+		if ( event.persisted ) {
+			form.removeAttribute( 'aria-busy' );
+			status.textContent = '';
 		}
 	} );
 

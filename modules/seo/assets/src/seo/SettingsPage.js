@@ -12,8 +12,8 @@ import {
 	LangNotice,
 	LangPicker,
 	Loading,
-	Lucide,
 	Notice,
+	SaveButton,
 	Text,
 	errorMessage,
 	useUnsavedWarning,
@@ -212,19 +212,11 @@ export function SettingsPage( { title, render } ) {
 		<div className="barrio-stack">
 			<Bar title={ title }>
 				<LangPicker value={ lang } onChange={ setLang } />
-				<button
-					type="button"
-					className="barrio-button is-primary"
-					disabled={ busy || ! ( seoChanged || siteChanged ) }
+				<SaveButton
+					busy={ busy }
+					disabled={ ! ( seoChanged || siteChanged ) }
 					onClick={ save }
-				>
-					<Lucide name="save" />
-					<span className="barrio-button__text">
-						{ busy
-							? __( 'Saving…', 'barrio-suite' )
-							: __( 'Save', 'barrio-suite' ) }
-					</span>
-				</button>
+				/>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<LangNotice lang={ lang } />

@@ -125,6 +125,26 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'noindex,follow', false, false, 'article', null ], [ $seo['robots'], $seo['isIndexed'], $seo['isInSitemap'], $seo['ogType'], $seo['ogImage'] ] );
 	}
 
+	// WPGraphQL nasconde a un autore la bozza di un altro e il contenuto con password: seo non dà ciò che ne deriva.
+	public function test_seo_is_null_for_a_content_that_the_user_cannot_read(): void {
+		$draft = self::factory()->post->create(
+			[
+				'post_status'  => 'draft',
+				'post_author'  => self::factory()->user->create( [ 'role' => 'editor' ] ),
+				'post_title'   => 'Lancio',
+				'post_content' => 'Il lancio segreto di marzo.',
+				'post_excerpt' => '',
+			]
+		);
+		$query = 'query ($id: ID!) { post(id: $id, idType: DATABASE_ID) { databaseId seo { title description } } }';
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'author' ] ) );
+		$this->assertNull( $this->query( $query, [ 'id' => $draft ] )['post']['seo'] ?? null );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( 'Il lancio segreto di marzo.', $this->query( $query, [ 'id' => $draft ] )['post']['seo']['description'] );
+	}
+
 	public function test_the_site_settings(): void {
 		$image = self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg' );
 		Settings::save(
@@ -234,6 +254,20 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		$this->assertNotContains( '/protetta/', $locs );
 		$this->assertContains( '/category/uncategorized/', $locs );
 		$this->assertSame( 2, count( array_keys( $locs, '/margherita/', true ) ), 'Once per language: the multilingual plugin filters the queries.' );
+	}
+
+	// Il campo è pubblico: una richiesta anonima non rilegge tutti gli URL, nemmeno con gli alias.
+	public function test_the_sitemap_comes_from_a_cache_emptied_when_a_content_changes(): void {
+		self::factory()->post->create( [ 'post_name' => 'margherita' ] );
+		$this->query( self::GET_SITEMAP );
+
+		$queries = get_num_queries();
+		$twice   = $this->query( '{ a: hbSitemap { loc } b: hbSitemap { loc } }' );
+		$this->assertSame( $queries, get_num_queries() );
+		$this->assertSame( $twice['a'], $twice['b'] );
+
+		self::factory()->post->create( [ 'post_name' => 'marinara' ] );
+		$this->assertContains( '/marinara/', array_column( $this->query( self::GET_SITEMAP )['hbSitemap'], 'loc' ) );
 	}
 
 	public function test_redirects_have_the_path_of_the_frontend(): void {

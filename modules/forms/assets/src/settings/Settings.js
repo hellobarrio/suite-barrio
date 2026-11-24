@@ -11,9 +11,9 @@ import {
 	Card,
 	Group,
 	Loading,
-	Lucide,
 	Notice,
 	Permissions,
+	SaveButton,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../../assets/src/admin/ui.js';
@@ -45,6 +45,8 @@ export function Settings() {
 	const [ draft, setDraft ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 	const [ busy, setBusy ] = useState( null );
+	const fail = ( error ) =>
+		setNotice( { status: 'error', message: errorMessage( error ) } );
 
 	useEffect( () => {
 		apiFetch( { path: '/barrio/v1/settings' } )
@@ -52,9 +54,7 @@ export function Settings() {
 				setSaved( data );
 				setDraft( editable( data ) );
 			} )
-			.catch( ( error ) =>
-				setNotice( { status: 'error', message: errorMessage( error ) } )
-			);
+			.catch( fail );
 	}, [] );
 
 	const dirty =
@@ -76,9 +76,7 @@ export function Settings() {
 			.then( ( data ) =>
 				setNotice( { status: 'success', message: then( data ) } )
 			)
-			.catch( ( error ) =>
-				setNotice( { status: 'error', message: errorMessage( error ) } )
-			)
+			.catch( fail )
 			.finally( () => setBusy( null ) );
 	};
 	// Le registrazioni di tutti i form, con la rotta di massa di ognuno: elimina a blocchi, con i file.
@@ -141,9 +139,7 @@ export function Settings() {
 				( message ) =>
 					message && setNotice( { status: 'success', message } )
 			)
-			.catch( ( error ) =>
-				setNotice( { status: 'error', message: errorMessage( error ) } )
-			)
+			.catch( fail )
 			.finally( () => setBusy( null ) );
 	};
 	// Ciò che si scrive durante il salvataggio resta, da salvare.
@@ -167,19 +163,11 @@ export function Settings() {
 	return (
 		<div className="barrio-stack">
 			<Bar title={ __( 'Settings', 'barrio-suite' ) }>
-				<button
-					type="button"
-					className="barrio-button is-primary"
+				<SaveButton
+					busy={ 'save' === busy }
 					disabled={ !! busy || ! dirty }
 					onClick={ save }
-				>
-					<Lucide name="save" />
-					<span className="barrio-button__text">
-						{ 'save' === busy
-							? __( 'Saving…', 'barrio-suite' )
-							: __( 'Save', 'barrio-suite' ) }
-					</span>
-				</button>
+				/>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<Card

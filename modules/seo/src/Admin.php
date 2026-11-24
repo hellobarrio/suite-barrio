@@ -7,7 +7,7 @@ use WP_Post_Type;
 use WP_Taxonomy;
 
 /**
- * La pagina SEO nel menu di Barrio (src/Admin.php), con le schede Contenuti, Redirect e Impostazioni, e i
+ * La pagina SEO nel menu di Barrio (src/Admin.php), con le schede Contenuti, Redirect, Organizzazione e Impostazioni, e i
  * dati che le servono nel JavaScript.
  */
 final class Admin {

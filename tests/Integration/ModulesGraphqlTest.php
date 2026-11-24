@@ -135,12 +135,12 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 			$this->query( self::NEW_POPUP )['hbPopup']
 		);
 
-		// Senza il modulo Form lo shortcode non c'è, come nel sito.
+		// Senza il modulo Form lo shortcode è vuoto (Plugin::boot()) e dal testo sparisce, come nel sito.
 		$shortcode = $GLOBALS['shortcode_tags']['barrio_form'];
-		remove_shortcode( 'barrio_form' );
+		add_shortcode( 'barrio_form', '__return_empty_string' );
 		$content = $this->query( self::NEW_POPUP )['hbPopup']['content'];
 		add_shortcode( 'barrio_form', $shortcode );
-		$this->assertSame( '<p>Iscriviti alla <strong>newsletter</strong>.</p><p></p>', $content );
+		$this->assertSame( '<p>Iscriviti alla <strong>newsletter</strong>.</p>', $content );
 
 		// In inglese: il pulsante senza testo ha quello standard della lingua.
 		$english = $this->query( self::GET_POPUP, [ 'lang' => 'en' ] )['hbPopup'];

@@ -11,7 +11,7 @@ return static function ( wpdb $wpdb ): void {
 	$charset = $wpdb->get_charset_collate();
 
 	// Periodo in UTC, NULL = senza inizio o senza fine. image_id senza foreign key verso wp_posts: un'immagine eliminata
-	// si ignora. settings è letto e scritto intero (apertura, nuova scheda, giorni dopo la chiusura). L'indice serve agli
+	// si ignora. settings è letto e scritto intero (nuova scheda, giorni dopo la chiusura). L'indice serve agli
 	// accesi non scaduti, letti nel sito.
 	Db::query(
 		"CREATE TABLE IF NOT EXISTS {$t}popups (

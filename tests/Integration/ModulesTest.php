@@ -43,7 +43,7 @@ final class ModulesTest extends WP_UnitTestCase {
 	}
 
 	public function test_every_module_is_on_by_default(): void {
-		$this->assertFalse( get_option( 'barrio_disabled_modules' ) );
+		$this->assertSame( [], get_option( 'barrio_disabled_modules' ), 'Created empty at the first request, so reading it is never a query.' );
 		$this->assertSame(
 			[
 				'analytics'   => true,
@@ -91,12 +91,38 @@ final class ModulesTest extends WP_UnitTestCase {
 		$routes = array_keys( rest_get_server()->get_routes( 'barrio/v1' ) );
 		$this->assertSame( [], preg_grep( '#^/barrio/v1/(forms|entries|settings)#', $routes ) );
 		$this->assertContains( '/barrio/v1/smtp', $routes, 'The email settings stay.' );
-		$this->assertSame( '<p>Before  after</p>', trim( do_shortcode( '<p>Before [barrio_form id="' . $form->id . '"] after</p>' ) ) );
 
 		$this->put( [ 'forms' => true ] );
 		$this->boot();
 		$this->assertNotSame( [], $this->callbacks( 'forms' ) );
 		$this->assertSame( 'Contact', FormRepository::get( $form->id )?->title );
+	}
+
+	// In una richiesta nuova, dove nessuno ha ancora registrato gli shortcode.
+	public function test_without_its_module_a_shortcode_leaves_no_text(): void {
+		$form  = FormRepository::create( 'Contact', [], [], new FormVersion( [] ) );
+		$text  = 'Before [barrio_form id="' . $form->id . '"] and [barrio_hours] after';
+		$fresh = function () use ( $text ): string {
+			remove_shortcode( 'barrio_form' );
+			remove_shortcode( 'barrio_hours' );
+			$this->go_to_home();
+			return do_shortcode( $text );
+		};
+		$this->assertStringContainsString( '<form', $fresh() );
+
+		$this->put(
+			[
+				'forms' => false,
+				'hours' => false,
+			]
+		);
+		$this->assertSame( 'Before  and  after', $fresh() );
+
+		// Acceso, ma con una migrazione che non passa: il modulo non parte.
+		$this->put( [ 'forms' => true ] );
+		update_option( 'barrio_forms_db_version', 0 );
+		set_transient( 'barrio_forms_db_version_failed', '0001_forms.php: no', MINUTE_IN_SECONDS );
+		$this->assertSame( 'Before  and  after', $fresh() );
 	}
 
 	public function test_the_seo_module_turned_off_registers_nothing_and_keeps_its_data(): void {
@@ -151,11 +177,10 @@ final class ModulesTest extends WP_UnitTestCase {
 	}
 
 	// Un'opzione che non esiste non resta in cache tra una richiesta e l'altra: ognuna letta nel sito va creata
-	// all'attivazione o da una migrazione. La prima richiesta scrive i transient, la seconda deve leggere tutto in
-	// autoload.
+	// all'avvio o da una migrazione, anche dove l'attivazione non è mai passata (gli altri siti di una rete). La prima
+	// richiesta le crea e scrive i transient, la seconda deve leggere tutto in autoload.
 	public function test_a_page_of_the_site_reads_every_option_from_autoload(): void {
 		delete_option( Modules::OPTION );
-		Plugin::activate();
 		$this->go_to_home();
 		$this->assertSame( [], array_values( preg_grep( "/option_name = '(_site)?(_transient_)?(timeout_)?barrio_/", $this->go_to_home() ) ) );
 	}

@@ -47,7 +47,7 @@ namespace WPGraphQL\Data {
 
 namespace WPGraphQL\Model {
 	class Post {
-		public int $ID;
+		public ?int $databaseId;
 
 		public function __construct( \WP_Post $post ) {}
 	}

@@ -3,7 +3,7 @@
 // src/Launch.php); un passaggio si può saltare, e uno saltato non blocca la messa online.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 import { formsStep } from '../../../modules/forms/assets/src/settings/Sections.js';
 import { seoStep } from '../../../modules/seo/assets/src/seo/Settings.js';
@@ -15,6 +15,7 @@ import {
 	Notice,
 	Select,
 	Toggle,
+	discard,
 	errorMessage,
 	useUnsavedWarning,
 } from '../admin/ui.js';
@@ -161,8 +162,10 @@ export function LaunchBanner( { launch, href } ) {
 				<p>
 					{ sprintf(
 						/* translators: %d: number of steps left to set up. */
-						__(
+						_n(
+							'Follow the step-by-step guide to configure and publish the site: %d step to go.',
 							'Follow the step-by-step guide to configure and publish the site: %d steps to go.',
+							left.length,
 							'barrio-suite'
 						),
 						left.length
@@ -176,6 +179,10 @@ export function LaunchBanner( { launch, href } ) {
 		</section>
 	);
 }
+
+// I campi di un passaggio appena caricato.
+const fresh = ( step, data, launch ) =>
+	( step.initial ?? step.value )( data, launch );
 
 export function Launch() {
 	const [ launch, setLaunch ] = useState( null );
@@ -203,10 +210,7 @@ export function Launch() {
 					Object.fromEntries(
 						present.map( ( step ) => [
 							step.id,
-							( step.initial ?? step.value )(
-								nextData[ step.id ],
-								next
-							),
+							fresh( step, nextData[ step.id ], next ),
 						] )
 					)
 				);
@@ -244,6 +248,21 @@ export function Launch() {
 		setCurrent( id );
 		setNotice( null );
 		window.history.replaceState( null, '', launchUrl( id ) );
+	};
+	// Ciò che si è scritto in un passaggio si perderebbe al primo salvataggio di un altro, che li ricarica tutti.
+	const leave = ( id ) => {
+		const start = step && fresh( step, data[ step.id ], launch );
+		const touched =
+			!! step &&
+			id !== step.id &&
+			JSON.stringify( draft[ step.id ] ) !== JSON.stringify( start );
+		if ( ! discard( touched ) ) {
+			return;
+		}
+		if ( touched ) {
+			setDraft( { ...draft, [ step.id ]: start } );
+		}
+		go( id );
 	};
 	// Al passaggio successivo ancora da fare, poi a quelli lasciati indietro; se non ce n'è, alla fine.
 	const advance = ( promise ) => {
@@ -360,10 +379,13 @@ export function Launch() {
 			<ol className="barrio-steps">
 				{ steps.map( ( { id, title }, index ) => {
 					let mark = index + 1;
+					let state = null;
 					if ( launch.steps[ id ] ) {
 						mark = <Icon name="yes" />;
+						state = __( 'Configured', 'barrio-suite' );
 					} else if ( launch.skipped.includes( id ) ) {
-						mark = '–';
+						mark = <span aria-hidden="true">–</span>;
+						state = __( 'Skipped', 'barrio-suite' );
 					}
 					return (
 						<li
@@ -377,12 +399,17 @@ export function Launch() {
 								aria-current={
 									id === current ? 'step' : undefined
 								}
-								onClick={ () => go( id ) }
+								onClick={ () => leave( id ) }
 							>
 								<span className="barrio-steps__mark">
 									{ mark }
 								</span>
 								{ title }
+								{ state && (
+									<span className="screen-reader-text">
+										{ state }
+									</span>
+								) }
 							</button>
 						</li>
 					);

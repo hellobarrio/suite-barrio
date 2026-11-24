@@ -168,6 +168,14 @@ function BlockList( { blocks, categories, disabled, onChange } ) {
 // Come la lingua principale: ha sempre tutto, e con lui si cambiano le impostazioni uguali per tutti i ruoli.
 const ADMIN = 'administrator';
 
+// Le scelte per nome nell'ordine dei ruoli o dei tipi che esistono, come le salva il server. Quelle di un ruolo o di
+// un tipo che ora non c'è (il suo plugin è spento) restano in fondo, come in Ordinamento.
+const ordered = ( values, names ) =>
+	[
+		...names,
+		...Object.keys( values ).filter( ( name ) => ! names.includes( name ) ),
+	].map( ( name ) => [ name, values[ name ] ] );
+
 // Il ruolo scelto nella barra (Tools); all'inizio l'amministratore.
 const roleOf = ( { roles }, view ) =>
 	view.role ?? ( roles[ ADMIN ] ? ADMIN : Object.keys( roles )[ 0 ] );
@@ -181,20 +189,17 @@ function RolesCard( { available, role, draft, set } ) {
 	}
 	const names = Object.keys( available.roles );
 	const current = draft.roles[ role ] ?? NONE;
-	// Nell'ordine dei ruoli e senza quelli senza restrizioni, come li salva il server.
-	const change = ( values ) => {
-		const roles = { ...draft.roles, [ role ]: { ...current, ...values } };
+	// Senza i ruoli senza restrizioni, come li salva il server.
+	const change = ( values ) =>
 		set( {
 			...draft,
 			roles: Object.fromEntries(
-				names
-					.filter(
-						( name ) => roles[ name ] && restricted( roles[ name ] )
-					)
-					.map( ( name ) => [ name, roles[ name ] ] )
+				ordered(
+					{ ...draft.roles, [ role ]: { ...current, ...values } },
+					names
+				).filter( ( [ , value ] ) => value && restricted( value ) )
 			),
 		} );
-	};
 	return (
 		<Card
 			className="barrio-wide"
@@ -268,12 +273,10 @@ export const blocksSection = {
 			set( {
 				...draft,
 				editors: Object.fromEntries(
-					available.types
-						.map( ( { name } ) => [
-							name,
-							name === type ? editor : draft.editors[ name ],
-						] )
-						.filter( ( [ , value ] ) => value )
+					ordered(
+						{ ...draft.editors, [ type ]: editor },
+						available.types.map( ( { name } ) => name )
+					).filter( ( [ , value ] ) => value )
 				),
 			} );
 		return (

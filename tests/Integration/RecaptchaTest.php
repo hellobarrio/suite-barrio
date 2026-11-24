@@ -98,6 +98,11 @@ final class RecaptchaTest extends WP_UnitTestCase {
 		// Il controllo è spento: gli amministratori lo sanno (anche con il service account illeggibile dopo un clone).
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 		$this->assertStringContainsString( 'reCAPTCHA is off', $this->notice() );
+
+		// Senza chiave del sito è spento per scelta, anche con impostazioni rimaste da una versione precedente.
+		Integrations::save_settings( [ 'recaptcha' => [ 'site_key' => '' ] ] );
+		update_option( 'barrio_forms_integrations', [ 'recaptcha' => [ 'project_id' => 'old' ] + (array) ( get_option( 'barrio_forms_integrations' )['recaptcha'] ?? [] ) ] );
+		$this->assertSame( '', $this->notice() );
 	}
 
 	public function test_the_settings_list_the_score_keys_of_the_project(): void {
@@ -169,6 +174,10 @@ final class RecaptchaTest extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'barrio-recaptcha' ) );
 		$this->assertSame( 'https://www.google.com/recaptcha/enterprise.js?render=site-key-123', wp_scripts()->registered['barrio-recaptcha']->src );
 		$this->assertStringContainsString( '"siteKey":"site-key-123"', implode( '', wp_scripts()->get_data( 'barrio-recaptcha', 'before' ) ) );
+
+		// Un secondo form nella pagina (o nel popup) non ripete la configurazione.
+		do_shortcode( "[barrio_form id=\"{$this->form->id}\"]" );
+		$this->assertCount( 1, array_filter( wp_scripts()->get_data( 'barrio-recaptcha', 'before' ) ) );
 	}
 
 	public function test_a_submission_needs_a_valid_token_with_a_good_score(): void {

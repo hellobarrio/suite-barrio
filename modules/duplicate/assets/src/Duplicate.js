@@ -21,9 +21,11 @@ export const duplicateData = window.barrioAdmin.duplicate;
 const { contentTypes } = window.barrioAdmin;
 
 // Senza una scelta, Duplica c'è dove il tipo ha pagine nel sito (Module::enabled()).
-const isOn = ( chosen, group, name ) =>
-	chosen[ group ][ name ] ??
+const byDefault = ( group, name ) =>
 	contentTypes[ group ].find( ( type ) => type.name === name ).viewable;
+
+const isOn = ( chosen, group, name ) =>
+	chosen[ group ][ name ] ?? byDefault( group, name );
 
 // Una card per elenco, come le card di Prestazioni: una riga per tipo.
 const CARDS = {
@@ -80,12 +82,19 @@ export const duplicateSection = {
 			<TypeCards
 				cards={ CARDS }
 				checked={ ( group, name ) => isOn( draft, group, name ) }
-				onChange={ ( group, name, on ) =>
+				onChange={ ( group, name, on ) => {
+					// Tornare al default dove non c'è una scelta salvata la toglie: spegnere e riaccendere non è
+					// una modifica.
+					const { [ name ]: old, ...rest } = draft[ group ];
 					set( {
 						...draft,
-						[ group ]: { ...draft[ group ], [ name ]: on },
-					} )
-				}
+						[ group ]:
+							name in data[ group ] ||
+							on !== byDefault( group, name )
+								? { ...draft[ group ], [ name ]: on }
+								: rest,
+					} );
+				} }
 			/>
 			<Permissions
 				description={ __(

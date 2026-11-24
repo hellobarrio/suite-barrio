@@ -64,7 +64,7 @@ final class Module {
 	}
 
 	public static function menu(): void {
-		Admin::contents_tab( 'manage_options' );
+		Admin::contents_tab();
 	}
 
 	/**

@@ -14,7 +14,7 @@ use WP_Error;
  * PeriodRepository.
  *
  * @phpstan-type Texts array<string, array{text: string, link_url: string|null}>
- * @phpstan-type Banner array{id: int, is_enabled: bool, new_tab: bool, starts_at: string|null, ends_at: string|null, i18n: Texts, created_at: string, updated_at: string}
+ * @phpstan-type Banner array{id: int, is_enabled: bool, new_tab: bool, starts_at: string|null, ends_at: string|null, i18n: Texts}
  */
 final class BannerRepository {
 
@@ -39,7 +39,7 @@ final class BannerRepository {
 			] : $text,
 			(array) $banner['i18n']
 		);
-		$valid          = rest_validate_value_from_schema( $banner, self::schema(), 'banner' );
+		$valid          = self::link_error( $banner['i18n'] ) ?? rest_validate_value_from_schema( $banner, self::schema(), 'banner' );
 		if ( is_wp_error( $valid ) ) {
 			return new WP_Error( 'rest_invalid_param', $valid->get_error_message(), [ 'status' => 400 ] );
 		}
@@ -153,8 +153,6 @@ final class BannerRepository {
 				'starts_at'  => $row['starts_at'],
 				'ends_at'    => $row['ends_at'],
 				'i18n'       => $i18n[ (int) $row['id'] ] ?? [],
-				'created_at' => (string) $row['created_at'],
-				'updated_at' => (string) $row['updated_at'],
 			],
 			$rows
 		);

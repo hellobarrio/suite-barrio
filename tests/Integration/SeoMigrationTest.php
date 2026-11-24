@@ -271,15 +271,32 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$this->assertStringStartsWith( 'Trattoria', Ai::settings()['instructions'] );
 	}
 
-	public function test_without_data_of_the_prototype_it_is_an_error(): void {
-		global $wpdb;
-		foreach ( [ 'suite_barrio_meta_settings', 'suite_barrio_meta_content', 'suite_barrio_schema_settings', 'suite_barrio_redirects' ] as $option ) {
-			delete_option( $option );
-		}
-		$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE '\\_suite\\_barrio%' OR meta_key LIKE '\\_wpb%'" );
-		$wpdb->query( "DELETE FROM {$wpdb->termmeta} WHERE meta_key LIKE '\\_suite\\_barrio%'" );
+	public function test_without_data_and_with_the_prototype_seo_off_it_is_an_error(): void {
+		$this->empty_prototype();
+		update_option( 'suite_barrio_tools_modules', [ 'seo' => 0 ] );
 
 		$this->assertWPError( barrio_migration_seo_run( false ) );
+	}
+
+	// Altrimenti il modulo trattenuto spento non si riaccenderebbe mai, e l'avviso resterebbe.
+	public function test_without_data_and_with_the_prototype_seo_on_the_modules_are_swapped(): void {
+		$this->empty_prototype();
+		Modules::set( 'seo', false );
+
+		$this->migrate();
+
+		$this->assertFalse( suite_barrio_tools_module_enabled( 'seo' ) );
+		$this->assertTrue( Modules::is_enabled( 'seo' ) );
+		$this->assertSame( 'migrated', get_option( 'barrio_migration_seo' ) );
+	}
+
+	public function test_a_type_that_schema_org_does_not_have_becomes_local_business(): void {
+		update_option( 'suite_barrio_schema_settings', [ 'business_type' => 'Architect' ] + get_option( 'suite_barrio_schema_settings' ) );
+
+		$report = $this->migrate();
+
+		$this->assertSame( 'LocalBusiness', Settings::get()['organization']['type'] );
+		$this->assertContains( 'Organization: Barrio Suite does not have the type "Architect", it becomes LocalBusiness. Choose another one in SEO → Organization.', $report['warnings'] );
 	}
 
 	public function test_while_the_prototype_seo_is_on_the_module_is_turned_off_once(): void {
@@ -310,6 +327,15 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		do_action( 'barrio_seo_changed', 'redirects' );
 
 		$this->assertSame( [ $this->post, 'wp:sitemap', 'wp:redirects' ], $GLOBALS['barrio_test_revalidated'] );
+	}
+
+	private function empty_prototype(): void {
+		global $wpdb;
+		foreach ( [ 'suite_barrio_meta_settings', 'suite_barrio_meta_content', 'suite_barrio_schema_settings', 'suite_barrio_redirects' ] as $option ) {
+			delete_option( $option );
+		}
+		$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE '\\_suite\\_barrio%' OR meta_key LIKE '\\_wpb%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->termmeta} WHERE meta_key LIKE '\\_suite\\_barrio%'" );
 	}
 
 	/** @return array{counts: list<array<string, mixed>>, notes: list<string>, warnings: list<string>} */

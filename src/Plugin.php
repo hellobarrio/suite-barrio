@@ -15,8 +15,6 @@ final class Plugin {
 				[ 'back_link' => true ]
 			);
 		}
-		// Con l'opzione che esiste, anche vuota, is_enabled() non fa una query a ogni richiesta.
-		add_option( Modules::OPTION, [], '', true );
 		self::boot();
 	}
 
@@ -32,6 +30,11 @@ final class Plugin {
 	}
 
 	public static function boot(): void {
+		// Con l'opzione che esiste, anche vuota, is_enabled() non fa una query a ogni richiesta. Qui e non
+		// all'attivazione: in una rete di siti l'attivazione gira solo sul sito da cui parte.
+		if ( false === get_option( Modules::OPTION ) ) {
+			add_option( Modules::OPTION, [], '', true );
+		}
 		// Per tutte le email del sito, anche con un modulo spento.
 		Smtp::boot();
 		Google::boot();
@@ -61,7 +64,7 @@ final class Plugin {
 								esc_html(
 									sprintf(
 										/* translators: %s: database error message. */
-										__( 'Barrio Suite could not update its database tables: %s. It will try again on the next page load.', 'barrio-suite' ),
+										__( 'Barrio Suite could not update its database tables: %s. It will try again in a minute.', 'barrio-suite' ),
 										$error->get_error_message()
 									)
 								)
@@ -71,9 +74,18 @@ final class Plugin {
 				);
 			}
 		}
-		// Con il modulo Forms spento uno shortcode di un form non resta come testo nella pagina.
-		if ( ! Modules::is_enabled( 'forms' ) ) {
-			add_shortcode( 'barrio_form', '__return_empty_string' );
-		}
+		// Senza il suo modulo (spento, o con lo schema non aggiornato) uno shortcode non resta come testo nella
+		// pagina. Dopo i moduli, che registrano il loro su init.
+		add_action(
+			'init',
+			static function (): void {
+				foreach ( [ 'barrio_form', 'barrio_hours' ] as $tag ) {
+					if ( ! shortcode_exists( $tag ) ) {
+						add_shortcode( $tag, '__return_empty_string' );
+					}
+				}
+			},
+			11
+		);
 	}
 }

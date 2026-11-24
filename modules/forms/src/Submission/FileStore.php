@@ -95,7 +95,7 @@ final class FileStore {
 		return sprintf( __( 'The file is too large. Maximum size: %s.', 'barrio-suite' ), size_format( self::max_size( $field ) ) );
 	}
 
-	// Al primo file. Su Nginx .htaccess non conta: protegge il nome casuale (da segnalare nelle Impostazioni).
+	// Al primo file. Su Nginx .htaccess non conta: protegge il nome casuale.
 	private static function protect(): void {
 		$dir = self::dir();
 		if ( is_file( "{$dir}/index.php" ) ) {

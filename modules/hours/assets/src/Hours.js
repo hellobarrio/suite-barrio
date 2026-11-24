@@ -159,7 +159,12 @@ function WeekCard( { week, disabled, onChange } ) {
 		>
 			<Fixed disabled={ disabled }>
 				{ DAYS.map( ( [ day, name ] ) => (
-					<div className="barrio-hours-day" key={ day }>
+					<div
+						className="barrio-hours-day"
+						key={ day }
+						role="group"
+						aria-label={ name }
+					>
 						<Toggle
 							label={ name }
 							help={
@@ -461,6 +466,14 @@ function SourceCard( { data, draft, set, onData, onNotice } ) {
 		>
 			<Select
 				label={ __( 'Source', 'barrio-suite' ) }
+				help={
+					google &&
+					'manual' === data.source &&
+					__(
+						'The hours and the special days written by hand are replaced by those of Google.',
+						'barrio-suite'
+					)
+				}
 				value={ draft.source }
 				options={ [
 					{
@@ -555,6 +568,7 @@ function SourceCard( { data, draft, set, onData, onNotice } ) {
 // Come appare nel sito la settimana, anche non salvata: la scrive il server, come il blocco.
 function Preview( { week, exceptions, lang } ) {
 	const [ html, setHtml ] = useState( null );
+	const [ error, setError ] = useState( null );
 	useEffect( () => {
 		let current = true;
 		const timer = setTimeout(
@@ -565,7 +579,11 @@ function Preview( { week, exceptions, lang } ) {
 					data: { week, exceptions, lang },
 				} )
 					.then( ( result ) => current && setHtml( result.html ) )
-					.catch( () => {} ),
+					// L'anteprima resta quella di prima; se è la prima, l'errore al posto della card vuota.
+					.catch(
+						( failure ) =>
+							current && setError( errorMessage( failure ) )
+					),
 			400
 		);
 		return () => {
@@ -575,6 +593,9 @@ function Preview( { week, exceptions, lang } ) {
 	}, [ week, exceptions, lang ] );
 	return (
 		<Card icon="visibility" title={ __( 'On the site', 'barrio-suite' ) }>
+			{ null === html && error && (
+				<Notice notice={ { status: 'error', message: error } } />
+			) }
 			{ '' === html ? (
 				<p className="barrio-field__help">
 					{ __(

@@ -160,6 +160,28 @@ final class RestFormsTest extends WP_UnitTestCase {
 			$this->assertSame( 400, $this->request( 'POST', '/forms', $form )->get_status(), $what );
 		}
 		$this->assertSame( '0', Db::var( 'SELECT COUNT(*) FROM ' . Db::table( 'forms' ) ) );
+
+		// Il builder mostra il messaggio come testo: niente entità HTML.
+		$twice = $this->request( 'POST', '/forms', [ 'fields' => [ self::FORM['fields'][1], self::FORM['fields'][1] ] ] + self::FORM );
+		$this->assertSame( "Field key 'topic' is used twice.", $twice->get_data()['message'] );
+	}
+
+	// Un form salvato quando era valido non fa cadere Duplica se WordPress non ammette più un suo tipo di file.
+	public function test_duplicating_a_form_that_is_no_longer_valid_is_an_error(): void {
+		$file = [
+			'key'    => 'cv',
+			'type'   => 'file',
+			'config' => [ 'extensions' => [ 'pdf', 'csv' ] ],
+		] + self::FORM['fields'][0];
+		$form = [
+			'fields'        => [ $file ],
+			'notifications' => [],
+		] + self::FORM;
+		$id   = $this->request( 'POST', '/forms', $form )->get_data()['id'];
+		add_filter( 'upload_mimes', static fn( array $mimes ): array => array_diff_key( $mimes, [ 'csv' => true ] ) );
+
+		$copy = $this->request( 'POST', "/forms/{$id}/duplicate" );
+		$this->assertSame( [ 400, "Field 'cv': WordPress does not allow these file types: CSV." ], [ $copy->get_status(), $copy->get_data()['message'] ] );
 	}
 
 	public function test_status_duplicate_and_delete(): void {

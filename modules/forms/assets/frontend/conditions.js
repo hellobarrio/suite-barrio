@@ -39,7 +39,7 @@ function test( values, operator, expected ) {
 const get = ( values, key ) =>
 	Object.hasOwn( values, key ) ? values[ key ] : [];
 
-export function passes( conditions, values ) {
+function passes( conditions, values ) {
 	if ( ! conditions ) {
 		return true;
 	}

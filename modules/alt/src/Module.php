@@ -233,7 +233,8 @@ final class Module {
 				'file'      => wp_basename( (string) get_attached_file( $post->ID ) ),
 				'thumb'     => (string) wp_get_attachment_image_url( $post->ID ),
 				'alt'       => (string) get_post_meta( $post->ID, self::META, true ),
-				'parent'    => $post->post_parent ? get_the_title( $post->post_parent ) : '',
+				// Come la colonna di WordPress: il titolo solo di un contenuto che chi guarda può leggere.
+				'parent'    => $post->post_parent && current_user_can( 'read_post', $post->post_parent ) ? get_the_title( $post->post_parent ) : '',
 				'date'      => get_the_date( '', $post ),
 				'can'       => $can,
 				'supported' => self::supported( $post->post_mime_type ),
@@ -254,9 +255,12 @@ final class Module {
 	}
 
 	// POST /alt/{id}: i testi per il pulsante e la modale, che si salvano come ogni modifica; con save (la massa) si
-	// scrivono subito, solo dove mancano.
+	// scrivono subito, solo dove mancano, e dove non manca niente la risposta è vuota senza chiamare Google.
 	public static function generate_route( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$id   = (int) $request['id'];
+		$id = (int) $request['id'];
+		if ( $request['save'] && ! self::wanted( $id ) ) {
+			return new WP_REST_Response( array_fill_keys( [ 'alt', 'title' ], '' ) );
+		}
 		$text = self::generate( $id );
 		if ( is_wp_error( $text ) ) {
 			return $text;
@@ -278,8 +282,8 @@ final class Module {
 
 	// Nessun registro degli errori: un'immagine rimasta senza alt si vede nella tabella.
 	public static function cron( int $id ): void {
-		$text = self::generate( $id );
-		if ( ! is_wp_error( $text ) ) {
+		$text = self::wanted( $id ) ? self::generate( $id ) : null;
+		if ( is_array( $text ) ) {
 			self::save( $id, $text );
 		}
 	}
@@ -387,7 +391,7 @@ final class Module {
 	 * @param Text $text
 	 */
 	public static function save( int $id, array $text ): void {
-		if ( '' !== $text['alt'] && '' === trim( (string) get_post_meta( $id, self::META, true ) ) ) {
+		if ( '' !== $text['alt'] && self::no_alt( $id ) ) {
 			update_post_meta( $id, self::META, wp_slash( $text['alt'] ) );
 		}
 		if ( '' !== $text['title'] && self::default_title( $id ) ) {
@@ -400,6 +404,15 @@ final class Module {
 				)
 			);
 		}
+	}
+
+	// Se save() scriverebbe qualcosa: altrimenti Google non si chiama.
+	private static function wanted( int $id ): bool {
+		return self::no_alt( $id ) || ( self::settings()['title'] && self::default_title( $id ) );
+	}
+
+	private static function no_alt( int $id ): bool {
+		return '' === trim( (string) get_post_meta( $id, self::META, true ) );
 	}
 
 	/** @return array<string, mixed> Le immagini nella libreria dei media, solo quelle senza alt con $missing. */

@@ -382,7 +382,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 	}
 
 	// Un frontend con l'application password invia dal suo server: il suo IP è lo stesso per tutti.
-	public function test_only_anonymous_submissions_are_limited_per_ip(): void {
+	public function test_submissions_are_limited_per_ip_unless_the_user_can_edit_posts(): void {
 		$remote_addr = $_SERVER['REMOTE_ADDR'] ?? null;
 		$valid       = [
 			'name'  => 'Ada',
@@ -396,6 +396,9 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			$this->assertSame( [ 'Too many submissions. Please try again in a few minutes.' ], $this->submit( $valid )['errors'] );
 
 			wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
+			$this->assertFalse( $this->submit( $valid )['success'], 'Any registered user would skip the limit.' );
+
+			wp_set_current_user( self::factory()->user->create( [ 'role' => 'author' ] ) );
 			$this->assertTrue( $this->submit( $valid )['success'] );
 		} finally {
 			$_SERVER['REMOTE_ADDR'] = $remote_addr;

@@ -136,6 +136,8 @@ final class MigrationTest extends WP_UnitTestCase {
 			$mailchimp->settings
 		);
 		$this->assertSame( [ 'list-it', 'list-en' ], [ $mailchimp->i18n['it']['list_id'], $mailchimp->i18n['en']['list_id'] ] );
+		// Come nel prototipo, ma il default di Barrio Suite è la conferma via email: chi migra lo deve sapere.
+		$this->assertNotEmpty( preg_grep( '/Mailchimp subscribes new contacts without the confirmation email/', $report['warnings'] ) );
 		// MailUp iscriveva solo con l'opt-in: è la condizione dell'integrazione, per la futura estensione.
 		$this->assertSame(
 			[
@@ -201,6 +203,21 @@ final class MigrationTest extends WP_UnitTestCase {
 		$this->assertNull( FormRepository::get( self::ID ) );
 		$this->assertFileExists( $this->file );
 		$this->assertSame( '', Smtp::settings()['host'] );
+	}
+
+	// Un'estensione che il sito non ammette farebbe rifiutare il form intero.
+	public function test_file_fields_only_get_the_extensions_wordpress_allows(): void {
+		add_filter(
+			'upload_mimes',
+			static fn(): array => [
+				'pdf'      => 'application/pdf',
+				'jpg|jpeg' => 'image/jpeg',
+			]
+		);
+
+		$this->assertSame( 'migrated', barrio_migration_run( false )['forms'][0]['result'] );
+		$extensions = array_column( array_filter( FormRepository::get( self::ID )->current->fields, static fn( $field ): bool => 'file' === $field->type ), 'config' );
+		$this->assertSame( [ [ 'extensions' => [ 'jpg', 'jpeg', 'pdf' ] ] ], $extensions );
 	}
 
 	public function test_a_form_that_fails_is_rolled_back_with_the_copies_of_its_files(): void {

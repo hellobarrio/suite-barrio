@@ -82,6 +82,13 @@ function Answer( { field, entryId } ) {
 	}
 }
 
+const bulk = ( action, form, id ) =>
+	apiFetch( {
+		path: `/barrio/v1/forms/${ form }/entries/bulk`,
+		method: 'POST',
+		data: { action, ids: [ id ] },
+	} );
+
 export function Entry( { id } ) {
 	const [ entry, setEntry ] = useState( null );
 	const [ note, setNote ] = useState( '' );
@@ -95,23 +102,13 @@ export function Entry( { id } ) {
 		apiFetch( { path: `/barrio/v1/entries/${ id }` } )
 			.then( setEntry )
 			.catch( fail );
-	const bulk = ( action, form ) =>
-		apiFetch( {
-			path: `/barrio/v1/forms/${ form }/entries/bulk`,
-			method: 'POST',
-			data: { action, ids: [ id ] },
-		} );
 
 	useEffect( () => {
 		apiFetch( { path: `/barrio/v1/entries/${ id }` } )
 			.then( ( data ) => {
-				setEntry( { ...data, is_read: true } );
+				setEntry( data );
 				if ( ! data.is_read ) {
-					apiFetch( {
-						path: `/barrio/v1/forms/${ data.form.id }/entries/bulk`,
-						method: 'POST',
-						data: { action: 'read', ids: [ id ] },
-					} ).catch( fail );
+					bulk( 'read', data.form.id, id ).catch( fail );
 				}
 			} )
 			.catch( fail );
@@ -143,7 +140,7 @@ export function Entry( { id } ) {
 				)
 			)
 		) {
-			run( 'delete', bulk( 'delete', entry.form.id ), leave );
+			run( 'delete', bulk( 'delete', entry.form.id, id ), leave );
 		}
 	};
 	// Riuscito o no, l'esito finisce nello storico: si ricarica comunque.
@@ -205,7 +202,11 @@ export function Entry( { id } ) {
 					className="barrio-button"
 					disabled={ !! busy }
 					onClick={ () =>
-						run( 'unread', bulk( 'unread', entry.form.id ), leave )
+						run(
+							'unread',
+							bulk( 'unread', entry.form.id, id ),
+							leave
+						)
 					}
 				>
 					<Icon name="hidden" />

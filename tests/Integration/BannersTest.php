@@ -59,6 +59,8 @@ final class BannersTest extends WP_UnitTestCase {
 		foreach ( $invalid as $name => $body ) {
 			$this->assertSame( 400, $this->request( 'POST', '/barrio/v1/banners', $body )->get_status(), $name );
 		}
+		$mailto = $this->request( 'POST', '/barrio/v1/banners', $this->banner( [ 'i18n' => [ 'it' => $this->text( 'Saldi', 'mailto:info@example.org' ) ] ] ) );
+		$this->assertSame( 'The link must be a path like /contacts/ or an address that starts with http:// or https://.', $mailto->as_error()->get_error_message(), 'In words, not the regular expression of the schema.' );
 		$this->assertSame( [], BannerRepository::all(), 'Nothing was written.' );
 	}
 
@@ -145,9 +147,23 @@ final class BannersTest extends WP_UnitTestCase {
 				]
 			)
 		);
-		$this->assertMatchesRegularExpression( '/<section id="barrio-banner" class="barrio-banner" data-start="\d+" data-end="\d+"/', $this->page( $page ), 'The period for the script, with page caching.' );
+		$this->assertMatchesRegularExpression( '/<section id="barrio-banner" class="barrio-banner" data-end="\d+" data-pause="Pause"/', $this->page( $page ), 'The end for the script, with page caching: what is printed has already started.' );
 		BannerRepository::set_enabled( false, $id );
 		$this->assertSame( '', $this->page( $page ), 'Off.' );
+	}
+
+	public function test_a_theme_without_wp_body_open_gets_the_banner_in_the_footer(): void {
+		$this->create();
+		$this->go_to( home_url( '/' ) );
+		Module::enqueue();
+		ob_start();
+		Module::render( true );
+		$this->assertStringContainsString( '<section id="barrio-banner" class="barrio-banner" data-late ', (string) ob_get_clean(), 'The script moves it to the top.' );
+
+		$this->assertStringNotContainsString( 'data-late', $this->page( home_url( '/' ) ) );
+		ob_start();
+		Module::render( true );
+		$this->assertSame( '', ob_get_clean(), 'Once per page: not again in the footer.' );
 	}
 
 	public function test_the_most_recent_banner_on_wins(): void {
@@ -191,7 +207,7 @@ final class BannersTest extends WP_UnitTestCase {
 		);
 		$html = $this->page( home_url( '/' ) );
 
-		$this->assertStringContainsString( '<section id="barrio-banner" class="barrio-banner" aria-label="Announcement">', $html );
+		$this->assertStringContainsString( '<section id="barrio-banner" class="barrio-banner" data-pause="Pause" aria-label="Announcement">', $html );
 		$this->assertStringContainsString( 'href="https://example.org/saldi?a=1&#038;b=2" target="_blank" rel="noopener"', $html );
 		$this->assertSame( 1, substr_count( $html, 'Saldi estivi' ), 'The copies of the scrolling text are added by the script, hidden from screen readers.' );
 	}

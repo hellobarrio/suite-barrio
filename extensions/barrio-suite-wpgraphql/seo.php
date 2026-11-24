@@ -20,6 +20,10 @@ function barrio_wpgraphql_seo_boot(): void {
 	// Priorità 9, come per i form: anche il prototipo registra lo schema SEO con il suo modulo spento.
 	add_action( 'graphql_register_types', 'barrio_wpgraphql_register_seo', 9 );
 	add_filter( 'barrio_seo_url', 'barrio_wpgraphql_frontend_url' );
+	// Gli hook che svuotano llms.txt (Seo\Module::boot()): con quelli cambia anche la sitemap.
+	foreach ( [ 'clean_post_cache', 'clean_term_cache', 'add_option_barrio_seo', 'update_option_barrio_seo', 'update_option_blogname' ] as $hook ) {
+		add_action( $hook, 'barrio_wpgraphql_sitemap_flush' );
+	}
 	register_graphql_settings_field(
 		'graphql_general_settings',
 		[
@@ -73,7 +77,7 @@ function barrio_wpgraphql_register_seo(): void {
 			[
 				'type'        => 'HBSeoPost',
 				'description' => 'The SEO data of Barrio Suite.',
-				'resolve'     => static fn( Post $post ): ?array => barrio_wpgraphql_seo( get_post( $post->ID ) ),
+				'resolve'     => static fn( Post $post ): ?array => barrio_wpgraphql_seo( barrio_wpgraphql_seo_post( $post ) ),
 			]
 		);
 	}
@@ -229,6 +233,16 @@ function barrio_wpgraphql_frontend_url( string $url ): string {
 }
 
 /**
+ * Il contenuto di un nodo, o null se chi chiede non lo può leggere: di una bozza altrui WPGraphQL dà solo il titolo.
+ * Quel nodo non ha ID, ma ha databaseId; senza, get_post() darebbe il post globale.
+ */
+function barrio_wpgraphql_seo_post( Post $node ): ?WP_Post {
+	$id   = (int) $node->databaseId; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- il nome di WPGraphQL.
+	$post = $id ? get_post( $id ) : null;
+	return $post && ( is_post_publicly_viewable( $post ) || current_user_can( 'edit_post', $id ) ) ? $post : null;
+}
+
+/**
  * ponytail: i testi predefiniti sono nella lingua della richiesta, non in quella del contenuto, perché il core
  * non sa la lingua di un contenuto; servirà un filtro del plugin multilingua se un sito tradotto ne ha bisogno.
  *
@@ -282,7 +296,7 @@ function barrio_wpgraphql_seo_site(): array {
  */
 function barrio_wpgraphql_schema( mixed $node ): string {
 	$object = match ( true ) {
-		$node instanceof Post => get_post( $node->ID ),
+		$node instanceof Post => barrio_wpgraphql_seo_post( $node ),
 		$node instanceof Term => get_term( $node->term_id ),
 		default               => null,
 	};
@@ -299,9 +313,17 @@ function barrio_wpgraphql_schema( mixed $node ): string {
  * Gli indirizzi di wp-sitemap.xml in tutte le lingue (Seo\Sitemaps::each()), con il contenuto, il termine o
  * l'autore che il core passa ai filtri delle voci. loc è relativo, come nel prototipo: il frontend aggiunge il suo dominio.
  *
+ * Il campo è pubblico e leggere tutti gli URL costa: dalla cache, per un giorno al più, come llms.txt.
+ * ponytail: tutta la sitemap in un transient; con decine di migliaia di URL serve una cache per pagina.
+ *
  * @return list<array<string, mixed>>
  */
 function barrio_wpgraphql_sitemap(): array {
+	/** @var list<array<string, mixed>>|false $entries */
+	$entries = get_transient( 'barrio_wpgraphql_sitemap' );
+	if ( is_array( $entries ) ) {
+		return $entries;
+	}
 	$filters = [
 		'wp_sitemaps_posts_entry'               => static fn( array $entry, WP_Post $post ): array => $entry + [
 			'type'    => 'post',
@@ -354,7 +376,15 @@ function barrio_wpgraphql_sitemap(): array {
 			remove_filter( $hook, $filter );
 		}
 	}
+	set_transient( 'barrio_wpgraphql_sitemap', $entries, DAY_IN_SECONDS );
 	return $entries;
+}
+
+// Su ogni clean_post_cache: con la cache già vuota, nessuna query.
+function barrio_wpgraphql_sitemap_flush(): void {
+	if ( false !== get_transient( 'barrio_wpgraphql_sitemap' ) ) {
+		delete_transient( 'barrio_wpgraphql_sitemap' );
+	}
 }
 
 /** @return list<array<string, mixed>> */

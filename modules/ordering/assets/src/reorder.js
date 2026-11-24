@@ -10,8 +10,9 @@ import { Handle, Sortable } from '../../../../assets/src/admin/sortable.js';
 import {
 	Dialog,
 	Loading,
-	Lucide,
 	Notice,
+	SaveButton,
+	discard,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
@@ -82,21 +83,14 @@ function ReorderModal( { onClose } ) {
 			.catch( fail );
 	}, [ path ] );
 
+	// Con l'albero al caricamento: l'elenco della REST non ha sempre i genitori prima dei figli.
 	const dirty =
 		!! saved &&
-		flatten( tree ).join() !== saved.map( ( { id } ) => id ).join();
+		flatten( tree ).join() !== flatten( toTree( saved ) ).join();
 	// Salvando no: la lista si ricarica.
 	useUnsavedWarning( dirty && ! busy );
 
-	const close = () => {
-		if (
-			! dirty ||
-			// eslint-disable-next-line no-alert -- le modifiche non salvate non si perdono con Esc o un clic fuori.
-			window.confirm( __( 'Discard the changes?', 'barrio-suite' ) )
-		) {
-			onClose();
-		}
-	};
+	const close = () => discard( dirty ) && onClose();
 	const save = () => {
 		setBusy( true );
 		setNotice( null );
@@ -139,19 +133,11 @@ function ReorderModal( { onClose } ) {
 					>
 						{ __( 'Cancel', 'barrio-suite' ) }
 					</button>
-					<button
-						type="button"
-						className="barrio-button is-primary"
-						disabled={ busy || ! dirty }
+					<SaveButton
+						busy={ busy }
+						disabled={ ! dirty }
 						onClick={ save }
-					>
-						<Lucide name="save" />
-						<span className="barrio-button__text">
-							{ busy
-								? __( 'Saving…', 'barrio-suite' )
-								: __( 'Save', 'barrio-suite' ) }
-						</span>
-					</button>
+					/>
 				</>
 			}
 			size="medium"

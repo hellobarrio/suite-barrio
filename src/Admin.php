@@ -22,7 +22,8 @@ final class Admin {
 		add_action( 'admin_menu', [ self::class, 'menu_end' ], 11 );
 	}
 
-	// La Bacheca si apre con read: ogni card controlla la capability del suo modulo.
+	// La Bacheca si apre con read: ogni card controlla la capability del suo modulo (menu_end() la toglie a chi non
+	// ne ha).
 	public static function menu(): void {
 		add_menu_page( 'Barrio Suite', 'Barrio', 'read', self::PAGE, [ self::class, 'page' ], self::ICON, 30 );
 		self::add_page( self::PAGE, __( 'Dashboard', 'barrio-suite' ), 'read' );
@@ -32,17 +33,22 @@ final class Admin {
 		// Installare e aggiornare richiedono altre capability (src/Extensions.php).
 		self::add_page( 'barrio-extensions', __( 'Extensions', 'barrio-suite' ), 'activate_plugins' );
 		self::add_page( 'barrio-settings', __( 'Settings', 'barrio-suite' ), 'manage_options' );
+		// Con la sola Bacheca, vuota per chi non ha la capability di alcun modulo, niente menu. WordPress la aprirebbe
+		// ancora dal suo indirizzo, con i dati per il JavaScript nel sorgente.
+		if ( count( $GLOBALS['submenu'][ self::PAGE ] ?? [] ) < 2 ) {
+			remove_menu_page( self::PAGE );
+			add_action( 'load-toplevel_page_' . self::PAGE, static fn() => wp_die( esc_html__( 'You are not allowed to open this page.', 'barrio-suite' ), 403 ), 0 );
+		}
 	}
 
 	/**
 	 * Barrio → Contenuti: gli strumenti per i contenuti (Blocchi, Ordinamento, Duplicazione) in una pagina sola, con
-	 * una scheda per modulo acceso. Ogni modulo la chiede su admin_menu con la capability della sua scheda: la pagina
-	 * si aggiunge una volta, con la prima che chi guarda ha, e il JavaScript mostra solo le schede che può aprire. Con
-	 * tutti e tre spenti non c'è.
+	 * una scheda per modulo acceso, per gli amministratori. Ogni modulo la chiede su admin_menu: la pagina si aggiunge
+	 * una volta. Con tutti e tre spenti non c'è.
 	 */
-	public static function contents_tab( string $capability ): void {
-		if ( current_user_can( $capability ) && ! get_plugin_page_hook( 'barrio-contents', self::PAGE ) ) {
-			self::add_page( 'barrio-contents', __( 'Contents', 'barrio-suite' ), $capability );
+	public static function contents_tab(): void {
+		if ( current_user_can( 'manage_options' ) && ! get_plugin_page_hook( 'barrio-contents', self::PAGE ) ) {
+			self::add_page( 'barrio-contents', __( 'Contents', 'barrio-suite' ), 'manage_options' );
 		}
 	}
 
@@ -105,10 +111,8 @@ final class Admin {
 		wp_add_inline_script( 'barrio-admin', 'window.barrioAdmin = ' . wp_json_encode( self::data() ) . ';', 'before' );
 		wp_set_script_translations( 'barrio-admin', 'barrio-suite', dirname( __DIR__ ) . '/languages' );
 		self::style();
-		// Le immagini (il logo delle email…) si scelgono nelle impostazioni dei moduli e nella messa online.
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- solo quale pagina caricare.
-		if ( 'settings' === sanitize_key( wp_unslash( $_GET['tab'] ?? '' ) ) || isset( $_GET['launch'] ) ) {
-			// phpcs:enable
+		// La messa online sceglie le immagini (il logo delle email…); i moduli caricano la libreria sul loro hook.
+		if ( isset( $_GET['launch'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- solo quale pagina caricare.
 			wp_enqueue_media();
 		}
 	}

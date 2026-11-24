@@ -49,6 +49,11 @@ final class Google {
 						],
 					],
 				],
+				[
+					'methods'             => 'DELETE',
+					'callback'            => [ self::class, 'delete' ],
+					'permission_callback' => $admin,
+				],
 			]
 		);
 	}
@@ -74,6 +79,12 @@ final class Google {
 			return $account;
 		}
 		update_option( self::OPTION, Crypto::encrypt( (string) wp_json_encode( $account ) ), false );
+		return self::get();
+	}
+
+	// I token in cache scadono da soli entro un'ora, e senza il service account nessuno li legge più.
+	public static function delete(): WP_REST_Response {
+		delete_option( self::OPTION );
 		return self::get();
 	}
 

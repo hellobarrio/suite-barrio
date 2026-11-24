@@ -21,15 +21,15 @@ import {
 	LangNotice,
 	LangPicker,
 	Loading,
-	Lucide,
 	ModuleCard,
 	Notice,
 	Permissions,
+	SaveButton,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
-import { textIn } from '../../../forms/assets/src/builder/model.js';
-import { TextIn } from '../../../forms/assets/src/builder/Texts.js';
+import { textIn } from '../../../../assets/src/admin/i18n.js';
+import { TextIn } from '../../../../assets/src/admin/texts.js';
 
 // Anche nella card Moduli di Barrio → Impostazioni.
 export const BANNERS = {
@@ -131,6 +131,10 @@ function Preview( { banner, lang } ) {
 			( { start } ) => {
 				if ( current ) {
 					stop = start( ref.current );
+					// L'anteprima è nascosta agli screen reader: niente al suo interno prende il focus.
+					ref.current
+						.querySelector( '.barrio-banner__pause' )
+						?.setAttribute( 'tabindex', '-1' );
 				}
 			}
 		);
@@ -149,7 +153,12 @@ function Preview( { banner, lang } ) {
 					<span />
 					<span className="barrio-browser__url" />
 				</div>
-				<div key={ key } ref={ ref } className="barrio-banner">
+				<div
+					key={ key }
+					ref={ ref }
+					className="barrio-banner"
+					data-pause={ __( 'Pause', 'barrio-suite' ) }
+				>
 					<Body
 						className="barrio-banner__body"
 						href={ link ? '#' : undefined }
@@ -271,19 +280,11 @@ function BannerEditor( { id } ) {
 				}
 			>
 				<LangPicker value={ lang } onChange={ setLang } />
-				<button
-					type="button"
-					className="barrio-button is-primary"
-					disabled={ busy || ( banner.id && ! dirty ) }
+				<SaveButton
+					busy={ busy }
+					disabled={ banner.id && ! dirty }
 					onClick={ save }
-				>
-					<Lucide name="save" />
-					<span className="barrio-button__text">
-						{ busy
-							? __( 'Saving…', 'barrio-suite' )
-							: __( 'Save', 'barrio-suite' ) }
-					</span>
-				</button>
+				/>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<LangNotice lang={ lang } />
@@ -413,7 +414,11 @@ export function BannersCard() {
 			notice={ notice }
 			stats={
 				banners && [
-					[ __( 'Active now', 'barrio-suite' ), count( 'active' ) ],
+					// Il sito ne mostra uno solo, il più recente.
+					[
+						__( 'Active now', 'barrio-suite' ),
+						Math.min( 1, count( 'active' ) ),
+					],
 					[ __( 'Scheduled', 'barrio-suite' ), count( 'scheduled' ) ],
 					[ __( 'All banners', 'barrio-suite' ), banners.length ],
 				]

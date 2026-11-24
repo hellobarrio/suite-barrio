@@ -1,10 +1,9 @@
 // Le registrazioni di un form: ricerca, pagine, ordinamento e filtri sul server
 // (GET /forms/{id}/entries), azioni di massa ed export CSV con gli stessi filtri.
 import apiFetch from '@wordpress/api-fetch';
-import { useEffect, useState } from '@wordpress/element';
+import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
-import { initialQuery } from '../../../../../assets/src/admin/query.js';
 import {
 	Icon,
 	Lang,
@@ -18,16 +17,9 @@ import {
 	restLink,
 } from '../../../../../assets/src/admin/ui.js';
 import { entriesUrl } from '../ui.js';
+import { INITIAL, VIEW, params, storedView } from './view.js';
 
-// Le più recenti per prime.
-const INITIAL = { ...initialQuery( 'created_at', 'desc' ), read: '', lang: '' };
 const { languages } = window.barrioAdmin;
-
-// Senza i filtri vuoti, che il server rifiuterebbe.
-const params = ( query ) =>
-	Object.fromEntries(
-		Object.entries( query ).filter( ( [ , value ] ) => '' !== value )
-	);
 
 // Il form da mostrare senza ?form=: il primo con registrazioni da leggere, poi con registrazioni.
 const pick = ( forms ) =>
@@ -46,21 +38,6 @@ const formLabel = ( form ) =>
 				form.title
 			)
 		: form.title;
-
-// La vista dell'elenco resta per la sessione: tornando dal dettaglio di una registrazione si ritrova.
-const VIEW = 'barrio-entries-view';
-function storedView( form ) {
-	try {
-		const view = JSON.parse( window.sessionStorage.getItem( VIEW ) );
-		if ( form && view?.form === form ) {
-			return {
-				query: { ...INITIAL, ...view.query },
-				shown: view.shown ?? {},
-			};
-		}
-	} catch {}
-	return { query: INITIAL, shown: {} };
-}
 
 export function Entries( { form: requested } ) {
 	const [ forms, setForms ] = useState( null );
@@ -101,9 +78,12 @@ export function Entries( { form: requested } ) {
 		}
 	}, [ formId, query, shown ] );
 
+	const searched = useRef( query.search );
 	useEffect( () => {
 		let current = true;
-		// Mentre si scrive nella ricerca parte una sola richiesta.
+		// Mentre si scrive nella ricerca parte una sola richiesta; pagine, ordine e filtri non aspettano.
+		const delay = searched.current !== query.search ? 250 : 0;
+		searched.current = query.search;
 		const timer = setTimeout( () => {
 			if ( formId ) {
 				apiFetch( {
@@ -118,7 +98,7 @@ export function Entries( { form: requested } ) {
 					} )
 					.catch( fail );
 			}
-		}, 250 );
+		}, delay );
 		return () => {
 			current = false;
 			clearTimeout( timer );

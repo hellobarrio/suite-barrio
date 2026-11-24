@@ -3,6 +3,7 @@
 	bootstrap="tests/bootstrap.php"
 	colors="true"
 	beStrictAboutOutputDuringTests="true"
+	failOnRisky="true"
 >
 	<testsuites>
 		<testsuite name="barrio-suite">

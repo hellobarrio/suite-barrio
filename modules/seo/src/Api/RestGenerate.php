@@ -32,7 +32,8 @@ final class RestGenerate {
 				'args'                => [
 					'lang'  => $text,
 					'title' => $text,
-					'url'   => $text,
+					// Entra nel prompt com'è: senza un tetto chi ha la capability manda a Google megabyte a richiesta.
+					'url'   => $text + [ 'maxLength' => 2048 ],
 					'text'  => $text,
 				],
 			]
@@ -61,7 +62,7 @@ final class RestGenerate {
 			. "- title: at most {$max} characters, with the main keyword near the beginning, without the site name \"{$site}\": it is added after the title.\n"
 			. "- description: 120 to 160 characters, with the main keyword, written to make people click.\n"
 			. "- keywords: 5 to 8 phrases that people search to find this page, the main one first.\n\n"
-			. 'Title: ' . Meta::text( (string) $request['title'] ) . "\nURL: {$request['url']}\nText:\n{$text}",
+			. 'Title: ' . mb_substr( Meta::text( (string) $request['title'] ), 0, 255 ) . "\nURL: {$request['url']}\nText:\n{$text}",
 			[
 				'responseMimeType' => 'application/json',
 				'responseSchema'   => [

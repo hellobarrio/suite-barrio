@@ -1,6 +1,6 @@
 // SMTP ed email di prova (src/Mail/Smtp.php), in Barrio → Impostazioni e nella guida alla messa
 // online. La password non torna mai dal server, se ne conosce solo lo stato: vuota vuol dire "resta
-// quella salvata".
+// quella salvata", e per toglierla c'è il suo bottone (solo nelle Impostazioni).
 import apiFetch from '@wordpress/api-fetch';
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
@@ -27,6 +27,7 @@ function SmtpFields( {
 	password,
 	onPassword,
 	passwordStatus,
+	onRemovePassword,
 } ) {
 	const [ showPassword, setShowPassword ] = useState( false );
 	const set = ( key ) => ( value ) => onChange( { ...smtp, [ key ]: value } );
@@ -85,6 +86,18 @@ function SmtpFields( {
 							? __( 'Hide', 'barrio-suite' )
 							: __( 'Show', 'barrio-suite' ) }
 					</button>
+				}
+				actions={
+					onRemovePassword &&
+					[ 'saved', 'unreadable' ].includes( passwordStatus ) && (
+						<button
+							type="button"
+							className="barrio-button is-danger"
+							onClick={ onRemovePassword }
+						>
+							{ __( 'Remove password', 'barrio-suite' ) }
+						</button>
+					)
 				}
 			/>
 			<Text
@@ -180,8 +193,9 @@ const smtp = {
 		} ),
 };
 
-// I campi e, chiusa, l'email di prova.
-const Fields = ( { draft, set, data, dirty, onNotice } ) => (
+// I campi e, chiusa, l'email di prova. onData c'è solo nelle Impostazioni: lì la password si può togliere, subito
+// e non con Salva.
+const Fields = ( { draft, set, data, dirty, onData, onNotice } ) => (
 	<>
 		<SmtpFields
 			smtp={ draft.smtp }
@@ -189,6 +203,28 @@ const Fields = ( { draft, set, data, dirty, onNotice } ) => (
 			password={ draft.password }
 			onPassword={ ( password ) => set( { ...draft, password } ) }
 			passwordStatus={ data.password_status }
+			onRemovePassword={
+				onData &&
+				( () =>
+					// eslint-disable-next-line no-alert -- conferma prima di un'azione che non si annulla.
+					window.confirm(
+						__(
+							'Remove the saved SMTP password from this site?',
+							'barrio-suite'
+						)
+					) &&
+					apiFetch( {
+						path: '/barrio/v1/smtp/password',
+						method: 'DELETE',
+					} )
+						.then( onData )
+						.catch( ( error ) =>
+							onNotice( {
+								status: 'error',
+								message: errorMessage( error ),
+							} )
+						) )
+			}
 		/>
 		<Details title={ __( 'Test email', 'barrio-suite' ) }>
 			<TestEmail dirty={ dirty } onNotice={ onNotice } />

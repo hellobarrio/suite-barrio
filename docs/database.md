@@ -283,7 +283,8 @@ erDiagram
   transazione.
 - **Nel sito nessuna query**: gli accesi non scaduti, con i testi, stanno nel transient `barrio_banners_live`, senza
   scadenza e quindi in autoload (vuoto con zero banner), con la versione del plugin: dopo un aggiornamento che cambia
-  la forma delle righe si rilegge. Ogni scrittura lo elimina e fa partire `barrio_banners_changed`. Le letture e il
+  la forma delle righe si rilegge. Finché la versione resta 0.1.0 questo non scatta: una modifica alla forma delle
+  righe porta una migrazione con `delete_transient( 'barrio_banners_live' )` e `delete_transient( 'barrio_popups_live' )`. Ogni scrittura lo elimina e fa partire `barrio_banners_changed`. Le letture e il
   transient sono di `src/Database/PeriodRepository.php`, comune a popup e banner. Il sito mostra il più recente tra quelli nel loro periodo; quelli scaduti dopo li scarta
   PHP. La disinstallazione con i dati elimina il transient con le tabelle.
 

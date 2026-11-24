@@ -90,6 +90,31 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertSame( '1', $wpdb->get_var( 'SELECT @@FOREIGN_KEY_CHECKS' ) );
 	}
 
+	// uninstall.php gira una volta per tutta la rete: ogni sito ha scelto per i suoi dati.
+	public function test_on_a_network_only_the_sites_that_chose_it_lose_their_data(): void {
+		$this->skipWithoutMultisite();
+		$here  = get_current_blog_id();
+		$other = self::factory()->blog->create();
+		switch_to_blog( $other );
+		update_option( 'barrio_delete_data', true );
+		update_option( 'barrio_smtp', [ 'host' => 'smtp.example.org' ] );
+		get_role( 'editor' )->add_cap( 'barrio_manage_entries' );
+		restore_current_blog();
+
+		Plugin::uninstall();
+
+		$this->assertSame( $here, get_current_blog_id() );
+		$this->assertSame( [], $this->dropped, 'No table of the site that kept its data.' );
+		$this->assertSame( [ 'host' => 'smtp.example.com' ], get_option( 'barrio_smtp' ) );
+		$this->assertTrue( get_role( 'editor' )->has_cap( 'barrio_manage_entries' ) );
+		$this->assertFileExists( FileStore::dir() . '/2026/11/abc' );
+		switch_to_blog( $other );
+		$this->assertFalse( get_option( 'barrio_smtp' ) );
+		$this->assertFalse( get_option( 'barrio_delete_data' ) );
+		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_manage_entries' ) );
+		restore_current_blog();
+	}
+
 	public function test_only_administrators_choose(): void {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 		$request = new WP_REST_Request( 'PUT', '/barrio/v1/uninstall' );

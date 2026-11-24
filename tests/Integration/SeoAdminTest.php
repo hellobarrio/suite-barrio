@@ -63,6 +63,37 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		$this->assertContains( $term, array_column( $rows, 'id' ) );
 		$this->assertNull( $rows[0]['page']['content'], 'Terms have no content checks.' );
 
+		$third = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$paged = fn( int $page ): array => $this->rest(
+			'GET',
+			'/barrio/v1/seo/contents/post_types/page',
+			[
+				'page'     => $page,
+				'per_page' => 2,
+			]
+		)->get_data();
+		$this->assertSame( [ 2, 2 ], [ $paged( 1 )['pages'], count( $paged( 1 )['rows'] ) ], 'The trash does not count.' );
+		$this->assertEqualsCanonicalizing( [ $page, $draft, $third ], array_column( array_merge( $paged( 1 )['rows'], $paged( 2 )['rows'] ), 'id' ), 'Every content once, across the pages.' );
+		$this->assertSame( [ 'en' ], array_keys( $paged( 2 )['contexts'] ) );
+		$this->assertSame( 1, $data['pages'] );
+		$this->assertSame( 400, $this->rest( 'GET', '/barrio/v1/seo/contents/post_types/page', [ 'per_page' => 201 ] )->get_status() );
+		$tags = self::factory()->tag->create_many( 3 );
+		$this->assertSame( 2, $this->rest( 'GET', '/barrio/v1/seo/contents/taxonomies/post_tag', [ 'per_page' => 2 ] )->get_data()['pages'] );
+		$this->assertSame(
+			[ $tags[2] ],
+			array_column(
+				$this->rest(
+					'GET',
+					'/barrio/v1/seo/contents/taxonomies/post_tag',
+					[
+						'page'     => 2,
+						'per_page' => 2,
+					]
+				)->get_data()['rows'],
+				'id'
+			)
+		);
+
 		$this->assertSame( 404, $this->rest( 'GET', '/barrio/v1/seo/contents/post_types/attachment' )->get_status() );
 		$this->assertSame( 404, $this->rest( 'GET', '/barrio/v1/seo/contents/taxonomies/nav_menu' )->get_status() );
 
@@ -159,6 +190,10 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		$this->assertSame( 201, $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/giro-c', 'https://example.net/giro-a', 301 )->get_status(), 'Another site ends the chain.' );
 
 		$this->assertSame( 201, $first->get_status() );
+		$this->assertSame( 400, $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/caf%E9', '/caffe/', 301 )->get_status(), 'Bytes that are not UTF-8 are refused, not a database error.' );
+		$this->assertSame( 400, $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/promo', '/promo?utm_source=sito', 301 )->get_status(), 'A request with a query string falls back on the redirect of its path.' );
+		$this->redirect( 'POST', '/barrio/v1/seo/redirects', '/query-b', '/query-a', 301 );
+		$this->assertSame( 400, $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/query-a', '/query-b?x=1', 301 )->get_status(), 'Through other redirects too.' );
 
 		$swap = $this->redirect( 'POST', '/barrio/v1/seo/redirects', '/solo-x', '/solo-y', 301 );
 		$this->assertSame( 200, $this->redirect( 'PUT', "/barrio/v1/seo/redirects/{$swap->get_data()['id']}", '/solo-y', '/solo-x', 301 )->get_status(), 'The saved version of the same redirect does not count.' );
@@ -186,6 +221,10 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		$data = Admin::data( [] )['seo'];
 		$this->assertFalse( $data['sitemap']['enabled'], 'WordPress does not publish it, but the counts are what it will contain.' );
 		$this->assertFalse( $data['robots']['file'] );
+	}
+
+	public function test_generate_with_ai_refuses_an_address_that_is_not_an_address(): void {
+		$this->assertSame( 400, $this->rest( 'POST', '/barrio/v1/seo/generate', [ 'url' => str_repeat( 'a', 2049 ) ] )->get_status() );
 	}
 
 	public function test_the_dashboard_counts_indexed_contents_without_description_and_redirects(): void {

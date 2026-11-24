@@ -399,7 +399,8 @@ export function Panel( { meta, page, context, seo, onChange } ) {
 				result={ seo.result }
 				onShowChecks={ () => {
 					setChecksOpen( true );
-					checks.current.scrollIntoView( { block: 'start' } );
+					// Il focus porta anche in vista: con il solo scorrimento chi usa la tastiera resta sul link.
+					checks.current.querySelector( 'button' )?.focus();
 				} }
 			/>
 			<PanelBody title={ __( 'Search result', 'barrio-suite' ) }>

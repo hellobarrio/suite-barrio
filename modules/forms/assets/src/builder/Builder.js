@@ -1,10 +1,10 @@
 // Builder di un form: carica con GET /forms/{id}?context=edit e salva con PUT e base_version
 // (409 se nel frattempo qualcuno ha salvato) o, per un form nuovo, con POST /forms. Con più lingue
-// la barra sceglie quella dei testi: nelle altre si traducono solo i testi (Texts.js).
+// la barra sceglie quella dei testi: nelle altre si traducono solo i testi (texts.js).
 import apiFetch from '@wordpress/api-fetch';
 import { TabPanel } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 import {
 	Bar,
@@ -15,8 +15,8 @@ import {
 	LangNotice,
 	LangPicker,
 	Loading,
-	Lucide,
 	Notice,
+	SaveButton,
 	SectionHead,
 	Select,
 	Text,
@@ -26,17 +26,21 @@ import {
 	useUnsavedWarning,
 } from '../../../../../assets/src/admin/ui.js';
 import { Shortcode, pageUrl } from '../ui.js';
-import { fillTranslations, trimTranslations, withTexts } from './model.js';
+import {
+	fillTranslations,
+	plainLabel,
+	ruleFields,
+	stable,
+	trimTranslations,
+	withTexts,
+} from './model.js';
 import { Conditions } from './Conditions.js';
-import { FieldsTab, ruleFields } from './Fields.js';
+import { FieldsTab, keyError } from './Fields.js';
 import { IntegrationsTab, formIntegrations } from './Integrations.js';
-import { TextIn } from './Texts.js';
+import { TextIn, orNull } from '../../../../../assets/src/admin/texts.js';
 
 const { languages } = window.barrioAdmin;
 const main = languages[ 0 ];
-
-// Un testo facoltativo vuoto è null: il valore standard (docs/database.md).
-const orNull = ( optional, value ) => ( optional && ! value ? null : value );
 
 const empty = () => ( {
 	title: '',
@@ -61,6 +65,8 @@ export function Builder( { id } ) {
 	const [ preview, setPreview ] = useState( null );
 	// La lingua dei testi che si modificano (e delle anteprime).
 	const [ lang, setLang ] = useState( main );
+	// Il campo scelto nella scheda Campi: all'inizio il primo.
+	const [ selected, setSelected ] = useState( 0 );
 
 	// Ciò che si è scritto durante il salvataggio (sent) resta, da salvare.
 	const load = ( data, sent ) => {
@@ -89,7 +95,7 @@ export function Builder( { id } ) {
 		}
 	}, [ id ] );
 
-	const dirty = JSON.stringify( form ) !== JSON.stringify( saved );
+	const dirty = stable( form ) !== stable( saved );
 	useUnsavedWarning( dirty );
 
 	if ( ! form ) {
@@ -107,7 +113,37 @@ export function Builder( { id } ) {
 			.catch( fail )
 			.finally( () => setBusy( null ) );
 	};
-	const save = ( base = form.version ) =>
+	// Ciò che il server rifiuterebbe con il percorso del parametro ("fields[2][key] does not match…").
+	const problem = () => {
+		if ( ! form.title.trim() ) {
+			return __(
+				'Give the form a name before saving it.',
+				'barrio-suite'
+			);
+		}
+		const keys = form.fields.map( ( f ) => f.key );
+		for ( const [ i, field ] of form.fields.entries() ) {
+			const error = keyError(
+				field.key,
+				keys.filter( ( key, j ) => i !== j )
+			);
+			if ( error ) {
+				return sprintf(
+					/* translators: 1: field label; 2: what is wrong with the key of the field. */
+					__( 'Field "%1$s": %2$s', 'barrio-suite' ),
+					plainLabel( field, main, main ),
+					error
+				);
+			}
+		}
+		return null;
+	};
+	const save = ( base = form.version ) => {
+		const message = problem();
+		if ( message ) {
+			setNotice( { status: 'error', message } );
+			return;
+		}
 		request(
 			'save',
 			form.id
@@ -132,6 +168,7 @@ export function Builder( { id } ) {
 				} );
 			}
 		);
+	};
 	// Senza notification: il form; con l'indice di una notifica: la sua email.
 	const showPreview = ( notification ) =>
 		request(
@@ -143,6 +180,7 @@ export function Builder( { id } ) {
 			},
 			setPreview
 		);
+	const closePreview = () => setPreview( null );
 
 	return (
 		<div className="barrio-builder">
@@ -189,7 +227,8 @@ export function Builder( { id } ) {
 				<button
 					type="button"
 					className="barrio-button"
-					disabled={ !! busy }
+					// Non durante l'anteprima: disattivato perderebbe il focus, che alla chiusura deve tornare qui.
+					disabled={ 'save' === busy }
 					onClick={ () => showPreview() }
 				>
 					<Icon name="visibility" />
@@ -197,19 +236,11 @@ export function Builder( { id } ) {
 						{ __( 'Preview', 'barrio-suite' ) }
 					</span>
 				</button>
-				<button
-					type="button"
-					className="barrio-button is-primary"
-					disabled={ !! busy || ( form.id && ! dirty ) }
+				<SaveButton
+					busy={ 'save' === busy }
+					disabled={ !! busy || ! dirty }
 					onClick={ () => save() }
-				>
-					<Lucide name="save" />
-					<span className="barrio-button__text">
-						{ 'save' === busy
-							? __( 'Saving…', 'barrio-suite' )
-							: __( 'Save', 'barrio-suite' ) }
-					</span>
-				</button>
+				/>
 			</Bar>
 			<Notice
 				notice={
@@ -275,6 +306,8 @@ export function Builder( { id } ) {
 								fields={ form.fields }
 								saved={ saved.fields }
 								lang={ lang }
+								selected={ selected }
+								onSelect={ setSelected }
 								onChange={ ( fields ) => update( { fields } ) }
 							/>
 						) }
@@ -298,7 +331,7 @@ export function Builder( { id } ) {
 								lang={ lang }
 								update={ update }
 								onPreview={ showPreview }
-								busy={ !! busy }
+								busy={ 'save' === busy }
 							/>
 						) }
 					</>
@@ -314,7 +347,17 @@ export function Builder( { id } ) {
 							: __( 'Preview', 'barrio-suite' )
 					}
 					size="large"
-					onRequestClose={ () => setPreview( null ) }
+					onRequestClose={ closePreview }
+					// Dopo l'iframe serve un controllo, o con Tab il focus esce dalla modale.
+					footer={
+						<button
+							type="button"
+							className="barrio-button"
+							onClick={ closePreview }
+						>
+							{ __( 'Close', 'barrio-suite' ) }
+						</button>
+					}
 				>
 					<div className="barrio-stack">
 						{ preview.subject ? (
@@ -334,13 +377,27 @@ export function Builder( { id } ) {
 								) }
 							</p>
 						) }
-						{ /* allow-same-origin: con l'origine opaca gli script module del form non si caricherebbero. */ }
+						{ /* allow-same-origin: con l'origine opaca gli script module del form non si caricherebbero e
+						     l'altezza non si potrebbe misurare. L'email non ha script suoi: senza allow-scripts non parte
+						     nemmeno uno arrivato nel contenuto. */ }
 						<iframe
 							className="barrio-preview-frame"
 							title={ __( 'Preview', 'barrio-suite' ) }
-							sandbox="allow-scripts allow-same-origin allow-forms"
+							sandbox={
+								preview.subject
+									? 'allow-same-origin'
+									: 'allow-scripts allow-same-origin allow-forms'
+							}
 							srcDoc={ preview.html }
-							onLoad={ fitContent }
+							onLoad={ ( event ) => {
+								fitContent( event );
+								// I tasti premuti nell'iframe non arrivano alla modale.
+								event.target.contentDocument.addEventListener(
+									'keydown',
+									( { key } ) =>
+										'Escape' === key && closePreview()
+								);
+							} }
 						/>
 						{ preview.subject && (
 							<p className="barrio-field__help">
@@ -360,9 +417,12 @@ export function Builder( { id } ) {
 // L'iframe è alto quanto il contenuto, anche quando cambia (passi, errori): scorre solo il modale.
 function fitContent( { target: frame } ) {
 	const root = frame.contentDocument.documentElement;
-	new frame.contentWindow.ResizeObserver( () => {
+	const fit = () => {
 		frame.style.height = `${ root.scrollHeight }px`;
-	} ).observe( root );
+	};
+	// Subito: senza allow-scripts (l'email) non è detto che l'osservatore dell'iframe parta.
+	fit();
+	new frame.contentWindow.ResizeObserver( fit ).observe( root );
 }
 
 // Scheda Opzioni: il pulsante di invio e cosa succede dopo, un messaggio o un'altra pagina.
@@ -379,7 +439,10 @@ function OptionsTab( { form, lang, update } ) {
 				i18n: Object.fromEntries(
 					Object.entries( form.i18n ).map( ( [ code, text ] ) => [
 						code,
-						{ ...text, success_url: null },
+						// Una lingua senza la sua pagina resta com'è, o il form sembrerebbe modificato.
+						'success_url' in text
+							? { ...text, success_url: null }
+							: text,
 					] )
 				),
 			} );
@@ -476,7 +539,7 @@ function NotificationsTab( { form, lang, update, onPreview, busy } ) {
 			],
 		} );
 	};
-	const fields = ruleFields( form.fields );
+	const fields = ruleFields( form.fields, main );
 	const tags = [
 		'all_fields',
 		'form_title',

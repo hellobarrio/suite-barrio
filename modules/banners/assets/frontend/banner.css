@@ -9,6 +9,8 @@
 	--barrio-banner-color: #fff;
 	--barrio-banner-gap: 3rem;
 
+	display: flex;
+	align-items: center;
 	overflow: hidden;
 	background: var(--barrio-banner-background);
 	color: var(--barrio-banner-color);
@@ -20,6 +22,8 @@
 /* Dove la scritta che scorre si taglia. */
 .barrio-banner__body {
 	display: block;
+	flex: 1;
+	min-width: 0;
 	padding: 0.75rem 1rem;
 	overflow: hidden;
 	color: inherit;
@@ -35,6 +39,33 @@ a.barrio-banner__body:focus-visible .barrio-banner__text {
 .barrio-banner__body:focus-visible {
 	outline: 2px solid currentcolor;
 	outline-offset: -4px;
+}
+
+/* Lo aggiunge il JavaScript, solo mentre la scritta scorre. */
+.barrio-banner__pause {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 2rem;
+	height: 2rem;
+	margin-inline-end: 0.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: inherit;
+	cursor: pointer;
+}
+
+.barrio-banner__pause:focus-visible {
+	outline: 2px solid currentcolor;
+	outline-offset: -2px;
+}
+
+/* In pausa il triangolo, altrimenti le due barre. */
+.barrio-banner__pause[aria-pressed="false"] path:last-child,
+.barrio-banner__pause[aria-pressed="true"] path:first-child {
+	display: none;
 }
 
 /*

@@ -21,8 +21,8 @@ import {
 	Bar,
 	Card,
 	Loading,
-	Lucide,
 	Notice,
+	SaveButton,
 	Toggle,
 	errorMessage,
 	useUnsavedWarning,
@@ -195,7 +195,7 @@ export function General( {
 					data[ id ] && ! same( draft[ id ], value( data[ id ] ) )
 			)
 		: [];
-	useUnsavedWarning( changed.length > 0 );
+	useUnsavedWarning( changed.length > 0 && ! busy );
 
 	if ( ! data ) {
 		return <Loading />;
@@ -210,7 +210,8 @@ export function General( {
 			.then( ( responses ) => {
 				if ( changed.some( ( section ) => section.reload ) ) {
 					window.location.reload();
-					return;
+					// Mai risolta: finché la pagina si ricarica resta occupata, senza l'avviso del browser.
+					return new Promise( () => {} );
 				}
 				const saved = Object.fromEntries(
 					changed.map( ( { id }, index ) => [
@@ -252,19 +253,11 @@ export function General( {
 							/>
 						)
 				) }
-				<button
-					type="button"
-					className="barrio-button is-primary"
-					disabled={ busy || ! changed.length }
+				<SaveButton
+					busy={ busy }
+					disabled={ ! changed.length }
 					onClick={ save }
-				>
-					<Lucide name="save" />
-					<span className="barrio-button__text">
-						{ busy
-							? __( 'Saving…', 'barrio-suite' )
-							: __( 'Save', 'barrio-suite' ) }
-					</span>
-				</button>
+				/>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			{ sections.map(

@@ -318,12 +318,16 @@ final class SeoOutputTest extends WP_UnitTestCase {
 		RedirectRepository::create( '/promo?id=1', 'https://example.org/', RedirectCode::Found );
 		RedirectRepository::create( '/caffè', '/bar?menu=1', RedirectCode::TemporaryRedirect );
 		RedirectRepository::create( '/chiuso', null, RedirectCode::Gone );
+		RedirectRepository::create( '/contatti-old', '/contatti/#form', RedirectCode::MovedPermanently );
 
 		$this->assertSame( [ '/nuova', 301 ], $this->redirect( '/vecchia/' ) );
 		$this->assertSame( [ '/nuova?utm_source=x', 301 ], $this->redirect( '/vecchia?utm_source=x' ), 'The query goes to the target.' );
 		$this->assertSame( [ 'https://example.org/', 302 ], $this->redirect( '/promo?id=1' ), 'An exact match with the query keeps the target.' );
 		$this->assertSame( [ '/bar?menu=1&a=b', 307 ], $this->redirect( '/caff%C3%A8?a=b' ) );
 		$this->assertNull( $this->redirect( '/Vecchia' ) );
+		$this->assertSame( [ '/contatti/?fbclid=abc#form', 301 ], $this->redirect( '/contatti-old?fbclid=abc' ), 'The query goes before the fragment.' );
+		$this->assertNull( $this->redirect( '/caf%E9' ), 'Bytes that are not UTF-8 are a 404, not an exception of the database.' );
+		$this->assertNull( $this->redirect( '/%ff?a=b' ) );
 
 		$status = 0;
 		add_filter(
@@ -436,6 +440,83 @@ final class SeoOutputTest extends WP_UnitTestCase {
 			$this->redirects(),
 			'With or without the slash and as a full URL; another site stays.'
 		);
+	}
+
+	public function test_a_page_published_on_a_freed_url_removes_the_automatic_redirect(): void {
+		$old = self::factory()->post->create(
+			[
+				'post_type' => 'page',
+				'post_name' => 'servizi',
+			]
+		);
+		wp_update_post(
+			[
+				'ID'        => $old,
+				'post_name' => 'servizi-2024',
+			]
+		);
+		RedirectRepository::create( '/promo', '/servizi-2024/', RedirectCode::Found );
+		$this->assertSame( '/servizi-2024/', $this->redirects()['/servizi'] );
+
+		$changed = did_action( 'barrio_seo_changed' );
+		foreach ( [ 'servizi', 'promo' ] as $slug ) {
+			$draft = self::factory()->post->create(
+				[
+					'post_type'   => 'page',
+					'post_name'   => $slug,
+					'post_status' => 'draft',
+				]
+			);
+			wp_update_post(
+				[
+					'ID'          => $draft,
+					'post_status' => 'publish',
+				]
+			);
+		}
+
+		$this->assertSame( [ '/promo' => '/servizi-2024/' ], $this->redirects(), 'A redirect written by hand stays.' );
+		$this->assertSame( $changed + 1, did_action( 'barrio_seo_changed' ) );
+	}
+
+	public function test_llms_txt_lists_only_the_menus_of_the_theme_and_indexed_pages(): void {
+		$item = static fn( int $menu, int $page ) => wp_update_nav_menu_item(
+			$menu,
+			0,
+			[
+				'menu-item-object-id' => $page,
+				'menu-item-object'    => 'page',
+				'menu-item-type'      => 'post_type',
+				'menu-item-status'    => 'publish',
+			]
+		);
+		$page = static fn( string $title ): int => self::factory()->post->create(
+			[
+				'post_type'  => 'page',
+				'post_title' => $title,
+			]
+		);
+		$main = (int) wp_create_nav_menu( 'Principale' );
+		$old  = (int) wp_create_nav_menu( 'Vecchio tema' );
+		$item( $main, $page( 'Contatti' ) );
+		$item( $old, $page( 'Offerte 2019' ) );
+		$hidden = $page( 'Area riservata' );
+		update_post_meta( $hidden, '_barrio_seo_index', 'noindex' );
+		$item( $main, $hidden );
+		set_theme_mod( 'nav_menu_locations', [ 'primary' => $main ] );
+		Settings::save(
+			[
+				'llms' => [
+					'post_types' => [ 'page' => 'exclude' ],
+					'taxonomies' => [],
+				],
+			]
+		);
+
+		$text = Llms::build( false );
+		$this->assertStringContainsString( "## Navigation\n\n**Principale:** [Contatti](", $text );
+		$this->assertStringNotContainsString( 'Vecchio tema', $text, 'A menu without a location is not in the site.' );
+		$this->assertStringNotContainsString( 'Area riservata', $text );
 	}
 
 	public function test_llms_txt_never_has_protected_or_noindex_content(): void {

@@ -76,7 +76,7 @@ Ha un JSON Schema e la scrive solo la rotta `PUT /barrio/v1/seo/settings` (come 
 - `default_image` (ID);
 - `index`: `post_types` e `taxonomies` (`{slug: {index, follow}}`; una chiave assente vale indicizzato),
   `archives` (`author` indicizzato, `date` noindex di default, perché ripete gli articoli). Ricerca ed embed restano noindex come già fa il core;
-- `organization`: tipo (le 16 voci del prototipo), nome, logo e immagine (ID, non URL), telefono, email,
+- `organization`: tipo (le voci del prototipo che schema.org ha: senza `Architect` e `InteriorDesigner`), nome, logo e immagine (ID, non URL), telefono, email,
   P.IVA, indirizzo, coordinate, zone servite (`[{type, name}]`, con `type` tra `Place`, `AdministrativeArea`, `City`,
   `State` e `Country`: `Text` e `GeoShape` del prototipo non sono luoghi con un nome), competenze (lista), profili
   (`same_as`, una lista di URL al posto dei cinque social fissi), catalogo delle offerte (nome, valuta, voci
@@ -113,7 +113,7 @@ src/
 ├── Admin.php            # menu Barrio e app React (da modules/forms/src/Admin.php)
 ├── Modules.php          # quali moduli sono accesi; GET/PUT /barrio/v1/modules
 ├── I18n.php             # dal modulo Forms, con i filtri barrio_languages…
-├── Google.php           # service account di Google: GET/PUT /barrio/v1/google, token con un JWT firmato
+├── Google.php           # service account di Google: GET/PUT/DELETE /barrio/v1/google, token con un JWT firmato
 └── Ai.php               # Gemini su Vertex AI: GET/PUT /barrio/v1/ai, GET /ai/models, generate()
 assets/src/              # la shell: ui.js, query.js, Bacheca, Messa online, Impostazioni, Estensioni
 modules/forms/assets/src/  # solo le pagine dei form
@@ -200,7 +200,7 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
   - **Azioni di massa**: indicizza, noindex, predefinito.
 
   L'elenco viene da `GET /barrio/v1/seo/contents`; le modifiche passano dalla REST del core (`meta`), una richiesta per contenuto come nell'elenco dei form. Questa tabella prende il posto del selettore di contenuti dell'advisor del prototipo.
-  `// ponytail: tutti i contenuti del tipo in una richiesta, con filtri e ordinamento nel browser (localQuery); oltre ~2000 per tipo si passa al server, come per le Registrazioni`.
+  A pagine di 200 righe (`?page=`), che il browser chiede una dopo l'altra e unisce: ogni riga porta il testo intero per il punteggio, e il limite è nei byte, non nel numero (2.000 articoli da 9 KB erano 18,6 MB di JSON e 61 MB di memoria in una risposta sola, `docs/audit-seo.md` §5). `// ponytail: filtri e ordinamento nel browser (localQuery); sul server, come per le Registrazioni, se un tipo arriva a decine di megabyte`.
 - **SEO → Redirect**: la tabella del plugin con ricerca, filtri (codice, automatici), ordinamento e pagine sul server.
   - **Menu ⋯**: modifica ed elimina; tra le azioni di massa, elimina.
   - **"Aggiungi redirect"** nell'intestazione: una modale con sorgente, codice, destinazione (disattivata con il 410) e nota.
@@ -415,8 +415,8 @@ Suite ha già (l'opzione `barrio_seo`, un meta, la sorgente di un redirect).
   la traduzione ("display as translated" di WooCommerce Multilingual), resta della lingua principale e non si ripete.
   Ogni lingua ha il suo contesto per il pannello e il punteggio (descrizione predefinita, nome del sito).
 - **Temi senza `title-tag`**: stampano il loro `<title>`, e il modulo non può cambiarlo. Da controllare sui temi classici dei clienti.
-- **Costo dei redirect**: una SELECT sulla UNIQUE a ogni richiesta del frontend. Va misurata; se serve, un flag "nessun redirect" in un'opzione autoload la evita.
-- **llms-full.txt**: misurare quanto ci mette a generarsi, a cache vuota, sul sito più grande (500 contenuti fino a 4000 caratteri).
+- **Costo dei redirect** (misurato, `docs/audit-seo.md` §4-§5): una SELECT sulla UNIQUE da 0,2 ms a ogni richiesta del frontend, due con una query string. Il flag "nessun redirect" in un'opzione autoload non serve.
+- **llms-full.txt** (misurato, `docs/audit-seo.md` §4-§5): 0,12–0,39 secondi a cache vuota, 2 MB. Il transient deve stare in `max_allowed_packet`: con più tipi lunghi e più lingue può non starci, e allora si rigenera a ogni richiesta.
 - **Altri plugin SEO**: con Yoast o Rank Math attivi, e il modulo acceso di default, i meta escono due volte finché non si spegne il modulo. La card Moduli e il readme lo dicono; il core non contiene codice per riconoscerli. Se servisse un avviso automatico, sarebbe un'estensione.
 - **Meta dall'editor a blocchi** (S3, fatto): quando cambia un meta qualsiasi (anche le note a piè di pagina)
   l'editor rimanda tutti i meta del contenuto, con null o vuoti quelli assenti. Per il core null vuol dire

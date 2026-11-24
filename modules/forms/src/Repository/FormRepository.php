@@ -441,13 +441,15 @@ final class FormRepository {
 			}
 			// Lo vieterebbe anche la UNIQUE, ma con un errore del database invece di un messaggio chiaro.
 			if ( isset( $keys[ $field->key ] ) ) {
-				throw new InvalidArgumentException( esc_html( "Field key '{$field->key}' is used twice." ) );
+				/* translators: %s: field key. */
+				throw new InvalidArgumentException( esc_html( sprintf( __( 'Field key \'%s\' is used twice.', 'barrio-suite' ), $field->key ) ) );
 			}
 			$keys[ $field->key ] = true;
 			// Il JSON si valida con lo schema del tipo prima di ogni scrittura (docs/database.md).
 			$error = FieldTypes::check( $field );
 			if ( null !== $error ) {
-				throw new InvalidArgumentException( esc_html( "Field '{$field->key}': {$error}" ) );
+				/* translators: 1: field key, 2: what is wrong with the field. */
+				throw new InvalidArgumentException( esc_html( sprintf( __( 'Field \'%1$s\': %2$s', 'barrio-suite' ), $field->key, $error ) ) );
 			}
 			$field_id = Db::insert(
 				Db::table( 'form_fields' ),

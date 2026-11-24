@@ -1,16 +1,19 @@
-// I testi di form, campi e notifiche nella lingua scelta nella barra del builder. Nella lingua
+// I testi di form, campi, notifiche, popup e banner nella lingua scelta nella barra. Nella lingua
 // principale si scrive il testo; nelle altre la traduzione, con l'originale sotto: vuota vale
-// l'originale (trimTranslations in model.js). Le impostazioni uguali in tutte le lingue restano
+// l'originale (withTranslation in i18n.js). Le impostazioni uguali in tutte le lingue restano
 // visibili ma disattivate (Fixed); lo spiega l'avviso sotto la barra.
 import { __, sprintf } from '@wordpress/i18n';
 
-import { Text } from '../../../../../assets/src/admin/ui.js';
-import { setTranslation } from './model.js';
+import { setTranslation } from './i18n.js';
+import { Text } from './ui.js';
 
 const [ main ] = window.barrioAdmin.languages;
 const MAIN = main.toUpperCase();
 
-// optional: nella lingua principale un testo vuoto è null, il valore standard (docs/database.md).
+// Un testo facoltativo vuoto è null: il valore standard (docs/database.md).
+export const orNull = ( optional, value ) =>
+	optional && ! value ? null : value;
+
 export function TextIn( {
 	item,
 	lang,
@@ -34,7 +37,7 @@ export function TextIn( {
 							...item.i18n,
 							[ main ]: {
 								...item.i18n[ main ],
-								[ name ]: optional && ! value ? null : value,
+								[ name ]: orNull( optional, value ),
 							},
 						},
 					} )

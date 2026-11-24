@@ -46,6 +46,9 @@ final class FieldTypesTest extends TestCase {
 			],
 			'unknown property'      => [ 'email', [ 'pattern' => '.+' ] ],
 			'invalid pattern'       => [ 'text', [ 'pattern' => '(' ] ],
+			// Il valore inviato arriva su una riga: una scelta così non si potrebbe mai inviare.
+			'choice with spaces'    => [ 'select', [ 'choices' => [ 'Corso  avanzato ' ] ] ],
+			'extension WP refuses'  => [ 'file', [ 'extensions' => [ 'pdf', 'exe' ] ] ],
 			'number min not number' => [ 'number', [ 'min' => 'five' ] ],
 			'invalid conditions'    => [ 'text', [], $show_if ],
 		] as $what => $definition ) {
@@ -72,6 +75,10 @@ final class FieldTypesTest extends TestCase {
 			'consent refused'            => [ 'consent', [], 'no', [] ],
 			'hidden fixed value'         => [ 'hidden', [ 'value' => 'landing' ], 'tampered', [ 'landing' ] ],
 			'hidden from the URL'        => [ 'hidden', [ 'param' => 'ref' ], 'spring', [ 'spring' ] ],
+			'hidden from the URL is cut' => [ 'hidden', [ 'param' => 'ref' ], str_repeat( 'è', 300 ), [ str_repeat( 'è', 255 ) ] ],
+			// Come trim() e \s in form.js: il browser e il server devono vedere lo stesso valore.
+			'unicode spaces on a line'   => [ 'text', [], "\u{00A0}San\u{00A0}\u{2003}Remo\u{3000}", [ 'San Remo' ] ],
+			'unicode spaces at the ends' => [ 'textarea', [], "\u{00A0}Uno\u{00A0}due\u{2003}\n", [ "Uno\u{00A0}due" ] ],
 			'file name'                  => [
 				'file',
 				[],

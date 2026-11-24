@@ -105,7 +105,11 @@ export function useScrollIntoView( active ) {
 	useEffect( () => {
 		if ( active ) {
 			ref.current?.scrollIntoView( {
-				behavior: 'smooth',
+				behavior: window.matchMedia(
+					'(prefers-reduced-motion: reduce)'
+				).matches
+					? 'auto'
+					: 'smooth',
 				block: 'nearest',
 			} );
 		}
@@ -247,15 +251,20 @@ export function Field( { label, help, addon, actions, children } ) {
 }
 
 // Come Field, per ciò che non è un singolo controllo (un'etichetta <label> non avrebbe a chi riferirsi).
-export const Group = ( { label, help, children } ) => (
-	<div className="barrio-field">
-		<span className="barrio-field__label">{ label }</span>
-		<div className="barrio-field__control">
-			{ children }
-			{ help && <p className="barrio-field__help">{ help }</p> }
+export function Group( { label, help, children } ) {
+	const id = useId();
+	return (
+		<div className="barrio-field" role="group" aria-labelledby={ id }>
+			<span className="barrio-field__label" id={ id }>
+				{ label }
+			</span>
+			<div className="barrio-field__control">
+				{ children }
+				{ help && <p className="barrio-field__help">{ help }</p> }
+			</div>
 		</div>
-	</div>
-);
+	);
+}
 
 // Un testo facoltativo vuoto lo trasforma in null chi lo usa (docs/database.md: NULL = standard).
 export function Text( {
@@ -831,6 +840,29 @@ function fit( bar ) {
 	}
 }
 
+// Prima di lasciare ciò che si è scritto (Esc, un clic fuori dalla modale, un altro passaggio): true se si può.
+export const discard = ( dirty ) =>
+	! dirty ||
+	// eslint-disable-next-line no-alert -- le modifiche non salvate non si perdono senza conferma.
+	window.confirm( __( 'Discard the changes?', 'barrio-suite' ) );
+
+// Il Salva di barre e modali, uguale ovunque: fermo mentre salva, e chi lo usa lo spegne senza modifiche.
+export const SaveButton = ( { busy, disabled, ...props } ) => (
+	<button
+		type="button"
+		className="barrio-button is-primary"
+		disabled={ !! busy || disabled }
+		{ ...props }
+	>
+		<Lucide name="save" />
+		<span className="barrio-button__text">
+			{ busy
+				? __( 'Saving…', 'barrio-suite' )
+				: __( 'Save', 'barrio-suite' ) }
+		</span>
+	</button>
+);
+
 /**
  * La barra sticky in alto di ogni pagina, sempre uguale: titolo a sinistra (con il
  * ritorno, se c'è), azioni a destra con la principale per ultima. Non va mai a capo a caso:
@@ -1188,6 +1220,24 @@ export function Table( {
 	const page = Math.min( query.page, last );
 	const first = total ? ( page - 1 ) * PER_PAGE + 1 : 0;
 	const go = ( to ) => onQuery( { ...query, page: to } );
+	const count = sprintf(
+		/* translators: 1: first row shown; 2: last row shown; 3: number of rows found. */
+		__( '%1$d–%2$d of %3$d', 'barrio-suite' ),
+		first,
+		first + rows.length - ( total ? 1 : 0 ),
+		total
+	);
+	// Mentre si scrive nella ricerca il conteggio cambia a ogni tasto: si annuncia a scrittura ferma.
+	const spoken = useRef( count );
+	useEffect( () => {
+		const timer = setTimeout( () => {
+			if ( spoken.current !== count ) {
+				spoken.current = count;
+				speak( count );
+			}
+		}, 500 );
+		return () => clearTimeout( timer );
+	}, [ count ] );
 
 	const ids = rows.map( ( row ) => row.id );
 	const selected =
@@ -1403,15 +1453,7 @@ export function Table( {
 					</table>
 				</div>
 				<div className="barrio-table__footer">
-					<span>
-						{ sprintf(
-							/* translators: 1: first row shown; 2: last row shown; 3: number of rows found. */
-							__( '%1$d–%2$d of %3$d', 'barrio-suite' ),
-							first,
-							first + rows.length - ( total ? 1 : 0 ),
-							total
-						) }
-					</span>
+					<span>{ count }</span>
 					<button
 						type="button"
 						className="barrio-icon-button"

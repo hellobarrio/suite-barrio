@@ -85,7 +85,13 @@ final class RestPublic {
 		// Non get_params(): l'id della rotta coprirebbe un campo con chiave "id". Un JSON che non è un
 		// oggetto diventa un array senza campi di servizio, che l'antispam respinge.
 		$input = (array) ( $request->get_json_params() ?: $request->get_body_params() );
-		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null;
+		// Oltre post_max_size PHP scarta tutto il corpo, campi e file: senza questo risponderebbe l'antispam.
+		$limit = wp_convert_hr_to_bytes( (string) ini_get( 'post_max_size' ) );
+		if ( ! $input && ! $request->get_file_params() && $limit > 0 && (int) ( $_SERVER['CONTENT_LENGTH'] ?? 0 ) > $limit ) {
+			/* translators: %s: maximum size, for example "8 MB". */
+			return new WP_Error( 'barrio_too_large', sprintf( __( 'The files are too large. Maximum total size: %s.', 'barrio-suite' ), size_format( $limit ) ), [ 'status' => 413 ] );
+		}
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null;
 		// Errori e messaggio standard nella lingua del visitatore, non in quella della richiesta REST.
 		return I18n::in(
 			I18n::resolve( $input['_barrio_lang'] ?? null ),

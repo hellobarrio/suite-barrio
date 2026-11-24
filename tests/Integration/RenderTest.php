@@ -64,7 +64,7 @@ final class RenderTest extends WP_UnitTestCase {
 					),
 					new Field( 'next', 'page_break', [ 'en' => [ 'label' => 'Continue' ] ] ),
 					new Field( 'topics', 'checkbox', [ 'en' => [ 'label' => 'Topics' ] ], true, [ 'choices' => [ 'news' ] ] ),
-					new Field( 'cv', 'file', [ 'en' => [ 'label' => 'CV' ] ], false, [ 'extensions' => [ 'pdf', 'exe' ] ] ),
+					new Field( 'cv', 'file', [ 'en' => [ 'label' => 'CV' ] ], false, [ 'extensions' => [ 'pdf', 'csv' ] ] ),
 					new Field( 'privacy', 'consent', [ 'en' => [ 'label' => 'I agree to the <a href="/privacy">policy</a><script>alert(1)</script>' ] ], true ),
 					new Field( 'campaign', 'hidden', [ 'en' => [ 'label' => 'Campaign' ] ], false, [ 'param' => 'utm_campaign' ] ),
 					new Field( 'source', 'hidden', [ 'en' => [ 'label' => 'Source' ] ], false, [ 'value' => 'landing' ] ),
@@ -74,10 +74,13 @@ final class RenderTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_shortcode_renders_steps_fields_and_service_inputs(): void {
+		// Dopo il salvataggio un altro plugin toglie un tipo di file a WordPress.
+		add_filter( 'upload_mimes', static fn( array $mimes ): array => array_diff_key( $mimes, [ 'csv' => true ] ) );
 		$html = do_shortcode( "[barrio_form id=\"{$this->form->id}\"]" );
 
 		$this->assertStringContainsString( 'action="' . esc_url( rest_url( "barrio/v1/forms/{$this->form->id}/entries" ) ) . '"', $html );
-		$this->assertSame( 2, substr_count( $html, 'data-barrio-step' ) );
+		// Solo il primo passaggio è visibile prima che parta il JavaScript.
+		$this->assertSame( [ '', ' hidden' ], self::captures( '/data-barrio-step( hidden)?>/', $html ) );
 		$this->assertStringContainsString( "name=\"_barrio_version\" value=\"{$this->form->current->id}\"", $html );
 		$this->assertStringContainsString( 'name="_barrio_lang" value="en"', $html );
 		$this->assertStringContainsString( 'name="_barrio_hp"', $html );
@@ -95,7 +98,7 @@ final class RenderTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/type="radio"[^>]*value="info" required/', $html );
 		$this->assertStringContainsString( 'data-required', $html );
 		$this->assertStringNotContainsString( 'name="topics[]" value="news" required', $html );
-		// exe non è tra le estensioni ammesse da WordPress.
+		// csv non è più tra le estensioni ammesse da WordPress.
 		$this->assertStringContainsString( 'accept=".pdf"', $html );
 		$this->assertStringContainsString( 'name="campaign" data-param="utm_campaign"', $html );
 		$this->assertStringContainsString( 'name="source" value="landing"', $html );

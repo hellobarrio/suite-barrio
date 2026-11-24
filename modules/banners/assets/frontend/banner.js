@@ -1,4 +1,4 @@
-// Il banner nel sito (modules/banners/src/Module.php): fuori dal suo periodo si toglie, perché con la cache di pagina
+// Il banner nel sito (modules/banners/src/Module.php): dopo la sua fine si toglie, perché con la cache di pagina
 // l'HTML può essere vecchio; la scritta scorre; la sua altezza va in --barrio-banner-height, per i temi con l'header
 // fisso. L'anteprima dell'admin usa start().
 
@@ -8,11 +8,12 @@ const SPEED = 50;
 /**
  * La scritta che scorre: copie del testo, nascoste agli screen reader, fino a riempire la barra più una, e una Web
  * Animation lunga quanto il testo con il suo spazio, così il giro non salta. Si rifà quando cambiano le misure (i font
- * caricati, la finestra). Col mouse, il focus e il tocco rallenta fino a fermarsi, e poi riparte; senza link un clic
- * la ferma fino al clic dopo. Con prefers-reduced-motion resta ferma (banner.css).
+ * caricati, la finestra). Col mouse, il focus e il tocco rallenta fino a fermarsi, e poi riparte; il bottone di pausa,
+ * che c'è solo mentre scorre, la ferma fino al clic dopo (WCAG 2.2.2). Con prefers-reduced-motion resta ferma
+ * (banner.css).
  *
  * @param {HTMLElement} banner
- * @return {() => void} Toglie animazione e copie.
+ * @return {() => void} Toglie animazione, copie e bottone.
  */
 export function start( banner ) {
 	const track = banner.querySelector( '.barrio-banner__track' );
@@ -80,33 +81,45 @@ export function start( banner ) {
 		}
 		sync();
 	};
+	const pause = document.createElement( 'button' );
 	banner.addEventListener( 'pointerenter', hold( 'pointer', true ) );
 	banner.addEventListener( 'pointerleave', hold( 'pointer', false ) );
-	banner.addEventListener( 'focusin', hold( 'focus', true ) );
+	// Il focus sul bottone di pausa non conta: dopo "riprendi" la scritta resterebbe ferma finché non lo si lascia.
+	banner.addEventListener(
+		'focusin',
+		( event ) => event.target !== pause && hold( 'focus', true )()
+	);
 	banner.addEventListener( 'focusout', hold( 'focus', false ) );
-	if ( ! banner.querySelector( 'a' ) ) {
-		banner.addEventListener( 'click', () => {
-			stopped = ! stopped;
-			sync();
-		} );
-	}
+	pause.type = 'button';
+	pause.className = 'barrio-banner__pause';
+	pause.setAttribute( 'aria-label', banner.dataset.pause );
+	pause.setAttribute( 'aria-pressed', 'false' );
+	// Pausa e, da fermo, riprendi: banner.css mostra quello giusto.
+	pause.innerHTML =
+		'<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/><path d="M8 5v14l11-7z"/></svg>';
+	pause.addEventListener( 'click', () => {
+		stopped = ! stopped;
+		pause.setAttribute( 'aria-pressed', String( stopped ) );
+		sync();
+	} );
+	banner.append( pause );
 	return () => {
 		observer.disconnect();
 		window.cancelAnimationFrame( frame );
 		animation?.cancel();
 		track.replaceChildren( text );
+		pause.remove();
 	};
 }
 
 const banner = document.getElementById( 'barrio-banner' );
-const now = Date.now() / 1000;
-if (
-	banner &&
-	( now < Number( banner.dataset.start ?? 0 ) ||
-		now >= Number( banner.dataset.end ?? Infinity ) )
-) {
+if ( banner && Date.now() / 1000 >= Number( banner.dataset.end ?? Infinity ) ) {
 	banner.remove();
 } else if ( banner ) {
+	// Stampato in fondo, da un tema senza wp_body_open().
+	if ( 'late' in banner.dataset ) {
+		document.body.prepend( banner );
+	}
 	start( banner );
 	new window.ResizeObserver( () =>
 		document.documentElement.style.setProperty(

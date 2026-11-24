@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Tests\Integration;
 
+use BarrioSuite\Admin;
 use BarrioSuite\Forms\Module;
 use BarrioSuite\Plugin;
 use BarrioSuite\Requirements;
@@ -24,6 +25,39 @@ final class PluginTest extends WP_UnitTestCase {
 		$this->assertTrue( get_role( 'editor' )->has_cap( 'barrio_manage_entries' ) );
 		$this->assertFalse( get_role( 'editor' )->has_cap( 'barrio_manage_forms' ) );
 		$this->assertFalse( get_role( 'author' )->has_cap( 'barrio_manage_entries' ) );
+	}
+
+	// Chi non ha la capability di alcun modulo avrebbe solo la Bacheca, vuota.
+	public function test_the_menu_is_for_who_can_open_more_than_the_dashboard(): void {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		$names = [ 'menu', 'submenu', '_registered_pages', '_parent_pages', 'admin_page_hooks', '_wp_submenu_nopriv' ];
+		$saved = array_map( static fn( string $name ): mixed => $GLOBALS[ $name ] ?? null, $names );
+		$shown = [];
+		foreach ( [ 'subscriber', 'contributor', 'author', 'editor', 'administrator' ] as $role ) {
+			foreach ( $names as $name ) {
+				$GLOBALS[ $name ] = []; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- i menu di WordPress.
+			}
+			remove_all_actions( 'load-toplevel_page_barrio' );
+			wp_set_current_user( self::factory()->user->create( [ 'role' => $role ] ) );
+			do_action( 'admin_menu' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- hook di WordPress.
+			// Il menu, e la pagina che dal suo indirizzo risponde 403.
+			$shown[ $role ] = [ in_array( 'barrio', array_column( $GLOBALS['menu'], 2 ), true ), isset( $GLOBALS['wp_filter']['load-toplevel_page_barrio'][0] ) ];
+		}
+		foreach ( $names as $index => $name ) {
+			$GLOBALS[ $name ] = $saved[ $index ]; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- i menu di WordPress.
+		}
+
+		$this->assertSame( 10, has_action( 'load-toplevel_page_barrio', [ Admin::class, 'enqueue' ] ), 'The hook of the Dashboard.' );
+		$this->assertSame(
+			[
+				'subscriber'    => [ false, true ],
+				'contributor'   => [ false, true ],
+				'author'        => [ true, false ],
+				'editor'        => [ true, false ],
+				'administrator' => [ true, false ],
+			],
+			$shown
+		);
 	}
 
 	// In CI gira su MySQL 8.0 e MariaDB 10.5, le versioni minime.

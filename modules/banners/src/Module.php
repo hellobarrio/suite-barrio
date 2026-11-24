@@ -28,6 +28,8 @@ final class Module {
 		add_action( 'init', [ self::class, 'register_assets' ] );
 		add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue' ] );
 		add_action( 'wp_body_open', [ self::class, 'render' ] );
+		// Un tema che non chiama wp_body_open(): il banner esce in fondo e banner.js lo porta in cima.
+		add_action( 'wp_footer', static fn() => self::render( true ) );
 		add_action( 'rest_api_init', [ self::class, 'register' ] );
 		add_action( 'admin_menu', [ self::class, 'menu' ] );
 		add_filter( 'barrio_admin_data', [ self::class, 'admin_data' ] );
@@ -62,34 +64,37 @@ final class Module {
 		}
 	}
 
-	public static function render(): void {
+	// Una volta sola per pagina: wp_footer lo stampa solo se wp_body_open non c'è stato.
+	public static function render( bool $late = false ): void {
 		if ( self::$shown ) {
-			echo self::html( self::$shown ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- html() codifica ogni valore.
+			echo self::html( self::$shown, $late ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- html() codifica ogni valore.
+			self::$shown = null;
 		}
 	}
 
 	/**
-	 * Il testo una volta sola: le copie della scritta che scorre le aggiunge il JavaScript, nascoste agli screen reader.
-	 * Senza link prende comunque il focus, che ferma la scritta (WCAG 2.2.2). Inizio e fine in secondi, per il
-	 * JavaScript: con la cache di pagina l'HTML può essere vecchio.
+	 * Il testo una volta sola: le copie della scritta che scorre e il bottone di pausa (data-pause è il suo nome) li
+	 * aggiunge il JavaScript, perché senza la scritta è ferma. Senza link prende comunque il focus, che ferma la scritta
+	 * (WCAG 2.2.2). La fine in secondi, per il JavaScript: con la cache di pagina l'HTML può essere vecchio; l'inizio
+	 * no, si stampa solo ciò che è già iniziato.
 	 *
 	 * @param Banner $banner
 	 */
-	public static function html( array $banner ): string {
-		$text   = I18n::pick( $banner['i18n'], I18n::current() );
-		$inner  = '<span class="barrio-banner__track"><span class="barrio-banner__text">' . esc_html( $text['text'] ?? '' ) . '</span></span>';
-		$body   = empty( $text['link_url'] )
+	public static function html( array $banner, bool $late = false ): string {
+		$text  = I18n::pick( $banner['i18n'], I18n::current() );
+		$inner = '<span class="barrio-banner__track"><span class="barrio-banner__text">' . esc_html( $text['text'] ?? '' ) . '</span></span>';
+		$body  = empty( $text['link_url'] )
 			? "<div class=\"barrio-banner__body\" tabindex=\"0\">{$inner}</div>"
 			: sprintf( '<a class="barrio-banner__body" href="%s"%s>%s</a>', esc_url( $text['link_url'] ), $banner['new_tab'] ? ' target="_blank" rel="noopener"' : '', $inner );
-		$period = '';
-		$dates  = [
-			'start' => $banner['starts_at'],
-			'end'   => $banner['ends_at'],
-		];
-		foreach ( $dates as $name => $utc ) {
-			$period .= null === $utc ? '' : sprintf( ' data-%s="%d"', $name, strtotime( "{$utc} UTC" ) );
-		}
-		return sprintf( '<section id="barrio-banner" class="barrio-banner"%s aria-label="%s">%s</section>', $period, esc_attr__( 'Announcement', 'barrio-suite' ), $body );
+		$end   = null === $banner['ends_at'] ? '' : sprintf( ' data-end="%d"', strtotime( "{$banner['ends_at']} UTC" ) );
+		return sprintf(
+			'<section id="barrio-banner" class="barrio-banner"%s%s data-pause="%s" aria-label="%s">%s</section>',
+			$end,
+			$late ? ' data-late' : '',
+			esc_attr__( 'Pause', 'barrio-suite' ),
+			esc_attr__( 'Announcement', 'barrio-suite' ),
+			$body
+		);
 	}
 
 	public static function menu(): void {

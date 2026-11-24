@@ -8,6 +8,7 @@ use BarrioSuite\Seo\Meta;
 use BarrioSuite\Seo\Module;
 use BarrioSuite\Seo\Repository\RedirectRepository;
 use WP_Error;
+use WP_Post;
 use WP_Query;
 use WP_REST_Post_Meta_Fields;
 use WP_REST_Request;
@@ -30,6 +31,19 @@ final class RestContents {
 				'methods'             => 'GET',
 				'callback'            => [ self::class, 'list' ],
 				'permission_callback' => $manage,
+				'args'                => [
+					'page'     => [
+						'type'    => 'integer',
+						'minimum' => 1,
+						'default' => 1,
+					],
+					'per_page' => [
+						'type'    => 'integer',
+						'minimum' => 1,
+						'maximum' => 200,
+						'default' => 200,
+					],
+				],
 			]
 		);
 		register_rest_route(
@@ -46,8 +60,10 @@ final class RestContents {
 	/**
 	 * Tutti i contenuti del tipo che chi guarda può modificare, tranne quelli nel cestino; tutti i termini. Con
 	 * più lingue ogni riga ha la sua, e ogni lingua il suo contesto (descrizione predefinita, nome del sito).
-	 * ponytail: tutto in una risposta, con filtri e ordinamento nel browser (localQuery); oltre ~2000 per tipo
-	 * si passa al server, come per le registrazioni.
+	 * A pagine di 200, perché ogni riga porta il testo intero per il punteggio: tutto in una risposta superava
+	 * memory_limit (docs/audit-seo.md §5). `pages` è il numero di pagine della lingua che ne ha di più.
+	 * ponytail: il browser le chiede tutte e le unisce, con filtri e ordinamento lì (localQuery); se un tipo
+	 * arriva a decine di megabyte si passa al server, come per le registrazioni.
 	 */
 	public static function list( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$group = (string) $request['group'];
@@ -56,39 +72,51 @@ final class RestContents {
 		if ( ! $posts && ! ( 'taxonomies' === $group && isset( Module::taxonomies()[ $name ] ) ) ) {
 			return new WP_Error( 'barrio_seo_unknown_type', __( 'This content type does not exist.', 'barrio-suite' ), [ 'status' => 404 ] );
 		}
+		$page     = (int) $request['page'];
+		$per_page = (int) $request['per_page'];
 		$rows     = [];
 		$contexts = [];
+		$pages    = 1;
 		// Una lingua alla volta, la principale per prima. Un contenuto che il plugin multilingua mostra in più
 		// lingue (un tipo che non traduce, o l'originale dove manca la traduzione) resta della prima.
 		foreach ( I18n::languages() as $lang ) {
-			[ $contexts[ $lang ], $in_lang ] = I18n::in( $lang, static fn(): array => [ Editor::context( $group, $name ), $posts ? self::posts( $name ) : self::terms( $name ) ] );
+			[ $contexts[ $lang ], [ $in_lang, $total ] ] = I18n::in( $lang, static fn(): array => [ Editor::context( $group, $name ), $posts ? self::posts( $name, $page, $per_page ) : self::terms( $name, $page, $per_page ) ] );
 			foreach ( $in_lang as $row ) {
 				$rows[ (int) $row['id'] ] ??= $row + [ 'lang' => $lang ];
 			}
+			$pages = max( $pages, (int) ceil( $total / $per_page ) );
 		}
 		return new WP_REST_Response(
 			[
 				'contexts' => $contexts,
 				'rows'     => array_values( $rows ),
+				'pages'    => $pages,
 			]
 		);
 	}
 
-	/** @return list<array<string, mixed>> */
-	private static function posts( string $type ): array {
+	/** @return array{list<array<string, mixed>>, int} Le righe di una pagina e il totale del tipo. */
+	private static function posts( string $type, int $page, int $per_page ): array {
 		$fields = new WP_REST_Post_Meta_Fields( $type );
 		$rows   = [];
-		$posts  = get_posts(
+		$query  = new WP_Query(
 			[
-				'post_type'        => $type,
-				'post_status'      => [ 'publish', 'future', 'draft', 'pending', 'private' ],
-				'posts_per_page'   => -1,
+				'post_type'           => $type,
+				'post_status'         => [ 'publish', 'future', 'draft', 'pending', 'private' ],
+				'posts_per_page'      => $per_page,
+				'paged'               => $page,
+				// L'ID decide tra due contenuti dello stesso secondo: senza, una riga può saltare da una pagina all'altra.
+				'orderby'             => [
+					'date' => 'DESC',
+					'ID'   => 'DESC',
+				],
+				'ignore_sticky_posts' => true,
 				// Con i filtri, perché il plugin multilingua tenga la lingua attuale.
-				'suppress_filters' => false,
+				'suppress_filters'    => false,
 			]
 		);
-		foreach ( $posts as $post ) {
-			if ( current_user_can( 'edit_post', $post->ID ) ) {
+		foreach ( $query->posts ?? [] as $post ) {
+			if ( $post instanceof WP_Post && current_user_can( 'edit_post', $post->ID ) ) {
 				$rows[] = [
 					'id'     => $post->ID,
 					'status' => $post->post_status,
@@ -99,17 +127,23 @@ final class RestContents {
 				];
 			}
 		}
-		return $rows;
+		return [ $rows, $query->found_posts ];
 	}
 
-	/** @return list<array<string, mixed>> */
-	private static function terms( string $taxonomy ): array {
+	/** @return array{list<array<string, mixed>>, int} */
+	private static function terms( string $taxonomy, int $paged, int $per_page ): array {
 		$fields = new WP_REST_Term_Meta_Fields( $taxonomy );
 		$rows   = [];
+		$args   = [
+			'taxonomy'   => $taxonomy,
+			'hide_empty' => false,
+			// Due termini possono avere lo stesso nome: l'ID tiene ferme le pagine.
+			'orderby'    => 'term_id',
+		];
 		$terms  = get_terms(
-			[
-				'taxonomy'   => $taxonomy,
-				'hide_empty' => false,
+			$args + [
+				'number' => $per_page,
+				'offset' => ( $paged - 1 ) * $per_page,
 			]
 		);
 		foreach ( is_array( $terms ) ? $terms : [] as $term ) {
@@ -125,7 +159,8 @@ final class RestContents {
 				];
 			}
 		}
-		return $rows;
+		$total = wp_count_terms( $args );
+		return [ $rows, is_numeric( $total ) ? (int) $total : 0 ];
 	}
 
 	// Contenuti pubblicati indicizzabili, quanti di questi senza una descrizione loro, e i redirect. In tutte le
