@@ -87,7 +87,7 @@ final class RestPublic {
 		$input = (array) ( $request->get_json_params() ?: $request->get_body_params() );
 		// Oltre post_max_size PHP scarta tutto il corpo, campi e file: senza questo risponderebbe l'antispam.
 		$limit = wp_convert_hr_to_bytes( (string) ini_get( 'post_max_size' ) );
-		if ( ! $input && ! $request->get_file_params() && $limit > 0 && (int) ( $_SERVER['CONTENT_LENGTH'] ?? 0 ) > $limit ) {
+		if ( ! $input && ! $request->get_file_params() && $limit > 0 && (int) $request->get_header( 'content_length' ) > $limit ) {
 			/* translators: %s: maximum size, for example "8 MB". */
 			return new WP_Error( 'barrio_too_large', sprintf( __( 'The files are too large. Maximum total size: %s.', 'barrio-suite' ), size_format( $limit ) ), [ 'status' => 413 ] );
 		}

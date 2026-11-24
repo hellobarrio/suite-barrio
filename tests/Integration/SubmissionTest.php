@@ -155,10 +155,11 @@ final class SubmissionTest extends WP_UnitTestCase {
 	public function test_a_body_over_post_max_size_is_too_large_not_spam(): void {
 		$server = $_SERVER;
 		try {
-			$_SERVER['REMOTE_ADDR']    = '203.0.113.6';
-			$_SERVER['CONTENT_LENGTH'] = (string) ( wp_convert_hr_to_bytes( (string) ini_get( 'post_max_size' ) ) + 1 );
+			$_SERVER['REMOTE_ADDR'] = '203.0.113.6';
+			$request                = new WP_REST_Request( 'POST', "/barrio/v1/forms/{$this->form->id}/entries" );
+			$request->set_header( 'content_length', (string) ( wp_convert_hr_to_bytes( (string) ini_get( 'post_max_size' ) ) + 1 ) );
 			add_filter( 'barrio_forms_rate_limit', static fn(): int => 1 );
-			$response = rest_do_request( new WP_REST_Request( 'POST', "/barrio/v1/forms/{$this->form->id}/entries" ) );
+			$response = rest_do_request( $request );
 
 			$this->assertSame( [ 413, 'barrio_too_large' ], [ $response->get_status(), $response->get_data()['code'] ] );
 			$this->assertSame( 201, $this->post( self::VALID )->get_status() );
