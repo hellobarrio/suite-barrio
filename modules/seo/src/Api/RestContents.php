@@ -61,7 +61,7 @@ final class RestContents {
 	 * Tutti i contenuti del tipo che chi guarda può modificare, tranne quelli nel cestino; tutti i termini. Con
 	 * più lingue ogni riga ha la sua, e ogni lingua il suo contesto (descrizione predefinita, nome del sito).
 	 * A pagine di 200, perché ogni riga porta il testo intero per il punteggio: tutto in una risposta superava
-	 * memory_limit (docs/audit-seo.md §5). `pages` è il numero di pagine della lingua che ne ha di più.
+	 * memory_limit. `pages` è il numero di pagine della lingua che ne ha di più.
 	 * ponytail: il browser le chiede tutte e le unisce, con filtri e ordinamento lì (localQuery); se un tipo
 	 * arriva a decine di megabyte si passa al server, come per le registrazioni.
 	 */
