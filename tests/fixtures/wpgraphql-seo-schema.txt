@@ -1,26 +1,34 @@
-RootQuery.hbLlms: LlmsContent
-RootQuery.hbLlmsFull: LlmsContent
-RootQuery.hbRedirects: [HBRedirect]
-RootQuery.hbSchemaRaw(uri: String): String
-RootQuery.hbSeoSite: HBSeoSite
-RootQuery.hbSitemap: [HBSitemapEntry]
-Page.seo: HBSeoPost
-Post.seo: HBSeoPost
+RootQuery.hbLlms: HbLlms
+RootQuery.hbLlmsFull: HbLlms
+RootQuery.hbRedirects: [HbRedirect!]
+RootQuery.hbSeoSchema(uri: String): String
+RootQuery.hbSeoSettings: HbSeoSettings
+RootQuery.hbSitemap: [HbSitemapEntry!]
+Page.seo: HbSeo
+Post.seo: HbSeo
+Category.seo: HbSeo
+Tag.seo: HbSeo
 
-type HBRedirect {
+type HbLlms {
+  bytes: Int!
+  content: String!
+  updatedAt: String!
+}
+
+type HbRedirect {
   code: Int!
+  databaseId: Int!
   from: String!
-  id: String!
   note: String
   to: String
 }
 
-type HBSeoPost {
+type HbSeo {
   canonical: String
   description: String
-  isInSitemap: Boolean
-  isIndexed: Boolean
-  keywords: [String]
+  isInSitemap: Boolean!
+  isIndexed: Boolean!
+  keywords: [String!]!
   ogDescription: String
   ogImage: String
   ogTitle: String
@@ -32,28 +40,25 @@ type HBSeoPost {
   twitterTitle: String
 }
 
-type HBSeoSite {
-  defaultDesc: String
+type HbSeoSettings {
+  defaultDescription: String
   favicon: String
   ogImage: String
-  robotsDefault: String
   separator: String
   siteTitle: String
-  titleOrder: String
+  titleOrder: HbSeoTitleOrderEnum!
 }
 
-type HBSitemapEntry {
-  id: Int!
+enum HbSeoTitleOrderEnum {
+  PAGE_SITE
+  SITE_PAGE
+}
+
+type HbSitemapEntry {
+  databaseId: Int!
   lastmod: String
   loc: String!
-  priority: Float
   subtype: String!
   title: String
   type: String!
-}
-
-type LlmsContent {
-  bytes: Int
-  content: String
-  updatedAt: String
 }

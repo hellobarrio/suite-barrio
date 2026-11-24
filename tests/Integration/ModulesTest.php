@@ -53,6 +53,7 @@ final class ModulesTest extends WP_UnitTestCase {
 				'popups'      => true,
 				'banners'     => true,
 				'hours'       => true,
+				'company'     => true,
 				'blocks'      => true,
 				'ordering'    => true,
 				'duplicate'   => true,
@@ -76,6 +77,7 @@ final class ModulesTest extends WP_UnitTestCase {
 				'popups'      => true,
 				'banners'     => true,
 				'hours'       => true,
+				'company'     => true,
 				'blocks'      => true,
 				'ordering'    => true,
 				'duplicate'   => true,
@@ -174,6 +176,22 @@ final class ModulesTest extends WP_UnitTestCase {
 		$this->put( [ 'banners' => true ] );
 		$this->boot();
 		$this->assertSame( 'Sale', BannerRepository::get( (int) $id )['i18n']['en']['text'] ?? null );
+	}
+
+	public function test_company_details_turned_off_register_nothing_and_keep_their_data(): void {
+		update_option( 'barrio_company', [ 'legal_name' => 'Trattoria Mario S.r.l.' ] );
+
+		$this->put( [ 'company' => false ] );
+		remove_shortcode( 'barrio_company' );
+		$this->go_to_home();
+		$this->assertSame( [], $this->callbacks( 'company' ), 'No page, route, block or extension (barrio_company_loaded).' );
+		$this->assertSame( [], preg_grep( '#^/barrio/v1/company#', array_keys( rest_get_server()->get_routes( 'barrio/v1' ) ) ) );
+		$this->assertFalse( WP_Block_Type_Registry::get_instance()->is_registered( 'barrio/company' ) );
+		$this->assertSame( '', do_shortcode( '[barrio_company]' ), 'The shortcode leaves no text.' );
+
+		$this->put( [ 'company' => true ] );
+		$this->go_to_home();
+		$this->assertStringContainsString( 'Trattoria Mario S.r.l.', do_shortcode( '[barrio_company]' ) );
 	}
 
 	// Un'opzione che non esiste non resta in cache tra una richiesta e l'altra: ognuna letta nel sito va creata

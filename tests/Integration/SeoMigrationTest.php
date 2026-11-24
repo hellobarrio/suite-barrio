@@ -3,6 +3,7 @@
 namespace BarrioSuite\Tests\Integration;
 
 use BarrioSuite\Ai;
+use BarrioSuite\Company\Module as Company;
 use BarrioSuite\Modules;
 use BarrioSuite\Seo\RedirectCode;
 use BarrioSuite\Seo\Repository\RedirectRepository;
@@ -88,8 +89,9 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		);
 
 		$organization = $settings['organization'];
-		$this->assertSame( [ 'Restaurant', 'Trattoria', $this->image, 0 ], [ $organization['type'], $organization['name'], $organization['logo'], $organization['image'] ] );
-		$this->assertSame( 'IT', $organization['address']['country'] );
+		$company      = Company::settings();
+		$this->assertSame( [ 'Restaurant', $this->image, 0 ], [ $organization['type'], $organization['logo'], $organization['image'] ] );
+		$this->assertSame( [ 'Trattoria', 'IT' ], [ $company['name'], $company['address']['country'] ], 'Name, contacts and address go to Company details.' );
 		$this->assertSame(
 			[
 				'latitude'  => 40.85,
@@ -119,7 +121,7 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 			$organization['area_served']
 		);
 		$this->assertSame( [ 'Pesce', 'Pizza' ], $organization['knows_about'] );
-		$this->assertSame( [ 'https://facebook.com/trattoria' ], $organization['same_as'] );
+		$this->assertSame( [ 'https://facebook.com/trattoria' ], $company['profiles'] );
 		$this->assertSame( [ 8.5, null ], array_column( $organization['offers']['items'], 'price' ) );
 		$this->assertSame( 'https://www.trattoria.it', get_option( 'graphql_general_settings' )['barrio_frontend_url'] );
 	}
@@ -131,7 +133,7 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$this->assertContains( 'Schema: the language was it-IT, Barrio Suite uses the one of the site (en-US). If it is wrong, change it in Settings → General.', $report['warnings'] );
 	}
 
-	public function test_without_schema_the_company_info_fills_the_organization(): void {
+	public function test_without_schema_the_company_info_fills_the_company_details_only_where_empty(): void {
 		delete_option( 'suite_barrio_schema_settings' );
 		update_option(
 			'suite_barrio_company_info',
@@ -142,11 +144,13 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 				'instagram'       => 'https://instagram.com/trattoria',
 			]
 		);
+		update_option( 'barrio_company', [ 'vat_id' => 'IT9999' ] );
 		$this->migrate();
 
-		$organization = Settings::get()['organization'];
-		$this->assertSame( [ 'LocalBusiness', 'Trattoria Srl', 'IT0123', 'Napoli' ], [ $organization['type'], $organization['name'], $organization['vat_id'], $organization['address']['locality'] ] );
-		$this->assertSame( [ 'https://instagram.com/trattoria' ], $organization['same_as'] );
+		$company = Company::settings();
+		$this->assertSame( 'LocalBusiness', Settings::get()['organization']['type'] );
+		$this->assertSame( [ 'Trattoria Srl', 'IT9999', 'Napoli' ], [ $company['name'], $company['vat_id'], $company['address']['locality'] ], 'What is written by hand stays.' );
+		$this->assertSame( [ 'https://instagram.com/trattoria' ], $company['profiles'] );
 	}
 
 	public function test_meta_become_barrio_meta_and_explicit_defaults_become_default(): void {

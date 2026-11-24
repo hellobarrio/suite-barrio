@@ -5,6 +5,7 @@
 // SEO del prototipo è acceso quello di Barrio Suite resta spento; alla fine si scambiano.
 
 use BarrioSuite\Ai;
+use BarrioSuite\Company\Module as Company;
 use BarrioSuite\Database\Db;
 use BarrioSuite\I18n;
 use BarrioSuite\Modules;
@@ -161,6 +162,10 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 	);
 	if ( null !== $settings ) {
 		Settings::save( $settings['sections'] );
+		// Solo nei campi di Dati aziendali ancora vuoti: quelli scritti a mano restano.
+		$company = Company::settings();
+		$empty   = static fn( mixed $value ): bool => ! array_filter( (array) $value );
+		update_option( 'barrio_company', array_replace( $company, array_filter( $settings['company'], static fn( mixed $value, string $key ): bool => $empty( $company[ $key ] ), ARRAY_FILTER_USE_BOTH ) ), true );
 		$graphql = (array) get_option( 'graphql_general_settings', [] );
 		if ( '' !== $settings['frontend'] && empty( $graphql['barrio_frontend_url'] ) ) {
 			update_option( 'graphql_general_settings', [ 'barrio_frontend_url' => $settings['frontend'] ] + $graphql );
@@ -366,11 +371,11 @@ function barrio_migration_seo_redirects( bool $table, array &$report ): array {
 }
 
 /**
- * Le opzioni del prototipo come sezioni di barrio_seo, validate con il loro schema; null se Barrio Suite ha già le
- * sue impostazioni. frontend è l'indirizzo del frontend headless, se c'è.
+ * Le opzioni del prototipo come sezioni di barrio_seo e come anagrafica di Dati aziendali (company), validate con il
+ * loro schema; null se Barrio Suite ha già le sue impostazioni. frontend è l'indirizzo del frontend headless, se c'è.
  *
  * @param array{counts: list<array{data: string, found: int, migrated: int, default: int, skipped: int}>, notes: list<string>, warnings: list<string>} $report
- * @return array{sections: array<string, mixed>, frontend: string}|null
+ * @return array{sections: array<string, mixed>, company: array<string, mixed>, frontend: string}|null
  */
 function barrio_migration_seo_settings( array &$report ): ?array {
 	if ( get_option( 'barrio_seo' ) ) {
@@ -469,21 +474,26 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 	if ( '' !== $type && ! in_array( $type, $types, true ) ) {
 		$report['warnings'][] = "Organization: Barrio Suite does not have the type \"{$type}\", it becomes LocalBusiness. Choose another one in SEO → Organization.";
 	}
-	$settings['organization'] = [
-		'type'        => in_array( $type, $types, true ) ? $type : 'LocalBusiness',
-		'name'        => $line( $schema['business_name'] ?? '' ),
-		'logo'        => $media( $schema['logo'] ?? '', 'logo' ),
-		'image'       => $media( $schema['image'] ?? '', 'image' ),
-		'phone'       => $line( $schema['telephone'] ?? '', 64 ),
-		'email'       => is_email( $email ) ? $email : '',
-		'vat_id'      => $line( $schema['vat_id'] ?? '', 64 ),
-		'address'     => [
+	// Nome, contatti, partita IVA, indirizzo e profili vanno in Dati aziendali.
+	$company                  = [
+		'name'     => $line( $schema['business_name'] ?? '' ),
+		'phone'    => $line( $schema['telephone'] ?? '', 64 ),
+		'email'    => is_email( $email ) ? $email : '',
+		'vat_id'   => $line( $schema['vat_id'] ?? '', 64 ),
+		'address'  => [
 			'street'      => $line( $schema['street_address'] ?? '' ),
 			'postal_code' => $line( $schema['postal_code'] ?? '' ),
 			'locality'    => $line( $schema['locality'] ?? '' ),
 			'region'      => $line( $schema['region'] ?? '' ),
 			'country'     => preg_match( '/^[A-Z]{2}$/', $country ) ? $country : '',
+			'maps_url'    => '',
 		],
+		'profiles' => array_values( array_filter( array_map( static fn( string $social ): string => esc_url_raw( (string) ( $schema[ $social ] ?? '' ), [ 'http', 'https' ] ), $socials ) ) ),
+	];
+	$settings['organization'] = [
+		'type'        => in_array( $type, $types, true ) ? $type : 'LocalBusiness',
+		'logo'        => $media( $schema['logo'] ?? '', 'logo' ),
+		'image'       => $media( $schema['image'] ?? '', 'image' ),
 		'geo'         => [
 			'latitude'  => $point( $schema['latitude'] ?? '', 90 ),
 			'longitude' => $point( $schema['longitude'] ?? '', 180 ),
@@ -505,7 +515,6 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 			$lines( $schema['area_served'] ?? '' )
 		),
 		'knows_about' => $lines( $schema['knows_about'] ?? '' ),
-		'same_as'     => array_values( array_filter( array_map( static fn( string $social ): string => esc_url_raw( (string) ( $schema[ $social ] ?? '' ), [ 'http', 'https' ] ), $socials ) ) ),
 		'offers'      => [
 			'name'     => $line( $schema['offer_catalog_name'] ?? '' ),
 			'currency' => preg_match( '/^[A-Z]{3}$/', $currency ) ? $currency : 'EUR',
@@ -541,6 +550,18 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 		}
 	}
 	$report['notes'][] = 'Settings: ' . implode( ', ', array_keys( $settings ) ) . " (texts in {$main}).";
+	$fields            = Company::schema();
+	$company           = array_filter(
+		$company,
+		static function ( mixed $value, string $key ) use ( $fields, &$report ): bool {
+			$valid = rest_validate_value_from_schema( $value, $fields[ $key ], $key );
+			if ( is_wp_error( $valid ) ) {
+				$report['warnings'][] = "Company details, {$key}: " . $valid->get_error_message() . ' It is left empty.';
+			}
+			return ! is_wp_error( $valid );
+		},
+		ARRAY_FILTER_USE_BOTH
+	);
 	// Nel prototipo la lingua dello schema era un'impostazione; in Barrio Suite è quella del sito.
 	$language = (string) ( $schema['language'] ?? '' );
 	$site     = get_bloginfo( 'language' );
@@ -549,14 +570,13 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 	}
 
 	// Il prototipo metteva nello schema l'indirizzo del frontend headless al posto di quello di WordPress.
-	$url      = trim( (string) ( $schema['url'] ?? '' ) );
-	$url      = '' === $url ? '' : untrailingslashit( esc_url_raw( preg_match( '#^https?://#i', $url ) ? $url : "https://{$url}", [ 'http', 'https' ] ) );
-	$frontend = untrailingslashit( home_url() ) === $url ? '' : $url;
+	$frontend = barrio_migration_frontend( (string) ( $schema['url'] ?? '' ) );
 	if ( '' !== $frontend ) {
 		$report['notes'][] = "Frontend address (GraphQL → Settings): {$frontend}.";
 	}
 	return [
 		'sections' => $settings,
+		'company'  => $company,
 		'frontend' => $frontend,
 	];
 }

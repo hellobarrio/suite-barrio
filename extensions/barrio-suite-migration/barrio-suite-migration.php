@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Barrio Suite Migration
- * Description:       Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with one WP-CLI command per module: forms, SEO, popups, banners, opening hours, blocks, ordering, duplicate, alt text and analytics. Once done, it can be removed.
+ * Description:       Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with one WP-CLI command per module: forms, SEO, popups, banners, opening hours, company details, blocks, ordering, duplicate, alt text and analytics. Once done, it can be removed.
  * Version:           0.1.0
  * Requires at least: 6.9
  * Requires PHP:      8.2
@@ -30,18 +30,20 @@ require __DIR__ . '/seo.php';
 require __DIR__ . '/popups.php';
 require __DIR__ . '/banners.php';
 require __DIR__ . '/hours.php';
+require __DIR__ . '/company.php';
 require __DIR__ . '/blocks.php';
 require __DIR__ . '/ordering.php';
 require __DIR__ . '/duplicate.php';
 require __DIR__ . '/alt.php';
 require __DIR__ . '/analytics.php';
 
-// I moduli di Barrio Suite con il nome del loro modulo nel prototipo (Suite Barrio → Strumenti). stats non è tra gli
-// strumenti: nel prototipo è sempre acceso.
+// I moduli di Barrio Suite con il nome del loro modulo nel prototipo (Suite Barrio → Strumenti). stats e info_azienda
+// non sono tra gli strumenti: nel prototipo sono sempre accesi.
 const BARRIO_MIGRATION_MODULES = [
 	'popups'    => 'popups',
 	'banners'   => 'banners',
 	'hours'     => 'orari',
+	'company'   => 'info_azienda',
 	'blocks'    => 'blocks',
 	'ordering'  => 'orders',
 	'duplicate' => 'duplicate',
@@ -96,6 +98,8 @@ function barrio_migration_modules_boot(): void {
 	barrio_migration_popups_boot();
 	barrio_migration_banners_boot();
 	add_action( 'barrio_hours_changed', static fn() => barrio_migration_revalidate( 'wp:orari' ) );
+	// wp:option nel frontend copre anche lo schema, che prende da qui nome, contatti e indirizzo.
+	add_action( 'barrio_company_changed', static fn() => barrio_migration_revalidate( 'wp:option' ) );
 	add_action( 'barrio_ordering_changed', static fn( string $kind, string $name ) => barrio_migration_revalidate( "wp:type:{$name}" ), 10, 2 );
 }
 
@@ -126,6 +130,13 @@ function barrio_migration_revalidate( string $tag ): void {
 	if ( function_exists( 'suite_barrio_invalidate_vercel_cache' ) ) {
 		suite_barrio_invalidate_vercel_cache( $tag );
 	}
+}
+
+// L'indirizzo del frontend headless (GraphQL → Settings) da un URL del prototipo; vuoto se è quello di WordPress.
+function barrio_migration_frontend( string $url ): string {
+	$url = trim( $url );
+	$url = '' === $url ? '' : untrailingslashit( esc_url_raw( preg_match( '#^https?://#i', $url ) ? $url : "https://{$url}", [ 'http', 'https' ] ) );
+	return untrailingslashit( home_url() ) === $url ? '' : $url;
 }
 
 /**
@@ -188,6 +199,7 @@ function barrio_migration_module_run( string $module, bool $dry_run ): array|WP_
 		'popups'    => barrio_migration_popups_run( $dry_run, $report ),
 		'banners'   => barrio_migration_banners_run( $dry_run, $report ),
 		'hours'     => barrio_migration_hours_run( $dry_run, $report ),
+		'company'   => barrio_migration_company_run( $dry_run, $report ),
 		'blocks'    => barrio_migration_blocks_run( $dry_run, $report ),
 		'ordering'  => barrio_migration_ordering_run( $dry_run, $report ),
 		'duplicate' => barrio_migration_duplicate_run( $dry_run, $report ),

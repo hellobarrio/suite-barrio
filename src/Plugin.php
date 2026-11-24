@@ -79,7 +79,7 @@ final class Plugin {
 		add_action(
 			'init',
 			static function (): void {
-				foreach ( [ 'barrio_form', 'barrio_hours' ] as $tag ) {
+				foreach ( [ 'barrio_form', 'barrio_hours', 'barrio_company' ] as $tag ) {
 					if ( ! shortcode_exists( $tag ) ) {
 						add_shortcode( $tag, '__return_empty_string' );
 					}

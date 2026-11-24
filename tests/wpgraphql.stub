@@ -9,6 +9,9 @@ namespace {
 	function register_graphql_input_type( string $type_name, array $config ): void {}
 
 	/** @param array<string, mixed> $config */
+	function register_graphql_enum_type( string $type_name, array $config ): void {}
+
+	/** @param array<string, mixed> $config */
 	function register_graphql_field( string $type_name, string $field_name, array $config ): void {}
 
 	/** @param array<string, mixed> $config */

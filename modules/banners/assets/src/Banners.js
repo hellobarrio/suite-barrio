@@ -17,6 +17,7 @@ import {
 	Bar,
 	Card,
 	Fixed,
+	HowTo,
 	Icon,
 	LangNotice,
 	LangPicker,
@@ -131,10 +132,10 @@ function Preview( { banner, lang } ) {
 			( { start } ) => {
 				if ( current ) {
 					stop = start( ref.current );
-					// L'anteprima è nascosta agli screen reader: niente al suo interno prende il focus.
+					// Nell'anteprima la scritta si ferma solo sotto il mouse: il bottone di pausa serve nel sito.
 					ref.current
 						.querySelector( '.barrio-banner__pause' )
-						?.setAttribute( 'tabindex', '-1' );
+						?.remove();
 				}
 			}
 		);
@@ -153,12 +154,7 @@ function Preview( { banner, lang } ) {
 					<span />
 					<span className="barrio-browser__url" />
 				</div>
-				<div
-					key={ key }
-					ref={ ref }
-					className="barrio-banner"
-					data-pause={ __( 'Pause', 'barrio-suite' ) }
-				>
+				<div key={ key } ref={ ref } className="barrio-banner">
 					<Body
 						className="barrio-banner__body"
 						href={ link ? '#' : undefined }
@@ -295,8 +291,15 @@ function BannerEditor( { id } ) {
 				] }
 			>
 				{ ( tab ) => (
-					<div className="barrio-fields">
-						<div>
+					// L'anteprima solo nel contenuto, come i campi del builder; le opzioni a tutta larghezza.
+					<div
+						className={
+							'content' === tab.name
+								? 'barrio-fields'
+								: 'barrio-stack'
+						}
+					>
+						<div className="barrio-stack">
 							{ 'content' === tab.name ? (
 								<Card
 									icon="text"
@@ -339,9 +342,11 @@ function BannerEditor( { id } ) {
 								</Fixed>
 							) }
 						</div>
-						<div className="barrio-panel">
-							<Preview banner={ banner } lang={ lang } />
-						</div>
+						{ 'content' === tab.name && (
+							<div className="barrio-panel">
+								<Preview banner={ banner } lang={ lang } />
+							</div>
+						) }
 					</div>
 				) }
 			</TabPanel>
@@ -362,7 +367,7 @@ export function BannersTab() {
 	);
 }
 
-// La scheda Impostazioni, agli amministratori: i Permessi.
+// La scheda Impostazioni, agli amministratori: come mostrarli e i Permessi.
 export const bannersSettingsSection = {
 	id: 'banners-settings',
 	load: () => apiFetch( { path: '/barrio/v1/banners/settings' } ),
@@ -374,16 +379,24 @@ export const bannersSettingsSection = {
 			data: { roles },
 		} ),
 	Cards: ( { data, draft, set } ) => (
-		<Permissions
-			description={ __(
-				'Who can create, change and delete the banners. Administrators can always do everything; only administrators change these settings.',
-				'barrio-suite'
-			) }
-			caps={ CAPS }
-			names={ data.role_names }
-			roles={ draft }
-			onChange={ set }
-		/>
+		<>
+			<HowTo
+				description={ __(
+					'They show up by themselves at the top of every page.',
+					'barrio-suite'
+				) }
+			/>
+			<Permissions
+				description={ __(
+					'Who can create, change and delete the banners. Administrators can always do everything; only administrators change these settings.',
+					'barrio-suite'
+				) }
+				caps={ CAPS }
+				names={ data.role_names }
+				roles={ draft }
+				onChange={ set }
+			/>
+		</>
 	),
 };
 

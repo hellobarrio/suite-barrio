@@ -195,11 +195,16 @@ final class SeoOutputTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_json_ld_graph(): void {
+		update_option(
+			'barrio_company',
+			[
+				'name'  => 'Pizzeria da Mario',
+				'phone' => '+39 011 123456',
+			]
+		);
 		Settings::save(
 			[
 				'organization' => [
-					'name'   => 'Pizzeria da Mario',
-					'phone'  => '+39 011 123456',
 					'offers' => [
 						'name'     => 'Menu',
 						'currency' => 'EUR',

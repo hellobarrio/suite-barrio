@@ -3,6 +3,7 @@
 namespace BarrioSuite\Tests\Integration;
 
 use BarrioSuite\Launch;
+use BarrioSuite\Modules;
 use BarrioSuite\Seo\Admin;
 use BarrioSuite\Seo\Module;
 use BarrioSuite\Seo\RedirectCode;
@@ -246,11 +247,15 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_the_schema_preview_uses_the_organization_being_written(): void {
-		$organization = [
-			'name'  => 'Pizzeria da Mario',
-			'phone' => '+39 011 123456',
-		] + Settings::get()['organization'];
+	public function test_the_schema_preview_uses_the_organization_being_written_and_the_company_details(): void {
+		update_option(
+			'barrio_company',
+			[
+				'name'  => 'Pizzeria da Mario',
+				'phone' => '+39 011 123456',
+			]
+		);
+		$organization = [ 'type' => 'Restaurant' ] + Settings::get()['organization'];
 
 		$node = $this->rest(
 			'POST',
@@ -261,7 +266,7 @@ final class SeoAdminTest extends WP_UnitTestCase {
 			]
 		)->get_data();
 
-		$this->assertSame( [ 'LocalBusiness', 'Pizzeria da Mario', '+39 011 123456', 'Pizza a Torino.' ], [ $node['@type'], $node['name'], $node['telephone'], $node['description'] ] );
+		$this->assertSame( [ 'Restaurant', 'Pizzeria da Mario', '+39 011 123456', 'Pizza a Torino.' ], [ $node['@type'], $node['name'], $node['telephone'], $node['description'] ] );
 		$this->assertSame( [], get_option( 'barrio_seo' ), 'Nothing is saved.' );
 		$this->assertSame( 400, $this->rest( 'POST', '/barrio/v1/seo/settings/schema', [ 'organization' => [ 'type' => 'Pizzeria' ] + $organization ] )->get_status() );
 	}
@@ -270,13 +275,11 @@ final class SeoAdminTest extends WP_UnitTestCase {
 		$this->assertFalse( Launch::steps()['seo'] );
 
 		$image = self::factory()->attachment->create();
+		update_option( 'barrio_company', [ 'name' => 'Pizzeria da Mario' ] );
 		Settings::save(
 			[
 				'default_image' => $image,
-				'organization'  => [
-					'name' => 'Pizzeria da Mario',
-					'logo' => $image,
-				] + Settings::get()['organization'],
+				'organization'  => [ 'logo' => $image ] + Settings::get()['organization'],
 			]
 		);
 		$this->assertFalse( Launch::steps()['seo'], 'The default description is missing.' );
@@ -293,6 +296,11 @@ final class SeoAdminTest extends WP_UnitTestCase {
 			]
 		);
 		$this->assertTrue( Launch::steps()['seo'] );
+
+		update_option( 'barrio_company', [] );
+		$this->assertFalse( Launch::steps()['seo'], 'The name is missing.' );
+		Modules::set( 'company', false );
+		$this->assertTrue( Launch::steps()['seo'], 'Without Company details there is nowhere to write the name.' );
 	}
 
 	public function test_the_admin_data_lists_pages_first_then_the_other_types_and_the_taxonomies(): void {

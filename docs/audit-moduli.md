@@ -122,8 +122,8 @@ Da decidere prima della prima installazione vera:
 
    Le rotte dei due `Module` (220 righe uguali) possono aspettare il terzo modulo. I test restano due:
    dimostrano i vincoli di ognuna delle due tabelle, e che dopo la modifica niente è cambiato. GraphQL e
-   migrazione non si toccano: il primo si rifà prima della release (PLAN-GRAPHQL.md), la seconda si toglie
-   sito per sito.
+   migrazione non si toccano: il primo è stato rifatto con lo schema di PLAN-GRAPHQL.md (G3, 24 novembre), la
+   seconda si toglie sito per sito.
 2. **`hbPopups` e `hbBanners`**: nessun utilizzatore e un dato che non dovrebbe uscire (§1.8).
 3. **Sette `uninstall()` con lo stesso ciclo** che toglie la capability a ogni ruolo
    ([Module.php:42-45](../modules/popups/src/Module.php#L42-L45) e gli altri sei). `Roles::remove( $caps )`

@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Seo;
 
+use BarrioSuite\Company\Module as Company;
 use BarrioSuite\Hours\Module as Hours;
 use BarrioSuite\I18n;
 use BarrioSuite\Modules;
@@ -72,18 +73,22 @@ final class Schema {
 	}
 
 	/**
+	 * L'organizzazione delle impostazioni SEO con l'anagrafica di Dati aziendali, che si legge anche con quel modulo
+	 * spento: si scrive solo lì.
+	 *
 	 * @param array<string, mixed> $o L'organizzazione delle impostazioni SEO.
 	 * @return array<string, mixed>
 	 */
 	public static function organization( array $o, string $home, string $description ): array {
+		$company = Company::settings();
 		$address = self::clean(
 			[
 				'@type'           => 'PostalAddress',
-				'streetAddress'   => $o['address']['street'],
-				'postalCode'      => $o['address']['postal_code'],
-				'addressLocality' => $o['address']['locality'],
-				'addressRegion'   => $o['address']['region'],
-				'addressCountry'  => $o['address']['country'],
+				'streetAddress'   => $company['address']['street'],
+				'postalCode'      => $company['address']['postal_code'],
+				'addressLocality' => $company['address']['locality'],
+				'addressRegion'   => $company['address']['region'],
+				'addressCountry'  => $company['address']['country'],
 			]
 		);
 		$offers  = array_map(
@@ -114,14 +119,16 @@ final class Schema {
 			[
 				'@type'           => $o['type'],
 				'@id'             => "{$home}#organization",
-				'name'            => $o['name'] ?: Meta::text( get_bloginfo( 'name' ) ),
+				'name'            => $company['name'] ?: Meta::text( get_bloginfo( 'name' ) ),
+				'legalName'       => $company['legal_name'],
 				'url'             => $home,
 				'description'     => $description,
 				'logo'            => self::image( $o['logo'] ),
 				'image'           => self::image( $o['image'] ),
-				'telephone'       => $o['phone'],
-				'email'           => $o['email'],
-				'vatID'           => $o['vat_id'],
+				'telephone'       => $company['phone'],
+				'email'           => $company['email'],
+				'vatID'           => $company['vat_id'],
+				'taxID'           => $company['tax_code'],
 				'address'         => count( $address ) > 1 ? $address : null,
 				'geo'             => null === $geo['latitude'] || null === $geo['longitude'] ? null : [
 					'@type'     => 'GeoCoordinates',
@@ -136,7 +143,7 @@ final class Schema {
 					$o['area_served']
 				),
 				'knowsAbout'      => $o['knows_about'],
-				'sameAs'          => $o['same_as'],
+				'sameAs'          => $company['profiles'],
 				'hasOfferCatalog' => $offers ? self::clean(
 					[
 						'@type'           => 'OfferCatalog',

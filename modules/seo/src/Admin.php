@@ -3,6 +3,7 @@
 namespace BarrioSuite\Seo;
 
 use BarrioSuite\Ai;
+use BarrioSuite\Modules;
 use WP_Post_Type;
 use WP_Taxonomy;
 
@@ -39,6 +40,8 @@ final class Admin {
 				'canManageSeo'  => current_user_can( 'barrio_manage_seo' ),
 				'canEditSeo'    => current_user_can( 'barrio_edit_seo' ),
 				'organizations' => Settings::schema()['organization']['properties']['type']['enum'],
+				// Per il collegamento a Dati aziendali in SEO → Organizzazione.
+				'company'       => Modules::is_enabled( 'company' ),
 				'sitemap'       => [
 					'url'     => get_sitemap_url( 'index' ),
 					'enabled' => wp_sitemaps_get_server()->sitemaps_enabled(),

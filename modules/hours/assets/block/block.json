@@ -20,7 +20,8 @@
 		}
 	},
 	"supports": {
-		"html": false
+		"html": false,
+		"customClassName": false
 	},
 	"editorScript": "file:./index.js",
 	"style": "barrio-hours"

@@ -19,6 +19,11 @@ import {
 	BannersTab,
 	bannersSettingsSection,
 } from '../../../modules/banners/assets/src/Banners.js';
+import {
+	COMPANY,
+	companySection,
+	companySettingsSection,
+} from '../../../modules/company/assets/src/Company.js';
 import { formsPage } from '../../../modules/forms/assets/src/forms/Forms.js';
 import {
 	HOURS,
@@ -47,6 +52,7 @@ const params = new URLSearchParams( window.location.search );
 
 // Costante: General ricarica le sezioni quando cambia l'array.
 const HOURS_SECTIONS = [ hoursSection ];
+const COMPANY_SECTIONS = [ companySection ];
 
 // La scheda Impostazioni di un modulo. Si chiama una volta per pagina, qui sotto: le sezioni restano lo stesso array.
 const settingsTab = ( ...sections ) =>
@@ -183,6 +189,31 @@ const PAGES = {
 						),
 					],
 					settingsTab( hoursSettingsSection ),
+				].filter( Boolean ) }
+			/>
+		),
+	},
+	'barrio-company': {
+		title: COMPANY.title,
+		description: __(
+			'Name, contacts, legal details, offices and profiles of the company, for the footer of the site, the schema of the organization and the headless frontend.',
+			'barrio-suite'
+		),
+		page: (
+			<Tabs
+				page="barrio-company"
+				tabs={ [
+					[
+						'',
+						COMPANY.title,
+						() => (
+							<General
+								title={ COMPANY.title }
+								sections={ COMPANY_SECTIONS }
+							/>
+						),
+					],
+					settingsTab( companySettingsSection ),
 				].filter( Boolean ) }
 			/>
 		),

@@ -12,17 +12,17 @@ use WP_UnitTestCase;
 // Il SEO in barrio-suite-wpgraphql. Gira solo con WPGraphQL, come WpGraphqlTest.
 final class SeoGraphqlTest extends WP_UnitTestCase {
 
-	// Le query di hello_standard (lib/data/queries, lib/fragments.ts), così come le invia.
-	private const SEO_FRAGMENT = 'fragment SeoFragment on HBSeoPost {
+	// Le query di hello_standard (lib/data/queries, lib/fragments.ts), con i nomi del foglio di porting.
+	private const SEO_FRAGMENT = 'fragment SeoFragment on HbSeo {
 		title description keywords robots canonical ogImage ogType twitterCard isIndexed isInSitemap
 		ogDescription ogTitle twitterImage twitterTitle
 	}';
 
-	private const GET_SEO = '{ hbSeoSite { siteTitle defaultDesc separator favicon ogImage } }';
+	private const GET_SEO = '{ hbSeoSettings { siteTitle defaultDescription separator titleOrder favicon ogImage } }';
 
-	private const GET_SCHEMA = 'query ($uri: String){ hbSchemaRaw(uri: $uri) }';
+	private const GET_SCHEMA = 'query ($uri: String){ hbSeoSchema(uri: $uri) }';
 
-	private const GET_SITEMAP = '{ hbSitemap { loc lastmod priority } }';
+	private const GET_SITEMAP = '{ hbSitemap { loc lastmod } }';
 
 	private const GET_REDIRECTS = '{ hbRedirects { from to code note } }';
 
@@ -48,15 +48,17 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	// La fixture viene dal prototipo con WPGraphQL 2.x (wp-env, sito di sviluppo), stampata con WpGraphqlTest::sdl().
-	public function test_the_schema_is_the_prototype_one(): void {
+	// La fotografia dello schema, stampata con WpGraphqlTest::sdl() (PLAN-GRAPHQL.md §3.2).
+	public function test_the_schema_matches_the_snapshot(): void {
 		$this->assertStringEqualsFile(
 			dirname( __DIR__ ) . '/fixtures/wpgraphql-seo-schema.txt',
 			WpGraphqlTest::sdl(
 				[
-					'RootQuery' => [ 'hbLlms', 'hbLlmsFull', 'hbRedirects', 'hbSchemaRaw', 'hbSeoSite', 'hbSitemap' ],
+					'RootQuery' => [ 'hbLlms', 'hbLlmsFull', 'hbRedirects', 'hbSeoSchema', 'hbSeoSettings', 'hbSitemap' ],
 					'Page'      => [ 'seo' ],
 					'Post'      => [ 'seo' ],
+					'Category'  => [ 'seo' ],
+					'Tag'       => [ 'seo' ],
 				]
 			)
 		);
@@ -65,12 +67,13 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 	public function test_without_the_seo_module_nothing_is_registered(): void {
 		// barrio_seo_loaded non parte con il modulo spento (ModulesTest).
 		remove_action( 'graphql_register_types', 'barrio_wpgraphql_register_seo', 9 );
-		$this->assertFalse( \WPGraphQL::get_schema()->getType( 'RootQuery' )->hasField( 'hbSeoSite' ) );
+		$this->assertFalse( \WPGraphQL::get_schema()->getType( 'RootQuery' )->hasField( 'hbSeoSettings' ) );
 		$this->assertFalse( \WPGraphQL::get_schema()->getType( 'Page' )->hasField( 'seo' ) );
+		$this->assertFalse( \WPGraphQL::get_schema()->getType( 'Category' )->hasField( 'seo' ) );
 
 		\WPGraphQL::clear_schema();
 		do_action( 'barrio_seo_loaded' );
-		$this->assertTrue( \WPGraphQL::get_schema()->getType( 'RootQuery' )->hasField( 'hbSeoSite' ) );
+		$this->assertTrue( \WPGraphQL::get_schema()->getType( 'RootQuery' )->hasField( 'hbSeoSettings' ) );
 	}
 
 	public function test_a_page_has_the_data_of_the_head(): void {
@@ -145,6 +148,44 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( 'Il lancio segreto di marzo.', $this->query( $query, [ 'id' => $draft ] )['post']['seo']['description'] );
 	}
 
+	public function test_a_term_has_the_data_of_the_head(): void {
+		$term = self::factory()->category->create(
+			[
+				'name'        => 'Pizze',
+				'slug'        => 'pizze',
+				'description' => 'Le pizze del forno.',
+			]
+		);
+		update_term_meta( $term, '_barrio_seo_keywords', [ 'pizze', 'forno' ] );
+		self::factory()->post->create( [ 'post_category' => [ $term ] ] );
+		$empty = self::factory()->tag->create( [ 'name' => 'Vuoto' ] );
+
+		$this->assertSame(
+			[
+				'title'         => 'Pizze',
+				'description'   => 'Le pizze del forno.',
+				'keywords'      => [],
+				'robots'        => 'index,follow',
+				'canonical'     => 'http://example.org/category/pizze/',
+				'ogImage'       => null,
+				'ogType'        => 'website',
+				'twitterCard'   => 'summary_large_image',
+				'isIndexed'     => true,
+				'isInSitemap'   => true,
+				'ogDescription' => 'Le pizze del forno.',
+				'ogTitle'       => 'Pizze',
+				'twitterImage'  => null,
+				'twitterTitle'  => 'Pizze',
+			],
+			$this->seo( '/category/pizze/' )
+		);
+		$tag = $this->query( 'query ($id: ID!) { tag(id: $id, idType: DATABASE_ID) { seo { isIndexed isInSitemap } } }', [ 'id' => $empty ] )['tag']['seo'];
+		$this->assertSame( [ true, false ], array_values( $tag ), 'An empty term is not in the sitemap of WordPress.' );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( [ 'pizze', 'forno' ], $this->seo( '/category/pizze/' )['keywords'], 'The keywords only for those who can edit the term.' );
+	}
+
 	public function test_the_site_settings(): void {
 		$image = self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg' );
 		Settings::save(
@@ -160,13 +201,14 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 
 		$this->assertSame(
 			[
-				'siteTitle'   => 'Pizzeria & Forno',
-				'defaultDesc' => 'Pizza napoletana a Torino.',
-				'separator'   => '|',
-				'favicon'     => wp_get_attachment_image_url( $image, 'full' ),
-				'ogImage'     => wp_get_attachment_image_url( $image, 'full' ),
+				'siteTitle'          => 'Pizzeria & Forno',
+				'defaultDescription' => 'Pizza napoletana a Torino.',
+				'separator'          => '|',
+				'titleOrder'         => 'SITE_PAGE',
+				'favicon'            => wp_get_attachment_image_url( $image, 'full' ),
+				'ogImage'            => wp_get_attachment_image_url( $image, 'full' ),
 			],
-			$this->query( self::GET_SEO )['hbSeoSite']
+			$this->query( self::GET_SEO )['hbSeoSettings']
 		);
 	}
 
@@ -193,9 +235,9 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 			]
 		);
 		update_post_meta( $hidden, '_barrio_seo_index', 'noindex' );
-		Settings::save( [ 'organization' => [ 'name' => 'Pizzeria Mario' ] + Settings::get()['organization'] ] );
+		update_option( 'barrio_company', [ 'name' => 'Pizzeria Mario' ] );
 
-		$raw = $this->query( self::GET_SCHEMA, [ 'uri' => '/servizi/pizze/' ] )['hbSchemaRaw'];
+		$raw = $this->query( self::GET_SCHEMA, [ 'uri' => '/servizi/pizze/' ] )['hbSeoSchema'];
 		$this->assertStringNotContainsString( '</script>', $raw, 'Safe inside <script>.' );
 		$graph = json_decode( $raw, true )['@graph'];
 		$this->assertSame( [ 'LocalBusiness', 'WebSite', 'WebPage', 'BreadcrumbList' ], array_column( $graph, '@type' ) );
@@ -204,7 +246,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'Pizzeria & Forno', 'Servizi', 'Pizze </script>' ], array_column( $graph[3]['itemListElement'], 'name' ) );
 
 		foreach ( [ null, '/interna/', '/non-esiste/' ] as $uri ) {
-			$graph = json_decode( $this->query( self::GET_SCHEMA, [ 'uri' => $uri ] )['hbSchemaRaw'], true )['@graph'];
+			$graph = json_decode( $this->query( self::GET_SCHEMA, [ 'uri' => $uri ] )['hbSeoSchema'], true )['@graph'];
 			$this->assertSame( [ 'LocalBusiness', 'WebSite' ], array_column( $graph, '@type' ), (string) $uri );
 		}
 
@@ -215,7 +257,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 			]
 		);
 		self::factory()->post->create( [ 'post_category' => [ $term ] ] );
-		$graph = json_decode( $this->query( self::GET_SCHEMA, [ 'uri' => '/category/pizze/' ] )['hbSchemaRaw'], true )['@graph'];
+		$graph = json_decode( $this->query( self::GET_SCHEMA, [ 'uri' => '/category/pizze/' ] )['hbSeoSchema'], true )['@graph'];
 		$this->assertSame( [ 'LocalBusiness', 'WebSite', 'CollectionPage', 'BreadcrumbList' ], array_column( $graph, '@type' ) );
 	}
 
@@ -235,17 +277,16 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		);
 		$this->set_languages();
 
-		$sitemap = $this->query( '{ hbSitemap { loc lastmod type subtype id title priority } }' )['hbSitemap'];
+		$sitemap = $this->query( '{ hbSitemap { loc lastmod type subtype databaseId title } }' )['hbSitemap'];
 		$entry   = $sitemap[ array_search( '/margherita/', array_column( $sitemap, 'loc' ), true ) ];
 		$this->assertSame(
 			[
-				'loc'      => '/margherita/',
-				'lastmod'  => get_post_modified_time( DATE_W3C, true, $post ),
-				'type'     => 'post',
-				'subtype'  => 'post',
-				'id'       => $post,
-				'title'    => 'Margherita',
-				'priority' => null,
+				'loc'        => '/margherita/',
+				'lastmod'    => get_post_modified_time( DATE_W3C, true, $post ),
+				'type'       => 'post',
+				'subtype'    => 'post',
+				'databaseId' => $post,
+				'title'      => 'Margherita',
 			],
 			$entry
 		);
@@ -271,7 +312,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 	}
 
 	public function test_redirects_have_the_path_of_the_frontend(): void {
-		RedirectRepository::create( '/vecchia', '/nuova/', RedirectCode::MovedPermanently, 'Dal vecchio sito' );
+		$id = RedirectRepository::create( '/vecchia', '/nuova/', RedirectCode::MovedPermanently, 'Dal vecchio sito' );
 		RedirectRepository::create( '/pagina.html', 'https://example.com/', RedirectCode::Found );
 		RedirectRepository::create( '/cerca?q=1', '/cerca/', RedirectCode::TemporaryRedirect );
 		RedirectRepository::create( '/chiusa', null, RedirectCode::Gone );
@@ -284,6 +325,8 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		];
 		$this->assertSame( $expected, array_map( 'array_values', $this->query( self::GET_REDIRECTS )['hbRedirects'] ), 'Notes are internal.' );
 
+		$this->assertSame( $id, $this->query( '{ hbRedirects { databaseId } }' )['hbRedirects'][3]['databaseId'] );
+
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 		$this->assertSame( 'Dal vecchio sito', $this->query( self::GET_REDIRECTS )['hbRedirects'][3]['note'] );
 	}
@@ -295,7 +338,8 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( Llms::build( false ), $llms['hbLlms']['content'] );
 		$this->assertSame( Llms::build( true ), $llms['hbLlmsFull']['content'] );
 		$this->assertSame( strlen( Llms::build( true ) ), $llms['hbLlmsFull']['bytes'] );
-		$this->assertEqualsWithDelta( time(), (int) $llms['hbLlms']['updatedAt'], 5 );
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $llms['hbLlms']['updatedAt'] );
+		$this->assertEqualsWithDelta( time(), strtotime( $llms['hbLlms']['updatedAt'] ), 5 );
 	}
 
 	public function test_page_links_point_to_the_frontend_address(): void {
@@ -315,7 +359,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		$seo = $this->seo( '/chi-siamo/' );
 		$this->assertSame( 'https://www.pizzeria.it/chi-siamo/', $seo['canonical'] );
 		$this->assertSame( wp_get_attachment_image_url( $image, 'full' ), $seo['ogImage'], 'Images stay on WordPress.' );
-		$graph = json_decode( $this->query( self::GET_SCHEMA, [ 'uri' => '/chi-siamo/' ] )['hbSchemaRaw'], true )['@graph'];
+		$graph = json_decode( $this->query( self::GET_SCHEMA, [ 'uri' => '/chi-siamo/' ] )['hbSeoSchema'], true )['@graph'];
 		$this->assertSame( 'https://www.pizzeria.it/', $graph[1]['url'] );
 		$this->assertSame( 'https://www.pizzeria.it/chi-siamo/', $graph[2]['url'] );
 		$llms = $this->query( self::GET_LLMS )['hbLlms']['content'];
@@ -336,7 +380,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 
 	/** @return array<string, mixed> */
 	private function seo( string $uri ): array {
-		$node = $this->query( 'query ($uri: String!) { nodeByUri(uri: $uri) { ... on Page { seo { ...SeoFragment } } ... on Post { seo { ...SeoFragment } } } } ' . self::SEO_FRAGMENT, [ 'uri' => $uri ] )['nodeByUri'];
+		$node = $this->query( 'query ($uri: String!) { nodeByUri(uri: $uri) { ... on Page { seo { ...SeoFragment } } ... on Post { seo { ...SeoFragment } } ... on Category { seo { ...SeoFragment } } } } ' . self::SEO_FRAGMENT, [ 'uri' => $uri ] )['nodeByUri'];
 		$this->assertIsArray( $node, $uri );
 		return $node['seo'];
 	}

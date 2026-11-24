@@ -65,6 +65,7 @@ function periodText( start, end ) {
  */
 export const PeriodCard = ( { item, description, onChange } ) => (
 	<Card
+		className="barrio-wide"
 		icon="calendar-alt"
 		title={ __( 'Period', 'barrio-suite' ) }
 		description={ description }

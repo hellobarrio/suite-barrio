@@ -11,6 +11,7 @@ import {
 	Card,
 	Dialog,
 	Fixed,
+	HowTo,
 	Icon,
 	LangNotice,
 	LangPicker,
@@ -613,26 +614,6 @@ function Preview( { week, exceptions, lang } ) {
 	);
 }
 
-// Gli shortcode come i merge tag delle email: etichette che si selezionano e si copiano.
-const HowTo = () => (
-	<Card
-		className="barrio-wide"
-		icon="editor-code"
-		title={ __( 'How to show them', 'barrio-suite' ) }
-		description={ __(
-			'In the block editor, the Opening hours block: the week, today or open now. Elsewhere, a shortcode. With the SEO module the hours are also in the schema of the organization, for Google.',
-			'barrio-suite'
-		) }
-	>
-		<div className="barrio-merge-tags">
-			<code>[barrio_hours]</code>
-			<code>[barrio_hours group=&quot;1&quot;]</code>
-			<code>[barrio_hours show=&quot;today&quot;]</code>
-			<code>[barrio_hours show=&quot;status&quot;]</code>
-		</div>
-	</Card>
-);
-
 // Con Google gli orari si vedono senza modificarli: si cambia fonte in Impostazioni, che solo gli amministratori aprono.
 function GoogleNotice( { google } ) {
 	const notice = {
@@ -730,7 +711,18 @@ export const hoursSettingsSection = {
 		apiFetch( { path: '/barrio/v1/hours', method: 'PUT', data: draft } ),
 	Cards: ( { data, draft, set, onData, onNotice } ) => (
 		<>
-			<HowTo />
+			<HowTo
+				description={ __(
+					'The Opening hours block, or a shortcode.',
+					'barrio-suite'
+				) }
+				codes={ [
+					'[barrio_hours]',
+					'[barrio_hours group="1"]',
+					'[barrio_hours show="today"]',
+					'[barrio_hours show="status"]',
+				] }
+			/>
 			<SourceCard
 				data={ data }
 				draft={ draft }

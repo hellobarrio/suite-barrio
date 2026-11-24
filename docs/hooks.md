@@ -8,11 +8,11 @@ plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
 | [`barrio-suite-mailchimp`](../extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php) | Un'integrazione con impostazioni globali (la chiave API) e per form, anche tradotte, e `process()` |
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali (la chiave del sito, da una tendina con `options`), il service account del core, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_languages` e seguenti |
-| [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio e per il SEO: lo schema GraphQL del prototipo sopra `FormRepository`, `Submission::process()` e `Seo\Meta`, e un'impostazione nella pagina di un altro plugin (vedi [GraphQL](#graphql)) |
+| [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per i moduli: lo schema GraphQL `hb*` sopra `FormRepository`, `Submission::process()`, `Seo\Meta` e i dati degli altri moduli, un file per modulo, e un'impostazione nella pagina di un altro plugin (vedi [GraphQL](#graphql)) |
 | [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle e le opzioni di un altro plugin e scrive con `FormRepository::create()` (con l'ID), `EntryRepository::create()` (con data e stato di lettura), `Seo\Settings::save()`, `RedirectRepository::create()`, `PopupRepository::save()` e `BannerRepository::save()` e le opzioni dei moduli, con un comando WP-CLI per modulo; tiene spento un modulo finché i dati non sono migrati (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
 
 I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`,
-`WpGraphqlTest`, `SeoGraphqlTest`, `MigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. I test GraphQL girano solo con
+`WpGraphqlTest`, `SeoGraphqlTest`, `ModulesGraphqlTest`, `MigrationTest`, `SeoMigrationTest`, `ModulesMigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. I test GraphQL girano solo con
 WPGraphQL, come nella riga WPGraphQL della CI: in locale si installa una volta nell'ambiente dei test
 (`npx wp-env run tests-cli wp plugin install wp-graphql`) e si lancia `npm run test:php:graphql`.
 
@@ -151,10 +151,11 @@ le aspetta.
 | `barrio_launch_steps` | filtro | `array<string, bool> $steps` | Messa online (`src/Launch.php`): per passaggio, se è configurato secondo le impostazioni vere. Un passaggio per modulo (Forms: `forms`) più quelli del sito (`smtp`, `timezone`, `search`); un passaggio nuovo compare nella guida solo se `assets/src/launch/Launch.js` sa come configurarlo |
 | `barrio_admin_data` | filtro | `array $data` | Per i moduli: i dati delle pagine Barrio, in `window.barrioAdmin` (`src/Admin.php`). Forms aggiunge `forms`; senza, il JavaScript sa che il modulo è spento |
 | `barrio_seo_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo SEO acceso: il momento per collegarsi al SEO, come `barrio_forms_loaded`. L'estensione WPML vi aggiunge a robots.txt le sitemap delle altre lingue |
-| `barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo acceso: il momento per collegarsi a Popup, Banner e Orari, come `barrio_forms_loaded`. L'estensione WPGraphQL vi registra `hbPopup`, `hbBanner` e `hbOrari` |
+| `barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded`, `barrio_company_loaded` | azione | — | Su `init` (priorità 5), solo con il modulo acceso: il momento per collegarsi a Popup, Banner, Orari e Dati aziendali, come `barrio_forms_loaded`. L'estensione WPGraphQL vi registra `hbPopup`, `hbBanner`, `hbOpeningHours` e `hbCompanyInfo` |
 | `barrio_seo_url` | filtro | `string $url` | L'URL di una pagina in ogni punto in cui il modulo SEO lo scrive (`Seo\Meta::url()`: canonical, `og:url`, JSON-LD, llms.txt); le immagini restano su WordPress. Serve a portare gli URL su un frontend headless. La canonical dei singoli nell'head la stampa il core e non passa da qui |
 | `barrio_seo_changed` | azione | `string $what`, `int $id = 0` | Sono cambiati le impostazioni SEO (`'settings'`), i redirect (`'redirects'`, anche quelli automatici) o i meta SEO di un contenuto (`'post'`) o di un termine (`'term'`) con il suo ID, una volta per richiesta: per svuotare la cache di un frontend |
 | `barrio_hours_changed` | azione | — | Sono cambiati gli orari (`barrio_hours`): un salvataggio, o la sincronizzazione con Google, anche quella di ogni notte. Per svuotare la cache di un frontend |
+| `barrio_company_changed` | azione | — | Sono cambiati i Dati aziendali (`barrio_company`). Per svuotare la cache di un frontend, anche quella dello schema del SEO, che ne prende nome, contatti e indirizzo |
 | `barrio_popups_changed` | azione | — | È cambiato un popup: creato, modificato, acceso, spento, duplicato o eliminato. Per svuotare la cache di un frontend |
 | `barrio_banners_changed` | azione | — | È cambiato un banner: creato, modificato, acceso, spento, duplicato o eliminato. Per svuotare la cache di un frontend |
 | `barrio_ordering_changed` | azione | `string $kind`, `string $name` | È cambiato l'ordine manuale di un tipo di contenuto (`'post'`, `'page'`) o di una tassonomia (`'term'`, `'category'`): un nuovo ordine salvato, o l'ordine manuale acceso o spento. Per svuotare la cache di un frontend |
@@ -182,64 +183,77 @@ all'arrivo. Il tema cambia l'aspetto con le custom property di `.barrio-popup` (
 
 ## GraphQL
 
-`barrio-suite-wpgraphql` espone i form con lo schema del prototipo, `hbForm(id, lang)`, `hbForms` e
-`hbSubmitForm`, con gli stessi nomi e tipi (`tests/fixtures/wpgraphql-schema.txt`, stampato dal prototipo):
-i frontend Next.js del prototipo funzionano senza modifiche. Senza WPGraphQL non registra niente.
+`barrio-suite-wpgraphql` mette in WPGraphQL form, SEO, popup, banner, orari e dati aziendali, un file per modulo,
+ognuno solo con il suo modulo acceso (`barrio_<modulo>_loaded`). Senza WPGraphQL non registra niente. Lo schema è
+quello di [PLAN-GRAPHQL.md](../PLAN-GRAPHQL.md) §3: nomi in inglese con il prefisso `hb` (campi della radice `hb*`,
+tipi `Hb*`, come `gf*` e `GfForm` di Gravity Forms), `language` per la lingua, `databaseId`, booleani con `is`, enum
+in maiuscolo e date ISO 8601 in UTC. La fotografia dello schema è in `tests/fixtures/wpgraphql-*.txt`, stampata da
+`WpGraphqlTest::sdl()`. I frontend del prototipo si portano con il [foglio di porting](graphql-porting.md), le cui
+query si provano in `WpGraphqlTest`.
 
-- **Precedenza sul prototipo**: registra lo schema con priorità 9, prima del prototipo (10), che registra gli
-  stessi nomi anche con il suo modulo Forms disattivato. WPGraphQL tiene la prima registrazione e scarta le
-  altre (`DUPLICATE_TYPE` nel suo debug), quindi con tutti e due attivi rispondono i form di Barrio Suite.
-- **Consenso**: i frontend del prototipo non conoscono il tipo `consent` (`hello_standard` non lo mostra), quindi
-  arriva come la loro checkbox della privacy: `type: checkbox`, etichetta vuota e una scelta con valore `1` ed
+- **Precedenza sul prototipo**: ogni file registra con priorità 9, prima del prototipo (10), che registra molti
+  degli stessi nomi anche con i suoi moduli spenti. WPGraphQL tiene la prima registrazione e scarta le altre
+  (`DUPLICATE_TYPE` e `DUPLICATE_FIELD` nel suo debug) e confronta i nomi dei tipi senza maiuscole (`HbForm` vince
+  su `HBForm`): con tutti e due attivi rispondono i dati di Barrio Suite, anche per il campo `seo`. I nomi che ha solo
+  il prototipo (`hbOrari`, `hbSeoSite`, `hbSchemaRaw`) restano suoi.
+- **Lingua**: `language` è una lingua attiva, altrimenti la principale.
+
+### Form
+
+`hbForm(id, language)`, `hbForms` e `hbSubmitForm`.
+
+- **`hbForm`**: `null` se il form non c'è o è nel cestino. `fields` sono tutti i campi, `steps` gli stessi divisi
+  dalle interruzioni di pagina. `title` è interno: solo per chi vede l'elenco dei form.
+- **Consenso**: i frontend headless non conoscono il tipo `consent` (`hello_standard` non lo mostra), quindi arriva
+  come la checkbox della privacy del prototipo: `type: checkbox`, etichetta vuota e una scelta con valore `1` ed
   etichetta il testo con il link; `"Etichetta: true"` torna come consenso dato.
 - **Invio**: la stessa pipeline della REST. I valori arrivano nel formato del prototipo e diventano quelli
   della pipeline: checkbox come `"Etichetta: true | Etichetta: false"` (etichette nella lingua del form) o
   valori separati da virgole, date come `dd/MM/yyyy` (il `format` del campo), file come JSON
   `{"content": base64, "filename": "…"}` scritto in un file temporaneo che passa da `FileStore::check()`.
-  `pageUrl` diventa la pagina della registrazione (senza query string); `pageTitle` e `pageReferrer` non si
-  salvano. I valori per le estensioni stanno tra i campi (`{name: "_barrio_recaptcha", value: token}`).
-- **Esito**: un invio rifiutato torna con `success: false`, `message` e `errors` (`"Etichetta: errore"`, uno
-  per campo), come nel prototipo; un'eccezione la gestisce WPGraphQL, con il messaggio solo nel suo debug
-  (`debug` resta nello schema, sempre `null`).
+  `pageUrl` diventa la pagina della registrazione (senza query string). I valori per le estensioni stanno tra i campi
+  (`{name: "_barrio_recaptcha", value: token}`).
+- **Esito**: un invio rifiutato torna con `success: false`, non come errore GraphQL. `errors` ne ha uno per campo,
+  con `name` la chiave del campo e `message` senza l'etichetta, oppure uno solo con `name: null` per un errore del
+  form (non trovato, chiuso, limite per IP); `message` è il primo errore con la sua etichetta. Un'eccezione la
+  gestisce WPGraphQL, con il messaggio solo nel suo debug.
 - **Antispam**: un client GraphQL non ha il segno del JavaScript, quindi restano il limite per IP e i
   captcha. Il limite non vale per le richieste di un utente con `edit_posts`: un frontend con l'application
   password invia dal suo server, con lo stesso IP per tutti i visitatori, e il suo utente deve avere quella
   capability (da Autore in su; un Sottoscrittore resta limitato come un anonimo). La registrazione non salva
   l'utente della richiesta (è quello del frontend, non chi compila).
 - **`hbForms`**: come `GET /barrio/v1/forms`, solo per chi può modificare gli articoli o gestire le
-  registrazioni (nel prototipo era pubblico); senza permesso è un errore GraphQL.
+  registrazioni (nel prototipo era pubblico); senza permesso è un errore GraphQL. `entryCount` solo per chi gestisce
+  form o registrazioni.
 
 ### SEO
 
-Con il modulo SEO acceso (`barrio_seo_loaded`) l'estensione registra lo schema SEO del prototipo, con gli stessi
-nomi e tipi (`tests/fixtures/wpgraphql-seo-schema.txt`), anch'esso con priorità 9: con il prototipo attivo
-rispondono i dati di Barrio Suite, anche per il campo `seo` sui suoi stessi tipi (WPGraphQL tiene il primo campo
-registrato e scarta l'altro, `DUPLICATE_FIELD` nel suo debug). Con il modulo spento non registra niente e, se è
-attivo, risponde il prototipo. I dati sono quelli dell'head, della sitemap e di llms.txt di WordPress: nessuna
-logica a parte.
+`seo` sui contenuti e sui termini, `hbSeoSettings`, `hbSeoSchema(uri)`, `hbSitemap`, `hbRedirects`, `hbLlms` e
+`hbLlmsFull`. I dati sono quelli dell'head, della sitemap e di llms.txt di WordPress: nessuna logica a parte.
 
-- **`seo`** (`HBSeoPost`) su ogni post type pubblico in GraphQL: `Seo\Meta::post()`. `title` è senza il nome del
-  sito, `robots` è `index,follow` e simili, `ogType` è `article` solo per gli articoli (nel prototipo sempre),
-  `isInSitemap` vale per i contenuti pubblicati, indicizzati e senza password. Di un contenuto non pubblico
-  (bozza, privato, in attesa) `seo` è `null` per chi non lo può modificare, e `hbSchemaRaw` non ne dà la pagina:
-  WPGraphQL ne mostra solo il titolo.
-- **`hbSeoSite`**: nome del sito, separatore, ordine, descrizione e immagine predefinite, icona del sito.
-  `robotsDefault` è sempre `index,follow`: l'indicizzazione è per tipo e per contenuto.
-- **`hbSchemaRaw(uri)`**: il JSON-LD di `Seo\Schema`, con `JSON_HEX_TAG` perché finisce in un `<script>`. L'URI si
+- **`seo`** (`HbSeo`) su ogni post type pubblico e su ogni tassonomia del SEO esposti in GraphQL: `Seo\Meta::post()`
+  e `Seo\Meta::term()`. `title` è senza il nome del sito, `robots` è `index,follow` e simili, `ogType` è `article`
+  solo per gli articoli. `isInSitemap` segue la sitemap: un contenuto pubblicato, indicizzato e senza password, un
+  termine indicizzato con contenuti. `keywords` solo per chi può modificare il contenuto o il termine. Di un
+  contenuto non pubblico (bozza, privato, in attesa) `seo` è `null` per chi non lo può modificare, e `hbSeoSchema`
+  non ne dà la pagina: WPGraphQL ne mostra solo il titolo.
+- **`hbSeoSettings`**: nome del sito, separatore, ordine (`PAGE_SITE` o `SITE_PAGE`), descrizione e immagine
+  predefinite, icona del sito. L'organizzazione non c'è: l'anagrafica è in `hbCompanyInfo`, il resto nel JSON-LD.
+- **`hbSeoSchema(uri)`**: il JSON-LD di `Seo\Schema`, con `JSON_HEX_TAG` perché finisce in un `<script>`. L'URI si
   risolve come `nodeByUri`; con un contenuto o un termine indicizzabile ci sono anche la pagina e il breadcrumb,
   altrimenti (senza `uri`, archivi, noindex, 404) solo organizzazione e sito.
 - **`hbSitemap`**: gli URL di `wp-sitemap.xml` in tutte le lingue (`Seo\Sitemaps::each()`, gli stessi che conta
   SEO → Impostazioni), anche con "Scoraggia i motori di ricerca", perché il WordPress di un sito headless spesso
   non va indicizzato. `loc` è relativo; `type` è `post`, `term` o `user` (gli archivi degli autori, se
-  indicizzati); `priority` è sempre `null`. Il campo è pubblico e leggere tutti gli URL costa: l'elenco sta in un
-  transient per un giorno al più, svuotato dagli stessi hook che svuotano llms.txt (contenuti, termini, impostazioni
-  del SEO, nome del sito).
+  indicizzati); `databaseId` è 0 per la home con gli ultimi articoli. Il campo è pubblico e leggere tutti gli URL
+  costa: l'elenco sta nel transient `barrio_wpgraphql_sitemap_entries` per un giorno al più, svuotato dagli stessi
+  hook che svuotano llms.txt (contenuti, termini, impostazioni del SEO, nome del sito).
 - **`hbRedirects`**: tutti i redirect. `from` ha la `/` finale dei permalink (le sorgenti nel database non ce
-  l'hanno), perché i frontend del prototipo la confrontano con il percorso della pagina; non l'hanno quelle con
-  la query string o con un'estensione (`/pagina.html`). Un 410 ha `to` null. `note` solo per chi ha
-  `barrio_manage_seo` (nel prototipo era pubblica).
-- **`hbLlms`, `hbLlmsFull`**: il testo di `Seo\Llms` dalla sua cache, con `updatedAt` (timestamp Unix) del momento
-  in cui è stato generato.
+  l'hanno), perché i frontend la confrontano con il percorso della pagina; non l'hanno quelle con la query string o
+  con un'estensione (`/pagina.html`). Un 410 ha `to` null. `note` solo per chi ha `barrio_manage_seo` (nel prototipo
+  era pubblica).
+- **`hbLlms`, `hbLlmsFull`**: il testo di `Seo\Llms` dalla sua cache, con `updatedAt` del momento in cui è stato
+  generato.
 - **Indirizzo del frontend**: un campo nelle impostazioni generali di WPGraphQL (GraphQL → Settings,
   `get_graphql_setting( 'barrio_frontend_url' )`). Se c'è, durante le richieste GraphQL il filtro `barrio_seo_url`
   porta su quell'indirizzo gli URL delle pagine (canonical, JSON-LD, llms.txt); le immagini restano su WordPress,
@@ -249,35 +263,42 @@ logica a parte.
 
 ### Popup, banner e orari
 
-Con i moduli accesi (`barrio_popups_loaded`, `barrio_banners_loaded`, `barrio_hours_loaded`) l'estensione registra
-`hbPopup(lang)`, `hbBanner(lang)` e `hbOrari(lang)`, anch'essi con priorità 9. Lo schema contiene ogni campo del
-prototipo con lo stesso tipo (`tests/fixtures/wpgraphql-modules-schema.txt`), più tutti i dati dei moduli che il
-prototipo non aveva: i frontend del prototipo funzionano senza modifiche, e quelli nuovi si adeguano. Con un modulo
-spento non registra niente e, se è attivo, risponde il prototipo. `lang` è una lingua attiva, altrimenti la principale.
+`hbPopup(language)`, `hbBanner(language)` e `hbOpeningHours(language)`.
 
 - **`hbPopup`, `hbBanner`**: quello del sito (`shown()` del modulo), il più recente tra gli accesi nel loro periodo, o
-  `null`; i testi sono la riga della lingua, o quella principale. `startsAt` ed `endsAt` sono il periodo (ISO 8601 in
-  UTC, `null` senza inizio o fine), per ricontrollarlo nel browser con la cache. Il periodo si valuta alla richiesta:
-  un frontend con la cache rivalida su `barrio_popups_changed` e `barrio_banners_changed`, che non partono quando un
-  periodo inizia o finisce; per quello il ponte di revalidation programma un evento a ogni inizio e fine futuri. Un
-  popup o un banner programmato non esce prima del suo inizio, nemmeno con i suoi testi.
+  `null`; i testi sono la riga della lingua, o quella principale. `startsAt` ed `endsAt` sono il periodo (`null`
+  senza inizio o fine), per ricontrollarlo nel browser con la cache. Il periodo si valuta alla richiesta: un frontend
+  con la cache rivalida su `barrio_popups_changed` e `barrio_banners_changed`, che non partono quando un periodo
+  inizia o finisce; per quello il ponte di revalidation programma un evento a ogni inizio e fine futuri. Un popup o un
+  banner programmato non esce prima del suo inizio, nemmeno con i suoi testi.
 - **Popup**: `content` è l'HTML senza shortcode, tranne quello del form (`[barrio_form id="3"]`, senza il paragrafo
   intorno), che il frontend separa dal testo, legge con `hbForm` e invia con `hbSubmitForm`; con il modulo Forms spento
   non c'è. `link` è il pulsante (`null` senza): `title` è il suo testo o quello standard della lingua ("Scopri di
   più"), `target` è `_blank` con "Nuova scheda". `image.node` è il `MediaItem`, `null` per un'immagine eliminata.
   `days` sono i giorni prima di riproporlo a chi l'ha chiuso (0: alla pagina dopo; mai più dopo un form inviato).
   Quando aprirlo lo decide il frontend: nel sito è 2 secondi dopo il caricamento.
-- **Banner**: `title` è il testo, `link` è `null` senza link.
-- **`hbOrari`**: `settimana` sono i prossimi 7 giorni da lunedì, con le fasce dei giorni speciali al posto della
-  settimana, come la `currentOpeningHours` di Google che salvava il prototipo; `settimanaNormale` è la settimana
-  senza giorni speciali, e `giorniSpeciali` sono quelli da oggi in poi, con `dal`, `al` (`Y-m-d`) e `nota` (nella
-  lingua, o in quella principale). Senza orari le settimane sono vuote. `slots` sono `09:00 - 13:00`, o
-  `9:00 AM - 1:00 PM` in inglese; `fasce` sono le stesse ore come `apertura` e `chiusura` in `HH:MM`, nel fuso del
-  sito (`generalSettings.timezone`). Una chiusura non dopo l'apertura è il giorno dopo: `00:00 - 00:00` è aperto
-  tutto il giorno. I nomi dei giorni sono di `WP_Locale` nella lingua chiesta, con la maiuscola (servono i pacchetti
-  di lingua). `fonte` è `manual` o `google`; `ultimoAggiornamento` (`d/m/Y H:i` nel
-  fuso del sito) c'è solo con la fonte Google, `displayName` è il nome del luogo su Google. L'ultimo errore di Google
-  resta nell'admin.
+- **Banner**: `text` è il testo, `link` è `null` senza link.
+- **`hbOpeningHours`**: con i nomi di Google Places e di schema.org. `currentWeek` sono i prossimi 7 giorni da
+  lunedì, con le fasce dei giorni speciali al posto della settimana, come la `currentOpeningHours` di Google;
+  `regularWeek` è la settimana senza giorni speciali, e `specialDays` sono quelli da oggi in poi, con `startDate`,
+  `endDate` (`Y-m-d`) e `note` (nella lingua, o in quella principale). Senza orari le settimane sono vuote. `slots`
+  sono `09:00 - 13:00`, o `9:00 AM - 1:00 PM` in inglese; `periods` sono le stesse ore come `opens` e `closes` in
+  `HH:MM`, nel fuso del sito (`generalSettings.timezone`). Una chiusura non dopo l'apertura è il giorno dopo:
+  `00:00 - 00:00` è aperto tutto il giorno. I nomi dei giorni sono di `WP_Locale` nella lingua chiesta, con la
+  maiuscola (servono i pacchetti di lingua). `source` è `MANUAL` o `GOOGLE`; `syncedAt` c'è solo con la fonte Google,
+  `displayName` è il nome del luogo su Google. L'ultimo errore di Google resta nell'admin.
+
+### Dati aziendali
+
+`hbCompanyInfo`, lo stesso nome del prototipo, con i campi in inglese: i dati di `Company\Module::data()`, gli stessi
+del blocco. Sono pubblici, come nel footer e nel JSON-LD.
+
+- Una stringa vuota è `null`, come nel prototipo; `legalName` vuota vale `name`.
+- `address` è la sede legale, `null` senza indirizzo; `operatingAddress` è `null` quando è la sede legale.
+- `profiles` sono i profili nell'ordine di Dati aziendali, con `network` riconosciuta dal dominio, sottodomini compresi
+  (`facebook`, `instagram`, `linkedin`, `x` anche per `twitter.com`, `youtube` anche per `youtu.be`, `telegram` per
+  `t.me`, `tiktok`, `whatsapp` per `wa.me`, `pinterest`, `threads`), oppure `null`: il frontend sceglie l'icona senza
+  guardare l'URL.
 
 ## Migrazione dal prototipo
 
@@ -330,7 +351,8 @@ wp barrio forms migrate
   Il prototipo solo se il sito non usa nient'altro di suo: è anche popup, banner, cookie banner con il registro
   dei consensi, SEO, orari, dati aziendali, llms.txt, accessibilità, e i frontend come `hello_standard` leggono
   da lui `hbPopup`, `hbBanner`, `hbOrari`, `hbCompanyInfo`, `hbSeoSite`, `hbSchemaRaw`, `hbRedirects`,
-  `hbSitemap`, `hbLlms`. Le tabelle `wpb_forms`, `wpb_form_submissions` e `wpb_forms_translations` e le opzioni
+  `hbSitemap`, `hbLlms`, finché non sono portati allo schema di Barrio Suite ([foglio di porting](graphql-porting.md)).
+  Le tabelle `wpb_forms`, `wpb_form_submissions` e `wpb_forms_translations` e le opzioni
   `suite_barrio_forms_*` restano: contengono le registrazioni vecchie, con IP e dati personali, quindi si
   eliminano a mano appena verificata la migrazione (`wp db query "DROP TABLE …"`).
 
@@ -346,8 +368,9 @@ wp barrio seo migrate
   siti WPML attivare `barrio-suite-wpml`, che dà la lingua principale dei testi. L'indirizzo del frontend (l'URL
   dello schema, se è diverso da quello di WordPress) va nelle impostazioni di WPGraphQL anche con WPGraphQL spento.
 - **Cosa passa**: le impostazioni (titoli, immagine e descrizione predefinite, indicizzazione per tipo e
-  tassonomia, organizzazione dello schema o, se è vuota, Info Azienda, modalità e introduzione di llms.txt) in
-  `barrio_seo`, solo se Barrio Suite non ha ancora le sue; i meta dei contenuti e dei termini, tranne quelli che
+  tassonomia, organizzazione dello schema, modalità e introduzione di llms.txt) in `barrio_seo`, solo se Barrio Suite
+  non ha ancora le sue, con l'anagrafica dell'organizzazione (nome, contatti, partita IVA, indirizzo, profili; se lo
+  schema è vuoto, quella di Info Azienda) nei campi vuoti di `barrio_company`; i meta dei contenuti e dei termini, tranne quelli che
   Barrio Suite ha già e gli index e follow uguali al default del tipo, che restano "predefinito"; i redirect,
   tranne doppioni, cicli e quelli già nella tabella. La tabella del comando conta per ogni meta trovati, migrati,
   predefiniti e saltati: gli stessi numeri nella prova a vuoto e nella migrazione. Contesto, settore e parole
@@ -361,11 +384,11 @@ wp barrio seo migrate
   revalidation di Next.js su `barrio_seo_changed`. Gli archivi degli autori sono noindex, come nel prototipo che non
   li aveva. Le opzioni e i meta `_suite_barrio_seo_*` del prototipo restano: si eliminano a mano dopo la verifica.
 
-### Popup, Banner, Orari, Blocchi, Ordinamento, Duplicazione, Testi alternativi e Statistiche
+### Popup, Banner, Orari, Dati aziendali, Blocchi, Ordinamento, Duplicazione, Testi alternativi e Statistiche
 
 ```sh
 wp barrio popups migrate --dry-run   # i conteggi e gli avvisi, niente salvato; poi senza --dry-run
-wp barrio banners migrate            # e hours, blocks, ordering, duplicate, alt, analytics
+wp barrio banners migrate            # e hours, company, blocks, ordering, duplicate, alt, analytics
 ```
 
 - **Prima**: con l'estensione attiva, ogni modulo di Barrio Suite il cui modulo del prototipo è acceso (Suite
@@ -387,6 +410,13 @@ wp barrio banners migrate            # e hours, blocks, ordering, duplicate, alt
   prototipo aveva preso da Google, i giorni dai nomi italiani, con `synced_at` dall'ultimo aggiornamento. Barrio Suite
   la sostituisce alla sincronizzazione delle 3 con la settimana normale e i giorni speciali. La chiave API non passa;
   il cron del prototipo (`suite_barrio_cron_aggiorna_orari`) si toglie.
+- **Dati aziendali**: da `suite_barrio_company_info` in `barrio_company`, dopo la migrazione del SEO, che ci ha già
+  messo l'anagrafica dello schema del prototipo. Ogni dato riempie solo un campo vuoto; dove i due valori sono diversi
+  resta quello già scritto, con un avviso. La ragione sociale va in `legal_name` ed è anche il nome, se manca; la sede
+  operativa passa solo con "sede operativa diversa" acceso, i link alle mappe solo sulla stessa sede, i sette social
+  diventano i profili. `sito_web`, che il prototipo usava come dominio del frontend per la revalidation, diventa
+  l'indirizzo del frontend (GraphQL → Settings), se non c'è già. Da quel momento `hbCompanyInfo` risponde con i nomi
+  nuovi: il frontend portato si pubblica subito dopo.
 - **Blocchi**: per ogni ruolo senza `manage_options` i blocchi disattivati sono quelli registrati meno quelli ammessi,
   senza i blocchi figli (che seguono il loro blocco: un elenco ha di nuovo le sue voci) e senza quelli di Barrio
   Suite, che il prototipo non conosceva. Con la restrizione accesa (anche senza l'opzione: era il default del
@@ -404,8 +434,8 @@ wp barrio banners migrate            # e hours, blocks, ordering, duplicate, alt
 - **Impostazioni già in Barrio Suite**: un'opzione che c'è già (`barrio_hours`, `barrio_blocks`, …) resta com'è.
 - **Dopo**: il modulo del prototipo è spento (`suite_barrio_tools_modules`) e quello di Barrio Suite acceso. Finché il
   prototipo è attivo l'estensione chiama la sua revalidation di Next.js: `barrio_popups_changed` (`wp:popup`),
-  `barrio_banners_changed` (`wp:banner`), `barrio_hours_changed` (`wp:orari`), `barrio_ordering_changed`
-  (`wp:type:{tipo}`); per popup e banner anche all'inizio e alla fine di ogni periodo futuro, con un evento di WP-Cron
+  `barrio_banners_changed` (`wp:banner`), `barrio_hours_changed` (`wp:orari`), `barrio_company_changed`
+  (`wp:option`, che nel frontend copre anche lo schema), `barrio_ordering_changed` (`wp:type:{tipo}`); per popup e banner anche all'inizio e alla fine di ogni periodo futuro, con un evento di WP-Cron
   (`barrio_migration_popups_period`, `barrio_migration_banners_period`). Le tabelle `wpb_popups*` e `wpb_banners*` e
   le opzioni del prototipo restano: si eliminano a mano dopo la verifica.
 

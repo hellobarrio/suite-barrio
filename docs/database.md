@@ -303,6 +303,19 @@ spariscono dal database alla scrittura dopo. Con la fonte Google resta un evento
 migrazione `0001` assegna `barrio_manage_hours` agli amministratori e agli editor; la `0002` crea l'opzione vuota, che
 `init` legge a ogni richiesta.
 
+## Modulo Dati aziendali
+
+Nessuna tabella: un solo record, letto intero. L'opzione `barrio_company` (in autoload: la leggono il blocco, lo
+shortcode e lo schema del SEO, anche con il modulo spento) ha i dati in righe di testo (`name`, `legal_name`,
+`tax_code`, `registration_number`, `share_capital`, `invoice_code`; `vat_id`, `phone` e `mobile` al più 64
+caratteri), le email (`email`, `certified_email`, `privacy_email`, un'email o vuote), `address` e `operating_address`
+(`{street, postal_code, locality, region, country, maps_url}`, il paese in ISO 3166-1, la mappa `http(s)` o vuota) e
+`profiles` (URL `http(s)`). Nessun testo per lingua: sono dati legali. Lo schema JSON di `Company\Module::schema()` la
+valida prima di ogni scrittura, sulla rotta `PUT /company` e nella migrazione dal prototipo; una sede operativa tutta
+vuota è la sede legale. La migrazione `0001` crea l'opzione con l'anagrafica tolta da `barrio_seo.organization`
+(`same_as` diventa `profiles`), e la toglie da lì solo se l'opzione nasce in quel momento; la `0002` assegna
+`barrio_manage_company` ai soli amministratori.
+
 ## Modulo Statistiche
 
 Nessuna tabella: i dati sono di Google Analytics, e il plugin non ne tiene una copia. L'opzione `barrio_analytics`

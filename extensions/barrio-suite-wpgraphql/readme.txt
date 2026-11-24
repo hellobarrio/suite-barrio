@@ -8,17 +8,20 @@ Stable tag: 0.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-The Barrio Suite forms, SEO, popups, banners and opening hours in WPGraphQL, for headless frontends.
+The Barrio Suite forms, SEO, popups, banners, opening hours and company details in WPGraphQL, for headless frontends.
 
 == Description ==
 
-Adds the Barrio Suite forms, SEO, popups, banners and opening hours to the WPGraphQL schema, with the same names and types as the previous Suite Barrio plugin, so existing headless frontends keep working unchanged:
+Adds the Barrio Suite modules to the WPGraphQL schema, with the conventions of WPGraphQL and of plugins such as Yoast SEO and Gravity Forms: the `hb` prefix, `databaseId`, enums and dates in ISO 8601.
 
-* forms: `hbForm`, `hbForms` and `hbSubmitForm`. Submissions go through the same pipeline as the REST API, spam checks and file checks included;
-* SEO: `seo` on every public content type, `hbSeoSite`, `hbSchemaRaw`, `hbSitemap`, `hbRedirects`, `hbLlms` and `hbLlmsFull`, with the same data as the head, the sitemap and llms.txt of WordPress;
-* popups, banners and opening hours: `hbPopup`, `hbBanner` and `hbOrari`, the same popup, banner and hours as on WordPress, with the data the previous plugin did not have: the days before a popup comes back, the period of popups and banners, the usual week, the special days with their notes and the hours as HH:MM.
+* forms: `hbForm`, `hbForms` and `hbSubmitForm`. Submissions go through the same pipeline as the REST API, spam checks and file checks included, and a rejected one comes back with an error for each field;
+* SEO: `seo` on every public content type and taxonomy, `hbSeoSettings`, `hbSeoSchema`, `hbSitemap`, `hbRedirects`, `hbLlms` and `hbLlmsFull`, with the same data as the head, the sitemap and llms.txt of WordPress;
+* popups, banners and opening hours: `hbPopup`, `hbBanner` and `hbOpeningHours`, the same popup, banner and hours as on WordPress: the days before a popup comes back, the period of popups and banners, the current and the usual week, the special days with their notes and the hours as HH:MM;
+* company details: `hbCompanyInfo`, the name, contacts, legal data, offices and profiles of Barrio → Company details.
 
 Each part only works while its Barrio Suite module is on. In GraphQL → Settings, "Frontend address" moves the links of the SEO data (canonical, JSON-LD, llms.txt) to the headless site; images stay on WordPress. Without WPGraphQL the extension does nothing.
+
+Frontends written for the previous Suite Barrio plugin keep the shape of their queries, with new names and some new values: the porting guide is `docs/graphql-porting.md` in https://github.com/hellobarrio/suite-barrio (branch `stable`).
 
 It needs Barrio Suite.
 

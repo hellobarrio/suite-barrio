@@ -13,7 +13,8 @@ use WP_UnitTestCase;
 require_once dirname( __DIR__ ) . '/prototype.php';
 
 // Il passaggio dei moduli del prototipo (extensions/barrio-suite-migration, un file per modulo): popup, banner, orari,
-// blocchi, ordinamento, duplicazione, testi alternativi e statistiche, e lo scambio tra i moduli dei due plugin.
+// dati aziendali, blocchi, ordinamento, duplicazione, testi alternativi e statistiche, e lo scambio tra i moduli dei due
+// plugin.
 final class ModulesMigrationTest extends WP_UnitTestCase {
 
 	private static string $private_key = '';
@@ -286,6 +287,88 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 		$this->assertContains( 'Deleted: the Google refresh token of Suite Barrio. Delete its OAuth client 42.apps.googleusercontent.com in Google Cloud → APIs & Services → Credentials: Barrio Suite does not need it.', $report['notes'] );
 	}
 
+	// Come li lascia la migrazione del SEO: il nome, un altro telefono, la stessa email e la stessa sede, un profilo.
+	public function test_company_details_fill_the_empty_fields_and_warn_where_they_differ(): void {
+		$this->company();
+		$report = $this->migrate( 'company' );
+
+		$this->assertSame(
+			[
+				'data'     => 'company details',
+				'found'    => 16,
+				'migrated' => 11,
+				'skipped'  => 5,
+			],
+			$report['counts'][0]
+		);
+		// L'ordine delle chiavi è quello dell'opzione che c'era.
+		$this->assertEquals(
+			[
+				'name'                => 'Trattoria Mario',
+				'legal_name'          => 'Trattoria da Mario S.r.l.',
+				'vat_id'              => 'IT01234567890',
+				'tax_code'            => '01234567890',
+				'registration_number' => 'NA-123456',
+				'share_capital'       => '10.000 € i.v.',
+				'invoice_code'        => 'ABC1234',
+				'phone'               => '081 7654321',
+				'mobile'              => '333 1234567',
+				'email'               => 'info@trattoriamario.it',
+				'certified_email'     => 'trattoriamario@pec.it',
+				'privacy_email'       => 'privacy@trattoriamario.it',
+				'address'             => [
+					'street'      => 'Via Roma 1',
+					'postal_code' => '80100',
+					'locality'    => 'Napoli',
+					'region'      => 'NA',
+					'country'     => 'IT',
+					'maps_url'    => 'https://maps.app.goo.gl/abc',
+				],
+				'operating_address'   => [
+					'street'      => 'Via Toledo 2',
+					'postal_code' => '80134',
+					'locality'    => 'Napoli',
+					'region'      => 'NA',
+					'country'     => '',
+					'maps_url'    => '',
+				],
+				'profiles'            => [ 'https://www.facebook.com/trattoriamario' ],
+			],
+			get_option( 'barrio_company' )
+		);
+		// Il nome diverso dalla ragione sociale è normale: nessun avviso.
+		$this->assertSame(
+			[
+				'Company details, phone: Barrio Suite has "081 7654321", which stays; Suite Barrio had "081 1234567".',
+				'Company details, profiles: Barrio Suite has "https://www.facebook.com/trattoriamario", which stays; Suite Barrio had "https://www.facebook.com/trattoriamario, https://instagram.com/trattoriamario".',
+			],
+			$report['warnings']
+		);
+		$this->assertSame( [ 'Frontend address (GraphQL → Settings): https://www.trattoriamario.it.' ], $report['notes'] );
+		$this->assertSame( 'https://www.trattoriamario.it', get_option( 'graphql_general_settings' )['barrio_frontend_url'] );
+		$this->assertSame( [ 'wp:option' ], $GLOBALS['barrio_test_revalidated'] );
+		$this->assertFalse( suite_barrio_tools_module_enabled( 'info_azienda' ) );
+		$this->assertTrue( Modules::is_enabled( 'company' ) );
+	}
+
+	public function test_company_details_without_the_operating_office_toggle_and_run_again(): void {
+		update_option( 'barrio_company', [] );
+		update_option( 'suite_barrio_company_info', [ 'sede_operativa_diversa' => 0 ] + get_option( 'suite_barrio_company_info' ) );
+
+		$dry = $this->migrate( 'company', true );
+		$this->assertSame( [], get_option( 'barrio_company' ) );
+		$this->assertSame( $dry, $this->migrate( 'company' ) );
+		$company = get_option( 'barrio_company' );
+		$this->assertSame( [ 'Trattoria da Mario S.r.l.', 'Trattoria da Mario S.r.l.', '' ], [ $company['name'], $company['legal_name'], $company['operating_address']['street'] ] );
+		$this->assertSame( [ 'https://www.facebook.com/trattoriamario', 'https://instagram.com/trattoriamario' ], $company['profiles'] );
+		$this->assertSame( [], $dry['warnings'] );
+
+		$again = $this->migrate( 'company' );
+		$this->assertSame( [ 15, 0, 15 ], [ $again['counts'][0]['found'], $again['counts'][0]['migrated'], $again['counts'][0]['skipped'] ] );
+		$this->assertSame( [], $again['warnings'] );
+		$this->assertSame( $company, get_option( 'barrio_company' ) );
+	}
+
 	/** @param array<string, mixed> $args */
 	public function google( mixed $pre, array $args, string $url ): array {
 		$body = str_contains( $url, 'accountSummaries' ) ? [ 'accountSummaries' => [ [ 'propertySummaries' => [ [ 'property' => 'properties/789' ] ] ] ] ] : [
@@ -362,6 +445,7 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 
 		$this->assertFalse( Modules::is_enabled( 'popups' ) );
 		$this->assertSame( 'held', get_option( 'barrio_migration_popups' ) );
+		$this->assertFalse( Modules::is_enabled( 'company' ), 'Info Azienda is always on in Suite Barrio.' );
 
 		// Riacceso prima della migrazione: è una scelta, e resta.
 		Modules::set( 'popups', true );
@@ -395,10 +479,31 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 		);
 		do_action( 'barrio_ordering_changed', 'term', 'category' );
 		do_action( 'barrio_hours_changed' );
+		do_action( 'barrio_company_changed' );
 
-		$this->assertSame( [ 'wp:popup', 'wp:type:category', 'wp:orari' ], $GLOBALS['barrio_test_revalidated'] );
+		$this->assertSame( [ 'wp:popup', 'wp:type:category', 'wp:orari', 'wp:option' ], $GLOBALS['barrio_test_revalidated'] );
 		$time = (int) strtotime( "{$start} UTC" );
 		$this->assertSame( $time, wp_next_scheduled( 'barrio_migration_popups_period', [ $time ] ) );
+	}
+
+	private function company(): void {
+		update_option(
+			'barrio_company',
+			[
+				'name'     => 'Trattoria Mario',
+				'phone'    => '081 7654321',
+				'email'    => 'info@trattoriamario.it',
+				'address'  => [
+					'street'      => 'Via Roma 1',
+					'postal_code' => '80100',
+					'locality'    => 'Napoli',
+					'region'      => 'NA',
+					'country'     => 'IT',
+					'maps_url'    => '',
+				],
+				'profiles' => [ 'https://www.facebook.com/trattoriamario' ],
+			]
+		);
 	}
 
 	/** @return array{counts: list<array{data: string, found: int, migrated: int, skipped: int}>, notes: list<string>, warnings: list<string>} */
@@ -528,5 +633,36 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 			]
 		);
 		update_option( 'suite_barrio_stats_tokens', [ 'refresh_token' => 'refresh' ] );
+		update_option(
+			'suite_barrio_company_info',
+			[
+				'ragione_sociale'        => 'Trattoria da Mario S.r.l.',
+				'sito_web'               => 'www.trattoriamario.it',
+				'telefono'               => '081 1234567',
+				'cellulare'              => '333 1234567',
+				'email'                  => 'info@trattoriamario.it',
+				'email_privacy'          => 'privacy@trattoriamario.it',
+				'partita_iva'            => 'IT01234567890',
+				'codice_fiscale'         => '01234567890',
+				'rea'                    => 'NA-123456',
+				'capitale_sociale'       => '10.000 € i.v.',
+				'pec'                    => 'trattoriamario@pec.it',
+				'codice_univoco'         => 'ABC1234',
+				'sede_via'               => 'Via Roma 1',
+				'sede_citta'             => 'Napoli',
+				'sede_cap'               => '80100',
+				'sede_provincia'         => 'NA',
+				'sede_google_maps'       => 'https://maps.app.goo.gl/abc',
+				'sede_operativa_diversa' => 1,
+				'sede_op_via'            => 'Via Toledo 2',
+				'sede_op_citta'          => 'Napoli',
+				'sede_op_cap'            => '80134',
+				'sede_op_provincia'      => 'NA',
+				'sede_op_google_maps'    => '',
+				'facebook'               => 'https://www.facebook.com/trattoriamario',
+				'instagram'              => 'https://instagram.com/trattoriamario',
+				'linkedin'               => '',
+			]
+		);
 	}
 }

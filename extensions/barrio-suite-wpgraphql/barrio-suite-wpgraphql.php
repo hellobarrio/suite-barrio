@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Barrio Suite WPGraphQL
- * Description:       The Barrio Suite forms, SEO, popups, banners and opening hours in WPGraphQL, with the names of the previous plugin (hbForm, hbSubmitForm, seo, hbSeoSite, hbPopup, hbBanner, hbOrari…), so headless frontends keep working unchanged.
+ * Description:       The Barrio Suite forms, SEO, popups, banners, opening hours and company details in WPGraphQL, for headless frontends.
  * Version:           0.1.0
  * Requires at least: 6.9
  * Requires PHP:      8.2
@@ -11,14 +11,37 @@
  * Requires Plugins:  barrio-suite
  */
 
-// L'unico codice che conosce WPGraphQL: lo schema hb* del prototipo con gli stessi nomi e tipi
-// (tests/fixtures/wpgraphql-*.txt). Un file per modulo, con la sua funzione _boot(): si collega solo se il modulo è
+// L'unico codice che conosce WPGraphQL: lo schema hb* di PLAN-GRAPHQL.md, fotografato in
+// tests/fixtures/wpgraphql-*.txt. Un file per modulo, con la sua funzione _boot(): si collega solo se il modulo è
 // acceso (barrio_<modulo>_loaded) e se c'è WPGraphQL, che si carica dopo questo plugin e quindi si controlla qui, su
 // init. Le descrizioni dello schema non si traducono: lo schema deve essere lo stesso in ogni lingua.
 
 defined( 'ABSPATH' ) || exit;
 
-foreach ( [ 'forms', 'seo', 'popups', 'banners', 'hours' ] as $barrio_module ) {
+// Un campo dello schema: una stringa che può mancare, un tipo che c'è sempre, una lista che c'è sempre.
+
+/** @return array{type: string, description: string} */
+function barrio_wpgraphql_string( string $description = '' ): array {
+	return [
+		'type'        => 'String',
+		'description' => $description,
+	];
+}
+
+/** @return array{type: array<string, mixed>, description: string} */
+function barrio_wpgraphql_required( mixed $type, string $description = '' ): array {
+	return [
+		'type'        => [ 'non_null' => $type ],
+		'description' => $description,
+	];
+}
+
+/** @return array{type: array<string, mixed>, description: string} */
+function barrio_wpgraphql_list( string $type, string $description = '' ): array {
+	return barrio_wpgraphql_required( [ 'list_of' => [ 'non_null' => $type ] ], $description );
+}
+
+foreach ( [ 'forms', 'seo', 'popups', 'banners', 'hours', 'company' ] as $barrio_module ) {
 	require __DIR__ . "/{$barrio_module}.php";
 	add_action(
 		"barrio_{$barrio_module}_loaded",

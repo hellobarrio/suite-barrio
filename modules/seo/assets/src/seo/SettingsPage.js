@@ -56,7 +56,6 @@ export const cleanOrganization = ( o ) => ( {
 	...o,
 	area_served: o.area_served.filter( ( area ) => area.name.trim() ),
 	knows_about: o.knows_about.filter( ( topic ) => topic.trim() ),
-	same_as: o.same_as.filter( ( url ) => url.trim() ),
 	offers: {
 		...o.offers,
 		items: o.offers.items.filter( ( item ) => item.name.trim() ),

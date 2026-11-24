@@ -1,44 +1,105 @@
-RootQuery.hbBanner(lang: String): HBBanner
-RootQuery.hbOrari(lang: String): HBOrari
-RootQuery.hbPopup(lang: String): HBPopup
+RootQuery.hbBanner(language: String): HbBanner
+RootQuery.hbCompanyInfo: HbCompanyInfo
+RootQuery.hbOpeningHours(language: String): HbOpeningHours
+RootQuery.hbPopup(language: String): HbPopup
 
-type HBBanner {
-  id: Int
-  link: HBBannerCta
-  title: String
+type HbBanner {
+  databaseId: Int!
+  endsAt: String
+  link: HbBannerCta
+  startsAt: String
+  text: String
 }
 
-type HBBannerCta {
-  target: String
-  url: String
+type HbBannerCta {
+  target: String!
+  url: String!
 }
 
-type HBOrari {
+type HbCompanyAddress {
+  country: String
+  locality: String
+  mapsUrl: String
+  postalCode: String
+  region: String
+  street: String
+}
+
+type HbCompanyInfo {
+  address: HbCompanyAddress
+  certifiedEmail: String
+  email: String
+  invoiceCode: String
+  legalName: String
+  mobile: String
+  name: String
+  operatingAddress: HbCompanyAddress
+  phone: String
+  privacyEmail: String
+  profiles: [HbCompanyProfile!]!
+  registrationNumber: String
+  shareCapital: String
+  taxCode: String
+  vatId: String
+}
+
+type HbCompanyProfile {
+  network: String
+  url: String!
+}
+
+type HbOpeningHours {
+  currentWeek: [HbOpeningHoursDay!]!
   displayName: String
-  settimana: [HBOrariGiorno]
-  ultimoAggiornamento: String
+  regularWeek: [HbOpeningHoursDay!]!
+  source: HbOpeningHoursSourceEnum!
+  specialDays: [HbOpeningHoursSpecialDay!]!
+  syncedAt: String
 }
 
-type HBOrariGiorno {
-  chiuso: Boolean
-  giorno: String
-  slots: [String]
+type HbOpeningHoursDay {
+  day: String!
+  isClosed: Boolean!
+  periods: [HbOpeningHoursPeriod!]!
+  slots: [String!]!
 }
 
-type HBPopup {
+type HbOpeningHoursPeriod {
+  closes: String!
+  opens: String!
+}
+
+enum HbOpeningHoursSourceEnum {
+  GOOGLE
+  MANUAL
+}
+
+type HbOpeningHoursSpecialDay {
+  endDate: String!
+  isClosed: Boolean!
+  note: String
+  periods: [HbOpeningHoursPeriod!]!
+  slots: [String!]!
+  startDate: String!
+}
+
+type HbPopup {
   content: String
-  id: Int!
-  image: HBPopupImage
-  link: HBPopupCta
+  databaseId: Int!
+  days: Int!
+  endsAt: String
+  image: HbPopupImage
+  link: HbPopupCta
+  startsAt: String
   title: String
 }
 
-type HBPopupCta {
-  target: String
-  title: String
-  url: String
+type HbPopupCta {
+  target: String!
+  title: String!
+  url: String!
 }
 
-type HBPopupImage {
+type HbPopupImage {
   node: MediaItem
 }
