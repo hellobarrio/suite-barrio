@@ -19,11 +19,6 @@ msgstr ""
 msgid "Barrio Suite Migration"
 msgstr "Barrio Suite Migration"
 
-#. Description of the plugin
-#: barrio-suite-migration.php
-msgid "Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with one WP-CLI command per module: forms, SEO, popups, banners, opening hours, blocks, ordering, duplicate, alt text and analytics. Once done, it can be removed."
-msgstr "Trasferisce i dati di Suite Barrio, il plugin precedente, in Barrio Suite con un comando WP-CLI per modulo: form, SEO, popup, banner, orari, blocchi, ordinamento, duplicazione, testi alternativi e statistiche. Al termine puoi rimuoverlo."
-
 #. Author of the plugin
 #: barrio-suite-migration.php
 msgid "Hellobarrio"
@@ -34,13 +29,18 @@ msgid "Next"
 msgstr "Avanti"
 
 #. translators: 1: dry run command, 2: migration command.
-#: seo.php:64
+#: seo.php:65
 #, php-format
 msgid "The SEO module of Barrio Suite stays off until the SEO of Suite Barrio is migrated: run %1$s, then %2$s. Turned on before, it prints the meta tags twice."
 msgstr "Il modulo SEO di Barrio Suite resta spento finché il SEO di Suite Barrio non è migrato: esegui %1$s, poi %2$s. Acceso prima, stampa i meta tag due volte."
 
 #. translators: %s: list of WP-CLI commands.
-#: barrio-suite-migration.php:118
+#: barrio-suite-migration.php:122
 #, php-format
 msgid "These modules of Barrio Suite stay off until the same modules of Suite Barrio are migrated, so the site does not get them twice. Run each command with --dry-run first: %s."
 msgstr "Questi moduli di Barrio Suite restano spenti finché gli stessi moduli di Suite Barrio non sono migrati, così il sito non li ha due volte. Esegui ogni comando prima con --dry-run: %s."
+
+#. Description of the plugin
+#: barrio-suite-migration.php
+msgid "Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with one WP-CLI command per module: forms, SEO, popups, banners, opening hours, company details, blocks, ordering, duplicate, alt text and analytics. Once done, it can be removed."
+msgstr "Trasferisce i dati di Suite Barrio, il plugin precedente, in Barrio Suite con un comando WP-CLI per modulo: form, SEO, popup, banner, orari, dati aziendali, blocchi, ordinamento, duplicazione, testi alternativi e statistiche. Al termine puoi rimuoverlo."

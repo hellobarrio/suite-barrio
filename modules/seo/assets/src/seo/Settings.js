@@ -471,6 +471,7 @@ function SettingsCards( {
 						/>
 					}
 				/>
+				<SectionHead title="llms.txt" level={ 3 } />
 				<Group
 					label={ __( 'Files', 'barrio-suite' ) }
 					help={
@@ -540,8 +541,9 @@ export const Settings = () => (
 	/>
 );
 
-// Nella guida alla messa online (assets/src/launch): fatto con la descrizione e l'immagine predefinite, e con
-// nome e logo dell'organizzazione (Seo\Module::launch_steps()).
+// Nella guida alla messa online (assets/src/launch): fatto con la descrizione e l'immagine predefinite, il logo
+// dell'organizzazione e il nome dell'azienda (Seo\Module::launch_steps()). Il nome si legge e si salva in Dati
+// aziendali: con quel modulo spento il campo non c'è.
 export const seoStep = {
 	id: 'seo',
 	icon: 'search',
@@ -550,21 +552,34 @@ export const seoStep = {
 		'What search engines and social networks show for the pages without texts and images of their own, and the business behind the site.',
 		'barrio-suite'
 	),
-	load: () => apiFetch( { path: '/barrio/v1/seo/settings' } ),
-	value: ( data ) => {
+	load: () =>
+		Promise.all( [
+			apiFetch( { path: '/barrio/v1/seo/settings' } ),
+			seoData.company && apiFetch( { path: '/barrio/v1/company' } ),
+		] ),
+	value: ( [ data, company ] ) => {
 		const settings = editable( data );
 		return {
 			default_image: settings.default_image,
 			organization: settings.organization,
 			texts: settings.texts,
+			...( company && { name: company.name } ),
 		};
 	},
-	save: ( draft ) =>
-		apiFetch( {
-			path: '/barrio/v1/seo/settings',
-			method: 'PUT',
-			data: draft,
-		} ),
+	save: ( { name, ...draft } ) =>
+		Promise.all( [
+			apiFetch( {
+				path: '/barrio/v1/seo/settings',
+				method: 'PUT',
+				data: draft,
+			} ),
+			undefined !== name &&
+				apiFetch( {
+					path: '/barrio/v1/company',
+					method: 'PUT',
+					data: { name },
+				} ),
+		] ),
 	Fields: ( { draft, set } ) => {
 		const setOrganization = ( name ) => ( value ) =>
 			set( {
@@ -596,11 +611,15 @@ export const seoStep = {
 						set( { ...draft, default_image: value } )
 					}
 				/>
-				<Text
-					label={ __( 'Name of the business', 'barrio-suite' ) }
-					value={ draft.organization.name }
-					onChange={ setOrganization( 'name' ) }
-				/>
+				{ 'name' in draft && (
+					<Text
+						label={ __( 'Name of the business', 'barrio-suite' ) }
+						value={ draft.name }
+						onChange={ ( value ) =>
+							set( { ...draft, name: value } )
+						}
+					/>
+				) }
 				<MediaField
 					label={ __( 'Logo', 'barrio-suite' ) }
 					value={ draft.organization.logo }

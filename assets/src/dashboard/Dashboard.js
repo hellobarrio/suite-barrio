@@ -7,6 +7,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { AltCard } from '../../../modules/alt/assets/src/Alt.js';
 import { AnalyticsCard } from '../../../modules/analytics/assets/src/Analytics.js';
 import { BannersCard } from '../../../modules/banners/assets/src/Banners.js';
+import { CompanyCard } from '../../../modules/company/assets/src/Company.js';
 import { FormsCard } from '../../../modules/forms/assets/src/forms/FormsCard.js';
 import { HoursCard } from '../../../modules/hours/assets/src/Hours.js';
 import { PerformanceCard } from '../../../modules/performance/assets/src/Performance.js';
@@ -35,6 +36,7 @@ export function Dashboard() {
 			{ launch && (
 				<LaunchBanner launch={ launch } href={ launchUrl() } />
 			) }
+			<CompanyCard />
 			<div className="barrio-modules">
 				<AnalyticsCard />
 				<FormsCard />

@@ -2,7 +2,9 @@
 
 namespace BarrioSuite\Seo;
 
+use BarrioSuite\Company\Module as Company;
 use BarrioSuite\I18n;
+use BarrioSuite\Modules;
 use BarrioSuite\Roles;
 use BarrioSuite\Seo\Api\RestContents;
 use BarrioSuite\Seo\Api\RestGenerate;
@@ -83,7 +85,7 @@ final class Module {
 
 	/**
 	 * Messa online (src/Launch.php): fatto quando le pagine senza testi e immagini loro hanno quelli
-	 * predefiniti, e lo schema ha il nome e il logo dell'organizzazione.
+	 * predefiniti, e lo schema ha il nome (in Dati aziendali, se il modulo è acceso) e il logo dell'organizzazione.
 	 *
 	 * @param array<string, bool> $steps
 	 * @return array<string, bool>
@@ -92,7 +94,7 @@ final class Module {
 		$settings = Settings::get();
 		return $steps + [
 			'seo' => '' !== trim( Settings::text( 'default_description', I18n::languages()[0] ) ) && $settings['default_image'] > 0
-				&& '' !== trim( $settings['organization']['name'] ) && $settings['organization']['logo'] > 0,
+				&& ( ! Modules::is_enabled( 'company' ) || '' !== trim( Company::settings()['name'] ) ) && $settings['organization']['logo'] > 0,
 		];
 	}
 

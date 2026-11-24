@@ -1,69 +1,62 @@
-RootQuery.hbForm(id: Int, lang: String): HBForm
-RootQuery.hbForms: [HBFormListItem]
+RootQuery.hbForm(id: Int!, language: String): HbForm
+RootQuery.hbForms: [HbFormListItem!]
 RootMutation.hbSubmitForm(input: HbSubmitFormInput!): HbSubmitFormPayload
 
-type HBConditionalLogic {
-  action: String
-  enabled: Boolean
-  logicType: String
-  rules: [HBConditionalLogicRule]
+type HbConditionalLogic {
+  action: HbConditionalLogicActionEnum!
+  logicType: HbConditionalLogicTypeEnum!
+  rules: [HbConditionalLogicRule!]!
 }
 
-type HBConditionalLogicRule {
-  fieldName: String
-  operator: String
+enum HbConditionalLogicActionEnum {
+  HIDE
+  SHOW
+}
+
+type HbConditionalLogicRule {
+  fieldName: String!
+  operator: String!
   value: String
 }
 
-type HBForm {
-  createdAt: String
-  fields: [HBFormField]
-  id: Int!
-  settings: HBFormSettings
-  steps: [HBFormStep]
-  title: String
-  updatedAt: String
+enum HbConditionalLogicTypeEnum {
+  ALL
+  ANY
 }
 
-type HBFormField {
-  conditionalLogic: HBConditionalLogic
+type HbForm {
+  createdAt: String!
+  databaseId: Int!
+  fields: [HbFormField!]!
+  settings: HbFormSettings!
+  steps: [HbFormStep!]!
+  title: String
+  updatedAt: String!
+}
+
+enum HbFormAfterSubmitEnum {
+  MESSAGE
+  REDIRECT
+}
+
+type HbFormError {
+  message: String!
+  name: String
+}
+
+type HbFormField {
+  conditionalLogic: HbConditionalLogic
   errorMessage: String
   format: String
-  id: String
+  isRequired: Boolean!
   label: String
   max: String
   min: String
-  name: String
-  options: [HBFormOption]
+  name: String!
+  options: [HbFormOption!]
   pattern: String
   placeholder: String
-  required: Boolean
-  type: String
-}
-
-type HBFormListItem {
-  createdAt: String
-  id: Int!
-  submissions: Int
-  title: String
-}
-
-type HBFormOption {
-  label: String
-  value: String
-}
-
-type HBFormSettings {
-  afterSubmit: String
-  displayPageInfo: Boolean
-  errorMessage: String
-  redirectUrl: String
-  submitText: String
-  successMessage: String
-}
-
-type HBFormStep {
-  fields: [HBFormField]
+  type: String!
 }
 
 input HbFormFieldInput {
@@ -71,21 +64,41 @@ input HbFormFieldInput {
   value: String
 }
 
+type HbFormListItem {
+  createdAt: String!
+  databaseId: Int!
+  entryCount: Int
+  title: String
+}
+
+type HbFormOption {
+  label: String!
+  value: String!
+}
+
+type HbFormSettings {
+  afterSubmit: HbFormAfterSubmitEnum!
+  redirectUrl: String
+  submitText: String
+  successMessage: String
+}
+
+type HbFormStep {
+  fields: [HbFormField!]!
+}
+
 input HbSubmitFormInput {
   clientMutationId: String
-  fields: [HbFormFieldInput]!
+  fields: [HbFormFieldInput!]!
   formId: Int!
-  lang: String
-  pageReferrer: String
-  pageTitle: String
+  language: String
   pageUrl: String
 }
 
 type HbSubmitFormPayload {
   clientMutationId: String
-  debug: [String]
-  errors: [String]
+  entryId: Int
+  errors: [HbFormError!]!
   message: String
-  submissionId: Int
   success: Boolean!
 }

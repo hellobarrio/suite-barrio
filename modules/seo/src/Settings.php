@@ -45,28 +45,17 @@ final class Settings {
 				],
 			],
 		],
+		// Nome, contatti, partita IVA, indirizzo e profili sono in Dati aziendali (Company\Module).
 		'organization'   => [
 			'type'        => 'LocalBusiness',
-			'name'        => '',
 			'logo'        => 0,
 			'image'       => 0,
-			'phone'       => '',
-			'email'       => '',
-			'vat_id'      => '',
-			'address'     => [
-				'street'      => '',
-				'postal_code' => '',
-				'locality'    => '',
-				'region'      => '',
-				'country'     => '',
-			],
 			'geo'         => [
 				'latitude'  => null,
 				'longitude' => null,
 			],
 			'area_served' => [],
 			'knows_about' => [],
-			'same_as'     => [],
 			'offers'      => [
 				'name'     => '',
 				'currency' => 'EUR',
@@ -154,43 +143,8 @@ final class Settings {
 						'type' => 'string',
 						'enum' => self::ORGANIZATION_TYPES,
 					],
-					'name'        => $line,
 					'logo'        => $image,
 					'image'       => $image,
-					'phone'       => [
-						'type'      => 'string',
-						'maxLength' => 64,
-					],
-					'email'       => [
-						'type'  => 'string',
-						'anyOf' => [
-							[
-								'type'   => 'string',
-								'format' => 'email',
-							],
-							[
-								'type'      => 'string',
-								'maxLength' => 0,
-							],
-						],
-					],
-					'vat_id'      => [
-						'type'      => 'string',
-						'maxLength' => 64,
-					],
-					'address'     => self::object(
-						[
-							'street'      => $line,
-							'postal_code' => $line,
-							'locality'    => $line,
-							'region'      => $line,
-							// ISO 3166-1, come vuole schema.org.
-							'country'     => [
-								'type'    => 'string',
-								'pattern' => '^([A-Z]{2})?$',
-							],
-						]
-					),
 					'geo'         => self::object(
 						[
 							'latitude'  => [
@@ -218,14 +172,6 @@ final class Settings {
 						)
 					),
 					'knows_about' => self::list( [ 'minLength' => 1 ] + $line ),
-					// I profili social e le schede del sito (Facebook, Instagram, LinkedIn…).
-					'same_as'     => self::list(
-						[
-							'type'    => 'string',
-							'format'  => 'uri',
-							'pattern' => '^https?://',
-						]
-					),
 					'offers'      => self::object(
 						[
 							'name'     => $line,

@@ -744,6 +744,40 @@ html:has(.barrio-bar) {
 	text-overflow: ellipsis;
 }
 
+/*
+ * Bacheca: i Dati aziendali, larghi sotto la messa online, in una riga; ogni
+ * dato in una riga, come i numeri delle altre card.
+ */
+.barrio-company-card__details {
+	display: grid;
+	grid-auto-columns: minmax(0, 1fr);
+	grid-auto-flow: column;
+	gap: 16px 24px;
+	margin: 0;
+	padding-top: 12px;
+}
+
+@media (max-width: 600px) {
+
+	.barrio-company-card__details {
+		grid-auto-flow: row;
+	}
+}
+
+.barrio-company-card__details dt {
+	color: var(--barrio-muted);
+	font-size: 12px;
+}
+
+.barrio-company-card__details dd {
+	margin: 4px 0 0;
+	overflow: hidden;
+	color: var(--barrio-ink);
+	font-weight: 600;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
 /* Card, avvisi, etichette */
 
 .barrio-card {
@@ -843,8 +877,13 @@ html:has(.barrio-bar) {
 	margin-left: 8px;
 }
 
+/*
+ * minmax(0, 1fr): il contenuto si stringe con la card (il grafico delle
+ * Statistiche segue la finestra).
+ */
 .barrio-card__body {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 16px;
 	padding: 20px;
 }
@@ -2189,8 +2228,16 @@ a.barrio-badge {
 	color: #fff;
 }
 
+/*
+ * Il testo prende quasi tutto lo spazio della riga: il bottone resta a destra
+ * e, quando va a capo da solo, è largo come la card.
+ */
 .barrio-launch__text {
-	flex: 1 1 240px;
+	flex: 999 1 240px;
+}
+
+.barrio-launch > .barrio-button {
+	flex: 1 1 auto;
 }
 
 .barrio-admin .barrio-launch h2 {

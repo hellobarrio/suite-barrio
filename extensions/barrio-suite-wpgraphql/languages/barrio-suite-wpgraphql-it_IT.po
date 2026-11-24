@@ -24,27 +24,27 @@ msgstr "Barrio Suite WPGraphQL"
 msgid "Hellobarrio"
 msgstr "Hellobarrio"
 
-#: forms.php:298
+#: forms.php:302
 msgid "Sorry, you are not allowed to list the forms."
 msgstr "Non hai i permessi per elencare i form."
 
-#: forms.php:325
+#: forms.php:329
 msgid "Form not found."
 msgstr "Form non trovato."
 
-#: forms.php:382
+#: forms.php:393
 msgid "Thank you, your submission has been received."
 msgstr "Grazie, abbiamo ricevuto il tuo messaggio."
 
-#: seo.php:27
+#: seo.php:31
 msgid "Frontend address"
 msgstr "Indirizzo del frontend"
 
-#: seo.php:28
+#: seo.php:32
 msgid "The address of the headless site, like https://www.example.com. In GraphQL the links of the Barrio Suite SEO (canonical, JSON-LD, llms.txt) point there instead of WordPress; images stay on WordPress."
 msgstr "L'indirizzo del sito headless, come https://www.esempio.it. In GraphQL i link del SEO di Barrio Suite (canonical, JSON-LD, llms.txt) puntano lì invece che a WordPress; le immagini restano su WordPress."
 
 #. Description of the plugin
 #: barrio-suite-wpgraphql.php
-msgid "The Barrio Suite forms, SEO, popups, banners and opening hours in WPGraphQL, with the names of the previous plugin (hbForm, hbSubmitForm, seo, hbSeoSite, hbPopup, hbBanner, hbOrari…), so headless frontends keep working unchanged."
-msgstr "I form, il SEO, i popup, i banner e gli orari di Barrio Suite in WPGraphQL, con i nomi del plugin precedente (hbForm, hbSubmitForm, seo, hbSeoSite, hbPopup, hbBanner, hbOrari…), così i frontend headless continuano a funzionare senza modifiche."
+msgid "The Barrio Suite forms, SEO, popups, banners, opening hours and company details in WPGraphQL, for headless frontends."
+msgstr "I form, il SEO, i popup, i banner, gli orari e i dati aziendali di Barrio Suite in WPGraphQL, per i frontend headless."

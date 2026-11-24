@@ -1,16 +1,20 @@
 // SEO → Organizzazione (manage_options): i dati dell'azienda per lo schema (Settings::schema()), una card per
-// argomento, con l'anteprima del JSON-LD calcolata dal server mentre si compila, nella colonna a destra.
+// argomento, con l'anteprima del JSON-LD calcolata dal server mentre si compila, nella colonna a destra. Nome,
+// contatti, partita IVA, indirizzo e profili si scrivono in Dati aziendali: lo schema li legge da lì.
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import {
+	AddButton,
 	Card,
 	Details,
 	Fixed,
-	Icon,
+	Notice,
+	RemoveButton,
 	Select,
 	Text,
+	TextList,
 	errorMessage,
 } from '../../../../../assets/src/admin/ui.js';
 import { SeoText, SettingsPage, cleanOrganization } from './SettingsPage.js';
@@ -45,73 +49,6 @@ const OFFER = {
 };
 
 const number = ( value ) => ( '' === value ? null : Number( value ) );
-
-const AddButton = ( { text, onClick } ) => (
-	<button type="button" className="barrio-button" onClick={ onClick }>
-		<Icon name="plus-alt2" />
-		<span className="barrio-button__text">{ text }</span>
-	</button>
-);
-
-const RemoveButton = ( { onClick } ) => (
-	<button
-		type="button"
-		className="barrio-icon-button"
-		aria-label={ __( 'Remove', 'barrio-suite' ) }
-		onClick={ onClick }
-	>
-		<Icon name="trash" />
-	</button>
-);
-
-// Un elenco di testi (competenze, profili) in una card, una riga ciascuno.
-function TextList( {
-	icon,
-	title,
-	description,
-	add,
-	label,
-	type,
-	values,
-	onChange,
-} ) {
-	return (
-		<Card
-			icon={ icon }
-			title={ title }
-			description={ description }
-			actions={
-				<AddButton
-					text={ add }
-					onClick={ () => onChange( [ ...values, '' ] ) }
-				/>
-			}
-		>
-			{ values.map( ( value, index ) => (
-				<div className="barrio-row is-nowrap" key={ index }>
-					<Text
-						hideLabel
-						label={ label }
-						type={ type }
-						value={ value }
-						onChange={ ( next ) =>
-							onChange(
-								values.map( ( item, i ) =>
-									i === index ? next : item
-								)
-							)
-						}
-					/>
-					<RemoveButton
-						onClick={ () =>
-							onChange( values.filter( ( v, i ) => i !== index ) )
-						}
-					/>
-				</div>
-			) ) }
-		</Card>
-	);
-}
 
 function Preview( { organization, description } ) {
 	const [ preview, setPreview ] = useState( '' );
@@ -165,6 +102,38 @@ function Preview( { organization, description } ) {
 	);
 }
 
+// Con Dati aziendali spento lo schema li legge lo stesso, ma si modificano solo con il modulo acceso.
+const CompanyNotice = () => (
+	<Notice
+		notice={ {
+			status: 'info',
+			message: seoData.company
+				? __(
+						'The name, contacts, VAT number, address and profiles of the business are written in Barrio → Company details: the schema reads them from there.',
+						'barrio-suite'
+					)
+				: __(
+						'The name, contacts, VAT number, address and profiles of the business are in the Company details module, which is off: the schema still reads them, but they can be changed only with the module on.',
+						'barrio-suite'
+					),
+			action: (
+				<a
+					className="barrio-button"
+					href={
+						seoData.company
+							? '?page=barrio-company'
+							: '?page=barrio-settings'
+					}
+				>
+					{ seoData.company
+						? __( 'Company details', 'barrio-suite' )
+						: __( 'Settings', 'barrio-suite' ) }
+				</a>
+			),
+		} }
+	/>
+);
+
 function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 	const o = seo.organization;
 	const set = ( name ) => ( value ) =>
@@ -216,15 +185,6 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 							) }
 							onChange={ set( 'type' ) }
 						/>
-						<Text
-							label={ __( 'Name', 'barrio-suite' ) }
-							help={ __(
-								'Without a name, the name of the site is used.',
-								'barrio-suite'
-							) }
-							value={ o.name }
-							onChange={ set( 'name' ) }
-						/>
 					</Fixed>
 					<SeoText
 						form={ { lang, seo, setText } }
@@ -250,23 +210,6 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 							value={ o.image }
 							onChange={ set( 'image' ) }
 						/>
-						<Text
-							type="tel"
-							label={ __( 'Phone', 'barrio-suite' ) }
-							value={ o.phone }
-							onChange={ set( 'phone' ) }
-						/>
-						<Text
-							type="email"
-							label={ __( 'Email', 'barrio-suite' ) }
-							value={ o.email }
-							onChange={ set( 'email' ) }
-						/>
-						<Text
-							label={ __( 'VAT number', 'barrio-suite' ) }
-							value={ o.vat_id }
-							onChange={ set( 'vat_id' ) }
-						/>
 					</Fixed>
 				</Card>
 
@@ -274,43 +217,12 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 					<Card
 						className="barrio-wide"
 						icon="location"
-						title={ __( 'Address', 'barrio-suite' ) }
+						title={ __( 'Coordinates', 'barrio-suite' ) }
+						description={ __(
+							'Where the business is on the map. The address is in Barrio → Company details.',
+							'barrio-suite'
+						) }
 					>
-						<Text
-							label={ __( 'Street and number', 'barrio-suite' ) }
-							value={ o.address.street }
-							onChange={ setIn( 'address', 'street' ) }
-						/>
-						<Text
-							label={ __( 'Postal code', 'barrio-suite' ) }
-							value={ o.address.postal_code }
-							onChange={ setIn( 'address', 'postal_code' ) }
-						/>
-						<Text
-							label={ __( 'City', 'barrio-suite' ) }
-							value={ o.address.locality }
-							onChange={ setIn( 'address', 'locality' ) }
-						/>
-						<Text
-							label={ __( 'Province or region', 'barrio-suite' ) }
-							value={ o.address.region }
-							onChange={ setIn( 'address', 'region' ) }
-						/>
-						<Text
-							label={ __( 'Country', 'barrio-suite' ) }
-							help={ __(
-								'Two-letter code, such as IT.',
-								'barrio-suite'
-							) }
-							maxLength={ 2 }
-							value={ o.address.country }
-							onChange={ ( value ) =>
-								setIn(
-									'address',
-									'country'
-								)( value.toUpperCase() )
-							}
-						/>
 						<Text
 							type="number"
 							step="any"
@@ -403,22 +315,6 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 						label={ __( 'Topic', 'barrio-suite' ) }
 						values={ o.knows_about }
 						onChange={ set( 'knows_about' ) }
-					/>
-					<TextList
-						icon="share"
-						title={ __( 'Profiles', 'barrio-suite' ) }
-						description={ __(
-							'Social profiles and listings of the business, such as Facebook, Instagram, LinkedIn or Google Business Profile.',
-							'barrio-suite'
-						) }
-						add={ __( 'Add profile', 'barrio-suite' ) }
-						label={ __(
-							'Full address of a profile, such as https://www.instagram.com/…',
-							'barrio-suite'
-						) }
-						type="url"
-						values={ o.same_as }
-						onChange={ set( 'same_as' ) }
 					/>
 
 					<Card
@@ -575,6 +471,12 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 export const Organization = () => (
 	<SettingsPage
 		title={ __( 'Organization', 'barrio-suite' ) }
-		render={ ( form ) => <OrganizationCards { ...form } /> }
+		// Sopra le colonne, come gli avvisi delle altre pagine.
+		render={ ( form ) => (
+			<>
+				<CompanyNotice />
+				<OrganizationCards { ...form } />
+			</>
+		) }
 	/>
 );

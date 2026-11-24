@@ -17,6 +17,7 @@ import {
 	Card,
 	Fixed,
 	Group,
+	HowTo,
 	Icon,
 	LangNotice,
 	LangPicker,
@@ -424,8 +425,15 @@ function PopupEditor( { id } ) {
 				] }
 			>
 				{ ( tab ) => (
-					<div className="barrio-fields">
-						<div>
+					// L'anteprima solo nel contenuto, come i campi del builder; le opzioni a tutta larghezza.
+					<div
+						className={
+							'content' === tab.name
+								? 'barrio-fields'
+								: 'barrio-stack'
+						}
+					>
+						<div className="barrio-stack">
 							{ 'content' === tab.name ? (
 								<Card
 									icon="text"
@@ -497,6 +505,7 @@ function PopupEditor( { id } ) {
 							) : (
 								<Fixed lang={ lang }>
 									<Card
+										className="barrio-wide"
 										icon="external"
 										title={ __(
 											'Opening',
@@ -550,9 +559,11 @@ function PopupEditor( { id } ) {
 								</Fixed>
 							) }
 						</div>
-						<div className="barrio-panel">
-							<Preview popup={ popup } lang={ lang } />
-						</div>
+						{ 'content' === tab.name && (
+							<div className="barrio-panel">
+								<Preview popup={ popup } lang={ lang } />
+							</div>
+						) }
 					</div>
 				) }
 			</TabPanel>
@@ -573,7 +584,7 @@ export function PopupsTab() {
 	);
 }
 
-// La scheda Impostazioni, agli amministratori: i Permessi.
+// La scheda Impostazioni, agli amministratori: come mostrarli e i Permessi.
 export const popupsSettingsSection = {
 	id: 'popups-settings',
 	load: () => apiFetch( { path: '/barrio/v1/popups/settings' } ),
@@ -585,16 +596,25 @@ export const popupsSettingsSection = {
 			data: { roles },
 		} ),
 	Cards: ( { data, draft, set } ) => (
-		<Permissions
-			description={ __(
-				'Who can create, change and delete the popups. Administrators can always do everything; only administrators change these settings.',
-				'barrio-suite'
-			) }
-			caps={ CAPS }
-			names={ data.role_names }
-			roles={ draft }
-			onChange={ set }
-		/>
+		<>
+			<HowTo
+				description={ __(
+					'They open by themselves on every page, and also from a link or a button with the ID of the popup.',
+					'barrio-suite'
+				) }
+				codes={ [ '#barrio-popup-12', 'data-barrio-popup="12"' ] }
+			/>
+			<Permissions
+				description={ __(
+					'Who can create, change and delete the popups. Administrators can always do everything; only administrators change these settings.',
+					'barrio-suite'
+				) }
+				caps={ CAPS }
+				names={ data.role_names }
+				roles={ draft }
+				onChange={ set }
+			/>
+		</>
 	),
 };
 

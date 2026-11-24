@@ -114,9 +114,8 @@ final class SeoDataTest extends WP_UnitTestCase {
 		);
 
 		$organization = [
-			'name'    => 'Pizzeria da Mario',
-			'same_as' => [ 'https://www.instagram.com/pizzeriamario' ],
-			'geo'     => [
+			'type' => 'Restaurant',
+			'geo'  => [
 				'latitude'  => 45.07,
 				'longitude' => 7.68,
 			],
@@ -140,7 +139,7 @@ final class SeoDataTest extends WP_UnitTestCase {
 
 		$this->assertSame( 200, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
 		$saved = Settings::get();
-		$this->assertSame( [ '|', 'Pizzeria da Mario', 45.07, 'Pizza a Torino.' ], [ $saved['title']['separator'], $saved['organization']['name'], $saved['organization']['geo']['latitude'], $saved['texts']['it']['default_description'] ] );
+		$this->assertSame( [ '|', 'Restaurant', 45.07, 'Pizza a Torino.' ], [ $saved['title']['separator'], $saved['organization']['type'], $saved['organization']['geo']['latitude'], $saved['texts']['it']['default_description'] ] );
 		$this->assertTrue( $saved['auto_redirects'], 'Sections not sent stay as they are.' );
 
 		$this->settings( [ 'auto_redirects' => false ] );
@@ -162,7 +161,7 @@ final class SeoDataTest extends WP_UnitTestCase {
 			],
 			'incomplete section'         => [ [ 'title' => [ 'separator' => '|' ] ] ],
 			'unknown organization type'  => [ $organization( [ 'type' => 'Pizzeria' ] ) ],
-			'profile with javascript'    => [ $organization( [ 'same_as' => [ 'javascript:alert(1)' ] ] ) ],
+			'name, in Company details'   => [ $organization( [ 'name' => 'Pizzeria da Mario' ] ) ],
 			'latitude out of range'      => [
 				$organization(
 					[
@@ -173,7 +172,6 @@ final class SeoDataTest extends WP_UnitTestCase {
 					]
 				),
 			],
-			'country not an ISO code'    => [ $organization( [ 'address' => [ 'country' => 'Italia' ] + Settings::get()['organization']['address'] ] ) ],
 			'texts of a lang in capital' => [
 				[
 					'texts' => [

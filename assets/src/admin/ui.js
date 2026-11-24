@@ -436,6 +436,100 @@ export function Card( {
 }
 
 /**
+ * Nelle Impostazioni di un modulo, come il suo contenuto arriva nel sito. Shortcode e link sono etichette che si
+ * selezionano e si copiano, come i merge tag delle email.
+ *
+ * @param {Object}   props
+ * @param {string}   props.description
+ * @param {string[]} [props.codes]     Gli esempi da copiare.
+ * @param {Object}   [props.children]  Altro sotto gli esempi (i nomi dei dati aziendali).
+ */
+export const HowTo = ( { description, codes = [], children } ) => (
+	<Card
+		className="barrio-wide"
+		icon="editor-code"
+		title={ __( 'How to show them', 'barrio-suite' ) }
+		description={ description }
+	>
+		{ codes.length > 0 && (
+			<div className="barrio-merge-tags">
+				{ codes.map( ( code ) => (
+					<code key={ code }>{ code }</code>
+				) ) }
+			</div>
+		) }
+		{ children }
+	</Card>
+);
+
+export const AddButton = ( { text, onClick } ) => (
+	<button type="button" className="barrio-button" onClick={ onClick }>
+		<Icon name="plus-alt2" />
+		<span className="barrio-button__text">{ text }</span>
+	</button>
+);
+
+export const RemoveButton = ( { onClick } ) => (
+	<button
+		type="button"
+		className="barrio-icon-button"
+		aria-label={ __( 'Remove', 'barrio-suite' ) }
+		onClick={ onClick }
+	>
+		<Icon name="trash" />
+	</button>
+);
+
+// Un elenco di testi (competenze, profili) in una card, una riga ciascuno.
+export function TextList( {
+	icon,
+	title,
+	description,
+	add,
+	label,
+	type,
+	values,
+	onChange,
+} ) {
+	return (
+		<Card
+			icon={ icon }
+			title={ title }
+			description={ description }
+			actions={
+				<AddButton
+					text={ add }
+					onClick={ () => onChange( [ ...values, '' ] ) }
+				/>
+			}
+		>
+			{ values.map( ( value, index ) => (
+				<div className="barrio-row is-nowrap" key={ index }>
+					<Text
+						hideLabel
+						label={ label }
+						type={ type }
+						value={ value }
+						onChange={ ( next ) =>
+							onChange(
+								values.map( ( item, i ) =>
+									i === index ? next : item
+								)
+							)
+						}
+					/>
+					<RemoveButton
+						onClick={ () =>
+							onChange( values.filter( ( v, i ) => i !== index ) )
+						}
+					/>
+				</div>
+			) ) }
+		</Card>
+	);
+}
+
+/**
  * Le card dei tipi di contenuto e delle tassonomie degli strumenti di Contenuti (Admin::content_types()), con un
  * interruttore per tipo. Sotto ogni tassonomia i tipi che la usano: due possono chiamarsi entrambe "Categorie".
  *

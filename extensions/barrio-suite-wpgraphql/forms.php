@@ -1,5 +1,5 @@
 <?php
-// I form con lo schema del prototipo: hbForm, hbForms e hbSubmitForm, sopra la pipeline di invio del core.
+// I form in GraphQL: hbForm, hbForms e hbSubmitForm, sopra la pipeline di invio del core.
 
 use BarrioSuite\Forms\FieldTypes;
 use BarrioSuite\Forms\Model\Field;
@@ -7,11 +7,12 @@ use BarrioSuite\Forms\Model\FormStatus;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\Submission;
 use BarrioSuite\I18n;
+use BarrioSuite\Period;
 use GraphQL\Error\UserError;
 
 defined( 'ABSPATH' ) || exit;
 
-// Il pattern che i frontend del prototipo usano per controllare le email nel browser, vicino a is_email().
+// Il pattern che i frontend usano per controllare le email nel browser, vicino a is_email().
 const BARRIO_WPGRAPHQL_EMAIL = "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$";
 
 function barrio_wpgraphql_forms_boot(): void {
@@ -21,127 +22,134 @@ function barrio_wpgraphql_forms_boot(): void {
 }
 
 function barrio_wpgraphql_register(): void {
-	$string = static fn( string $description = '' ): array => [
-		'type'        => 'String',
-		'description' => $description,
-	];
+	// Il resolver dà il valore interno (show), WPGraphQL risponde con il nome (SHOW).
+	foreach ( [
+		'HbConditionalLogicActionEnum' => [ 'Whether the field is shown or hidden when the rules are met.', [ 'show', 'hide' ] ],
+		'HbConditionalLogicTypeEnum'   => [ 'Whether all or any of the rules must be met.', [ 'all', 'any' ] ],
+		'HbFormAfterSubmitEnum'        => [ 'What happens after a successful submission: the message or a redirect to redirectUrl.', [ 'message', 'redirect' ] ],
+	] as $name => [ $description, $values ] ) {
+		register_graphql_enum_type(
+			$name,
+			[
+				'description' => $description,
+				'values'      => array_combine( array_map( 'strtoupper', $values ), array_map( static fn( string $value ): array => [ 'value' => $value ], $values ) ),
+			]
+		);
+	}
 
 	register_graphql_object_type(
-		'HBFormOption',
+		'HbFormOption',
 		[
 			'description' => 'A choice of a select, radio or checkbox field.',
 			'fields'      => [
-				'value' => $string( 'The value to submit.' ),
-				'label' => $string( 'The label in the requested language.' ),
+				'value' => barrio_wpgraphql_required( 'String', 'The value to submit.' ),
+				'label' => barrio_wpgraphql_required( 'String', 'The label in the requested language.' ),
 			],
 		]
 	);
 	register_graphql_object_type(
-		'HBConditionalLogicRule',
+		'HbConditionalLogicRule',
 		[
 			'description' => 'A rule of the conditional logic.',
 			'fields'      => [
-				'fieldName' => $string( 'The name of the field the rule reads.' ),
-				'operator'  => $string( '=, !=, >, <, contains, starts_with, ends_with, empty, not_empty.' ),
-				'value'     => $string(),
+				'fieldName' => barrio_wpgraphql_required( 'String', 'The name of the field the rule reads.' ),
+				'operator'  => barrio_wpgraphql_required( 'String', '=, !=, >, <, contains, starts_with, ends_with, empty, not_empty.' ),
+				'value'     => barrio_wpgraphql_string(),
 			],
 		]
 	);
 	register_graphql_object_type(
-		'HBConditionalLogic',
+		'HbConditionalLogic',
 		[
 			'description' => 'When the field is shown. The server applies the same logic: hidden fields are neither required nor saved.',
 			'fields'      => [
-				'enabled'   => [
-					'type'        => 'Boolean',
-					'description' => 'Always true: a field without conditional logic has none.',
-				],
-				'action'    => $string( 'show or hide, when the rules are met.' ),
-				'logicType' => $string( 'all or any of the rules.' ),
-				'rules'     => [ 'type' => [ 'list_of' => 'HBConditionalLogicRule' ] ],
+				'action'    => barrio_wpgraphql_required( 'HbConditionalLogicActionEnum', 'Show or hide the field when the rules are met.' ),
+				'logicType' => barrio_wpgraphql_required( 'HbConditionalLogicTypeEnum', 'All or any of the rules.' ),
+				'rules'     => barrio_wpgraphql_list( 'HbConditionalLogicRule' ),
 			],
 		]
 	);
 	register_graphql_object_type(
-		'HBFormField',
+		'HbFormField',
 		[
 			'description' => 'A field of a form.',
 			'fields'      => [
-				'id'               => $string( 'Same as name.' ),
-				'name'             => $string( 'The key of the field: the name to submit its value with.' ),
-				'type'             => $string( 'text, email, textarea, tel, number, datepicker, select, radio, checkbox, file, hidden or the type of an extension. A consent is a checkbox with one choice, whose label has the links.' ),
-				'label'            => $string( 'May contain links, strong, em and br (the privacy policy link of a consent).' ),
-				'placeholder'      => $string(),
-				'errorMessage'     => $string( 'The custom error message, if any.' ),
-				'required'         => [ 'type' => 'Boolean' ],
-				'pattern'          => $string( 'A regular expression the whole value must match.' ),
-				'min'              => $string( 'Number fields.' ),
-				'max'              => $string( 'Number fields.' ),
-				'format'           => $string( 'How a datepicker shows and submits the date: dd/MM/yyyy (yyyy-MM-dd is accepted too).' ),
-				'options'          => [ 'type' => [ 'list_of' => 'HBFormOption' ] ],
+				'name'             => barrio_wpgraphql_required( 'String', 'The key of the field: the name to submit its value with.' ),
+				'type'             => barrio_wpgraphql_required( 'String', 'text, email, textarea, tel, number, datepicker, select, radio, checkbox, file, hidden or the type of an extension. A consent is a checkbox with one choice, whose label has the links.' ),
+				'label'            => barrio_wpgraphql_string( 'May contain links, strong, em and br (the privacy policy link of a consent).' ),
+				'placeholder'      => barrio_wpgraphql_string(),
+				'errorMessage'     => barrio_wpgraphql_string( 'The custom error message, if any.' ),
+				'isRequired'       => barrio_wpgraphql_required( 'Boolean' ),
+				'pattern'          => barrio_wpgraphql_string( 'A regular expression the whole value must match.' ),
+				'min'              => barrio_wpgraphql_string( 'Number fields.' ),
+				'max'              => barrio_wpgraphql_string( 'Number fields.' ),
+				'format'           => barrio_wpgraphql_string( 'How a datepicker shows and submits the date: dd/MM/yyyy (yyyy-MM-dd is accepted too).' ),
+				'options'          => [ 'type' => [ 'list_of' => [ 'non_null' => 'HbFormOption' ] ] ],
 				'conditionalLogic' => [
-					'type'        => 'HBConditionalLogic',
+					'type'        => 'HbConditionalLogic',
 					'description' => 'Null when the field is always shown.',
 				],
 			],
 		]
 	);
 	register_graphql_object_type(
-		'HBFormSettings',
+		'HbFormSettings',
 		[
 			'description' => 'What happens on submit.',
 			'fields'      => [
-				'submitText'      => $string(),
-				'successMessage'  => $string( 'Empty for the standard message.' ),
-				'errorMessage'    => $string( 'Always empty: errors come with the submission.' ),
-				'afterSubmit'     => $string( 'message or redirect.' ),
-				'redirectUrl'     => $string(),
-				'displayPageInfo' => [
-					'type'        => 'Boolean',
-					'description' => 'Always true: send pageUrl, saved without query string and fragment.',
-				],
+				'submitText'     => barrio_wpgraphql_string(),
+				'successMessage' => barrio_wpgraphql_string( 'Empty for the standard message.' ),
+				'afterSubmit'    => barrio_wpgraphql_required( 'HbFormAfterSubmitEnum' ),
+				'redirectUrl'    => barrio_wpgraphql_string(),
 			],
 		]
 	);
 	register_graphql_object_type(
-		'HBFormStep',
+		'HbFormStep',
 		[
 			'description' => 'A page of a multistep form.',
 			'fields'      => [
-				'fields' => [ 'type' => [ 'list_of' => 'HBFormField' ] ],
+				'fields' => barrio_wpgraphql_list( 'HbFormField' ),
 			],
 		]
 	);
 	register_graphql_object_type(
-		'HBForm',
+		'HbForm',
 		[
 			'description' => 'A form in the requested language.',
 			'fields'      => [
-				'id'        => [ 'type' => [ 'non_null' => 'Int' ] ],
-				'title'     => $string(),
-				'createdAt' => $string( 'Y-m-d H:i:s in the site timezone.' ),
-				'updatedAt' => $string( 'Y-m-d H:i:s in the site timezone.' ),
-				'fields'    => [
-					'type'        => [ 'list_of' => 'HBFormField' ],
-					'description' => 'All the fields, without page breaks.',
-				],
-				'steps'     => [
-					'type'        => [ 'list_of' => 'HBFormStep' ],
-					'description' => 'The fields split by page breaks: one step without them.',
-				],
-				'settings'  => [ 'type' => 'HBFormSettings' ],
+				'databaseId' => barrio_wpgraphql_required( 'Int' ),
+				'title'      => barrio_wpgraphql_string( 'Internal: only for users who can list the forms.' ),
+				'createdAt'  => barrio_wpgraphql_required( 'String', 'ISO 8601 in UTC.' ),
+				'updatedAt'  => barrio_wpgraphql_required( 'String', 'ISO 8601 in UTC.' ),
+				'fields'     => barrio_wpgraphql_list( 'HbFormField', 'All the fields, without page breaks.' ),
+				'steps'      => barrio_wpgraphql_list( 'HbFormStep', 'The fields split by page breaks: one step without them.' ),
+				'settings'   => barrio_wpgraphql_required( 'HbFormSettings' ),
 			],
 		]
 	);
 	register_graphql_object_type(
-		'HBFormListItem',
+		'HbFormListItem',
 		[
 			'description' => 'A form in the list.',
 			'fields'      => [
-				'id'          => [ 'type' => [ 'non_null' => 'Int' ] ],
-				'title'       => $string(),
-				'submissions' => [ 'type' => 'Int' ],
-				'createdAt'   => $string( 'Y-m-d H:i:s in the site timezone.' ),
+				'databaseId' => barrio_wpgraphql_required( 'Int' ),
+				'title'      => barrio_wpgraphql_string(),
+				'entryCount' => [
+					'type'        => 'Int',
+					'description' => 'Null for users who cannot manage the forms or the entries.',
+				],
+				'createdAt'  => barrio_wpgraphql_required( 'String', 'ISO 8601 in UTC.' ),
+			],
+		]
+	);
+	register_graphql_object_type(
+		'HbFormError',
+		[
+			'description' => 'Why a submission was rejected.',
+			'fields'      => [
+				'name'    => barrio_wpgraphql_string( 'The name of the field; null for an error of the whole form, like a closed form.' ),
+				'message' => barrio_wpgraphql_required( 'String', 'In the language of the submission, without the label of the field.' ),
 			],
 		]
 	);
@@ -150,11 +158,8 @@ function barrio_wpgraphql_register(): void {
 		[
 			'description' => 'The value of a field.',
 			'fields'      => [
-				'name'  => [
-					'type'        => [ 'non_null' => 'String' ],
-					'description' => 'The name of the field. Values for extensions, like the reCAPTCHA token, start with _ (_barrio_recaptcha).',
-				],
-				'value' => $string( 'Checkboxes: the values separated by commas, or "Label: true | Label: false". Files: {"content": base64, "filename": "…"} as JSON.' ),
+				'name'  => barrio_wpgraphql_required( 'String', 'The name of the field. Values for extensions, like the reCAPTCHA token, start with _ (_barrio_recaptcha).' ),
+				'value' => barrio_wpgraphql_string( 'Checkboxes: the values separated by commas, or "Label: true | Label: false". Files: {"content": base64, "filename": "…"} as JSON.' ),
 			],
 		]
 	);
@@ -163,20 +168,20 @@ function barrio_wpgraphql_register(): void {
 		'RootQuery',
 		'hbForm',
 		[
-			'type'        => 'HBForm',
+			'type'        => 'HbForm',
 			'description' => 'A form, null if it does not exist or is in the trash.',
 			'args'        => [
-				'id'   => [ 'type' => 'Int' ],
-				'lang' => $string( 'A language code, like en. Without it, or if it is not active, the main language.' ),
+				'id'       => barrio_wpgraphql_required( 'Int' ),
+				'language' => barrio_wpgraphql_string( 'A language code, like en. Without it, or if it is not active, the main language.' ),
 			],
-			'resolve'     => static fn( mixed $root, array $args ): ?array => barrio_wpgraphql_form( (int) ( $args['id'] ?? 0 ), $args['lang'] ?? null ),
+			'resolve'     => static fn( mixed $root, array $args ): ?array => barrio_wpgraphql_form( $args['id'], $args['language'] ?? null ),
 		]
 	);
 	register_graphql_field(
 		'RootQuery',
 		'hbForms',
 		[
-			'type'        => [ 'list_of' => 'HBFormListItem' ],
+			'type'        => [ 'list_of' => [ 'non_null' => 'HbFormListItem' ] ],
 			'description' => 'The forms that are not in the trash, the newest first. Needs a user who can edit posts or manage the entries.',
 			'resolve'     => 'barrio_wpgraphql_forms',
 		]
@@ -186,25 +191,16 @@ function barrio_wpgraphql_register(): void {
 		[
 			'description'         => 'Submits a form. A rejected submission comes back with success false, not as a GraphQL error.',
 			'inputFields'         => [
-				'formId'       => [ 'type' => [ 'non_null' => 'Int' ] ],
-				'fields'       => [ 'type' => [ 'non_null' => [ 'list_of' => 'HbFormFieldInput' ] ] ],
-				'lang'         => $string( 'The language the form was shown in.' ),
-				'pageUrl'      => $string( 'The page of the form: saved without query string and fragment.' ),
-				'pageTitle'    => $string( 'Ignored: not saved.' ),
-				'pageReferrer' => $string( 'Ignored: not saved.' ),
+				'formId'   => barrio_wpgraphql_required( 'Int' ),
+				'fields'   => barrio_wpgraphql_list( 'HbFormFieldInput' ),
+				'language' => barrio_wpgraphql_string( 'The language the form was shown in.' ),
+				'pageUrl'  => barrio_wpgraphql_string( 'The page of the form: saved without query string and fragment.' ),
 			],
 			'outputFields'        => [
-				'success'      => [ 'type' => [ 'non_null' => 'Boolean' ] ],
-				'message'      => $string( 'The success message, or what went wrong.' ),
-				'submissionId' => [ 'type' => 'Int' ],
-				'errors'       => [
-					'type'        => [ 'list_of' => 'String' ],
-					'description' => 'One per field, as "Label: error".',
-				],
-				'debug'        => [
-					'type'        => [ 'list_of' => 'String' ],
-					'description' => 'Always null: use the WPGraphQL debug mode.',
-				],
+				'success' => barrio_wpgraphql_required( 'Boolean' ),
+				'message' => barrio_wpgraphql_string( 'The success message, or the first error with the label of its field.' ),
+				'entryId' => [ 'type' => 'Int' ],
+				'errors'  => barrio_wpgraphql_list( 'HbFormError', 'One per field, or one for the whole form. Empty on success.' ),
 			],
 			'mutateAndGetPayload' => 'barrio_wpgraphql_submit',
 		]
@@ -228,22 +224,19 @@ function barrio_wpgraphql_form( int $id, mixed $lang ): ?array {
 		}
 	}
 	return [
-		'id'        => $form->id,
+		'databaseId' => $form->id,
 		// Il titolo è interno, come in hbForms.
-		'title'     => current_user_can( 'edit_posts' ) || current_user_can( 'barrio_manage_entries' ) ? $form->title : null,
-		'createdAt' => get_date_from_gmt( $form->created_at ),
-		'updatedAt' => get_date_from_gmt( $form->updated_at ),
-		'fields'    => array_merge( ...array_column( $steps, 'fields' ) ),
-		'steps'     => $steps,
-		'settings'  => [
-			'submitText'      => $text['submit_label'] ?? '',
-			// Vuoto, come nel prototipo: il frontend mostra il suo messaggio standard, già tradotto.
-			'successMessage'  => $text['success_message'] ?? '',
-			'errorMessage'    => '',
-			'afterSubmit'     => isset( $text['success_url'] ) ? 'redirect' : 'message',
-			'redirectUrl'     => $text['success_url'] ?? '',
-			// Così i frontend del prototipo inviano pageUrl, che diventa la pagina della registrazione.
-			'displayPageInfo' => true,
+		'title'      => current_user_can( 'edit_posts' ) || current_user_can( 'barrio_manage_entries' ) ? $form->title : null,
+		'createdAt'  => Period::iso( $form->created_at ),
+		'updatedAt'  => Period::iso( $form->updated_at ),
+		'fields'     => array_merge( ...array_column( $steps, 'fields' ) ),
+		'steps'      => $steps,
+		'settings'   => [
+			'submitText'     => $text['submit_label'] ?? '',
+			// Vuoto: il frontend mostra il suo messaggio standard, già tradotto.
+			'successMessage' => $text['success_message'] ?? '',
+			'afterSubmit'    => isset( $text['success_url'] ) ? 'redirect' : 'message',
+			'redirectUrl'    => $text['success_url'] ?? '',
 		],
 	];
 }
@@ -254,17 +247,16 @@ function barrio_wpgraphql_form( int $id, mixed $lang ): ?array {
  */
 function barrio_wpgraphql_field( Field $field, array $text ): array {
 	$config = $field->config;
-	// I frontend del prototipo non conoscono il consenso: lo mostrano come la checkbox con una sola scelta
-	// che il prototipo usava per la privacy, con il link nell'etichetta della scelta.
+	// I frontend headless non conoscono il consenso: lo mostrano come una checkbox con una sola scelta, con il
+	// link nell'etichetta della scelta, com'era la privacy nel prototipo.
 	$consent = 'consent' === $field->type;
 	return [
-		'id'               => $field->key,
 		'name'             => $field->key,
 		'type'             => $consent ? 'checkbox' : $field->type,
 		'label'            => $consent ? '' : FieldTypes::label_html( $text['label'] ?? '' ),
 		'placeholder'      => $text['placeholder'] ?? '',
 		'errorMessage'     => $text['error_message'] ?? '',
-		'required'         => $field->required,
+		'isRequired'       => $field->required,
 		'pattern'          => $config['pattern'] ?? ( 'email' === $field->type ? BARRIO_WPGRAPHQL_EMAIL : '' ),
 		'min'              => isset( $config['min'] ) ? (string) $config['min'] : null,
 		'max'              => isset( $config['max'] ) ? (string) $config['max'] : null,
@@ -276,7 +268,6 @@ function barrio_wpgraphql_field( Field $field, array $text ): array {
 			],
 		] : FieldTypes::choices( $field, $text ),
 		'conditionalLogic' => null === $field->conditions ? null : [
-			'enabled'   => true,
 			'action'    => $field->conditions['action'],
 			'logicType' => $field->conditions['logic'],
 			'rules'     => array_map(
@@ -301,10 +292,10 @@ function barrio_wpgraphql_forms(): array {
 	foreach ( FormRepository::all() as $form ) {
 		if ( FormStatus::Trash->value !== $form['status'] ) {
 			$forms[] = [
-				'id'          => $form['id'],
-				'title'       => $form['title'],
-				'submissions' => current_user_can( 'barrio_manage_forms' ) || current_user_can( 'barrio_manage_entries' ) ? $form['entries'] : null,
-				'createdAt'   => get_date_from_gmt( $form['created_at'] ),
+				'databaseId' => $form['id'],
+				'title'      => $form['title'],
+				'entryCount' => current_user_can( 'barrio_manage_forms' ) || current_user_can( 'barrio_manage_entries' ) ? $form['entries'] : null,
+				'createdAt'  => Period::iso( $form['created_at'] ),
 			];
 		}
 	}
@@ -312,15 +303,15 @@ function barrio_wpgraphql_forms(): array {
 }
 
 /**
- * La pipeline di invio del core, come la REST. Un invio rifiutato torna con success false, come nel
- * prototipo; un'eccezione la gestisce WPGraphQL (il messaggio solo con il suo debug attivo).
+ * La pipeline di invio del core, come la REST. Un invio rifiutato torna con success false; un'eccezione la
+ * gestisce WPGraphQL (il messaggio solo con il suo debug attivo).
  *
- * @param array{formId: int, fields: list<array{name: string, value?: string|null}>, lang?: string|null, pageUrl?: string|null} $input
+ * @param array{formId: int, fields: list<array{name: string, value?: string|null}>, language?: string|null, pageUrl?: string|null} $input
  * @return array<string, mixed>
  */
 function barrio_wpgraphql_submit( array $input ): array {
 	$form = FormRepository::get( $input['formId'] );
-	$lang = I18n::resolve( $input['lang'] ?? null );
+	$lang = I18n::resolve( $input['language'] ?? null );
 	if ( null === $form || FormStatus::Trash === $form->status ) {
 		return barrio_wpgraphql_failure( I18n::in( $lang, static fn(): string => __( 'Form not found.', 'barrio-suite-wpgraphql' ) ) );
 	}
@@ -344,7 +335,7 @@ function barrio_wpgraphql_submit( array $input ): array {
 			// La checkbox di barrio_wpgraphql_field(): "Etichetta: true" se spuntata, oppure il valore 1.
 			$values[ $key ] = preg_match( '/: true$/', $value ) ? '1' : $value;
 		} elseif ( 'datepicker' === $type ) {
-			// Il formato di HBFormField.format; la pipeline vuole Y-m-d.
+			// Il formato di HbFormField.format; la pipeline vuole Y-m-d.
 			$values[ $key ] = preg_replace( '#^(\d{2})[/.-](\d{2})[/.-](\d{4})$#', '$3-$2-$1', trim( $value ) );
 		} else {
 			$values[ $key ] = $value;
@@ -373,37 +364,48 @@ function barrio_wpgraphql_submit( array $input ): array {
 	if ( $entry instanceof WP_Error ) {
 		$errors = [];
 		foreach ( (array) ( $entry->get_error_data()['fields'] ?? [] ) as $key => $error ) {
-			$label    = isset( $fields[ $key ] ) ? wp_strip_all_tags( I18n::pick( $fields[ $key ]->i18n, $lang )['label'] ?? '' ) : '';
-			$errors[] = '' === $label ? (string) $error : "{$label}: {$error}";
+			$errors[] = [
+				'name'    => (string) $key,
+				'message' => (string) $error,
+			];
 		}
-		return barrio_wpgraphql_failure( $errors[0] ?? $entry->get_error_message(), $errors );
+		if ( ! $errors ) {
+			return barrio_wpgraphql_failure( $entry->get_error_message() );
+		}
+		// L'errore può riguardare un campo che la versione corrente non ha più (_barrio_version) o quello di un filtro.
+		$field = $fields[ $errors[0]['name'] ] ?? null;
+		$label = $field ? wp_strip_all_tags( I18n::pick( $field->i18n, $lang )['label'] ?? '' ) : '';
+		return barrio_wpgraphql_failure( '' === $label ? $errors[0]['message'] : "{$label}: {$errors[0]['message']}", $errors );
 	}
 	return [
-		'success'      => true,
-		'message'      => I18n::pick( $form->i18n, $lang )['success_message'] ?? I18n::in( $lang, static fn(): string => __( 'Thank you, your submission has been received.', 'barrio-suite-wpgraphql' ) ),
-		'submissionId' => $entry->id,
-		'errors'       => [],
-		'debug'        => null,
+		'success' => true,
+		'message' => I18n::pick( $form->i18n, $lang )['success_message'] ?? I18n::in( $lang, static fn(): string => __( 'Thank you, your submission has been received.', 'barrio-suite-wpgraphql' ) ),
+		'entryId' => $entry->id,
+		'errors'  => [],
 	];
 }
 
 /**
- * @param list<string> $errors
+ * @param list<array{name: string, message: string}> $errors Gli errori dei campi; senza, uno del form.
  * @return array<string, mixed>
  */
 function barrio_wpgraphql_failure( string $message, array $errors = [] ): array {
 	return [
-		'success'      => false,
-		'message'      => $message,
-		'submissionId' => null,
-		'errors'       => $errors ?: [ $message ],
-		'debug'        => null,
+		'success' => false,
+		'message' => $message,
+		'entryId' => null,
+		'errors'  => $errors ?: [
+			[
+				'name'    => null,
+				'message' => $message,
+			],
+		],
 	];
 }
 
 /**
- * Il file del prototipo, {"content": base64, "filename": "…"}, in un file temporaneo che passa da
- * FileStore::check() come un upload: il nome scelto dal client non decide né dove né come si salva.
+ * Il file come {"content": base64, "filename": "…"}, in un file temporaneo che passa da FileStore::check()
+ * come un upload: il nome scelto dal client non decide né dove né come si salva.
  *
  * @return array{name: string, tmp_name?: string, error: int}|null Un elemento di $_FILES; null senza file.
  */
@@ -439,8 +441,8 @@ function barrio_wpgraphql_file( string $value ): ?array {
 }
 
 /**
- * Le checkbox dei frontend del prototipo: "Etichetta: true | Etichetta: false", con le etichette nella
- * lingua del form, oppure i valori separati da virgole.
+ * Le checkbox come le inviano i frontend headless: "Etichetta: true | Etichetta: false", con le etichette
+ * nella lingua del form, oppure i valori separati da virgole.
  *
  * @return list<string> I valori delle scelte; uno sconosciuto resta com'è e la pipeline lo rifiuta.
  */

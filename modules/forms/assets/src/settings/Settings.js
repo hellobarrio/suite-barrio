@@ -1,5 +1,5 @@
 // Scheda Impostazioni: template delle email, privacy (con l'eliminazione di tutte le registrazioni,
-// subito e senza Salva), cosa può fare ogni ruolo e le impostazioni globali delle integrazioni (i campi
+// subito e senza Salva), come mostrarli, cosa può fare ogni ruolo e le impostazioni globali delle integrazioni (i campi
 // sono in Sections.js). Legge e salva con GET/PUT /barrio/v1/settings; i segreti delle integrazioni non
 // tornano mai dal server, se ne conosce solo lo stato. L'SMTP è in Barrio → Impostazioni.
 import apiFetch from '@wordpress/api-fetch';
@@ -10,6 +10,7 @@ import {
 	Bar,
 	Card,
 	Group,
+	HowTo,
 	Loading,
 	Notice,
 	Permissions,
@@ -170,6 +171,13 @@ export function Settings() {
 				/>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
+			<HowTo
+				description={ __(
+					'The Form block, or the shortcode of the form, also in the text of a popup.',
+					'barrio-suite'
+				) }
+				codes={ [ '[barrio_form id="3"]' ] }
+			/>
 			<Card
 				className="barrio-wide"
 				icon="art"

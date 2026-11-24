@@ -10,34 +10,42 @@ use BarrioSuite\Forms\Model\FormVersion;
 use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\FileStore;
+use BarrioSuite\Period;
+use GraphQL\Error\Error;
+use GraphQL\Language\Parser;
+use GraphQL\Type\Definition\EnumType;
 use GraphQL\Type\Definition\FieldDefinition;
 use GraphQL\Type\Definition\InputObjectType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
+use GraphQL\Validator\DocumentValidator;
+use WP_Error;
 use WP_UnitTestCase;
 
 // L'estensione barrio-suite-wpgraphql (caricata da tests/bootstrap.php). Gira solo con WPGraphQL, nella
 // riga WPGraphQL della CI (WP_GRAPHQL=1); nelle altre la suite prova che senza WPGraphQL non dà errori.
 final class WpGraphqlTest extends WP_UnitTestCase {
 
-	// Le query di un frontend Next.js del prototipo (hello_standard), così come le invia.
-	private const GET_FORM = 'query getForm($id: Int, $lang: String = "it") {
-		hbForm(id: $id, lang: $lang) {
-			id
+	// Le query di un frontend Next.js (hello_standard), con i nomi del foglio di porting.
+	private const GET_FORM = 'query getForm($id: Int!, $language: String = "it") {
+		hbForm(id: $id, language: $language) {
+			databaseId
 			title
+			createdAt
+			updatedAt
 			steps {
 				fields {
-					id name type label placeholder required pattern errorMessage min max format
+					name type label placeholder isRequired pattern errorMessage min max format
 					options { value label }
-					conditionalLogic { action enabled logicType rules { fieldName operator value } }
+					conditionalLogic { action logicType rules { fieldName operator value } }
 				}
 			}
-			settings { submitText successMessage errorMessage afterSubmit redirectUrl displayPageInfo }
+			settings { submitText successMessage afterSubmit redirectUrl }
 		}
 	}';
 
 	private const SUBMIT = 'mutation HBSubmitForm($input: HbSubmitFormInput!) {
-		hbSubmitForm(input: $input) { success message submissionId errors }
+		hbSubmitForm(input: $input) { success message entryId errors { name message } }
 	}';
 
 	private Form $form;
@@ -119,12 +127,23 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	// La fixture viene dal prototipo con WPGraphQL 2.x, stampata con sdl().
-	public function test_the_schema_is_the_prototype_one(): void {
+	// La fotografia dello schema, stampata con sdl() (PLAN-GRAPHQL.md §3.1): ogni cambiamento si vede nel diff.
+	public function test_the_schema_matches_the_snapshot(): void {
 		$this->assertStringEqualsFile( dirname( __DIR__ ) . '/fixtures/wpgraphql-schema.txt', self::sdl() );
 	}
 
-	public function test_a_form_reads_like_in_the_prototype(): void {
+	// Il foglio di porting (docs/graphql-porting.md) non resta indietro: ogni sua query è valida per lo schema.
+	public function test_the_queries_of_the_porting_sheet_are_valid(): void {
+		preg_match_all( '/```graphql\n(.+?)```/s', (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/graphql-porting.md' ), $queries ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$this->assertNotEmpty( $queries[1] );
+		\WPGraphQL::clear_schema();
+		foreach ( $queries[1] as $query ) {
+			$errors = DocumentValidator::validate( \WPGraphQL::get_schema(), Parser::parse( $query ) );
+			$this->assertSame( [], array_map( static fn( Error $error ): string => $error->getMessage(), $errors ), $query );
+		}
+	}
+
+	public function test_a_multistep_form_reads_with_its_steps_and_fields(): void {
 		$form = graphql(
 			[
 				'query'     => self::GET_FORM,
@@ -132,19 +151,21 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			]
 		)['data']['hbForm'];
 
+		$this->assertSame( $this->form->id, $form['databaseId'] );
 		// Il titolo è interno: non agli anonimi.
 		$this->assertNull( $form['title'] );
+		$this->assertSame( Period::iso( $this->form->created_at ), $form['createdAt'] );
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $form['updatedAt'] );
 		$this->assertSame( [ [ 'name', 'email', 'topics' ], [ 'date', 'cv' ] ], array_map( static fn( array $step ): array => array_column( $step['fields'], 'name' ), $form['steps'] ) );
 		[ $name, $email, $topics ] = $form['steps'][0]['fields'];
 		[ $date, $cv ]             = $form['steps'][1]['fields'];
 		$this->assertSame(
 			[
-				'id'               => 'name',
 				'name'             => 'name',
 				'type'             => 'text',
 				'label'            => 'Name',
 				'placeholder'      => 'Your name',
-				'required'         => true,
+				'isRequired'       => true,
 				'pattern'          => '',
 				'errorMessage'     => '',
 				'min'              => null,
@@ -173,9 +194,8 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( 'dd/MM/yyyy', $date['format'] );
 		$this->assertSame(
 			[
-				'action'    => 'show',
-				'enabled'   => true,
-				'logicType' => 'all',
+				'action'    => 'SHOW',
+				'logicType' => 'ALL',
 				'rules'     => [
 					[
 						'fieldName' => 'topics',
@@ -188,12 +208,10 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		);
 		$this->assertSame(
 			[
-				'submitText'      => 'Send',
-				'successMessage'  => '',
-				'errorMessage'    => '',
-				'afterSubmit'     => 'redirect',
-				'redirectUrl'     => '/thanks',
-				'displayPageInfo' => true,
+				'submitText'     => 'Send',
+				'successMessage' => '',
+				'afterSubmit'    => 'REDIRECT',
+				'redirectUrl'    => '/thanks',
 			],
 			$form['settings']
 		);
@@ -215,7 +233,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 	}
 
 	// Come le compone hello_standard: checkbox "Etichetta: true | …", file in base64, la sua "currentpage".
-	public function test_a_submission_from_the_prototype_frontend_is_saved(): void {
+	public function test_a_submission_with_checkboxes_a_date_and_a_file_is_saved(): void {
 		$payload = $this->submit(
 			[
 				'name'        => 'Ada',
@@ -236,7 +254,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertTrue( $payload['success'] );
 		$this->assertSame( 'Thank you, your submission has been received.', $payload['message'] );
 		$this->assertSame( [], $payload['errors'] );
-		$entry = EntryRepository::get( $payload['submissionId'] );
+		$entry = EntryRepository::get( $payload['entryId'] );
 		$this->assertSame( 'https://example.org/contatti/', $entry->source_url );
 		$values = [];
 		foreach ( $this->form->current->fields as $field ) {
@@ -257,8 +275,8 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertStringEqualsFile( FileStore::dir() . '/' . $entry->files[0]['stored_path'], 'Hello' );
 	}
 
-	// I frontend del prototipo non hanno il consenso: lo ricevono come la loro checkbox della privacy.
-	public function test_a_consent_is_a_checkbox_with_one_choice_for_the_prototype_frontends(): void {
+	// I frontend headless non hanno il consenso: lo ricevono come una checkbox della privacy.
+	public function test_a_consent_is_a_checkbox_with_one_choice(): void {
 		$label      = 'I accept the <a href="/privacy/">privacy policy</a>';
 		$this->form = FormRepository::create(
 			'Newsletter',
@@ -267,12 +285,13 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			new FormVersion( [ new Field( 'privacy', 'consent', [ 'en' => [ 'label' => $label ] ], true ) ] )
 		);
 
-		$field = graphql(
+		$form  = graphql(
 			[
 				'query'     => self::GET_FORM,
 				'variables' => [ 'id' => $this->form->id ],
 			]
-		)['data']['hbForm']['steps'][0]['fields'][0];
+		)['data']['hbForm'];
+		$field = $form['steps'][0]['fields'][0];
 		$this->assertSame(
 			[
 				'checkbox',
@@ -286,11 +305,20 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			],
 			[ $field['type'], $field['label'], $field['options'] ]
 		);
+		$this->assertSame( 'MESSAGE', $form['settings']['afterSubmit'] );
 
-		$this->assertFalse( $this->submit( [ 'privacy' => "{$label}: false" ] )['success'] );
+		$this->assertSame(
+			[
+				[
+					'name'    => 'privacy',
+					'message' => 'This field is required.',
+				],
+			],
+			$this->submit( [ 'privacy' => "{$label}: false" ] )['errors']
+		);
 		$payload = $this->submit( [ 'privacy' => "{$label}: true" ] );
 		$this->assertTrue( $payload['success'] );
-		$this->assertSame( [ '1' ], EntryRepository::get( $payload['submissionId'] )->values[ (int) $this->form->current->fields[0]->id ] );
+		$this->assertSame( [ '1' ], EntryRepository::get( $payload['entryId'] )->values[ (int) $this->form->current->fields[0]->id ] );
 	}
 
 	public function test_checkboxes_also_arrive_as_values_separated_by_commas(): void {
@@ -303,7 +331,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		);
 
 		$topics = $this->form->current->fields[2];
-		$this->assertSame( [ 'news', 'events' ], EntryRepository::get( $payload['submissionId'] )->values[ (int) $topics->id ] );
+		$this->assertSame( [ 'news', 'events' ], EntryRepository::get( $payload['entryId'] )->values[ (int) $topics->id ] );
 	}
 
 	// Il problema del prototipo: un .php in base64 finiva in /uploads con il nome scelto dal client.
@@ -326,15 +354,25 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			]
 		);
 
+		// Un errore per campo, senza l'etichetta; il messaggio è il primo, con l'etichetta.
 		$this->assertSame(
 			[
-				'success'      => false,
-				'message'      => 'Name: This field is required.',
-				'submissionId' => null,
-				'errors'       => [
-					'Name: This field is required.',
-					'Email: Please enter a valid email address.',
-					'CV: This file type is not allowed. Accepted formats: TXT.',
+				'success' => false,
+				'message' => 'Name: This field is required.',
+				'entryId' => null,
+				'errors'  => [
+					[
+						'name'    => 'name',
+						'message' => 'This field is required.',
+					],
+					[
+						'name'    => 'email',
+						'message' => 'Please enter a valid email address.',
+					],
+					[
+						'name'    => 'cv',
+						'message' => 'This file type is not allowed. Accepted formats: TXT.',
+					],
 				],
 			],
 			$payload
@@ -342,6 +380,14 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( $entries, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Db::table( 'entries' ) ) ) );
 		$this->assertSame( $temp, glob( get_temp_dir() . '*' ) );
 		$this->assertSame( [], glob( wp_upload_dir()['basedir'] . '/*shell*' ) );
+	}
+
+	public function test_an_error_on_a_name_that_is_not_a_field_comes_without_a_label(): void {
+		add_filter( 'barrio_forms_spam_check', static fn(): WP_Error => new WP_Error( 'captcha', 'No.', [ 'fields' => [ '_barrio_recaptcha' => 'Confirm you are not a robot.' ] ] ) );
+
+		$payload = $this->submit( [ 'name' => 'Ada' ] );
+
+		$this->assertSame( [ false, 'Confirm you are not a robot.' ], [ $payload['success'], $payload['message'] ] );
 	}
 
 	public function test_a_repeated_file_field_leaves_no_temporary_files(): void {
@@ -377,8 +423,21 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 
 		$payload = $this->submit( [ 'name' => 'Ada' ] );
 
-		$this->assertFalse( $payload['success'] );
-		$this->assertSame( [ 'This form is no longer accepting submissions.' ], $payload['errors'] );
+		// Un errore del form, non di un campo: name è null.
+		$this->assertSame(
+			[
+				'success' => false,
+				'message' => 'This form is no longer accepting submissions.',
+				'entryId' => null,
+				'errors'  => [
+					[
+						'name'    => null,
+						'message' => 'This form is no longer accepting submissions.',
+					],
+				],
+			],
+			$payload
+		);
 	}
 
 	// Un frontend con l'application password invia dal suo server: il suo IP è lo stesso per tutti.
@@ -393,7 +452,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			for ( $i = 0; $i < 10; $i++ ) {
 				$this->assertTrue( $this->submit( $valid )['success'] );
 			}
-			$this->assertSame( [ 'Too many submissions. Please try again in a few minutes.' ], $this->submit( $valid )['errors'] );
+			$this->assertSame( 'Too many submissions. Please try again in a few minutes.', $this->submit( $valid )['errors'][0]['message'] );
 
 			wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
 			$this->assertFalse( $this->submit( $valid )['success'], 'Any registered user would skip the limit.' );
@@ -406,7 +465,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_list_needs_a_user_who_can_see_the_forms(): void {
-		$query = '{ hbForms { id title submissions createdAt } }';
+		$query = '{ hbForms { databaseId title entryCount createdAt } }';
 		$this->submit(
 			[
 				'name'  => 'Ada',
@@ -425,10 +484,10 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame(
 			[
 				[
-					'id'          => $this->form->id,
-					'title'       => 'Contact',
-					'submissions' => 1,
-					'createdAt'   => get_date_from_gmt( $this->form->created_at ),
+					'databaseId' => $this->form->id,
+					'title'      => 'Contact',
+					'entryCount' => 1,
+					'createdAt'  => Period::iso( $this->form->created_at ),
 				],
 			],
 			$editor['data']['hbForms']
@@ -454,11 +513,10 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 				'query'     => self::SUBMIT,
 				'variables' => [
 					'input' => [
-						'formId'    => $this->form->id,
-						'fields'    => $list,
-						'pageUrl'   => 'https://example.org/contatti/?utm_source=x#form',
-						'pageTitle' => 'Contacts',
-						'lang'      => 'it',
+						'formId'   => $this->form->id,
+						'fields'   => $list,
+						'pageUrl'  => 'https://example.org/contatti/?utm_source=x#form',
+						'language' => 'it',
 					],
 				],
 			]
@@ -468,8 +526,8 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * I campi e i tipi raggiungibili da loro, senza descrizioni e con i campi in ordine alfabetico: conta
-	 * che nomi, tipi e argomenti siano quelli del prototipo. Anche per SeoGraphqlTest.
+	 * I campi e i tipi raggiungibili da loro, senza descrizioni e con i campi in ordine alfabetico: la
+	 * fotografia di nomi, tipi, argomenti ed enum. Anche per SeoGraphqlTest e ModulesGraphqlTest.
 	 *
 	 * @param array<string, list<string>> $fields I campi per tipo.
 	 */
@@ -494,6 +552,9 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$types = [];
 		while ( $queue ) {
 			$type = array_shift( $queue );
+			if ( $type instanceof EnumType && ! isset( $types[ $type->name ] ) ) {
+				$types[ $type->name ] = "enum {$type->name} {\n" . implode( "\n", array_map( static fn( $value ): string => "  {$value->name}", $type->getValues() ) ) . "\n}";
+			}
 			// I tipi di WPGraphQL, come MediaItem, sono nodi con le loro interfacce: restano col nome.
 			if ( isset( $types[ $type->name ] ) || ! ( $type instanceof ObjectType || $type instanceof InputObjectType ) || ( $type instanceof ObjectType && $type->getInterfaces() ) ) {
 				continue;

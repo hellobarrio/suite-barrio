@@ -20,7 +20,7 @@ resta una sola differenza, l'updater da GitHub.
 | WordPress classico e headless | Il prototipo è quasi solo headless: in WordPress stampa i meta, mentre sitemap, redirect e JSON-LD esistono solo in GraphQL. Barrio Suite va su WordPress.org, quindi il modulo fa tutto anche in WordPress: head, `wp-sitemap.xml`, redirect, JSON-LD e `llms.txt`. Ai siti headless gli stessi dati arrivano dall'estensione `barrio-suite-wpgraphql`, con i nomi del prototipo |
 | Una sola risoluzione | Titolo, descrizione, robots, canonical, immagine e indicizzazione si calcolano in un solo punto (`Seo\Meta`). Lo usano head, sitemap, schema, llms.txt e GraphQL. Nel prototipo la stessa logica è copiata cinque volte e dà risultati diversi |
 | Prima WordPress | Per la sitemap si usa quella del core (`wp-sitemap.xml`, filtrata; `/sitemap.xml` lo redirige già il core). Poi `wp_robots`, `pre_get_document_title` e `get_canonical_url`, il redirect dei vecchi slug del core, le pagine degli allegati spente dal core (`wp_attachment_pages_enabled`, solo sui siti nati dalla 6.4: sugli altri sono noindex di default, con una riga in Indicizzazione). Nome e icona del sito restano le opzioni di WordPress (`blogname`, `site_icon`): niente copie |
-| Dati dell'azienda | Stanno nelle impostazioni SEO, card Organizzazione, come la "Local SEO" di Rank Math: servono allo schema. Il futuro modulo Dati aziendali (`info-azienda`, `hbCompanyInfo`) li leggerà da qui invece di tenerne una copia, come succede oggi nel prototipo |
+| Dati dell'azienda | Nome, contatti, partita IVA, indirizzo e profili stanno nel modulo Dati aziendali ([PLAN-GRAPHQL.md](PLAN-GRAPHQL.md) §5) e lo schema li legge da lì, senza copie. In SEO → Organizzazione resta ciò che serve solo allo schema: tipo, descrizione, logo, immagine, coordinate, zone servite, competenze, offerte. Fino al 24 novembre 2026 l'anagrafica stava qui |
 | AI | Nel core, non in un'estensione (scelta del 18 novembre): serve a tutta la suite, non solo al SEO. Gemini su Vertex AI, con il **service account di Google** in Barrio → Impostazioni, lo stesso che userà Analytics (basterà aggiungere l'ID della proprietà GA4): Vertex AI accetta i token dei service account, l'API Gemini di AI Studio solo le chiavi API (il suo discovery document non dichiara scope OAuth). Nessun modello o regione scritti nel codice: si scelgono dalle liste di Google (`publishers/google/models`, `projects.locations`), che la card AI legge da sola appena c'è il service account; la regione vuota è l'endpoint `global`. "Genera con AI" resta spento finché mancano service account e modello. Le chiamate a Google partono solo da un clic di chi lavora nell'admin, e il readme le dichiara (regola di WordPress.org) |
 | Sitemap | Niente interruttore "in sitemap" separato: in sitemap c'è ciò che è indicizzabile, come in Yoast e Rank Math. Il prototipo aveva due fonti per la stessa scelta, e una non si poteva impostare. Niente scheda a sé: la sitemap non si modifica, è l'effetto dell'indicizzazione, quindi sta nella card Indicizzazione con i numeri per tipo. L'elenco degli URL è `wp-sitemap.xml`, leggibile nel browser |
 | robots.txt | Quello virtuale del core, che ha già la riga `Sitemap:`; con "Scoraggia i motori di ricerca" il core usa `noindex` e non `Disallow: /`, che nasconderebbe il `noindex`. Niente editor: robots.txt blocca la scansione ma non toglie le pagine da Google (lo fa `noindex`), una riga sbagliata toglie il sito dai risultati, e un file vero nella cartella del sito ha comunque la precedenza. La card Indicizzazione avvisa se quel file c'è. Il blocco dei crawler AI, se un sito lo chiede, è un interruttore sul filtro `robots_txt` |
@@ -76,11 +76,11 @@ Ha un JSON Schema e la scrive solo la rotta `PUT /barrio/v1/seo/settings` (come 
 - `default_image` (ID);
 - `index`: `post_types` e `taxonomies` (`{slug: {index, follow}}`; una chiave assente vale indicizzato),
   `archives` (`author` indicizzato, `date` noindex di default, perché ripete gli articoli). Ricerca ed embed restano noindex come già fa il core;
-- `organization`: tipo (le voci del prototipo che schema.org ha: senza `Architect` e `InteriorDesigner`), nome, logo e immagine (ID, non URL), telefono, email,
-  P.IVA, indirizzo, coordinate, zone servite (`[{type, name}]`, con `type` tra `Place`, `AdministrativeArea`, `City`,
-  `State` e `Country`: `Text` e `GeoShape` del prototipo non sono luoghi con un nome), competenze (lista), profili
-  (`same_as`, una lista di URL al posto dei cinque social fissi), catalogo delle offerte (nome, valuta, voci
-  come nel prototipo);
+- `organization`: tipo (le voci del prototipo che schema.org ha: senza `Architect` e `InteriorDesigner`), logo e
+  immagine (ID, non URL), coordinate, zone servite (`[{type, name}]`, con `type` tra `Place`, `AdministrativeArea`,
+  `City`, `State` e `Country`: `Text` e `GeoShape` del prototipo non sono luoghi con un nome), competenze (lista),
+  catalogo delle offerte (nome, valuta, voci come nel prototipo). Nome, telefono, email, P.IVA, indirizzo e profili
+  sono in `barrio_company` (Dati aziendali);
 - `llms`: `post_types` e `taxonomies` (`include` \| `links` \| `exclude`); una chiave assente vale `include` per articoli, pagine e tassonomie, `links` per gli altri tipi (`Llms::preset()`);
 - `auto_redirects` (default `true`);
 - `texts`: `{lingua: {default_description, organization_description, llms_intro}}`. Come nei form, nessun
@@ -205,8 +205,9 @@ schede Contenuti, Redirect, Organizzazione e Impostazioni.
   - **Menu ⋯**: modifica ed elimina; tra le azioni di massa, elimina.
   - **"Aggiungi redirect"** nell'intestazione: una modale con sorgente, codice, destinazione (disattivata con il 410) e nota.
 - **SEO → Organizzazione** (`manage_options`), un solo Salva: i campi del §2.2 in card per argomento (azienda,
-  indirizzo, zone servite, competenze, profili, offerte), con l'anteprima del JSON-LD nella colonna destra, aggiornata
-  dal server mentre si scrive (`POST /seo/settings/schema`).
+  coordinate, zone servite, competenze, offerte), con l'anteprima del JSON-LD nella colonna destra, aggiornata
+  dal server mentre si scrive (`POST /seo/settings/schema`). Un avviso in cima porta a Dati aziendali, dove si
+  scrive l'anagrafica.
 - **SEO → Impostazioni** (`manage_options`), un solo Salva:
   - **Titoli e meta**: nome e icona del sito, separatore, ordine con l'anteprima, descrizione e immagine di condivisione predefinite;
   - **Indicizzazione**: una riga per tipo e per tassonomia (Indicizza, Segui) con il robots risultante e quanti indirizzi mette nella sitemap; archivi autore e data. I numeri sono contati dai provider della sitemap del core con i filtri del modulo (`GET /seo/settings/sitemap`), quindi sono quelli che legge Google; una riga che si spegne dice subito che esce dalla sitemap. In fondo il totale, i link a `wp-sitemap.xml` e robots.txt e, con il sito che chiede di non essere indicizzato, che WordPress non pubblica la sitemap. Un avviso se nella cartella del sito c'è un file robots.txt;

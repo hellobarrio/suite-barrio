@@ -7,25 +7,35 @@ use BarrioSuite\Popups\PopupRepository;
 use WP_Locale_Switcher;
 use WP_UnitTestCase;
 
-// Popup, banner e orari in barrio-suite-wpgraphql. Gira solo con WPGraphQL, come WpGraphqlTest.
+// Popup, banner, orari e dati aziendali in barrio-suite-wpgraphql. Gira solo con WPGraphQL, come WpGraphqlTest.
 final class ModulesGraphqlTest extends WP_UnitTestCase {
 
-	// Le query di hello_standard (lib/data/queries, lib/fragments.ts), così come le invia.
-	private const GET_POPUP = 'query hbPopup($lang: String = "it") {
-		hbPopup(lang: $lang) {
-			id title content
+	// Le query di hello_standard (lib/data/queries, lib/fragments.ts), con i nomi del foglio di porting.
+	private const GET_POPUP = 'query hbPopup($language: String = "it") {
+		hbPopup(language: $language) {
+			databaseId title content
 			link { url title target }
 			image { node { ...MediaItemFragment } }
 		}
 	}
 	fragment MediaItemFragment on MediaItem { altText title sourceUrl mediaDetails { width height } }';
 
-	private const GET_BANNER = 'query hbBanner($lang: String = "it") {
-		hbBanner(lang: $lang) { title link { url target } }
+	private const GET_BANNER = 'query hbBanner($language: String = "it") {
+		hbBanner(language: $language) { text link { url target } }
 	}';
 
-	private const GET_ORARI = 'query getOrari($lang: String) {
-		hbOrari(lang: $lang) { ultimoAggiornamento displayName settimana { giorno slots chiuso } }
+	private const GET_HOURS = 'query getOpeningHours($language: String) {
+		hbOpeningHours(language: $language) { syncedAt displayName currentWeek { day slots isClosed } }
+	}';
+
+	// Tutti i campi di getInfoAzienda tranne sitoWeb, nello stesso ordine.
+	private const GET_COMPANY = '{
+		hbCompanyInfo {
+			address { postalCode locality mapsUrl region street }
+			operatingAddress { postalCode locality mapsUrl region street }
+			profiles { network url }
+			shareCapital mobile taxCode invoiceCode email privacyEmail vatId certifiedEmail legalName registrationNumber phone
+		}
 	}';
 
 	// I campi che il prototipo non aveva.
@@ -33,12 +43,12 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 
 	private const NEW_BANNER = '{ hbBanner { startsAt endsAt } }';
 
-	private const NEW_ORARI = 'query ($lang: String) {
-		hbOrari(lang: $lang) {
-			fonte
-			settimana { fasce { apertura chiusura } }
-			settimanaNormale { giorno slots fasce { apertura chiusura } chiuso }
-			giorniSpeciali { dal al nota slots fasce { apertura chiusura } chiuso }
+	private const NEW_HOURS = 'query ($language: String) {
+		hbOpeningHours(language: $language) {
+			source
+			currentWeek { periods { opens closes } }
+			regularWeek { day slots periods { opens closes } isClosed }
+			specialDays { startDate endDate note slots periods { opens closes } isClosed }
 		}
 	}';
 
@@ -59,31 +69,22 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	// La fixture è lo schema del prototipo con WPGraphQL 2.x (wp-env, sito di sviluppo), stampato con
-	// WpGraphqlTest::sdl(): ogni suo campo c'è ancora, nello stesso tipo e con lo stesso tipo. Gli altri si aggiungono.
-	public function test_the_schema_keeps_every_field_of_the_prototype(): void {
-		$lines     = static function ( string $sdl ): array {
-			$type  = '';
-			$lines = [];
-			foreach ( explode( "\n", $sdl ) as $line ) {
-				$type    = preg_match( '/^type (\w+)/', $line, $match ) ? $match[1] : ( '}' === $line ? '' : $type );
-				$lines[] = "{$type} {$line}";
-			}
-			return $lines;
-		};
-		$prototype = (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/wpgraphql-modules-schema.txt' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$schema    = WpGraphqlTest::sdl( [ 'RootQuery' => [ 'hbBanner', 'hbOrari', 'hbPopup' ] ] );
-		$this->assertSame( [], array_values( array_diff( $lines( $prototype ), $lines( $schema ) ) ) );
-		$this->assertStringContainsString( "type HBPopup {\n  content: String\n  days: Int\n  endsAt: String\n", $schema, 'The new fields are there too.' );
+	// La fotografia dello schema, stampata con WpGraphqlTest::sdl() (PLAN-GRAPHQL.md §3.3, §3.4 e §3.5).
+	public function test_the_schema_matches_the_snapshot(): void {
+		$this->assertStringEqualsFile(
+			dirname( __DIR__ ) . '/fixtures/wpgraphql-modules-schema.txt',
+			WpGraphqlTest::sdl( [ 'RootQuery' => [ 'hbBanner', 'hbCompanyInfo', 'hbOpeningHours', 'hbPopup' ] ] )
+		);
 	}
 
 	public function test_without_the_modules_nothing_is_registered(): void {
-		// barrio_<modulo>_loaded non parte con il modulo spento (ModulesTest). Tutti e tre prima del primo schema:
+		// barrio_<modulo>_loaded non parte con il modulo spento (ModulesTest). Tutti prima del primo schema:
 		// WPGraphQL ricorda i campi registrati, in graphql_register_types_late, fino alla fine del test.
 		$fields = [
 			'popups'  => 'hbPopup',
 			'banners' => 'hbBanner',
-			'hours'   => 'hbOrari',
+			'hours'   => 'hbOpeningHours',
+			'company' => 'hbCompanyInfo',
 		];
 		foreach ( array_keys( $fields ) as $module ) {
 			remove_action( 'graphql_register_types', "barrio_wpgraphql_register_{$module}", 9 );
@@ -111,7 +112,7 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		$this->popup( 'Scaduto', null, '2020-01-01 00:00:00', '2020-02-01 00:00:00' );
 
 		$popup = $this->query( self::GET_POPUP )['hbPopup'];
-		$this->assertSame( $id, $popup['id'] );
+		$this->assertSame( $id, $popup['databaseId'] );
 		$this->assertSame( 'Newsletter', $popup['title'] );
 		// Gli shortcode li sa mostrare solo WordPress, tranne il form, che separa il frontend (senza il paragrafo).
 		$this->assertSame( '<p>Iscriviti alla <strong>newsletter</strong>.</p>[barrio_form id="1"]', $popup['content'] );
@@ -143,18 +144,18 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( '<p>Iscriviti alla <strong>newsletter</strong>.</p>', $content );
 
 		// In inglese: il pulsante senza testo ha quello standard della lingua.
-		$english = $this->query( self::GET_POPUP, [ 'lang' => 'en' ] )['hbPopup'];
+		$english = $this->query( self::GET_POPUP, [ 'language' => 'en' ] )['hbPopup'];
 		$this->assertSame( 'Newsletter (en)', $english['title'] );
 		$this->assertSame( 'Learn more', $english['link']['title'] );
 		// Una lingua non attiva è la principale.
-		$this->assertSame( 'Newsletter', $this->query( self::GET_POPUP, [ 'lang' => 'fr' ] )['hbPopup']['title'] );
+		$this->assertSame( 'Newsletter', $this->query( self::GET_POPUP, [ 'language' => 'fr' ] )['hbPopup']['title'] );
 
 		// Un'immagine eliminata non c'è più; spento il più recente, torna quello di prima.
 		wp_delete_attachment( $image, true );
 		$this->assertNull( $this->query( self::GET_POPUP )['hbPopup']['image'] );
 		PopupRepository::set_enabled( false, $id );
 		$popup = $this->query( self::GET_POPUP )['hbPopup'];
-		$this->assertSame( [ $older, null, null ], [ $popup['id'], $popup['link'], $popup['image'] ] );
+		$this->assertSame( [ $older, null, null ], [ $popup['databaseId'], $popup['link'], $popup['image'] ] );
 	}
 
 	public function test_the_banner_is_the_one_of_the_site_in_the_requested_language(): void {
@@ -188,20 +189,20 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 
 		$this->assertSame(
 			[
-				'title' => 'Saldi',
-				'link'  => null,
+				'text' => 'Saldi',
+				'link' => null,
 			],
 			$this->query( self::GET_BANNER )['hbBanner']
 		);
 		$this->assertSame(
 			[
-				'title' => 'Saldi (en)',
-				'link'  => [
+				'text' => 'Saldi (en)',
+				'link' => [
 					'url'    => '/en/sale/',
 					'target' => '_blank',
 				],
 			],
-			$this->query( self::GET_BANNER, [ 'lang' => 'en' ] )['hbBanner']
+			$this->query( self::GET_BANNER, [ 'language' => 'en' ] )['hbBanner']
 		);
 		$this->assertSame(
 			[
@@ -214,19 +215,19 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 
 	public function test_the_week_starts_on_monday_with_the_special_days_of_the_next_7_days(): void {
 		$empty = [
-			'ultimoAggiornamento' => null,
-			'displayName'         => null,
-			'settimana'           => [],
+			'syncedAt'    => null,
+			'displayName' => null,
+			'currentWeek' => [],
 		];
-		$this->assertSame( $empty, $this->query( self::GET_ORARI )['hbOrari'], 'Without hours, no week of closed days.' );
+		$this->assertSame( $empty, $this->query( self::GET_HOURS )['hbOpeningHours'], 'Without hours, no week of closed days.' );
 		$this->assertSame(
 			[ [], [] ],
 			array_values(
 				array_intersect_key(
-					$this->query( self::NEW_ORARI )['hbOrari'],
+					$this->query( self::NEW_HOURS )['hbOpeningHours'],
 					[
-						'settimanaNormale' => 0,
-						'giorniSpeciali'   => 0,
+						'regularWeek' => 0,
+						'specialDays' => 0,
 					]
 				)
 			)
@@ -263,10 +264,10 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 			]
 		);
 
-		$hours = $this->query( self::GET_ORARI, [ 'lang' => 'it' ] )['hbOrari'];
-		$this->assertSame( '02/03/2026 03:05', $hours['ultimoAggiornamento'], 'In the site timezone.' );
+		$hours = $this->query( self::GET_HOURS, [ 'language' => 'it' ] )['hbOpeningHours'];
+		$this->assertSame( '2026-03-02T02:05:00+00:00', $hours['syncedAt'] );
 		$this->assertSame( 'Trattoria Mario', $hours['displayName'] );
-		$this->assertSame( [ 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday' ], array_column( $hours['settimana'], 'giorno' ) );
+		$this->assertSame( [ 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday' ], array_column( $hours['currentWeek'], 'day' ) );
 		$expected                                   = [
 			1 => [ '09:00 - 13:00', '15:30 - 19:00' ],
 			2 => [ '09:00 - 13:00', '15:30 - 19:00' ],
@@ -277,11 +278,11 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 			7 => [],
 		];
 		$expected[ (int) $tomorrow->format( 'N' ) ] = [];
-		$this->assertSame( array_values( $expected ), array_column( $hours['settimana'], 'slots' ) );
-		$this->assertSame( array_map( static fn( array $slots ): bool => ! $slots, array_values( $expected ) ), array_column( $hours['settimana'], 'chiuso' ) );
+		$this->assertSame( array_values( $expected ), array_column( $hours['currentWeek'], 'slots' ) );
+		$this->assertSame( array_map( static fn( array $slots ): bool => ! $slots, array_values( $expected ) ), array_column( $hours['currentWeek'], 'isClosed' ) );
 
 		// In inglese le ore sono di 12: un giorno feriale che non sia domani, e il sabato.
-		$english = $this->query( self::GET_ORARI, [ 'lang' => 'en' ] )['hbOrari']['settimana'];
+		$english = $this->query( self::GET_HOURS, [ 'language' => 'en' ] )['hbOpeningHours']['currentWeek'];
 		$weekday = 1 === (int) $tomorrow->format( 'N' ) ? 2 : 1;
 		$this->assertSame( [ '9:00 AM - 1:00 PM', '3:30 PM - 7:00 PM' ], $english[ $weekday - 1 ]['slots'] );
 		if ( 6 !== (int) $tomorrow->format( 'N' ) ) {
@@ -289,46 +290,46 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		}
 
 		// I campi nuovi: le ore da leggere, la settimana senza i giorni speciali, i giorni speciali con le date e le note.
-		$hours  = $this->query( self::NEW_ORARI, [ 'lang' => 'en' ] )['hbOrari'];
-		$fasce  = static fn( array $slots ): array => array_map(
+		$hours   = $this->query( self::NEW_HOURS, [ 'language' => 'en' ] )['hbOpeningHours'];
+		$periods = static fn( array $slots ): array => array_map(
 			static fn( array $slot ): array => [
-				'apertura' => $slot['open'],
-				'chiusura' => $slot['close'],
+				'opens'  => $slot['open'],
+				'closes' => $slot['close'],
 			],
 			$slots
 		);
-		$normal = array_column( $hours['settimanaNormale'], 'fasce' );
-		$this->assertSame( 'google', $hours['fonte'] );
-		$this->assertSame( array_values( array_map( $fasce, $week ) ), $normal, 'Tomorrow too, with its usual hours.' );
-		$this->assertSame( [ '8:00 PM - 2:00 AM' ], $hours['settimanaNormale'][5]['slots'] );
-		$this->assertSame( [], $hours['settimana'][ (int) $tomorrow->format( 'N' ) - 1 ]['fasce'] );
+		$normal  = array_column( $hours['regularWeek'], 'periods' );
+		$this->assertSame( 'GOOGLE', $hours['source'] );
+		$this->assertSame( array_values( array_map( $periods, $week ) ), $normal, 'Tomorrow too, with its usual hours.' );
+		$this->assertSame( [ '8:00 PM - 2:00 AM' ], $hours['regularWeek'][5]['slots'] );
+		$this->assertSame( [], $hours['currentWeek'][ (int) $tomorrow->format( 'N' ) - 1 ]['periods'] );
 		$this->assertSame(
 			[
 				[
-					'dal'    => $tomorrow->format( 'Y-m-d' ),
-					'al'     => $tomorrow->format( 'Y-m-d' ),
-					'nota'   => 'Festa',
-					'slots'  => [],
-					'fasce'  => [],
-					'chiuso' => true,
+					'startDate' => $tomorrow->format( 'Y-m-d' ),
+					'endDate'   => $tomorrow->format( 'Y-m-d' ),
+					'note'      => 'Festa',
+					'slots'     => [],
+					'periods'   => [],
+					'isClosed'  => true,
 				],
 				[
-					'dal'    => $later->format( 'Y-m-d' ),
-					'al'     => $later->format( 'Y-m-d' ),
-					'nota'   => 'Festa',
-					'slots'  => [ '12:00 AM - 12:00 AM' ],
-					'fasce'  => $fasce( [ $slot( '00:00', '00:00' ) ] ),
-					'chiuso' => false,
+					'startDate' => $later->format( 'Y-m-d' ),
+					'endDate'   => $later->format( 'Y-m-d' ),
+					'note'      => 'Festa',
+					'slots'     => [ '12:00 AM - 12:00 AM' ],
+					'periods'   => $periods( [ $slot( '00:00', '00:00' ) ] ),
+					'isClosed'  => false,
 				],
 			],
-			$hours['giorniSpeciali'],
+			$hours['specialDays'],
 			'The note of the main language when English has none.'
 		);
 
 		// Scritti a mano: nessun aggiornamento da Google.
 		update_option( 'barrio_hours', [ 'source' => 'manual' ] + get_option( 'barrio_hours' ) );
-		$this->assertNull( $this->query( self::GET_ORARI )['hbOrari']['ultimoAggiornamento'] );
-		$this->assertSame( 'manual', $this->query( self::NEW_ORARI )['hbOrari']['fonte'] );
+		$this->assertNull( $this->query( self::GET_HOURS )['hbOpeningHours']['syncedAt'] );
+		$this->assertSame( 'MANUAL', $this->query( self::NEW_HOURS )['hbOpeningHours']['source'] );
 	}
 
 	public function test_the_days_are_in_the_requested_language_with_a_capital_letter(): void {
@@ -355,20 +356,115 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		add_filter( 'barrio_locale', static fn( string $locale, string $lang ): string => 'it' === $lang ? 'it_IT' : 'en_US', 10, 2 );
 		add_filter( 'gettext', static fn( string $translation, string $text, string $domain ): string => 'it_IT' === get_locale() && 'default' === $domain && 'Monday' === $text ? 'lunedì' : $translation, 10, 3 );
 		try {
-			$monday = $this->query( self::GET_ORARI, [ 'lang' => 'it' ] )['hbOrari']['settimana'][0];
+			$monday = $this->query( self::GET_HOURS, [ 'language' => 'it' ] )['hbOpeningHours']['currentWeek'][0];
 			$this->assertSame(
 				[
-					'giorno' => 'Lunedì',
-					'slots'  => [ '00:00 - 00:00' ],
-					'chiuso' => false,
+					'day'      => 'Lunedì',
+					'slots'    => [ '00:00 - 00:00' ],
+					'isClosed' => false,
 				],
 				$monday
 			);
-			$this->assertSame( 'Monday', $this->query( self::GET_ORARI, [ 'lang' => 'en' ] )['hbOrari']['settimana'][0]['giorno'] );
+			$this->assertSame( 'Monday', $this->query( self::GET_HOURS, [ 'language' => 'en' ] )['hbOpeningHours']['currentWeek'][0]['day'] );
 			$this->assertSame( 'en_US', get_locale() );
 		} finally {
 			$GLOBALS['wp_locale_switcher'] = $switcher; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- globale di WordPress.
 		}
+	}
+
+	public function test_the_company_details_are_the_ones_of_the_block(): void {
+		$this->assertSame(
+			[
+				'address'            => null,
+				'operatingAddress'   => null,
+				'profiles'           => [],
+				'shareCapital'       => null,
+				'mobile'             => null,
+				'taxCode'            => null,
+				'invoiceCode'        => null,
+				'email'              => null,
+				'privacyEmail'       => null,
+				'vatId'              => null,
+				'certifiedEmail'     => null,
+				'legalName'          => null,
+				'registrationNumber' => null,
+				'phone'              => null,
+			],
+			$this->query( self::GET_COMPANY )['hbCompanyInfo']
+		);
+
+		$office = [
+			'street'      => 'Via Roma 1',
+			'postal_code' => '80100',
+			'locality'    => 'Napoli',
+			'region'      => 'NA',
+			'country'     => 'IT',
+			'maps_url'    => '',
+		];
+		update_option(
+			'barrio_company',
+			[
+				'name'                => 'Trattoria Mario',
+				'vat_id'              => 'IT01234567890',
+				'tax_code'            => '01234567890',
+				'registration_number' => 'NA-123456',
+				'share_capital'       => '10.000 € i.v.',
+				'invoice_code'        => 'ABC1234',
+				'phone'               => '081 1234567',
+				'mobile'              => '333 1234567',
+				'email'               => 'info@trattoriamario.it',
+				'certified_email'     => 'trattoriamario@pec.it',
+				'privacy_email'       => 'privacy@trattoriamario.it',
+				'address'             => $office,
+				'operating_address'   => [
+					'street'   => 'Via Toledo 2',
+					'maps_url' => 'https://maps.app.goo.gl/abc',
+				] + $office,
+				'profiles'            => [
+					'https://www.facebook.com/trattoriamario',
+					'https://m.facebook.com/trattoriamario',
+					'https://it.linkedin.com/company/trattoriamario',
+					'https://twitter.com/trattoriamario',
+					'https://x.com/trattoriamario',
+					'https://youtu.be/abc',
+					'https://t.me/trattoriamario',
+					'https://wa.me/393331234567',
+					'https://www.threads.net/@trattoriamario',
+					'https://pinterest.it/trattoriamario',
+					'https://www.tripadvisor.it/Restaurant_Review-trattoriamario',
+					'https://box.com/trattoriamario',
+				],
+			]
+		);
+		$company = $this->query( self::GET_COMPANY )['hbCompanyInfo'];
+		$this->assertSame( 'Trattoria Mario', $company['legalName'], 'Without a company name, the name.' );
+		$this->assertSame(
+			[
+				'postalCode' => '80100',
+				'locality'   => 'Napoli',
+				'mapsUrl'    => null,
+				'region'     => 'NA',
+				'street'     => 'Via Roma 1',
+			],
+			$company['address']
+		);
+		$this->assertSame( [ 'Via Toledo 2', 'https://maps.app.goo.gl/abc' ], [ $company['operatingAddress']['street'], $company['operatingAddress']['mapsUrl'] ] );
+		$this->assertSame(
+			[ 'facebook', 'facebook', 'linkedin', 'x', 'x', 'youtube', 'telegram', 'whatsapp', 'threads', 'pinterest', null, null ],
+			array_column( $company['profiles'], 'network' )
+		);
+		$this->assertSame( 'https://www.tripadvisor.it/Restaurant_Review-trattoriamario', $company['profiles'][10]['url'] );
+		$this->assertSame(
+			[ '10.000 € i.v.', '333 1234567', '01234567890', 'ABC1234', 'info@trattoriamario.it', 'privacy@trattoriamario.it', 'IT01234567890', 'trattoriamario@pec.it', 'NA-123456', '081 1234567' ],
+			array_values( array_diff_key( $company, array_flip( [ 'address', 'operatingAddress', 'profiles', 'legalName' ] ) ) )
+		);
+		$this->assertSame(
+			[
+				'name'    => 'Trattoria Mario',
+				'address' => [ 'country' => 'IT' ],
+			],
+			$this->query( '{ hbCompanyInfo { name address { country } } }' )['hbCompanyInfo']
+		);
 	}
 
 	/**
