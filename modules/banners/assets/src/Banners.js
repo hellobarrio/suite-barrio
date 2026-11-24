@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
+	LinkField,
 	PeriodCard,
 	PeriodList,
 	fillTexts,
@@ -24,7 +25,6 @@ import {
 	ModuleCard,
 	Notice,
 	Permissions,
-	Toggle,
 	errorMessage,
 	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
@@ -309,31 +309,21 @@ function BannerEditor( { id } ) {
 										maxLength={ 255 }
 										onChange={ setBanner }
 									/>
-									<TextIn
+									<LinkField
 										item={ banner }
 										lang={ lang }
-										name="link_url"
-										optional
 										label={ __( 'Link', 'barrio-suite' ) }
 										help={ __(
-											'Optional: the whole banner leads here. A path like /contacts/ or a full address.',
+											'Optional: the whole banner leads here.',
 											'barrio-suite'
 										) }
-										spellCheck={ false }
+										newTab={ ( item ) => item.new_tab }
+										withNewTab={ ( item, on ) => ( {
+											...item,
+											new_tab: on,
+										} ) }
 										onChange={ setBanner }
 									/>
-									<Fixed lang={ lang }>
-										<Toggle
-											label={ __(
-												'Open the link in a new tab',
-												'barrio-suite'
-											) }
-											checked={ banner.new_tab }
-											onChange={ ( on ) =>
-												set( { new_tab: on } )
-											}
-										/>
-									</Fixed>
 								</Card>
 							) : (
 								<Fixed lang={ lang }>

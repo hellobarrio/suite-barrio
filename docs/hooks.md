@@ -6,7 +6,7 @@ plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
 | Estensione | Cosa mostra |
 |---|---|
 | [`barrio-suite-mailchimp`](../extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php) | Un'integrazione con impostazioni globali (la chiave API) e per form, anche tradotte, e `process()` |
-| [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
+| [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali (la chiave del sito, da una tendina con `options`), il service account del core, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_languages` e seguenti |
 | [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per l'invio e per il SEO: lo schema GraphQL del prototipo sopra `FormRepository`, `Submission::process()` e `Seo\Meta`, e un'impostazione nella pagina di un altro plugin (vedi [GraphQL](#graphql)) |
 | [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle e le opzioni di un altro plugin e scrive con `FormRepository::create()` (con l'ID), `EntryRepository::create()` (con data e stato di lettura), `Seo\Settings::save()`, `RedirectRepository::create()`, `PopupRepository::save()` e `BannerRepository::save()` e le opzioni dei moduli, con un comando WP-CLI per modulo; tiene spento un modulo finché i dati non sono migrati (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
@@ -87,6 +87,12 @@ un'estensione ne avrà bisogno. Formati del plugin, per cui basta `format`:
 | `field` | la chiave di un campo del form | Tendina dei campi |
 | `field:email`, `field:consent,checkbox` | la chiave di un campo di quei tipi | Tendina dei soli campi di quei tipi |
 | `field_map` | lista di coppie `[nome nel servizio, chiave del campo]` | Righe con un testo e un campo, come le scelte |
+
+`options` (il percorso di una rotta REST, come `/barrio/v1/recaptcha/keys`) rende una stringa una tendina con le
+scelte che la rotta restituisce come `[{ value, label }]`, lette all'apertura della pagina: per le scelte che vengono da
+un servizio. Un errore della rotta compare sotto la tendina, e il valore salvato resta anche se non è più nell'elenco.
+Un'estensione che parla con Google usa il service account del core: `BarrioSuite\Google::account()` (null senza) e
+`Google::token( $scope )`, con la cache del token, come fa `barrio-suite-recaptcha`.
 
 `translatable: true` (solo per le stringhe) rende un'impostazione traducibile: nel builder si cambia
 scegliendo la lingua nella barra, come i testi dei campi. Vuota in una lingua vale quella della lingua

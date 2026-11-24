@@ -2,6 +2,7 @@
 
 namespace BarrioSuite\Tests\Integration;
 
+use BarrioSuite\Crypto;
 use BarrioSuite\Forms\Integrations;
 use BarrioSuite\Forms\Model\Field;
 use BarrioSuite\Forms\Model\Form;
@@ -11,19 +12,17 @@ use WP_Error;
 use WP_REST_Request;
 use WP_UnitTestCase;
 
-// L'estensione barrio-suite-recaptcha (caricata da tests/bootstrap.php), con le risposte di Google
-// simulate su pre_http_request.
+// L'estensione barrio-suite-recaptcha (caricata da tests/bootstrap.php), con il service account del core e le risposte
+// di Google simulate su pre_http_request.
 final class RecaptchaTest extends WP_UnitTestCase {
 
-	private const SETTINGS = [
-		'project_id' => 'barrio-site',
-		'site_key'   => 'site-key-123',
-		'api_key'    => 'api-key-456',
-	];
+	private const SETTINGS = [ 'site_key' => 'site-key-123' ];
+
+	private static string $private_key = '';
 
 	private Form $form;
 
-	/** @var list<array{url: string, body: array<string, mixed>}> */
+	/** @var list<array{url: string, method: string, auth: string, body: mixed}> Le richieste a reCAPTCHA, senza il token. */
 	private array $requests = [];
 
 	/** @var array{code: int, body: array<string, mixed>}|WP_Error */
@@ -32,15 +31,41 @@ final class RecaptchaTest extends WP_UnitTestCase {
 		'body' => [],
 	];
 
+	public static function set_up_before_class(): void {
+		parent::set_up_before_class();
+		openssl_pkey_export( openssl_pkey_new( [ 'private_key_bits' => 2048 ] ), self::$private_key );
+	}
+
 	public function set_up(): void {
 		parent::set_up();
+		$account = [
+			'project_id'   => 'barrio-site',
+			'client_email' => 'barrio@barrio-site.iam.gserviceaccount.com',
+			'private_key'  => self::$private_key,
+		];
+		update_option( 'barrio_google', Crypto::encrypt( (string) wp_json_encode( $account ) ) );
 		$this->form = FormRepository::create( 'Contact', [ 'it' => [ 'submit_label' => 'Invia' ] ], [], new FormVersion( [ new Field( 'name', 'text', [ 'it' => [ 'label' => 'Nome' ] ] ) ] ) );
 		add_filter(
 			'pre_http_request',
 			function ( mixed $pre, array $args, string $url ): array|WP_Error {
+				if ( 'https://oauth2.googleapis.com/token' === $url ) {
+					return [
+						'headers'  => [],
+						'body'     => (string) wp_json_encode(
+							[
+								'access_token' => 'ya29.test',
+								'expires_in'   => 3599,
+							]
+						),
+						'response' => [ 'code' => 200 ],
+						'cookies'  => [],
+					];
+				}
 				$this->requests[] = [
-					'url'  => $url,
-					'body' => json_decode( $args['body'], true ),
+					'url'    => $url,
+					'method' => (string) $args['method'],
+					'auth'   => (string) ( $args['headers']['Authorization'] ?? '' ),
+					'body'   => json_decode( (string) $args['body'], true ),
 				];
 				return $this->response instanceof WP_Error ? $this->response : [
 					'headers'  => [],
@@ -59,17 +84,80 @@ final class RecaptchaTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	public function test_without_all_the_settings_nothing_changes(): void {
-		Integrations::save_settings( [ 'recaptcha' => [ 'site_key' => 'site-key-123' ] ] );
-
+	public function test_without_a_site_key_or_the_service_account_nothing_changes(): void {
 		do_shortcode( "[barrio_form id=\"{$this->form->id}\"]" );
+		$this->assertFalse( wp_script_is( 'barrio-recaptcha' ) );
+		$this->assertSame( 201, $this->post(), 'No site key chosen.' );
 
+		Integrations::save_settings( [ 'recaptcha' => self::SETTINGS ] );
+		delete_option( 'barrio_google' );
+		do_shortcode( "[barrio_form id=\"{$this->form->id}\"]" );
 		$this->assertFalse( wp_script_is( 'barrio-recaptcha' ) );
 		$this->assertSame( 201, $this->post() );
 		$this->assertSame( [], $this->requests );
-		// Il controllo è spento: gli amministratori lo sanno (anche con la chiave API illeggibile dopo un clone).
+		// Il controllo è spento: gli amministratori lo sanno (anche con il service account illeggibile dopo un clone).
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 		$this->assertStringContainsString( 'reCAPTCHA is off', $this->notice() );
+	}
+
+	public function test_the_settings_list_the_score_keys_of_the_project(): void {
+		$this->response = [
+			'code' => 200,
+			'body' => [
+				'keys' => [
+					[
+						'name'        => 'projects/barrio-site/keys/site-key-123',
+						'displayName' => 'Sito',
+						'webSettings' => [ 'integrationType' => 'SCORE' ],
+					],
+					[
+						'name'        => 'projects/barrio-site/keys/checkbox-key',
+						'displayName' => 'Casella',
+						'webSettings' => [ 'integrationType' => 'CHECKBOX' ],
+					],
+					[
+						'name'            => 'projects/barrio-site/keys/android-key',
+						'displayName'     => 'App',
+						'androidSettings' => [],
+					],
+				],
+			],
+		];
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$this->assertSame(
+			[
+				[
+					'value' => 'site-key-123',
+					'label' => 'Sito (site-key-123)',
+				],
+			],
+			rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/recaptcha/keys' ) )->get_data()
+		);
+		$this->assertSame( 'https://recaptchaenterprise.googleapis.com/v1/projects/barrio-site/keys?pageSize=100', $this->requests[0]['url'] );
+		$this->assertSame( 'Bearer ya29.test', $this->requests[0]['auth'] );
+		$this->assertSame( '/barrio/v1/recaptcha/keys', Integrations::definitions()['recaptcha']['global_settings']->site_key['options'] ?? null, 'The menu of Barrio → Forms → Settings.' );
+
+		$this->response = [
+			'code' => 403,
+			'body' => [ 'error' => [ 'message' => 'Permission denied.' ] ],
+		];
+		$denied         = rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/recaptcha/keys' ) );
+		$this->assertSame( [ 502, 'The service account cannot read the reCAPTCHA keys: give it the reCAPTCHA Enterprise Viewer role in the Google Cloud project barrio-site.' ], [ $denied->get_status(), $denied->as_error()?->get_error_message() ] );
+
+		$this->response = [
+			'code' => 403,
+			'body' => [
+				'error' => [
+					'message' => 'reCAPTCHA Enterprise API has not been used in project barrio-site before or it is disabled.',
+					'details' => [ [ 'reason' => 'SERVICE_DISABLED' ] ],
+				],
+			],
+		];
+		$this->assertStringContainsString( 'API has not been used', (string) rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/recaptcha/keys' ) )->as_error()?->get_error_message(), 'The API is off: the message of Google says it.' );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( 403, rest_do_request( new WP_REST_Request( 'GET', '/barrio/v1/recaptcha/keys' ) )->get_status() );
 	}
 
 	public function test_the_google_script_is_loaded_only_with_a_form(): void {
@@ -103,8 +191,10 @@ final class RecaptchaTest extends WP_UnitTestCase {
 		$this->assertSame( 201, $this->post( 'token-abc' ) );
 		$this->assertSame(
 			[
-				'url'  => 'https://recaptchaenterprise.googleapis.com/v1/projects/barrio-site/assessments?key=api-key-456',
-				'body' => [
+				'url'    => 'https://recaptchaenterprise.googleapis.com/v1/projects/barrio-site/assessments',
+				'method' => 'POST',
+				'auth'   => 'Bearer ya29.test',
+				'body'   => [
 					'event' => [
 						'token'          => 'token-abc',
 						'siteKey'        => 'site-key-123',
@@ -135,10 +225,10 @@ final class RecaptchaTest extends WP_UnitTestCase {
 
 		$this->response = [
 			'code' => 400,
-			'body' => [ 'error' => [ 'message' => 'API key not valid. Please pass a valid API key.' ] ],
+			'body' => [ 'error' => [ 'message' => 'Permission denied for the assessment.' ] ],
 		];
 		$this->assertSame( 503, $this->post( 'token-abc' ) );
-		$this->assertStringContainsString( 'HTTP 400 API key not valid.', $this->notice() );
+		$this->assertStringContainsString( 'HTTP 400 Permission denied for the assessment.', $this->notice() );
 
 		// Solo gli amministratori lo vedono.
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );

@@ -490,7 +490,7 @@ export function Permissions( { description, caps, names, roles, onChange } ) {
 	);
 	return (
 		<Card
-			className="barrio-wide barrio-permissions"
+			className="barrio-wide"
 			icon="groups"
 			title={ __( 'Permissions', 'barrio-suite' ) }
 			description={ description }

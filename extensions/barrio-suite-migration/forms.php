@@ -781,8 +781,12 @@ function barrio_migration_settings( array $forms, bool $dry_run, array &$report 
 	$definitions = Integrations::definitions();
 	$accounts    = [
 		'mailchimp' => [ 'suite_barrio_forms_mailchimp', [ 'api_key' ] ],
-		'recaptcha' => [ 'suite_barrio_forms_recaptcha', [ 'project_id', 'site_key', 'api_key' ] ],
+		// Il progetto e la chiave API no: Barrio Suite usa il service account (barrio-suite-recaptcha).
+		'recaptcha' => [ 'suite_barrio_forms_recaptcha', [ 'site_key' ] ],
 	];
+	if ( '' !== trim( (string) ( ( (array) get_option( 'suite_barrio_forms_recaptcha', [] ) )['api_key'] ?? '' ) ) ) {
+		$report['warnings'][] = 'reCAPTCHA: the API key of Suite Barrio is not migrated. Barrio Suite uses the service account of Barrio → Settings: it needs the reCAPTCHA Enterprise Agent and Viewer roles, and the site key must be in its Google Cloud project.';
+	}
 	foreach ( $accounts as $slug => [ $option, $names ] ) {
 		$values = array_filter( array_map( static fn( mixed $value ): string => trim( (string) $value ), array_intersect_key( (array) get_option( $option, [] ), array_flip( $names ) ) ) );
 		if ( ! $values || array_filter( Integrations::settings( $slug ) ) ) {

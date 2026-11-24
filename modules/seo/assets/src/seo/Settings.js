@@ -73,18 +73,25 @@ function GenerateIntro( { lang, onText, onNotice } ) {
 
 // Indicizza e segui di un tipo, di una tassonomia o di un archivio, con il robots che ne risulta e cosa
 // mette nella sitemap.
+// Gli interruttori sul bordo destro della card, il riassunto sotto l'etichetta, come un interruttore da solo.
 function Robots( { label, value, onChange, inSitemap } ) {
 	return (
 		<Group
-			label={ label }
-			help={ [
-				`${ value.index ? 'index' : 'noindex' }, ${
-					value.follow ? 'follow' : 'nofollow'
-				}`,
-				inSitemap,
-			]
-				.filter( Boolean )
-				.join( ' · ' ) }
+			label={
+				<>
+					{ label }
+					<span className="barrio-field__help">
+						{ [
+							`${ value.index ? 'index' : 'noindex' }, ${
+								value.follow ? 'follow' : 'nofollow'
+							}`,
+							inSitemap,
+						]
+							.filter( Boolean )
+							.join( ' · ' ) }
+					</span>
+				</>
+			}
 		>
 			<div className="barrio-checks">
 				<Toggle
@@ -356,9 +363,13 @@ function SettingsCards( {
 						value={ seo.index.archives.date }
 						onChange={ setArchive( 'date' ) }
 					/>
+					<SectionHead
+						title={ __( 'Sitemap', 'barrio-suite' ) }
+						level={ 3 }
+					/>
 				</Fixed>
 				<Group
-					label={ __( 'Sitemap', 'barrio-suite' ) }
+					label={ __( 'Files', 'barrio-suite' ) }
 					help={ [
 						counts?.error ??
 							( counts &&

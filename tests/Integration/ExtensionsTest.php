@@ -32,9 +32,9 @@ final class ExtensionsTest extends WP_UnitTestCase {
 		( new ReflectionProperty( Extensions::class, 'catalog' ) )->setValue( null, null );
 		delete_site_transient( 'barrio_extensions_catalog' );
 		$this->catalog = [
-			'barrio-suite'           => self::item( 'Barrio Suite', '0.1.0' ),
-			'barrio-suite-mailchimp' => self::item( 'Barrio Suite Mailchimp', '0.2.0' ),
-			'barrio-suite-demo'      => self::item( 'Barrio Suite Demo', '0.1.0' ),
+			'barrio-suite'         => self::item( 'Barrio Suite', '0.1.0' ),
+			'barrio-suite-example' => self::item( 'Barrio Suite Example', '0.2.0' ),
+			'barrio-suite-demo'    => self::item( 'Barrio Suite Demo', '0.1.0' ),
 		];
 		add_filter(
 			'pre_http_request',
@@ -77,7 +77,7 @@ final class ExtensionsTest extends WP_UnitTestCase {
 
 	public function test_wordpress_finds_updates_of_our_plugins_in_the_catalog(): void {
 		// Lo zip è sempre quello della release: un catalogo alterato non fa scaricare altro.
-		$this->catalog['barrio-suite-mailchimp']['package'] = 'https://evil.example.com/x.zip';
+		$this->catalog['barrio-suite-example']['package'] = 'https://evil.example.com/x.zip';
 		$update = static fn( string $uri, string $file ): mixed => apply_filters(
 			'update_plugins_github.com', // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound, WordPress.NamingConventions.ValidHookName.UseUnderscores -- filtro di WordPress.
 			false,
@@ -94,27 +94,27 @@ final class ExtensionsTest extends WP_UnitTestCase {
 
 		$this->assertSame(
 			[
-				'slug'         => 'barrio-suite-mailchimp',
+				'slug'         => 'barrio-suite-example',
 				'version'      => '0.2.0',
-				'package'      => Extensions::REPO . '/releases/latest/download/barrio-suite-mailchimp.zip',
+				'package'      => Extensions::REPO . '/releases/latest/download/barrio-suite-example.zip',
 				'url'          => Extensions::REPO,
 				'requires'     => '6.6',
 				'requires_php' => '8.2',
 			],
-			$update( Extensions::REPO, 'barrio-suite-mailchimp/barrio-suite-mailchimp.php' )
+			$update( Extensions::REPO, 'barrio-suite-example/barrio-suite-example.php' )
 		);
 		$this->assertSame( '0.1.0', $update( Extensions::REPO, 'barrio-suite/barrio-suite.php' )['version'] );
 		$this->assertFalse( $update( Extensions::REPO, 'barrio-suite-other/barrio-suite-other.php' ), 'Not in the catalog.' );
 		// Un solo download per richiesta, e poi la copia dell'ultima ora.
 		$this->assertSame( [ Extensions::REPO . '/releases/latest/download/catalog.json' ], $this->requests );
-		$this->assertArrayHasKey( 'barrio-suite-mailchimp', get_site_transient( 'barrio_extensions_catalog' ) );
+		$this->assertArrayHasKey( 'barrio-suite-example', get_site_transient( 'barrio_extensions_catalog' ) );
 	}
 
 	public function test_the_page_installs_updates_and_switches_an_extension(): void {
 		$this->assertSame(
 			[
 				[ 'barrio-suite-demo', 'Barrio Suite Demo', '0.1.0', null, false ],
-				[ 'barrio-suite-mailchimp', 'Barrio Suite Mailchimp', '0.2.0', null, false ],
+				[ 'barrio-suite-example', 'Barrio Suite Example', '0.2.0', null, false ],
 			],
 			$this->extensions( $this->request( 'GET' ) )
 		);
@@ -296,7 +296,7 @@ final class ExtensionsTest extends WP_UnitTestCase {
 	private function extensions( WP_REST_Response $response ): array {
 		$this->assertSame( 200, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
 		// Solo quelle del test: nella cartella dei plugin del sito di prova può esserci un'estensione vera.
-		$ours = array_filter( $response->get_data()['extensions'], static fn( array $x ): bool => in_array( $x['slug'], [ 'barrio-suite-demo', 'barrio-suite-mailchimp' ], true ) );
+		$ours = array_filter( $response->get_data()['extensions'], static fn( array $x ): bool => in_array( $x['slug'], [ 'barrio-suite-demo', 'barrio-suite-example' ], true ) );
 		return array_values( array_map( static fn( array $x ): array => [ $x['slug'], $x['name'], $x['version'], $x['installed'], $x['active'] ], $ours ) );
 	}
 }
