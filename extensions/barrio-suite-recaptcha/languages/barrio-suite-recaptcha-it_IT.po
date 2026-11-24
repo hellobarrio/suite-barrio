@@ -29,42 +29,42 @@ msgstr "Controllo invisibile di reCAPTCHA Enterprise sui form di Barrio Suite, c
 msgid "Hellobarrio"
 msgstr "Hellobarrio"
 
-#: barrio-suite-recaptcha.php:43
+#: barrio-suite-recaptcha.php:42
 msgid "Site key"
 msgstr "Chiave del sito"
 
-#: barrio-suite-recaptcha.php:186
+#: barrio-suite-recaptcha.php:185
 msgid "Your submission could not be accepted."
 msgstr "Non è stato possibile accettare il tuo invio."
 
-#: barrio-suite-recaptcha.php:205
+#: barrio-suite-recaptcha.php:204
 msgid "The spam check is not available right now. Please try again in a few minutes."
 msgstr "Il controllo antispam non è disponibile in questo momento. Riprova tra qualche minuto."
 
-#: barrio-suite-recaptcha.php:39
+#: barrio-suite-recaptcha.php:38
 msgid "An invisible check by Google reCAPTCHA Enterprise on every form, with the Google service account of Barrio → Settings. It is off until a site key is chosen."
 msgstr "Un controllo invisibile di Google reCAPTCHA Enterprise su ogni form, con il service account di Google di Barrio → Impostazioni. È spento finché non si sceglie una chiave del sito."
 
-#: barrio-suite-recaptcha.php:84
+#: barrio-suite-recaptcha.php:83
 msgid "Add the Google service account in Barrio → Settings first."
 msgstr "Aggiungi prima il service account di Google in Barrio → Impostazioni."
 
-#: barrio-suite-recaptcha.php:224
+#: barrio-suite-recaptcha.php:223
 msgid "reCAPTCHA is off: there is no Google service account, or it can no longer be read (for example after the site was moved). Add it again in Barrio → Settings."
 msgstr "reCAPTCHA è spento: manca il service account di Google, o non si legge più (per esempio dopo lo spostamento del sito). Aggiungilo di nuovo in Barrio → Impostazioni."
 
 #. translators: %s: error from Google, for example "HTTP 403 Permission denied".
-#: barrio-suite-recaptcha.php:236
+#: barrio-suite-recaptcha.php:235
 #, php-format
 msgid "reCAPTCHA could not check the last form submission, so the form was not sent: %s. Check the service account in Barrio → Settings and the site key in Barrio → Forms → Settings."
 msgstr "reCAPTCHA non ha potuto controllare l'ultimo invio, quindi il form non è stato inviato: %s. Controlla il service account in Barrio → Impostazioni e la chiave del sito in Barrio → Form → Impostazioni."
 
-#: barrio-suite-recaptcha.php:44
+#: barrio-suite-recaptcha.php:43
 msgid "The score-based keys of the Google Cloud project of the service account. The service account needs the reCAPTCHA Enterprise Agent role, to check the submissions, and the reCAPTCHA Enterprise Viewer role, to list the keys; the key must allow the domains of the site."
 msgstr "Le chiavi a punteggio del progetto Google Cloud del service account. Il service account ha bisogno del ruolo Agente reCAPTCHA Enterprise, per controllare gli invii, e del ruolo Visualizzatore reCAPTCHA Enterprise, per elencare le chiavi; la chiave deve consentire i domini del sito."
 
 #. translators: %s: ID of a Google Cloud project.
-#: barrio-suite-recaptcha.php:94
+#: barrio-suite-recaptcha.php:93
 #, php-format
 msgid "The service account cannot read the reCAPTCHA keys: give it the reCAPTCHA Enterprise Viewer role in the Google Cloud project %s."
 msgstr "Il service account non può leggere le chiavi reCAPTCHA: dagli il ruolo Visualizzatore reCAPTCHA Enterprise nel progetto Google Cloud %s."
