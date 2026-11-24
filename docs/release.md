@@ -12,8 +12,10 @@ file non si toccano):
   `package.json`;
 - l'header `Update URI` di Barrio Suite e delle estensioni (solo in `con-updater`), la sezione "External
   services" del readme e questo file;
-- `languages/`: le stringhe dell'updater ci sono solo in `con-updater`. Dopo un cherry-pick si rigenerano
-  in ogni branch invece di risolvere i conflitti.
+- `tests/Integration/ExtensionsTest.php`, che prova la pagina Estensioni di ognuno dei due branch;
+- `languages/`, del core e delle estensioni (in `con-updater` il loro file principale ha una riga in più,
+  `Update URI`): le stringhe dell'updater ci sono solo in `con-updater`. Dopo un cherry-pick si rigenerano in
+  ogni branch invece di risolvere i conflitti.
 
 ## Pubblicazione
 

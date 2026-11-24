@@ -14,6 +14,10 @@ final class ExtensionsTest extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		// In una rete i plugin li gestisce solo il super admin.
+		if ( is_multisite() ) {
+			grant_super_admin( get_current_user_id() );
+		}
 		delete_site_transient( 'barrio_extensions_catalog' );
 		// La directory di WordPress.org: i plugin dell'autore, Barrio Suite compreso.
 		add_filter(
