@@ -174,7 +174,7 @@ final class RestContents {
 				'post_status'      => 'publish',
 				'posts_per_page'   => 1,
 				'fields'           => 'ids',
-				// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.SuppressFilters -- senza i filtri del plugin multilingua si contano tutte le lingue.
+				// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.SuppressFilters_suppress_filters -- senza i filtri del plugin multilingua si contano tutte le lingue.
 				'suppress_filters' => true,
 			] + Meta::indexable( 'post_types', $type );
 			$indexed += ( new WP_Query( $args ) )->found_posts;
