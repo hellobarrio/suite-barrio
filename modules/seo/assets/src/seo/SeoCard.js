@@ -60,10 +60,11 @@ export function SeoCard() {
 				]
 			}
 			actions={ [
-				[ __( 'Contents', 'barrio-suite' ), pageUrl() ],
+				[ __( 'Contents', 'barrio-suite' ), pageUrl(), SEO.icon ],
 				canManageOptions && [
 					__( 'Settings', 'barrio-suite' ),
 					pageUrl( { tab: 'settings' } ),
+					'admin-generic',
 				],
 			].filter( Boolean ) }
 		/>

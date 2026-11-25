@@ -108,6 +108,26 @@ final class AltTest extends WP_UnitTestCase {
 		$this->assertCount( 2, $this->requests );
 	}
 
+	public function test_an_image_in_a_content_with_an_empty_alt_takes_the_one_of_the_library(): void {
+		$file  = [
+			'post_mime_type' => 'image/jpeg',
+			'file'           => '2026/11/a-scaled.jpg',
+		];
+		$image = self::factory()->attachment->create( $file );
+		update_post_meta( $image, '_wp_attachment_image_alt', 'Un lago "alpino"' );
+		$bare = self::factory()->attachment->create( $file );
+		$img  = static fn( int $id, string $alt, string $src = 'a-300x200.jpg?ver=2' ): string => "<img src=\"https://example.org/{$src}\" {$alt} class=\"wp-image-{$id}\">";
+
+		$this->assertStringContainsString( 'alt="Un lago &quot;alpino&quot;"', wp_filter_content_tags( $img( $image, 'alt=""' ) ) );
+		$this->assertStringContainsString( 'alt="Un lago &quot;alpino&quot;"', wp_filter_content_tags( $img( $image, '' ) ) );
+		$this->assertStringContainsString( 'alt="Scritto nel contenuto"', wp_filter_content_tags( $img( $image, 'alt="Scritto nel contenuto"' ) ) );
+		$this->assertStringContainsString( 'alt=""', wp_filter_content_tags( $img( $bare, 'alt=""' ) ) );
+		// Un contenuto importato, con l'ID di un altro sito: è un'altra immagine.
+		$this->assertStringContainsString( 'alt=""', wp_filter_content_tags( $img( $image, 'alt=""', 'tramonto.jpg' ) ) );
+		// Senza la classe wp-image-ID non si sa di quale allegato sia.
+		$this->assertStringContainsString( 'alt=""', wp_filter_content_tags( '<img src="https://example.org/a.jpg" alt="">' ) );
+	}
+
 	public function test_a_small_image_goes_as_it_is_other_formats_as_jpeg_and_svg_not_at_all(): void {
 		$small = $this->image( 'canola.jpg' );
 		$gif   = $this->image( 'test-image.gif' );

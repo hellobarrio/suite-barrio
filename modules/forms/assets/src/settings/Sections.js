@@ -6,6 +6,7 @@ import { MediaUpload } from '@wordpress/media-utils';
 
 import {
 	Group,
+	Icon,
 	SECRET_HELP,
 	SectionHead,
 	Text,
@@ -37,9 +38,12 @@ export function TemplateFields( { email, onChange } ) {
 								className="barrio-button"
 								onClick={ open }
 							>
-								{ email.logo
-									? __( 'Replace logo', 'barrio-suite' )
-									: __( 'Choose logo', 'barrio-suite' ) }
+								<Icon name="format-image" />
+								<span className="barrio-button__text">
+									{ email.logo
+										? __( 'Replace logo', 'barrio-suite' )
+										: __( 'Choose logo', 'barrio-suite' ) }
+								</span>
 							</button>
 						) }
 					/>
@@ -49,7 +53,10 @@ export function TemplateFields( { email, onChange } ) {
 							className="barrio-button is-danger"
 							onClick={ () => set( 'logo' )( '' ) }
 						>
-							{ __( 'Remove', 'barrio-suite' ) }
+							<Icon name="trash" />
+							<span className="barrio-button__text">
+								{ __( 'Remove', 'barrio-suite' ) }
+							</span>
 						</button>
 					) }
 				</div>

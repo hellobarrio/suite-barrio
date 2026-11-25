@@ -11,6 +11,7 @@ import {
 	Card,
 	Group,
 	HowTo,
+	Icon,
 	Loading,
 	Notice,
 	Permissions,
@@ -219,9 +220,12 @@ export function Settings() {
 						disabled={ !! busy }
 						onClick={ deleteAll }
 					>
-						{ 'delete' === busy
-							? __( 'Deleting…', 'barrio-suite' )
-							: __( 'Delete all entries', 'barrio-suite' ) }
+						<Icon name="trash" />
+						<span className="barrio-button__text">
+							{ 'delete' === busy
+								? __( 'Deleting…', 'barrio-suite' )
+								: __( 'Delete all entries', 'barrio-suite' ) }
+						</span>
 					</button>
 				</Group>
 			</Card>

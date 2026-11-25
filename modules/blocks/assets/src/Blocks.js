@@ -8,6 +8,7 @@ import {
 	Card,
 	Fixed,
 	Group,
+	Icon,
 	Notice,
 	Picker,
 	Search,
@@ -125,14 +126,20 @@ function BlockList( { blocks, categories, disabled, onChange } ) {
 						)
 					}
 				>
-					{ __( 'All', 'barrio-suite' ) }
+					<Icon name="yes" />
+					<span className="barrio-button__text">
+						{ __( 'All', 'barrio-suite' ) }
+					</span>
 				</button>
 				<button
 					type="button"
 					className="barrio-button"
 					onClick={ () => change( [ ...disabled, ...names ] ) }
 				>
-					{ _x( 'None', 'blocks', 'barrio-suite' ) }
+					<Icon name="minus" />
+					<span className="barrio-button__text">
+						{ _x( 'None', 'blocks', 'barrio-suite' ) }
+					</span>
 				</button>
 			</SectionHead>
 			{ groups.map( ( [ title, list ] ) => (

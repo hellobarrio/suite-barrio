@@ -3,7 +3,8 @@
 import { __, sprintf } from '@wordpress/i18n';
 
 import {
-	Icon,
+	AddButton,
+	RemoveButton,
 	SectionHead,
 	Select,
 	Text,
@@ -39,16 +40,12 @@ export function Conditions( { value, fields, actions, empty, onChange } ) {
 				level={ 3 }
 			>
 				{ value && (
-					<button
-						type="button"
-						className="barrio-button"
+					<AddButton
+						label={ __( 'Add rule', 'barrio-suite' ) }
 						onClick={ () =>
 							set( { rules: [ ...value.rules, rule() ] } )
 						}
-					>
-						<Icon name="plus-alt2" />
-						{ __( 'Add rule', 'barrio-suite' ) }
-					</button>
+					/>
 				) }
 			</SectionHead>
 			<Toggle
@@ -181,14 +178,10 @@ function Rule( { rule, fields, onChange, onRemove } ) {
 				// Il valore era una scelta del campo di prima.
 				onChange={ ( field ) => onChange( { field, value: '' } ) }
 			/>
-			<button
-				type="button"
-				className="barrio-icon-button is-danger"
-				aria-label={ __( 'Remove rule', 'barrio-suite' ) }
+			<RemoveButton
+				label={ __( 'Remove rule', 'barrio-suite' ) }
 				onClick={ onRemove }
-			>
-				<Icon name="no-alt" />
-			</button>
+			/>
 			<Select
 				label={ __( 'Operator', 'barrio-suite' ) }
 				hideLabel

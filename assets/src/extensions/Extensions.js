@@ -14,6 +14,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import { pageUrl } from '../../../modules/forms/assets/src/ui.js';
 import {
 	Bar,
+	Buttons,
 	Card,
 	Icon,
 	Loading,
@@ -102,7 +103,8 @@ export function Extensions() {
 				short( extension.name )
 			)
 		);
-	const button = ( extension, action, label, style = '' ) => {
+	// Ogni azione con la sua icona: nelle card stanno nello stesso posto.
+	const button = ( extension, action, label, icon, style = '' ) => {
 		const text =
 			`${ extension.slug }-${ action }` === busy
 				? __( 'Please wait…', 'barrio-suite' )
@@ -118,7 +120,8 @@ export function Extensions() {
 					confirmed( extension, action ) && act( extension, action )
 				}
 			>
-				{ text }
+				<Icon name={ icon } />
+				<span className="barrio-button__text">{ text }</span>
 			</button>
 		);
 	};
@@ -139,31 +142,33 @@ export function Extensions() {
 						onChange={ setSearch }
 					/>
 				</div>
-				{ data.can_install && (
-					<a className="barrio-button" href={ data.upload_url }>
-						<Icon name="upload" />
+				<Buttons>
+					{ data.can_install && (
+						<a className="barrio-button" href={ data.upload_url }>
+							<Icon name="upload" />
+							<span className="barrio-button__text">
+								{ __( 'Upload a zip', 'barrio-suite' ) }
+							</span>
+						</a>
+					) }
+					<button
+						type="button"
+						className="barrio-button"
+						disabled={ !! busy }
+						onClick={ () =>
+							request( 'refresh', {
+								path: '/barrio/v1/extensions?refresh=1',
+							} )
+						}
+					>
+						<Icon name="update" />
 						<span className="barrio-button__text">
-							{ __( 'Upload a zip', 'barrio-suite' ) }
+							{ 'refresh' === busy
+								? __( 'Checking…', 'barrio-suite' )
+								: __( 'Check for updates', 'barrio-suite' ) }
 						</span>
-					</a>
-				) }
-				<button
-					type="button"
-					className="barrio-button"
-					disabled={ !! busy }
-					onClick={ () =>
-						request( 'refresh', {
-							path: '/barrio/v1/extensions?refresh=1',
-						} )
-					}
-				>
-					<Icon name="update" />
-					<span className="barrio-button__text">
-						{ 'refresh' === busy
-							? __( 'Checking…', 'barrio-suite' )
-							: __( 'Check for updates', 'barrio-suite' ) }
-					</span>
-				</button>
+					</button>
+				</Buttons>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 			<Notice
@@ -234,13 +239,15 @@ export function Extensions() {
 										extension,
 										'install',
 										__( 'Install', 'barrio-suite' ),
+										'download',
 										'is-primary'
 									) }
 								{ extension.active &&
 									button(
 										extension,
 										'deactivate',
-										__( 'Deactivate', 'barrio-suite' )
+										__( 'Deactivate', 'barrio-suite' ),
+										'controls-pause'
 									) }
 								{ /* Prima delle altre: la principale resta per ultima. */ }
 								{ extension.installed &&
@@ -250,6 +257,7 @@ export function Extensions() {
 										extension,
 										'delete',
 										__( 'Delete', 'barrio-suite' ),
+										'trash',
 										'is-danger'
 									) }
 								{ extension.installed &&
@@ -258,6 +266,7 @@ export function Extensions() {
 										extension,
 										'activate',
 										__( 'Activate', 'barrio-suite' ),
+										'controls-play',
 										update ? '' : 'is-primary'
 									) }
 								{ update &&
@@ -266,6 +275,7 @@ export function Extensions() {
 										extension,
 										'update',
 										__( 'Update', 'barrio-suite' ),
+										'update',
 										'is-primary'
 									) }
 							</>

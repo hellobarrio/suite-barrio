@@ -6,7 +6,14 @@ import apiFetch from '@wordpress/api-fetch';
 import { useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
-import { Card, Icon, Notice, Toggle, errorMessage } from '../admin/ui.js';
+import {
+	Buttons,
+	Card,
+	Icon,
+	Notice,
+	Toggle,
+	errorMessage,
+} from '../admin/ui.js';
 
 // Più recente di quella installata: le versioni sono x.y.z.
 export const newer = ( available, installed ) =>
@@ -130,7 +137,7 @@ function UpdatesCard( props ) {
 				'barrio-suite'
 			) }
 			actions={
-				<>
+				<Buttons>
 					<button
 						type="button"
 						className="barrio-button"
@@ -151,16 +158,22 @@ function UpdatesCard( props ) {
 							disabled={ !! busy }
 							onClick={ update }
 						>
-							{ 'update' === busy
-								? __( 'Updating…', 'barrio-suite' )
-								: sprintf(
-										/* translators: %s: available version. */
-										__( 'Update to %s', 'barrio-suite' ),
-										version
-									) }
+							<Icon name="update" />
+							<span className="barrio-button__text">
+								{ 'update' === busy
+									? __( 'Updating…', 'barrio-suite' )
+									: sprintf(
+											/* translators: %s: available version. */
+											__(
+												'Update to %s',
+												'barrio-suite'
+											),
+											version
+										) }
+							</span>
 						</button>
 					) }
-				</>
+				</Buttons>
 			}
 		>
 			<Notice

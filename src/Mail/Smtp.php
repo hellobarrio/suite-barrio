@@ -23,6 +23,7 @@ final class Smtp {
 
 	private const OPTION          = 'barrio_smtp';
 	private const PASSWORD_OPTION = 'barrio_smtp_password';
+	private const ERROR           = 'barrio_mail_error';
 	private const DEFAULTS        = [
 		'host'       => '',
 		'port'       => 587,
@@ -121,6 +122,44 @@ final class Smtp {
 		// di solito accettano solo mittenti autorizzati, e SPF e DMARC vogliono il dominio giusto.
 		add_filter( 'wp_mail_from', [ self::class, 'from_email' ], PHP_INT_MAX );
 		add_filter( 'wp_mail_from_name', [ self::class, 'from_name' ], PHP_INT_MAX );
+		// L'ultimo invio fallito, finché uno non riesce: altrimenti resta solo nelle note di una registrazione,
+		// e una password illeggibile dopo una copia del sito non la vede nessuno.
+		add_action(
+			'wp_mail_failed',
+			static function ( WP_Error $error ): void {
+				set_transient( self::ERROR, $error->get_error_message(), WEEK_IN_SECONDS );
+			}
+		);
+		add_action(
+			'wp_mail_succeeded',
+			static function (): void {
+				delete_transient( self::ERROR );
+			}
+		);
+		add_action( 'admin_notices', [ self::class, 'notice' ] );
+	}
+
+	public static function notice(): void {
+		// Prima il permesso: il transient di norma non esiste, e leggerlo costa una query a ogni pagina.
+		$error = current_user_can( 'manage_options' ) ? get_transient( self::ERROR ) : false;
+		if ( false === $error ) {
+			return;
+		}
+		wp_admin_notice(
+			esc_html(
+				sprintf(
+					/* translators: %s: error message, for example "SMTP Error: Could not authenticate." */
+					__( 'The last email of the site could not be sent: %s. Check SMTP in Barrio → Settings and send a test email.', 'barrio-suite' ),
+					// I messaggi di PHPMailer finiscono già con il punto.
+					rtrim( (string) $error, '.' )
+				)
+			),
+			[
+				'type' => 'error',
+				// Smtp.js lo toglie dopo un'email di prova riuscita.
+				'id'   => 'barrio-mail-error',
+			]
+		);
 	}
 
 	public static function register(): void {

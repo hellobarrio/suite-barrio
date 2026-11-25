@@ -275,6 +275,26 @@ html:has(.barrio-bar) {
 	cursor: default;
 }
 
+/* Bottoni accanto (Buttons in ui.js, i piedi dei dialoghi): colonne 1fr in una
+   griglia larga quanto il contenuto, quindi tutte larghe quanto il bottone più
+   largo. */
+.barrio-buttons {
+	display: inline-grid;
+	grid-auto-columns: 1fr;
+	grid-auto-flow: column;
+	gap: 8px;
+}
+
+/* Le azioni nelle intestazioni di card e sezioni stanno una sotto l'altra lungo
+   la pagina: con testi corti, come "Aggiungi", sono larghe uguali. Non sui
+   telefoni, dove manderebbero a capo il titolo. */
+@media (min-width: 601px) {
+
+	:is(.barrio-card__actions, .barrio-section-head) .barrio-button {
+		min-width: 128px;
+	}
+}
+
 .barrio-icon-button {
 	display: inline-grid;
 	box-sizing: border-box;
@@ -709,8 +729,23 @@ html:has(.barrio-bar) {
 	padding: 8px 20px 20px;
 }
 
+/* Le azioni in colonne uguali; quando due non ci stanno vanno una sotto
+   l'altra, e in tutte le card insieme, che sono larghe uguali. */
 .barrio-module__body > .barrio-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 	margin-top: auto;
+}
+
+.barrio-module__body > .barrio-row .barrio-button {
+	min-width: 0;
+	padding: 0 12px;
+}
+
+/* Un testo più lungo del previsto finisce con i puntini, non va a capo. */
+.barrio-module__body > .barrio-row .barrio-button__text {
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .barrio-module__stats {
@@ -946,6 +981,23 @@ html:has(.barrio-bar) {
 	background: #fff;
 }
 
+/* Note e avvisi di una migrazione (assets/src/migration), in un avviso. */
+.barrio-report {
+	flex: 1;
+	margin: 0;
+	padding-left: 18px;
+	list-style: disc;
+	overflow-wrap: anywhere;
+}
+
+.barrio-report li {
+	margin: 0 0 4px;
+}
+
+.barrio-report li:last-child {
+	margin-bottom: 0;
+}
+
 .barrio-badge {
 	display: inline-flex;
 	align-items: center;
@@ -1002,7 +1054,7 @@ html:has(.barrio-bar) {
 	min-height: var(--barrio-control);
 }
 
-.barrio-admin .barrio-section-head :is(h2, h3),
+.barrio-admin .barrio-section-head :is(h2, h3, h4),
 .barrio-admin .barrio-details h3 {
 	margin: 0;
 	color: var(--barrio-muted);
@@ -1068,9 +1120,11 @@ html:has(.barrio-bar) {
 
 @media (max-width: 600px) {
 
-	.barrio-account > .barrio-button {
+	/* Uno sotto l'altro: affiancati, due bottoni con il testo che non va a capo
+	   escono dalla card. */
+	.barrio-account > .barrio-buttons {
 		flex: 1 1 100%;
-		justify-content: center;
+		grid-auto-flow: row;
 	}
 }
 
@@ -1146,8 +1200,6 @@ html:has(.barrio-bar) {
 .barrio-modal__footer {
 	display: flex;
 	flex: none;
-	flex-wrap: wrap;
-	gap: 8px;
 	justify-content: flex-end;
 	padding: 16px var(--barrio-modal-padding);
 	border-top: 1px solid var(--barrio-modal-line);
@@ -1301,7 +1353,7 @@ html:has(.barrio-bar) {
 	min-width: 120px;
 }
 
-.barrio-bar.is-compact :is(.barrio-bar__end, .barrio-bar__tools) {
+.barrio-bar.is-compact :is(.barrio-bar__end, .barrio-bar__tools, .barrio-buttons) {
 	gap: 4px;
 }
 

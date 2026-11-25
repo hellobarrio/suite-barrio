@@ -8,6 +8,9 @@ import { useEffect, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import {
+	AddButton,
+	ApplyButton,
+	CancelButton,
 	Card,
 	Dialog,
 	Fixed,
@@ -19,6 +22,7 @@ import {
 	ModuleCard,
 	Notice,
 	Permissions,
+	RemoveButton,
 	Select,
 	Text,
 	Toggle,
@@ -76,13 +80,6 @@ const editable = ( data ) =>
 		? { week: data.week, exceptions: data.exceptions }
 		: {};
 
-const AddButton = ( { text, onClick } ) => (
-	<button type="button" className="barrio-button" onClick={ onClick }>
-		<Icon name="plus-alt2" />
-		<span className="barrio-button__text">{ text }</span>
-	</button>
-);
-
 /**
  * Le fasce di un giorno: apertura e chiusura, una chiusura non dopo l'apertura vale il giorno dopo. I bottoni sotto
  * sono larghi quanto la card e se la dividono.
@@ -118,21 +115,17 @@ function Slots( { slots, onChange, actions } ) {
 						value={ slot.close }
 						onChange={ set( index, 'close' ) }
 					/>
-					<button
-						type="button"
-						className="barrio-icon-button"
-						aria-label={ __( 'Remove', 'barrio-suite' ) }
+					<RemoveButton
 						onClick={ () =>
 							onChange( slots.filter( ( s, i ) => i !== index ) )
 						}
-					>
-						<Icon name="trash" />
-					</button>
+					/>
 				</div>
 			) ) }
 			<div className="barrio-row is-fill">
-				<AddButton
-					text={ __( 'Add hours', 'barrio-suite' ) }
+				<button
+					type="button"
+					className="barrio-button"
 					onClick={ () =>
 						onChange( [
 							...slots,
@@ -141,7 +134,12 @@ function Slots( { slots, onChange, actions } ) {
 								: SLOT,
 						] )
 					}
-				/>
+				>
+					<Icon name="plus-alt2" />
+					<span className="barrio-button__text">
+						{ __( 'Add hours', 'barrio-suite' ) }
+					</span>
+				</button>
 				{ actions }
 			</div>
 		</div>
@@ -256,20 +254,8 @@ function SpecialModal( { special, lang, onSave, onClose } ) {
 			onRequestClose={ onClose }
 			footer={
 				<>
-					<button
-						type="button"
-						className="barrio-button"
-						onClick={ onClose }
-					>
-						{ __( 'Cancel', 'barrio-suite' ) }
-					</button>
-					<button
-						type="button"
-						className="barrio-button is-primary"
-						onClick={ save }
-					>
-						{ __( 'Apply', 'barrio-suite' ) }
-					</button>
+					<CancelButton onClick={ onClose } />
+					<ApplyButton onClick={ save } />
 				</>
 			}
 		>
@@ -352,7 +338,7 @@ function SpecialCard( { exceptions, lang, google, onChange } ) {
 				! google &&
 				lang === main && (
 					<AddButton
-						text={ __( 'Add', 'barrio-suite' ) }
+						label={ __( 'Add special day', 'barrio-suite' ) }
 						onClick={ () => setEditing( -1 ) }
 					/>
 				)
@@ -629,7 +615,10 @@ function GoogleNotice( { google } ) {
 				),
 		action: canManageOptions && (
 			<a className="barrio-button" href="?page=barrio-hours&tab=settings">
-				{ __( 'Settings', 'barrio-suite' ) }
+				<Icon name="admin-generic" />
+				<span className="barrio-button__text">
+					{ __( 'Settings', 'barrio-suite' ) }
+				</span>
 			</a>
 		),
 	};
@@ -772,10 +761,15 @@ export function HoursCard() {
 				],
 			] }
 			actions={ [
-				[ __( 'Opening hours', 'barrio-suite' ), '?page=barrio-hours' ],
+				[
+					__( 'Opening hours', 'barrio-suite' ),
+					'?page=barrio-hours',
+					'clock',
+				],
 				canManageOptions && [
 					__( 'Settings', 'barrio-suite' ),
 					'?page=barrio-hours&tab=settings',
+					'admin-generic',
 				],
 			].filter( Boolean ) }
 		/>

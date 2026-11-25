@@ -8,13 +8,14 @@ use BarrioSuite\I18n;
 use BarrioSuite\Roles;
 use Closure;
 use WP_Error;
+use WP_HTML_Tag_Processor;
 use WP_Post;
 use WP_Query;
 use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Testi alternativi (PLAN-MODULI.md §8): l'alt delle immagini, e a scelta il titolo, scritti dall'AI del core
+ * Testi alternativi: l'alt delle immagini, e a scelta il titolo, scritti dall'AI del core
  * (src/Ai.php) guardando l'immagine. Dal pulsante nei dettagli dell'allegato, dalla pagina Barrio → Testi alternativi
  * e, se acceso, dopo il caricamento. Nessun dato nuovo: l'alt è il meta del core, il titolo è post_title.
  *
@@ -57,6 +58,7 @@ final class Module {
 		add_action( 'wp_enqueue_media', [ self::class, 'enqueue' ] );
 		// Dopo i campi dell'immagine, che WordPress stampa con la priorità di default.
 		add_action( 'edit_form_after_title', [ self::class, 'edit_screen' ], 11 );
+		add_filter( 'wp_content_img_tag', [ self::class, 'content_image' ], 10, 3 );
 	}
 
 	public static function deactivate(): void {
@@ -404,6 +406,29 @@ final class Module {
 				)
 			);
 		}
+	}
+
+	// Un'immagine già nel contenuto con l'alt vuoto prende quello della libreria, anche se è stato scritto dopo. Non
+	// distingue un'immagine decorativa, che l'alt vuoto lo vuole: sui siti dei clienti è quasi sempre una dimenticanza.
+	public static function content_image( string $html, string $context, int $id ): string {
+		$tag = new WP_HTML_Tag_Processor( $html );
+		if ( ! $id || ! $tag->next_tag( [ 'tag_name' => 'img' ] ) ) {
+			return $html;
+		}
+		$own = $tag->get_attribute( 'alt' );
+		$alt = trim( (string) get_post_meta( $id, self::META, true ) );
+		if ( ( is_string( $own ) && '' !== trim( $own ) ) || '' === $alt ) {
+			return $html;
+		}
+		// In un contenuto importato la classe wp-image-N può avere l'ID di un altro sito: l'alt vale solo se src è un
+		// file di questo allegato (anche una sua misura), come fa il core per srcset.
+		$file = (string) preg_replace( '/-(scaled|rotated)$/', '', pathinfo( (string) get_attached_file( $id ), PATHINFO_FILENAME ) );
+		$src  = rawurldecode( wp_basename( (string) strtok( (string) $tag->get_attribute( 'src' ), '?#' ) ) );
+		if ( '' === $file || ! str_starts_with( $src, $file ) ) {
+			return $html;
+		}
+		$tag->set_attribute( 'alt', $alt );
+		return $tag->get_updated_html();
 	}
 
 	// Se save() scriverebbe qualcosa: altrimenti Google non si chiama.

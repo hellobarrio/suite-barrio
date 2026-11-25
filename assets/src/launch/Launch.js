@@ -9,6 +9,7 @@ import { formsStep } from '../../../modules/forms/assets/src/settings/Sections.j
 import { seoStep } from '../../../modules/seo/assets/src/seo/Settings.js';
 import {
 	Bar,
+	Buttons,
 	Card,
 	Icon,
 	Loading,
@@ -145,9 +146,14 @@ export function LaunchBanner( { launch, href } ) {
 					</p>
 				</div>
 				<a className="barrio-button" href={ href }>
-					{ href === launchUrl()
-						? __( 'Review the guide', 'barrio-suite' )
-						: __( 'Back to the dashboard', 'barrio-suite' ) }
+					<Icon
+						name={ href === launchUrl() ? 'migrate' : 'dashboard' }
+					/>
+					<span className="barrio-button__text">
+						{ href === launchUrl()
+							? __( 'Review the guide', 'barrio-suite' )
+							: __( 'Back to the dashboard', 'barrio-suite' ) }
+					</span>
 				</a>
 			</section>
 		);
@@ -173,8 +179,10 @@ export function LaunchBanner( { launch, href } ) {
 				</p>
 			</div>
 			<a className="barrio-button" href={ launchUrl( left[ 0 ].id ) }>
-				{ __( 'Start the launch', 'barrio-suite' ) }
 				<Icon name="arrow-right-alt" />
+				<span className="barrio-button__text">
+					{ __( 'Start the launch', 'barrio-suite' ) }
+				</span>
 			</a>
 		</section>
 	);
@@ -331,50 +339,55 @@ export function Launch() {
 					</>
 				}
 			>
-				{ step && ! launch.skipped.includes( step.id ) && (
-					<button
-						type="button"
-						className="barrio-button"
-						disabled={ busy }
-						onClick={ () =>
-							advance(
-								apiFetch( {
-									path: '/barrio/v1/launch',
-									method: 'PUT',
-									data: {
-										skipped: [ ...launch.skipped, step.id ],
-									},
-								} )
-							)
-						}
-					>
-						<Icon name="controls-skipforward" />
-						<span className="barrio-button__text">
-							{ __( 'Skip', 'barrio-suite' ) }
-						</span>
-					</button>
-				) }
-				{ step && (
-					<button
-						type="button"
-						className="barrio-button is-primary"
-						disabled={ busy }
-						onClick={ () =>
-							advance(
-								dirty
-									? step.save( draft[ step.id ] )
-									: Promise.resolve()
-							)
-						}
-					>
-						<Icon name="arrow-right-alt" />
-						<span className="barrio-button__text">
-							{ dirty
-								? __( 'Save and continue', 'barrio-suite' )
-								: __( 'Continue', 'barrio-suite' ) }
-						</span>
-					</button>
-				) }
+				<Buttons>
+					{ step && ! launch.skipped.includes( step.id ) && (
+						<button
+							type="button"
+							className="barrio-button"
+							disabled={ busy }
+							onClick={ () =>
+								advance(
+									apiFetch( {
+										path: '/barrio/v1/launch',
+										method: 'PUT',
+										data: {
+											skipped: [
+												...launch.skipped,
+												step.id,
+											],
+										},
+									} )
+								)
+							}
+						>
+							<Icon name="controls-skipforward" />
+							<span className="barrio-button__text">
+								{ __( 'Skip', 'barrio-suite' ) }
+							</span>
+						</button>
+					) }
+					{ step && (
+						<button
+							type="button"
+							className="barrio-button is-primary"
+							disabled={ busy }
+							onClick={ () =>
+								advance(
+									dirty
+										? step.save( draft[ step.id ] )
+										: Promise.resolve()
+								)
+							}
+						>
+							<Icon name="arrow-right-alt" />
+							<span className="barrio-button__text">
+								{ dirty
+									? __( 'Save and continue', 'barrio-suite' )
+									: __( 'Continue', 'barrio-suite' ) }
+							</span>
+						</button>
+					) }
+				</Buttons>
 			</Bar>
 			<ol className="barrio-steps">
 				{ steps.map( ( { id, title }, index ) => {

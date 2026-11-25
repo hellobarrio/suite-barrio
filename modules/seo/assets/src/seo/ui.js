@@ -5,7 +5,7 @@ import { useSelect } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 import { MediaUpload } from '@wordpress/media-utils';
 
-import { Group } from '../../../../../assets/src/admin/ui.js';
+import { Group, Icon } from '../../../../../assets/src/admin/ui.js';
 
 // Seo\Admin::data(). Con il modulo spento manca, e le sue pagine non si aprono.
 export const seoData = window.barrioAdmin.seo ?? { types: [] };
@@ -43,9 +43,12 @@ export function MediaField( { label, help, value, onChange } ) {
 							className="barrio-button"
 							onClick={ open }
 						>
-							{ value
-								? __( 'Replace image', 'barrio-suite' )
-								: __( 'Choose image', 'barrio-suite' ) }
+							<Icon name="format-image" />
+							<span className="barrio-button__text">
+								{ value
+									? __( 'Replace image', 'barrio-suite' )
+									: __( 'Choose image', 'barrio-suite' ) }
+							</span>
 						</button>
 					) }
 				/>
@@ -55,7 +58,10 @@ export function MediaField( { label, help, value, onChange } ) {
 						className="barrio-button is-danger"
 						onClick={ () => onChange( 0 ) }
 					>
-						{ __( 'Remove', 'barrio-suite' ) }
+						<Icon name="trash" />
+						<span className="barrio-button__text">
+							{ __( 'Remove', 'barrio-suite' ) }
+						</span>
 					</button>
 				) }
 			</div>

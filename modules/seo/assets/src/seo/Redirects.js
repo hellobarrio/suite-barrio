@@ -6,6 +6,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import { initialQuery } from '../../../../../assets/src/admin/query.js';
 import {
+	CancelButton,
 	Dialog,
 	Icon,
 	Loading,
@@ -85,13 +86,7 @@ function RedirectModal( { redirect, onSaved, onClose } ) {
 			className="barrio-seo-modal"
 			footer={
 				<>
-					<button
-						type="button"
-						className="barrio-button"
-						onClick={ close }
-					>
-						{ __( 'Cancel', 'barrio-suite' ) }
-					</button>
+					<CancelButton onClick={ close } />
 					<SaveButton type="submit" form={ form } busy={ busy } />
 				</>
 			}

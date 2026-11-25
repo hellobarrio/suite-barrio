@@ -9,6 +9,7 @@ import { __, _n, _x, sprintf } from '@wordpress/i18n';
 
 import { initialQuery } from '../../../../assets/src/admin/query.js';
 import {
+	CancelButton,
 	Card,
 	Dialog,
 	Icon,
@@ -128,13 +129,7 @@ function AltModal( { row, start, onSaved, onClose } ) {
 		<Dialog
 			footer={
 				<>
-					<button
-						type="button"
-						className="barrio-button"
-						onClick={ close }
-					>
-						{ __( 'Cancel', 'barrio-suite' ) }
-					</button>
+					<CancelButton onClick={ close } />
 					<button
 						type="button"
 						className="barrio-button is-primary"
@@ -224,7 +219,7 @@ export const altSection = {
 				icon="format-image"
 				title={ __( 'Generation', 'barrio-suite' ) }
 				description={ __(
-					'The alt text is written in the Media Library. An image already placed in a content keeps the alt text it has there: the one of the library is used by featured images, by the images the theme prints and by the images inserted from now on.',
+					'The alt text is written in the Media Library, and the site uses it wherever an image has none: featured images, images printed by the theme and those already placed in a content. An alt text written in a content stays as it is.',
 					'barrio-suite'
 				) }
 			>
@@ -300,10 +295,15 @@ export function AltCard() {
 				]
 			}
 			actions={ [
-				[ __( 'Images', 'barrio-suite' ), '?page=barrio-alt' ],
+				[
+					__( 'Images', 'barrio-suite' ),
+					'?page=barrio-alt',
+					ALT.icon,
+				],
 				window.barrioAdmin.canManageOptions && [
 					__( 'Settings', 'barrio-suite' ),
 					'?page=barrio-alt&tab=settings',
+					'admin-generic',
 				],
 			].filter( Boolean ) }
 		/>
@@ -372,7 +372,10 @@ export function AltText() {
 								stopped.current = true;
 							} }
 						>
-							{ __( 'Stop', 'barrio-suite' ) }
+							<Icon name="controls-pause" />
+							<span className="barrio-button__text">
+								{ __( 'Stop', 'barrio-suite' ) }
+							</span>
 						</button>
 					),
 				} );

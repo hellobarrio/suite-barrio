@@ -8,6 +8,7 @@ import {
 	Card,
 	Fixed,
 	Group,
+	Icon,
 	Notice,
 	Permissions,
 	SectionHead,
@@ -64,9 +65,12 @@ function GenerateIntro( { lang, onText, onNotice } ) {
 			disabled={ busy || ! ai }
 			onClick={ run }
 		>
-			{ busy
-				? __( 'Generating…', 'barrio-suite' )
-				: __( 'Generate with AI', 'barrio-suite' ) }
+			<Icon name="lightbulb" />
+			<span className="barrio-button__text">
+				{ busy
+					? __( 'Generating…', 'barrio-suite' )
+					: __( 'Generate with AI', 'barrio-suite' ) }
+			</span>
 		</button>
 	);
 }

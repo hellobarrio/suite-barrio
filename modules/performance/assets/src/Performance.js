@@ -186,6 +186,7 @@ export function PerformanceCard() {
 				[
 					__( 'Settings', 'barrio-suite' ),
 					'?page=barrio-performance',
+					'admin-generic',
 				],
 			] }
 		/>

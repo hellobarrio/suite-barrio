@@ -1,6 +1,7 @@
-// Popup e banner (src/Period.php): l'elenco, lo stato e il periodo, nell'ora del sito, e i testi per lingua, tradotti
-// come nel builder dei form (TextIn): nelle altre lingue un testo vuoto vale quello della lingua principale.
+// Popup e banner (src/Period.php): l'elenco, l'editor, lo stato e il periodo, nell'ora del sito, e i testi per lingua,
+// tradotti come nel builder dei form (TextIn): nelle altre lingue un testo vuoto vale quello della lingua principale.
 import apiFetch from '@wordpress/api-fetch';
+import { TabPanel } from '@wordpress/components';
 import { getSettings, gmdateI18n } from '@wordpress/date';
 import { useEffect, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
@@ -9,19 +10,28 @@ import { setTranslation, textIn } from './i18n.js';
 import { TextIn } from './texts.js';
 import { initialQuery, localQuery } from './query.js';
 import {
+	ApplyButton,
+	Bar,
+	CancelButton,
 	Card,
 	Dialog,
+	Fixed,
 	Group,
 	Icon,
 	Lang,
+	LangNotice,
+	LangPicker,
 	Loading,
 	Menu,
 	Notice,
+	RemoveButton,
+	SaveButton,
 	Table,
 	Text,
 	Toggle,
 	errorMessage,
 	langOption,
+	useUnsavedWarning,
 } from './ui.js';
 
 const { languages } = window.barrioAdmin;
@@ -35,6 +45,14 @@ const STATUS = {
 	expired: [ __( 'Expired', 'barrio-suite' ), '' ],
 	off: [ __( 'Off', 'barrio-suite' ), '' ],
 };
+
+// La pagina del modulo (popups o banners) e, con l'ID o new, l'editor: ?page=barrio-popups&popup=12.
+export const pageUrl = ( name, id ) =>
+	'?' +
+	new URLSearchParams( {
+		page: `barrio-${ name }`,
+		...( id && { [ name.slice( 0, -1 ) ]: id } ),
+	} );
 
 // Una data del campo datetime-local (ora del sito) nel formato della lingua, senza passare dal fuso del browser.
 const dateText = ( local ) =>
@@ -63,7 +81,7 @@ function periodText( start, end ) {
  * @param {string}                    props.description
  * @param {(changes: Object) => void} props.onChange    { is_enabled }, { starts_at } o { ends_at }.
  */
-export const PeriodCard = ( { item, description, onChange } ) => (
+const PeriodCard = ( { item, description, onChange } ) => (
 	<Card
 		className="barrio-wide"
 		icon="calendar-alt"
@@ -181,14 +199,10 @@ export function LinkField( {
 					<Icon name="edit" />
 				</button>
 				{ lang === main && (
-					<button
-						type="button"
-						className="barrio-icon-button"
-						aria-label={ __( 'Remove link', 'barrio-suite' ) }
+					<RemoveButton
+						label={ __( 'Remove link', 'barrio-suite' ) }
 						onClick={ remove }
-					>
-						<Icon name="trash" />
-					</button>
+					/>
 				) }
 			</div>
 		);
@@ -199,7 +213,7 @@ export function LinkField( {
 				className="barrio-button"
 				onClick={ () => setDraft( item ) }
 			>
-				<Icon name="admin-links" />
+				<Icon name="plus-alt2" />
 				<span className="barrio-button__text">
 					{ __( 'Add link', 'barrio-suite' ) }
 				</span>
@@ -230,16 +244,8 @@ export function LinkField( {
 					onRequestClose={ () => setDraft( null ) }
 					footer={
 						<>
-							<button
-								type="button"
-								className="barrio-button"
-								onClick={ () => setDraft( null ) }
-							>
-								{ __( 'Cancel', 'barrio-suite' ) }
-							</button>
-							<button
-								type="button"
-								className="barrio-button is-primary"
+							<CancelButton onClick={ () => setDraft( null ) } />
+							<ApplyButton
 								disabled={
 									! textIn( draft, lang, main ).link_url
 								}
@@ -247,9 +253,7 @@ export function LinkField( {
 									onChange( draft );
 									setDraft( null );
 								} }
-							>
-								{ __( 'Apply', 'barrio-suite' ) }
-							</button>
+							/>
 						</>
 					}
 				>
@@ -295,7 +299,7 @@ export function LinkField( {
 }
 
 // Al caricamento le altre lingue tengono solo i testi diversi da quelli della lingua principale.
-export const trimTexts = ( record ) =>
+const trimTexts = ( record ) =>
 	others.reduce(
 		( item, lang ) =>
 			Object.keys( item.i18n[ lang ] ?? {} ).reduce(
@@ -309,7 +313,7 @@ export const trimTexts = ( record ) =>
 	);
 
 // Al salvataggio ogni lingua tradotta ha la riga completa, come vuole il database.
-export const fillTexts = ( record ) => ( {
+const fillTexts = ( record ) => ( {
 	...record,
 	i18n: Object.fromEntries(
 		Object.keys( record.i18n ).map( ( lang ) => [
@@ -318,6 +322,152 @@ export const fillTexts = ( record ) => ( {
 		] )
 	),
 } );
+
+/**
+ * L'editor di un popup o di un banner: la barra con la lingua e Salva, la scheda Contenuto con l'anteprima a fianco e
+ * la scheda Opzioni con il periodo. I campi li dà il modulo, con { item, lang, set, setItem }.
+ *
+ * @param {Object}                     props
+ * @param {string}                     props.name      popups o banners, come in PeriodList.
+ * @param {number}                     [props.id]      Senza, uno nuovo.
+ * @param {() => Object}               props.blank     Quello nuovo.
+ * @param {(data: Object) => ?string}  props.check     Con i testi completi, l'errore che impedisce di salvare.
+ * @param {Object}                     props.texts     Quelli di PeriodList, più edit, saved e period (la descrizione
+ *                                                     della card Periodo).
+ * @param {(editor: Object) => Object} props.content   I campi del Contenuto.
+ * @param {(editor: Object) => Object} props.preview
+ * @param {(editor: Object) => Object} [props.options] Le card delle Opzioni prima del periodo.
+ */
+export function PeriodEditor( {
+	name,
+	id,
+	blank,
+	check,
+	texts,
+	content,
+	preview,
+	options,
+} ) {
+	const [ item, setItem ] = useState( id ? null : blank );
+	const [ saved, setSaved ] = useState( item );
+	const [ lang, setLang ] = useState( main );
+	const [ notice, setNotice ] = useState( null );
+	const [ busy, setBusy ] = useState( false );
+	const path = `/barrio/v1/${ name }`;
+
+	const fail = ( error ) =>
+		setNotice( { status: 'error', message: errorMessage( error ) } );
+	const load = ( { status, ...data } ) => {
+		const loaded = trimTexts( data );
+		setSaved( loaded );
+		setItem( loaded );
+	};
+	useEffect( () => {
+		if ( id ) {
+			apiFetch( { path: `${ path }/${ id }` } )
+				.then( load )
+				.catch( fail );
+		}
+	}, [ id, path ] );
+
+	const dirty = JSON.stringify( item ) !== JSON.stringify( saved );
+	useUnsavedWarning( dirty );
+
+	if ( ! item ) {
+		return notice ? <Notice notice={ notice } /> : <Loading />;
+	}
+	const set = ( changes ) => setItem( { ...item, ...changes } );
+	const save = () => {
+		const { id: current, ...data } = fillTexts( item );
+		const error = check( data );
+		if ( error ) {
+			setNotice( { status: 'error', message: error } );
+			return;
+		}
+		setBusy( true );
+		setNotice( null );
+		apiFetch(
+			current
+				? { path: `${ path }/${ current }`, method: 'PUT', data }
+				: { path, method: 'POST', data }
+		)
+			.then( ( result ) => {
+				load( result );
+				if ( ! current ) {
+					window.history.replaceState(
+						null,
+						'',
+						pageUrl( name, result.id )
+					);
+				}
+				setNotice( { status: 'success', message: texts.saved } );
+			} )
+			.catch( fail )
+			.finally( () => setBusy( false ) );
+	};
+	const editor = { item, lang, set, setItem };
+
+	return (
+		<div className="barrio-stack">
+			<Bar
+				title={
+					<>
+						<a
+							className="barrio-icon-button"
+							href={ pageUrl( name ) }
+							aria-label={ texts.all }
+						>
+							<Icon name="arrow-left-alt2" />
+						</a>
+						<h2 className="barrio-bar__title">
+							{ item.id ? texts.edit : texts.add }
+						</h2>
+					</>
+				}
+			>
+				<LangPicker value={ lang } onChange={ setLang } />
+				<SaveButton
+					busy={ busy }
+					disabled={ item.id && ! dirty }
+					onClick={ save }
+				/>
+			</Bar>
+			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
+			<LangNotice lang={ lang } />
+			<TabPanel
+				tabs={ [
+					{ name: 'content', title: __( 'Content', 'barrio-suite' ) },
+					{ name: 'options', title: __( 'Options', 'barrio-suite' ) },
+				] }
+			>
+				{ ( tab ) =>
+					// L'anteprima solo nel contenuto, come i campi del builder; le opzioni a tutta larghezza.
+					'content' === tab.name ? (
+						<div className="barrio-fields">
+							<div className="barrio-stack">
+								{ content( editor ) }
+							</div>
+							<div className="barrio-panel">
+								{ preview( editor ) }
+							</div>
+						</div>
+					) : (
+						<div className="barrio-stack">
+							<Fixed lang={ lang }>
+								{ options?.( editor ) }
+								<PeriodCard
+									item={ item }
+									description={ texts.period }
+									onChange={ set }
+								/>
+							</Fixed>
+						</div>
+					)
+				}
+			</TabPanel>
+		</div>
+	);
+}
 
 // Il più recente per primo. status '' = tutti; lang '' = in qualsiasi lingua.
 const INITIAL = { ...initialQuery( 'id', 'desc' ), status: '', lang: '' };
@@ -338,12 +488,7 @@ export function PeriodList( { name, label, texts } ) {
 	const [ query, setQuery ] = useState( INITIAL );
 	const [ notice, setNotice ] = useState( null );
 	const path = `/barrio/v1/${ name }`;
-	const editUrl = ( id ) =>
-		'?' +
-		new URLSearchParams( {
-			page: `barrio-${ name }`,
-			[ name.slice( 0, -1 ) ]: id,
-		} );
+	const editUrl = ( id ) => pageUrl( name, id );
 
 	const fail = ( error ) =>
 		setNotice( { status: 'error', message: errorMessage( error ) } );

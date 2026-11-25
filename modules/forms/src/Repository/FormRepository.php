@@ -90,13 +90,16 @@ final class FormRepository {
 				}
 				self::insert_settings( $id, $i18n, $notifications, $integrations );
 				self::insert_version( $id, $current + 1, $version, $now );
-				// Elimina le versioni precedenti che nessuna registrazione usa. Per quelle usate il
-				// RESTRICT di entries fa fallire la cancellazione e IGNORE passa alla riga successiva.
-				Db::query( $wpdb->prepare( 'DELETE IGNORE FROM %i WHERE form_id = %d AND version <= %d', Db::table( 'form_versions' ), $id, $current ) );
+				// Elimina le versioni precedenti che nessuna registrazione usa, tranne quella appena sostituita: una
+				// pagina in cache la mostra ancora e Submission::process() la accetta. Per quelle usate il RESTRICT
+				// di entries fa fallire la cancellazione e IGNORE passa alla riga successiva.
+				Db::query( $wpdb->prepare( 'DELETE IGNORE FROM %i WHERE form_id = %d AND version < %d', Db::table( 'form_versions' ), $id, $current ) );
 				return null;
 			}
 		);
-		wp_cache_delete( $id, self::CACHE_GROUP );
+		if ( null === $error ) {
+			self::changed( $id );
+		}
 
 		return $error ?? self::get( $id ) ?? throw new LogicException( esc_html( "Form {$id} not found after saving." ) );
 	}
@@ -105,7 +108,7 @@ final class FormRepository {
 	public static function set_status( int $id, FormStatus $status ): bool {
 		global $wpdb;
 		$updated = Db::query( $wpdb->prepare( 'UPDATE %i SET status = %s, updated_at = %s WHERE id = %d', Db::table( 'forms' ), $status->value, gmdate( 'Y-m-d H:i:s' ), $id ) );
-		wp_cache_delete( $id, self::CACHE_GROUP );
+		self::changed( $id );
 		return $updated > 0;
 	}
 
@@ -167,8 +170,14 @@ final class FormRepository {
 			return new WP_Error( 'barrio_form_has_entries', __( 'Delete the entries of this form first.', 'barrio-suite' ), [ 'status' => 409 ] );
 		}
 		Db::query( $wpdb->prepare( 'DELETE FROM %i WHERE id = %d', Db::table( 'forms' ), $id ) );
-		wp_cache_delete( $id, self::CACHE_GROUP );
+		self::changed( $id );
 		return null;
+	}
+
+	// barrio_forms_changed: per svuotare anche la cache di un frontend.
+	private static function changed( int $id ): void {
+		wp_cache_delete( $id, self::CACHE_GROUP );
+		do_action( 'barrio_forms_changed', $id );
 	}
 
 	// Form e versione corrente: si leggono a ogni render e invio, quindi passano dalla object cache.
@@ -279,7 +288,17 @@ final class FormRepository {
 	/** @return list<FormVersion> Dalla più recente: la corrente e quelle che le registrazioni usano ancora. */
 	public static function versions( int $form_id ): array {
 		global $wpdb;
-		return self::load_versions( $wpdb->prepare( 'form_id = %d', $form_id ) );
+		// Senza quella appena sostituita, se non ha registrazioni: darebbe colonne vuote in Registrazioni.
+		return self::load_versions(
+			$wpdb->prepare(
+				'form_id = %d AND (version = (SELECT MAX(version) FROM %i WHERE form_id = %d) OR id IN (SELECT version_id FROM %i WHERE form_id = %d))',
+				$form_id,
+				Db::table( 'form_versions' ),
+				$form_id,
+				Db::table( 'entries' ),
+				$form_id
+			)
+		);
 	}
 
 	/**

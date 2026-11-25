@@ -161,6 +161,23 @@ final class SmtpTest extends WP_UnitTestCase {
 
 		$this->assertSame( [ 502, 'barrio_mail_failed' ], [ $response->get_status(), $response->get_data()['code'] ] );
 		$this->assertStringContainsString( 'SMTP', $response->get_data()['message'] );
+
+		// L'errore resta in un avviso agli amministratori finché un'email non parte.
+		$this->assertStringContainsString( esc_html( rtrim( $response->get_data()['message'], '.' ) ) . '. Check SMTP', self::notice() );
+		$this->assertStringContainsString( 'id="barrio-mail-error"', self::notice() );
+		$admin = get_current_user_id();
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( '', self::notice() );
+		wp_set_current_user( $admin );
+		reset_phpmailer_instance();
+		$this->assertTrue( wp_mail( 'ada@example.com', 'Hello', 'Hello' ) );
+		$this->assertSame( '', self::notice() );
+	}
+
+	private static function notice(): string {
+		ob_start();
+		Smtp::notice();
+		return (string) ob_get_clean();
 	}
 
 	/** @return array<string, mixed> */

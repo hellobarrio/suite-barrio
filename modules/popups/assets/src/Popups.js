@@ -1,34 +1,26 @@
 // La pagina Barrio → Popup (modules/popups/src/Module.php): l'elenco o, con ?popup=ID (o new), l'editor con l'anteprima;
 // agli amministratori la scheda Impostazioni con i Permessi. E la card della Bacheca.
 import apiFetch from '@wordpress/api-fetch';
-import { TabPanel } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
 	LinkField,
-	PeriodCard,
+	PeriodEditor,
 	PeriodList,
-	fillTexts,
-	trimTexts,
+	pageUrl,
 } from '../../../../assets/src/admin/period.js';
 import {
-	Bar,
 	Card,
 	Fixed,
 	Group,
 	HowTo,
-	Icon,
-	LangNotice,
-	LangPicker,
 	Loading,
 	ModuleCard,
 	Notice,
 	Permissions,
-	SaveButton,
 	Text,
 	errorMessage,
-	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
 import { setTranslation, textIn } from '../../../../assets/src/admin/i18n.js';
 import { TextIn } from '../../../../assets/src/admin/texts.js';
@@ -51,9 +43,6 @@ const MAIN = main.toUpperCase();
 
 // La capability del modulo, nei Permessi (Module::CAP).
 const CAPS = { barrio_manage_popups: __( 'Manage', 'barrio-suite' ) };
-
-const pageUrl = ( params = {} ) =>
-	'?' + new URLSearchParams( { page: 'barrio-popups', ...params } );
 
 // Un popup nuovo: chi lo chiude non lo rivede per una settimana.
 const blank = () => ( {
@@ -81,14 +70,20 @@ const titleOf = ( popup ) =>
 const number = ( value, max ) =>
 	Math.min( max, Math.max( 0, parseInt( value, 10 ) || 0 ) );
 
-// I testi dell'elenco (PeriodList).
-const LIST = {
+// I testi dell'elenco e dell'editor (PeriodList e PeriodEditor).
+const TEXTS = {
 	column: __( 'Title', 'barrio-suite' ),
 	title: __( 'Popups', 'barrio-suite' ),
 	search: __( 'Search popups', 'barrio-suite' ),
 	empty: __( 'No popups found.', 'barrio-suite' ),
 	all: __( 'All popups', 'barrio-suite' ),
 	add: __( 'New popup', 'barrio-suite' ),
+	edit: __( 'Edit popup', 'barrio-suite' ),
+	saved: __( 'Popup saved.', 'barrio-suite' ),
+	period: __(
+		'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more popups on, the most recent one opens.',
+		'barrio-suite'
+	),
 	duplicated: __( 'Popup duplicated: the copy is off.', 'barrio-suite' ),
 	on: ( n ) =>
 		sprintf(
@@ -311,265 +306,121 @@ function Preview( { popup, lang } ) {
 	);
 }
 
-function PopupEditor( { id } ) {
-	const [ popup, setPopup ] = useState( id ? null : blank );
-	const [ saved, setSaved ] = useState( popup );
-	const [ lang, setLang ] = useState( main );
-	const [ notice, setNotice ] = useState( null );
-	const [ busy, setBusy ] = useState( false );
-
-	const fail = ( error ) =>
-		setNotice( { status: 'error', message: errorMessage( error ) } );
-	const load = ( { status, ...data } ) => {
-		const loaded = trimTexts( data );
-		setSaved( loaded );
-		setPopup( loaded );
-	};
-	useEffect( () => {
-		if ( id ) {
-			apiFetch( { path: `/barrio/v1/popups/${ id }` } )
-				.then( load )
-				.catch( fail );
-		}
-	}, [ id ] );
-
-	const dirty = JSON.stringify( popup ) !== JSON.stringify( saved );
-	useUnsavedWarning( dirty );
-
-	if ( ! popup ) {
-		return notice ? <Notice notice={ notice } /> : <Loading />;
+// Il titolo nella lingua principale; un bottone senza link in nessuna lingua.
+const check = ( { i18n } ) => {
+	if ( ! i18n[ main ]?.title.trim() ) {
+		return __( 'Write the title of the popup.', 'barrio-suite' );
 	}
-	const { settings } = popup;
-	const set = ( changes ) => setPopup( { ...popup, ...changes } );
-	const setSettings = ( changes ) =>
-		set( { settings: { ...settings, ...changes } } );
-	const save = () => {
-		const full = fillTexts( popup );
-		const missing = ! full.i18n[ main ]?.title.trim();
-		const button = Object.values( full.i18n ).some(
-			( text ) => text.button_label && ! text.link_url
-		);
-		if ( missing || button ) {
-			setNotice( {
-				status: 'error',
-				message: missing
-					? __( 'Write the title of the popup.', 'barrio-suite' )
-					: __( 'A button needs a link.', 'barrio-suite' ),
-			} );
-			return;
-		}
-		setBusy( true );
-		setNotice( null );
-		const { id: current, ...data } = full;
-		apiFetch(
-			current
-				? {
-						path: `/barrio/v1/popups/${ current }`,
-						method: 'PUT',
-						data,
-					}
-				: { path: '/barrio/v1/popups', method: 'POST', data }
-		)
-			.then( ( result ) => {
-				load( result );
-				if ( ! current ) {
-					window.history.replaceState(
-						null,
-						'',
-						pageUrl( { popup: result.id } )
-					);
-				}
-				setNotice( {
-					status: 'success',
-					message: __( 'Popup saved.', 'barrio-suite' ),
-				} );
-			} )
-			.catch( fail )
-			.finally( () => setBusy( false ) );
-	};
-	const texts = { item: popup, lang, onChange: setPopup };
+	return Object.values( i18n ).some(
+		( text ) => text.button_label && ! text.link_url
+	)
+		? __( 'A button needs a link.', 'barrio-suite' )
+		: null;
+};
 
-	return (
-		<div className="barrio-stack">
-			<Bar
-				title={
-					<>
-						<a
-							className="barrio-icon-button"
-							href={ pageUrl() }
-							aria-label={ __( 'All popups', 'barrio-suite' ) }
-						>
-							<Icon name="arrow-left-alt2" />
-						</a>
-						<h2 className="barrio-bar__title">
-							{ popup.id
-								? __( 'Edit popup', 'barrio-suite' )
-								: __( 'New popup', 'barrio-suite' ) }
-						</h2>
-					</>
+const PopupEditor = ( { id } ) => (
+	<PeriodEditor
+		name="popups"
+		id={ id }
+		blank={ blank }
+		check={ check }
+		texts={ TEXTS }
+		content={ ( { item: popup, lang, set, setItem } ) => (
+			<Card icon="text" title={ __( 'Content', 'barrio-suite' ) }>
+				<TextIn
+					item={ popup }
+					lang={ lang }
+					onChange={ setItem }
+					name="title"
+					label={ __( 'Title', 'barrio-suite' ) }
+					maxLength={ 255 }
+				/>
+				<ContentIn popup={ popup } lang={ lang } onChange={ setItem } />
+				<Fixed lang={ lang }>
+					<MediaField
+						label={ __( 'Image', 'barrio-suite' ) }
+						help={ __(
+							'Optional, above the title.',
+							'barrio-suite'
+						) }
+						value={ popup.image_id ?? 0 }
+						onChange={ ( image ) =>
+							set( { image_id: image || null } )
+						}
+					/>
+				</Fixed>
+				<LinkField
+					item={ popup }
+					lang={ lang }
+					label={ __( 'Button', 'barrio-suite' ) }
+					help={ __(
+						'Optional: with a link the popup has a button.',
+						'barrio-suite'
+					) }
+					text="button_label"
+					textLabel={ __( 'Button text', 'barrio-suite' ) }
+					textHelp={ __(
+						'Leave empty for "Learn more".',
+						'barrio-suite'
+					) }
+					fallback={ __( 'Learn more', 'barrio-suite' ) }
+					newTab={ ( item ) => item.settings.new_tab }
+					withNewTab={ ( item, on ) => ( {
+						...item,
+						settings: { ...item.settings, new_tab: on },
+					} ) }
+					onChange={ setItem }
+				/>
+			</Card>
+		) }
+		preview={ ( { item, lang } ) => (
+			<Preview popup={ item } lang={ lang } />
+		) }
+		options={ ( { item: popup, set } ) => (
+			<Card
+				className="barrio-wide"
+				icon="external"
+				title={ __( 'Opening', 'barrio-suite' ) }
+				description={
+					popup.id
+						? sprintf(
+								/* translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12". */
+								__(
+									'It opens 2 seconds after the page loads, and always from a link to %1$s or a button with %2$s.',
+									'barrio-suite'
+								),
+								`#barrio-popup-${ popup.id }`,
+								`data-barrio-popup="${ popup.id }"`
+							)
+						: __(
+								'It opens 2 seconds after the page loads; once saved, also from a link.',
+								'barrio-suite'
+							)
 				}
 			>
-				<LangPicker value={ lang } onChange={ setLang } />
-				<SaveButton
-					busy={ busy }
-					disabled={ popup.id && ! dirty }
-					onClick={ save }
+				<Text
+					type="number"
+					min={ 0 }
+					max={ 365 }
+					label={ __( 'Back after (days)', 'barrio-suite' ) }
+					help={ __(
+						'Once closed, it opens again for the same visitor after these days; with 0, on the next page. The date stays only in their browser.',
+						'barrio-suite'
+					) }
+					value={ String( popup.settings.days ) }
+					onChange={ ( value ) =>
+						set( {
+							settings: {
+								...popup.settings,
+								days: number( value, 365 ),
+							},
+						} )
+					}
 				/>
-			</Bar>
-			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
-			<LangNotice lang={ lang } />
-			<TabPanel
-				tabs={ [
-					{ name: 'content', title: __( 'Content', 'barrio-suite' ) },
-					{ name: 'options', title: __( 'Options', 'barrio-suite' ) },
-				] }
-			>
-				{ ( tab ) => (
-					// L'anteprima solo nel contenuto, come i campi del builder; le opzioni a tutta larghezza.
-					<div
-						className={
-							'content' === tab.name
-								? 'barrio-fields'
-								: 'barrio-stack'
-						}
-					>
-						<div className="barrio-stack">
-							{ 'content' === tab.name ? (
-								<Card
-									icon="text"
-									title={ __( 'Content', 'barrio-suite' ) }
-								>
-									<TextIn
-										{ ...texts }
-										name="title"
-										label={ __( 'Title', 'barrio-suite' ) }
-										maxLength={ 255 }
-									/>
-									<ContentIn
-										popup={ popup }
-										lang={ lang }
-										onChange={ setPopup }
-									/>
-									<Fixed lang={ lang }>
-										<MediaField
-											label={ __(
-												'Image',
-												'barrio-suite'
-											) }
-											help={ __(
-												'Optional, above the title.',
-												'barrio-suite'
-											) }
-											value={ popup.image_id ?? 0 }
-											onChange={ ( image ) =>
-												set( {
-													image_id: image || null,
-												} )
-											}
-										/>
-									</Fixed>
-									<LinkField
-										item={ popup }
-										lang={ lang }
-										label={ __( 'Button', 'barrio-suite' ) }
-										help={ __(
-											'Optional: with a link the popup has a button.',
-											'barrio-suite'
-										) }
-										text="button_label"
-										textLabel={ __(
-											'Button text',
-											'barrio-suite'
-										) }
-										textHelp={ __(
-											'Leave empty for "Learn more".',
-											'barrio-suite'
-										) }
-										fallback={ __(
-											'Learn more',
-											'barrio-suite'
-										) }
-										newTab={ ( item ) =>
-											item.settings.new_tab
-										}
-										withNewTab={ ( item, on ) => ( {
-											...item,
-											settings: {
-												...item.settings,
-												new_tab: on,
-											},
-										} ) }
-										onChange={ setPopup }
-									/>
-								</Card>
-							) : (
-								<Fixed lang={ lang }>
-									<Card
-										className="barrio-wide"
-										icon="external"
-										title={ __(
-											'Opening',
-											'barrio-suite'
-										) }
-										description={
-											popup.id
-												? sprintf(
-														/* translators: 1: a link like #barrio-popup-12, 2: an HTML attribute like data-barrio-popup="12". */
-														__(
-															'It opens 2 seconds after the page loads, and always from a link to %1$s or a button with %2$s.',
-															'barrio-suite'
-														),
-														`#barrio-popup-${ popup.id }`,
-														`data-barrio-popup="${ popup.id }"`
-													)
-												: __(
-														'It opens 2 seconds after the page loads; once saved, also from a link.',
-														'barrio-suite'
-													)
-										}
-									>
-										<Text
-											type="number"
-											min={ 0 }
-											max={ 365 }
-											label={ __(
-												'Back after (days)',
-												'barrio-suite'
-											) }
-											help={ __(
-												'Once closed, it opens again for the same visitor after these days; with 0, on the next page. The date stays only in their browser.',
-												'barrio-suite'
-											) }
-											value={ String( settings.days ) }
-											onChange={ ( value ) =>
-												setSettings( {
-													days: number( value, 365 ),
-												} )
-											}
-										/>
-									</Card>
-									<PeriodCard
-										item={ popup }
-										description={ __(
-											'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more popups on, the most recent one opens.',
-											'barrio-suite'
-										) }
-										onChange={ set }
-									/>
-								</Fixed>
-							) }
-						</div>
-						{ 'content' === tab.name && (
-							<div className="barrio-panel">
-								<Preview popup={ popup } lang={ lang } />
-							</div>
-						) }
-					</div>
-				) }
-			</TabPanel>
-		</div>
-	);
-}
+			</Card>
+		) }
+	/>
+);
 
 // La scheda Popup: l'elenco o l'editor, secondo ?popup=.
 export function PopupsTab() {
@@ -580,7 +431,7 @@ export function PopupsTab() {
 	return /^[1-9]\d*$/.test( param ?? '' ) ? (
 		<PopupEditor id={ Number( param ) } />
 	) : (
-		<PeriodList name="popups" label={ titleOf } texts={ LIST } />
+		<PeriodList name="popups" label={ titleOf } texts={ TEXTS } />
 	);
 }
 
@@ -655,10 +506,11 @@ export function PopupsCard() {
 				]
 			}
 			actions={ [
-				[ __( 'Manage popups', 'barrio-suite' ), pageUrl() ],
+				[ POPUPS.title, pageUrl( 'popups' ), POPUPS.icon ],
 				[
 					__( 'New popup', 'barrio-suite' ),
-					pageUrl( { popup: 'new' } ),
+					pageUrl( 'popups', 'new' ),
+					'plus-alt2',
 				],
 			] }
 		/>
