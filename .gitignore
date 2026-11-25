@@ -4,3 +4,4 @@
 /.phpunit.result.cache
 /barrio-suite*.zip
 /catalog.json
+.DS_Store

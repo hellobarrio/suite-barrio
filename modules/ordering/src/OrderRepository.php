@@ -76,7 +76,7 @@ final class OrderRepository {
 	}
 
 	/**
-	 * Un'istruzione sola, atomica anche dove wp_posts non è InnoDB (regola 9 di PLAN.md). Non tocca post_modified e
+	 * Un'istruzione sola, atomica anche dove wp_posts non è InnoDB. Non tocca post_modified e
 	 * non fa partire gli hook di salvataggio.
 	 *
 	 * @param list<int> $ids

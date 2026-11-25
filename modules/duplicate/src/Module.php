@@ -11,7 +11,7 @@ use WP_REST_Response;
 use WP_Term;
 
 /**
- * Duplica contenuti e termini (PLAN-MODULI.md §7): tra le azioni di riga delle liste, tra le azioni di massa dei
+ * Duplica contenuti e termini: tra le azioni di riga delle liste, tra le azioni di massa dei
  * contenuti e nel pannello dello stato dell'editor. La copia è una bozza di chi duplica, con i meta e i termini
  * dell'originale. Si accende e si spegne per tipo e per tassonomia in Barrio → Contenuti → Duplicazione: di default
  * c'è dove il tipo ha pagine nel sito; gli altri (pattern, menu, tipi interni di altri plugin) spesso tengono dati
