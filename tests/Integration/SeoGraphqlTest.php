@@ -48,7 +48,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	// La fotografia dello schema, stampata con WpGraphqlTest::sdl() (PLAN-GRAPHQL.md §3.2).
+	// La fotografia dello schema, stampata con WpGraphqlTest::sdl().
 	public function test_the_schema_matches_the_snapshot(): void {
 		$this->assertStringEqualsFile(
 			dirname( __DIR__ ) . '/fixtures/wpgraphql-seo-schema.txt',
@@ -352,7 +352,7 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 			]
 		);
 		update_post_meta( $page, '_barrio_seo_image', $image );
-		update_option( 'graphql_general_settings', [ 'barrio_frontend_url' => 'https://www.pizzeria.it' ] );
+		update_option( 'barrio_frontend', [ 'url' => 'https://www.pizzeria.it' ] );
 		// Prima un llms.txt di WordPress, con i suoi link: GraphQL non deve riceverlo dalla cache.
 		$wordpress = Llms::get( false )['text'];
 
@@ -368,14 +368,6 @@ final class SeoGraphqlTest extends WP_UnitTestCase {
 
 		$this->assertSame( $wordpress, Llms::get( false )['text'], 'Outside GraphQL the links stay on WordPress.' );
 		$this->assertStringContainsString( '(http://example.org/chi-siamo/)', $wordpress );
-	}
-
-	public function test_the_frontend_address_is_saved_clean(): void {
-		do_action( 'graphql_init_settings', $registry = new \WPGraphQL\Admin\Settings\SettingsRegistry() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- azione di WPGraphQL.
-		$sanitize = $registry->get_sanitize_callback( 'barrio_frontend_url' );
-		$this->assertIsCallable( $sanitize );
-		$this->assertSame( 'https://www.pizzeria.it', $sanitize( 'https://www.pizzeria.it/' ) );
-		$this->assertSame( '', $sanitize( 'javascript:alert(1)' ) );
 	}
 
 	/** @return array<string, mixed> */

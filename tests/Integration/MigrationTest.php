@@ -11,6 +11,7 @@ use BarrioSuite\Forms\Repository\EntryRepository;
 use BarrioSuite\Forms\Repository\FormRepository;
 use BarrioSuite\Forms\Submission\FileStore;
 use BarrioSuite\Mail\Smtp;
+use WP_REST_Request;
 use WP_UnitTestCase;
 
 // L'estensione barrio-suite-migration (caricata da tests/bootstrap.php) su un form del prototipo con
@@ -68,7 +69,7 @@ final class MigrationTest extends WP_UnitTestCase {
 		$form = FormRepository::get( self::ID );
 		$this->assertNotNull( $form );
 		// La definizione attuale: senza il campo che c'è solo nelle registrazioni vecchie.
-		$this->assertSame( [ 'nome', 'email', 'servizio', 'interessi', 'data', 'page_break', 'cv', 'privacy' ], array_column( $form->current->fields, 'key' ) );
+		$this->assertSame( [ 'nome', 'email', 'servizio', 'interessi', 'data', 'page_break', 'cv', 'privacy', 'sedi' ], array_column( $form->current->fields, 'key' ) );
 		// La checkbox della privacy con il link è un consenso, con il link in ogni lingua.
 		$privacy = $form->current->fields[7];
 		$this->assertSame( [ 'consent', true, [] ], [ $privacy->type, $privacy->required, $privacy->config ] );
@@ -78,6 +79,14 @@ final class MigrationTest extends WP_UnitTestCase {
 
 		$service = $form->current->fields[2];
 		$this->assertSame( [ 'choices' => [ 'Consulenza', 'Preventivo gratuito' ] ], $service->config );
+		// assertEquals: MySQL 8.0 riordina le chiavi del JSON.
+		$this->assertEquals(
+			[
+				'multiple' => true,
+				'choices'  => [ 'Torino', 'Milano' ],
+			],
+			$form->current->fields[8]->config
+		);
 		$this->assertSame(
 			[
 				'Consulenza'          => 'Consulting',
@@ -162,6 +171,7 @@ final class MigrationTest extends WP_UnitTestCase {
 				'interessi' => [ 'News', 'Eventi' ],
 				'data'      => [ '2026-05-04' ],
 				'privacy'   => [ '1' ],
+				'sedi'      => [ 'Milano' ],
 			],
 			$this->values( $site )
 		);
@@ -185,6 +195,7 @@ final class MigrationTest extends WP_UnitTestCase {
 				'interessi'     => [ 'Eventi' ],
 				'data'          => [ '2026-05-04' ],
 				'privacy'       => [ '1' ],
+				'sedi'          => [ 'Torino', 'Milano' ],
 				'vecchio_campo' => [ 'Un valore' ],
 			],
 			$this->values( $graphql )
@@ -237,15 +248,41 @@ final class MigrationTest extends WP_UnitTestCase {
 		$this->assertSame( $before, $copies() );
 	}
 
+	// Un errore fatale (il tempo massimo) salta il catch: le copie restano senza una riga che le nomini, e un object
+	// cache persistente tiene il form che il rollback ha tolto.
+	public function test_after_a_fatal_error_the_copies_go_and_the_form_migrates_again(): void {
+		global $wpdb;
+		$copy = gmdate( 'Y/m/' ) . 'orfano.pdf';
+		wp_mkdir_p( dirname( FileStore::dir() . '/' . $copy ) );
+		file_put_contents( FileStore::dir() . '/' . $copy, 'pdf' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		barrio_migration_form_orphans( self::ID, [ $copy ] );
+		$this->assertFileDoesNotExist( FileStore::dir() . '/' . $copy );
+
+		$wpdb->query( 'SAVEPOINT interrotto' );
+		FormRepository::create( 'Interrotto', [ 'it' => [ 'submit_label' => 'Invia' ] ], [], new FormVersion( [] ), [], self::ID );
+		$wpdb->query( 'ROLLBACK TO SAVEPOINT interrotto' );
+		$this->assertSame( 'migrated', barrio_migration_run( false )['forms'][0]['result'] );
+
+		// Un form già confermato tiene i suoi file.
+		$stored = array_merge( ...array_column( EntryRepository::page( self::ID, [], 'id', 'asc', 1, 20 )['entries'], 'files' ) )[0]['stored_path'];
+		barrio_migration_form_orphans( self::ID, [ $stored ] );
+		$this->assertFileExists( FileStore::dir() . '/' . $stored );
+	}
+
 	// Il form di Barrio Suite prenderebbe il posto di quello del prototipo nelle pagine e nei frontend.
 	public function test_an_id_taken_by_another_barrio_suite_form_is_an_error(): void {
 		FormRepository::create( 'Altro', [ 'it' => [ 'submit_label' => 'Invia' ] ], [], new FormVersion( [] ), [], self::ID );
+		$post = self::factory()->post->create( [ 'post_content' => '[wpb_form id="' . self::ID . '"]' ] );
 
 		$report = barrio_migration_run( false );
 
 		$this->assertIsArray( $report );
 		$this->assertSame( 'error: another Barrio Suite form has this ID', $report['forms'][0]['result'] );
 		$this->assertSame( 'Altro', FormRepository::get( self::ID )?->title );
+		// Lo shortcode riscritto mostrerebbe l'altro form.
+		$this->assertContains( '1 forms are not migrated: fix them and migrate again. The shortcodes in the pages are rewritten once every form is in Barrio Suite.', $report['warnings'] );
+		$this->assertSame( '[wpb_form id="' . self::ID . '"]', get_post( $post )->post_content );
 	}
 
 	public function test_a_second_run_skips_the_forms_already_migrated(): void {
@@ -288,6 +325,121 @@ final class MigrationTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'data-barrio-form', do_shortcode( '[wpb_form id="' . self::ID . '"]' ) );
 	}
 
+	// Dove WordPress li salva, anche serializzati: in un meta o in un'opzione la lunghezza del testo cambia.
+	public function test_the_old_shortcodes_are_rewritten_in_contents_serialized_meta_and_widgets(): void {
+		$post = self::factory()->post->create( [ 'post_content' => 'Scrivici: [wpb_form id="' . self::ID . '"]' ] );
+		add_post_meta( $post, 'builder', [ 'blocks' => [ [ 'text' => '[suite_barrio_form id="' . self::ID . '"]' ] ] ] );
+		// Alcuni page builder salvano oggetti.
+		add_post_meta( $post, 'builder_object', (object) [ 'rows' => [ (object) [ 'text' => '[wpb_form id="' . self::ID . '"]' ] ] ] );
+		update_option( 'widget_text', [ 2 => [ 'text' => '[wpb_form id="' . self::ID . '"]' ] ] );
+
+		$dry = barrio_migration_run( true );
+
+		$this->assertIsArray( $dry );
+		$this->assertContains( 'Shortcodes to rewrite as [barrio_form]: 1 contents, 2 meta, 1 options.', $dry['notes'] );
+		$this->assertSame( 'Scrivici: [wpb_form id="' . self::ID . '"]', get_post( $post )->post_content );
+
+		$report = barrio_migration_run( false );
+
+		$this->assertIsArray( $report );
+		$this->assertContains( 'Shortcodes rewritten as [barrio_form]: 1 contents, 2 meta, 1 options.', $report['notes'] );
+		$this->assertSame( 'Scrivici: [barrio_form id="' . self::ID . '"]', get_post( $post )->post_content );
+		$this->assertSame( [ 'blocks' => [ [ 'text' => '[barrio_form id="' . self::ID . '"]' ] ] ], get_post_meta( $post, 'builder', true ) );
+		$this->assertSame( '[barrio_form id="' . self::ID . '"]', get_post_meta( $post, 'builder_object', true )->rows[0]->text );
+		$this->assertSame( [ 2 => [ 'text' => '[barrio_form id="' . self::ID . '"]' ] ], get_option( 'widget_text' ) );
+	}
+
+	// La pagina Migrazione: un form per richiesta, poi una senza form per il resto, come una migrazione sola.
+	public function test_from_the_route_one_form_per_request_then_the_rest_give_the_report_of_one_run(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$whole = barrio_migration_run( true );
+		$step  = current( wp_list_filter( barrio_migration_steps(), [ 'id' => 'forms' ] ) );
+
+		$form = $this->post( [ 'item' => self::ID ] );
+		$rest = $this->post( [] );
+
+		$this->assertIsArray( $whole );
+		$this->assertSame( [ 'pending', [ self::ID ] ], [ $step['status'], $step['items'] ] );
+		$this->assertSame( $whole['forms'], $form['rows'] );
+		$this->assertSame( [], $rest['rows'] );
+		$this->assertSame( $whole['notes'], [ ...$form['notes'], ...$rest['notes'] ] );
+		$this->assertSame( $whole['warnings'], [ ...$form['warnings'], ...$rest['warnings'] ] );
+		$this->assertNull( FormRepository::get( self::ID ) );
+
+		$this->assertSame( 'migrated', $this->post( [ 'item' => self::ID ], false )['rows'][0]['result'] );
+		$this->assertSame( 'migrated', $this->post( [], false )['step']['status'] );
+		$this->assertSame( 2, EntryRepository::page( self::ID, [], 'id', 'desc', 1, 1 )['total'] );
+	}
+
+	// Un prototipo modificato per un sito: ciò che il prototipo non ha mai avuto, pieno, un avviso per chiave.
+	public function test_what_suite_barrio_never_had_gives_a_warning_each_also_in_a_dry_run(): void {
+		global $wpdb;
+		$table                                     = "{$wpdb->prefix}wpb_forms";
+		$row                                       = $wpdb->get_row( $wpdb->prepare( 'SELECT fields, settings FROM %i WHERE id = %d', $table, self::ID ), ARRAY_A );
+		$fields                                    = json_decode( $row['fields'], true );
+		$settings                                  = json_decode( $row['settings'], true );
+		$fields[0]['width']                        = 'half';
+		$fields[0]['icon']                         = '';
+		$settings['hubspot_enabled']               = true;
+		$settings['hubspot_portal_id']             = '123';
+		$settings['notifications'][0]['bcc_email'] = 'bcc@example.com';
+		$wpdb->update(
+			$table,
+			[
+				'fields'   => wp_json_encode( $fields ),
+				'settings' => wp_json_encode( $settings ),
+			],
+			[ 'id' => self::ID ]
+		);
+		$entries = "{$wpdb->prefix}wpb_form_submissions";
+		$entry   = $wpdb->get_row( $wpdb->prepare( 'SELECT id, data FROM %i WHERE form_id = %d ORDER BY id LIMIT 1', $entries, self::ID ), ARRAY_A );
+		$data    = json_decode( $entry['data'], true ) + [
+			'_hutk' => [
+				'label' => 'HubSpot',
+				'value' => 'abc',
+			],
+			'hutk'  => 'abc',
+		];
+		$wpdb->update( $entries, [ 'data' => wp_json_encode( $data ) ], [ 'id' => $entry['id'] ] );
+		update_option( 'suite_barrio_forms_hubspot', [ 'token' => 'segreto' ] );
+		update_option( 'suite_barrio_forms_columns_' . self::ID, [ 'nome' ] );
+		update_option( 'suite_barrio_forms_recaptcha', [ 'threshold' => '0.7' ] + get_option( 'suite_barrio_forms_recaptcha' ) );
+		$never = static fn( string $where, string $key ): string => "{$where}: Suite Barrio never had \"{$key}\" (a version changed for this site?), it was not migrated.";
+
+		$dry    = barrio_migration_run( true );
+		$report = barrio_migration_run( false );
+
+		$this->assertIsArray( $dry );
+		$this->assertIsArray( $report );
+		$this->assertSame(
+			[
+				$never( 'Form "Contatti"', 'hubspot_enabled' ),
+				$never( 'Form "Contatti"', 'hubspot_portal_id' ),
+				$never( 'Form "Contatti", field "Nome"', 'width' ),
+				$never( 'Form "Contatti", notification "Admin"', 'bcc_email' ),
+				$never( 'Form "Contatti", entries', '_hutk' ),
+				$never( 'Form "Contatti", entries', 'hutk' ),
+				$never( 'Forms', 'suite_barrio_forms_hubspot' ),
+				$never( 'Forms, suite_barrio_forms_recaptcha', 'threshold' ),
+			],
+			array_values( preg_grep( '/Suite Barrio never had/', $report['warnings'] ) )
+		);
+		$this->assertSame( $dry['warnings'], $report['warnings'] );
+		$this->assertStringNotContainsString( 'segreto', implode( "\n", $report['warnings'] ) );
+	}
+
+	// Una colonna in più è già una modifica, anche vuota. Le tabelle dei test sono temporanee: SHOW COLUMNS le vede.
+	public function test_columns_suite_barrio_never_had_give_a_warning_each(): void {
+		global $wpdb;
+		$table    = "{$wpdb->prefix}wpb_prova";
+		$warnings = [];
+		$wpdb->query( "CREATE TABLE {$table} (id BIGINT UNSIGNED NOT NULL, title VARCHAR(255) NOT NULL DEFAULT '', colore VARCHAR(10) NULL)" );
+
+		barrio_migration_unknown_columns( 'Popups', $table, [ 'id', 'title' ], $warnings );
+
+		$this->assertSame( [ "Popups: Suite Barrio never had \"{$table}.colore\" (a version changed for this site?), it was not migrated." ], $warnings );
+	}
+
 	public function test_keys_become_valid_and_unique(): void {
 		$used = [ 'nome' => true ];
 
@@ -295,6 +447,18 @@ final class MigrationTest extends WP_UnitTestCase {
 			[ 'citta_e_cap', 'citta_e_cap_2', 'field_2_nome', 'field', 'nome_2' ],
 			[ barrio_migration_key( 'Città e CAP', $used ), barrio_migration_key( 'citta-e-cap', $used ), barrio_migration_key( '2 nome', $used ), barrio_migration_key( '', $used ), barrio_migration_key( 'Nome', $used ) ]
 		);
+	}
+
+	/**
+	 * @param array<string, int> $params
+	 * @return array<string, mixed>
+	 */
+	private function post( array $params, bool $dry_run = true ): array {
+		$request = new WP_REST_Request( 'POST', '/barrio/v1/migration/forms' );
+		$request->set_body_params( [ 'dry_run' => $dry_run ] + $params );
+		$response = rest_get_server()->dispatch( $request );
+		$this->assertSame( 200, $response->get_status() );
+		return $response->get_data();
 	}
 
 	/** @return array<string, list<string>> */
@@ -311,7 +475,7 @@ final class MigrationTest extends WP_UnitTestCase {
 	// I dati come li scriveva il prototipo: form, traduzione inglese, una registrazione dal sito e una da GraphQL.
 	private function prototype(): void {
 		global $wpdb;
-		$fields   = [
+		$fields = [
 			[
 				'name'        => 'nome',
 				'type'        => 'text',
@@ -366,6 +530,14 @@ final class MigrationTest extends WP_UnitTestCase {
 				'label'    => 'Privacy',
 				'required' => true,
 				'options'  => [ 'Accetto la <a href="/privacy/">privacy</a>' ],
+			],
+			// Solo un prototipo modificato sul server ha multiple.
+			[
+				'name'     => 'sedi',
+				'type'     => 'select',
+				'label'    => 'Sedi',
+				'multiple' => true,
+				'options'  => [ 'Torino', 'Milano' ],
 			],
 		];
 		$settings = [
@@ -433,6 +605,10 @@ final class MigrationTest extends WP_UnitTestCase {
 						[],
 						[ 'label' => 'CV' ],
 						[ 'options' => [ 'I accept the <a href="/en/privacy/">privacy policy</a>' ] ],
+						[
+							'label'   => 'Offices',
+							'options' => [ 'Turin', 'Milan' ],
+						],
 					]
 				),
 				'settings_i18n' => wp_json_encode(
@@ -479,6 +655,10 @@ final class MigrationTest extends WP_UnitTestCase {
 						'label' => 'Privacy',
 						'value' => [ 'Accetto la privacy' ],
 					],
+					'sedi'      => [
+						'label' => 'Sedi',
+						'value' => [ 'Milano' ],
+					],
 					'_file_cv'  => [
 						'label'   => 'CV',
 						'value'   => 'cv.pdf',
@@ -519,6 +699,11 @@ final class MigrationTest extends WP_UnitTestCase {
 					'privacy'       => [
 						'label' => 'Privacy',
 						'value' => 'I accept the privacy policy: true',
+					],
+					// Il frontend di quel prototipo univa i valori con |.
+					'sedi'          => [
+						'label' => 'Offices',
+						'value' => 'Turin|Milan',
 					],
 					'vecchio_campo' => [
 						'label' => 'Old field',

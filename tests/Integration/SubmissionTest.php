@@ -62,6 +62,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 			[
 				'name'        => "  Ada \n  Lovelace ",
 				'topics'      => [ 'news', 'events', 'news' ],
+				'areas'       => [ 'mi', 'to' ],
 				// Valore fisso nella config: quello inviato non conta.
 				'source'      => 'tampered',
 				'_barrio_url' => 'https://example.org/contatti/?email=ada@example.com#form',
@@ -84,6 +85,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 				'email'   => [ 'ada@example.com' ],
 				'request' => [ 'info' ],
 				'topics'  => [ 'news', 'events' ],
+				'areas'   => [ 'mi', 'to' ],
 				'privacy' => [ '1' ],
 				'source'  => [ 'landing' ],
 			],
@@ -113,6 +115,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 			[
 				'request' => 'other',
 				'topics'  => [ 'news', 'spam' ],
+				'areas'   => [ 'to', 'cn' ],
 				'privacy' => 'no',
 			]
 		);
@@ -126,6 +129,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 				'email'   => 'We need your email.',
 				'request' => 'Please choose one of the available options.',
 				'topics'  => 'Please choose one of the available options.',
+				'areas'   => 'Please choose one of the available options.',
 				'privacy' => 'This field is required.',
 			],
 			$this->errors( $response )
@@ -275,9 +279,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_entry_proves_the_version_the_visitor_saw(): void {
-		$seen = (int) $this->form->current->id;
-		// Una registrazione tiene in vita la versione 1 dopo il salvataggio.
-		$this->post( self::VALID );
+		$seen   = (int) $this->form->current->id;
 		$fields = [ ...self::fields(), new Field( 'phone', 'tel', [ 'en' => [ 'label' => 'Phone' ] ], true ) ];
 		$form   = FormRepository::save( $this->form->id, 1, 'Contact', $this->form->i18n, [], new FormVersion( $fields ) );
 		$this->assertInstanceOf( Form::class, $form );
@@ -333,7 +335,7 @@ final class SubmissionTest extends WP_UnitTestCase {
 		$data = rest_do_request( new WP_REST_Request( 'GET', "/barrio/v1/forms/{$this->form->id}" ) )->get_data();
 
 		$this->assertSame( [ $this->form->id, 'active', 'en', $this->form->current->id, 'Send' ], [ $data['id'], $data['status'], $data['lang'], $data['version_id'], $data['submit_label'] ] );
-		$this->assertSame( [ 'name', 'email', 'request', 'budget', 'topics', 'cv', 'next', 'privacy', 'source' ], array_column( $data['fields'], 'key' ) );
+		$this->assertSame( [ 'name', 'email', 'request', 'budget', 'topics', 'areas', 'cv', 'next', 'privacy', 'source' ], array_column( $data['fields'], 'key' ) );
 		$this->assertSame(
 			[
 				[
@@ -348,7 +350,8 @@ final class SubmissionTest extends WP_UnitTestCase {
 			$data['fields'][2]['options']
 		);
 		$this->assertSame( 'request', $data['fields'][3]['conditions']['rules'][0]['field'] );
-		$this->assertSame( 'I agree to the <a href="/privacy">policy</a>alert(1)', $data['fields'][7]['label'] );
+		$this->assertTrue( $data['fields'][5]['config']->multiple );
+		$this->assertSame( 'I agree to the <a href="/privacy">policy</a>alert(1)', $data['fields'][8]['label'] );
 	}
 
 	/** @return list<Field> */
@@ -397,6 +400,16 @@ final class SubmissionTest extends WP_UnitTestCase {
 				]
 			),
 			new Field( 'topics', 'checkbox', [ 'en' => [ 'label' => 'Topics' ] ], false, [ 'choices' => [ 'news', 'events' ] ] ),
+			new Field(
+				'areas',
+				'select',
+				[ 'en' => [ 'label' => 'Areas' ] ],
+				false,
+				[
+					'multiple' => true,
+					'choices'  => [ 'to', 'mi' ],
+				]
+			),
 			new Field(
 				'cv',
 				'file',

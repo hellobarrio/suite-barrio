@@ -14,6 +14,8 @@ function barrio_migration_analytics_run( bool $dry_run, array &$report ): ?WP_Er
 	if ( ! $saved && ! $tokens ) {
 		return new WP_Error( 'barrio_migration_no_prototype', 'There are no analytics settings of Suite Barrio in this database.' );
 	}
+	barrio_migration_unknown_options( 'Analytics', [ 'suite_barrio_stats_' ], [ 'suite_barrio_stats_settings', 'suite_barrio_stats_tokens' ], $report['warnings'] );
+	barrio_migration_unknown( 'Analytics, suite_barrio_stats_settings', $saved, [ 'client_id', 'client_secret', 'property_id', 'replace_dashboard' ], $report['warnings'] );
 	$number   = preg_replace( '/\D/', '', (string) ( $saved['property_id'] ?? '' ) );
 	$property = '' === $number ? '' : "properties/{$number}";
 	$replace  = ! empty( $saved['replace_dashboard'] );

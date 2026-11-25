@@ -80,6 +80,16 @@ final class FieldTypes {
 				'description' => __( 'A regular expression the whole value must match, for example [0-9]{5}.', 'barrio-suite' ),
 			],
 		];
+		// I valori delle scelte, in ordine; le etichette tradotte stanno nei testi (options).
+		$choices = [
+			'choices' => $list(
+				[
+					'minLength' => 1,
+					'maxLength' => 255,
+				],
+				__( 'Choices', 'barrio-suite' )
+			),
+		];
 		// WCAG 1.3.5; email e telefono lo dicono già col tipo. labels sono le voci del builder.
 		$autocomplete = [
 			'name'               => __( 'Full name', 'barrio-suite' ),
@@ -118,19 +128,17 @@ final class FieldTypes {
 					],
 				]
 			),
-			// I valori delle scelte, in ordine; le etichette tradotte stanno nei testi (options).
-			'select', 'radio', 'checkbox' => $object(
+			'select'                      => $object(
 				[
-					'choices' => $list(
-						[
-							'minLength' => 1,
-							'maxLength' => 255,
-						],
-						__( 'Choices', 'barrio-suite' )
-					),
-				],
+					'multiple' => [
+						'type'        => 'boolean',
+						'title'       => __( 'Multiple choices', 'barrio-suite' ),
+						'description' => __( 'Visitors can pick more than one choice. Better than checkboxes when the choices are many.', 'barrio-suite' ),
+					],
+				] + $choices,
 				[ 'choices' ]
 			),
+			'radio', 'checkbox'           => $object( $choices, [ 'choices' ] ),
 			'file'                        => $object(
 				[
 					'extensions'  => $list( [ 'pattern' => '^[a-z0-9]+$' ], __( 'Allowed extensions', 'barrio-suite' ) ),
@@ -194,15 +202,19 @@ final class FieldTypes {
 		return Conditions::check( $field->conditions );
 	}
 
+	// Più di un valore: la checkbox e la select multipla.
+	public static function multiple( Field $field ): bool {
+		return 'checkbox' === $field->type || ( 'select' === $field->type && ! empty( $field->config['multiple'] ) );
+	}
+
 	/**
-	 * Il valore inviato come lista di stringhe non vuote: una checkbox ne ha più d'uno, un campo
-	 * vuoto nessuno. Per file $raw è l'elemento di $_FILES e il valore è il nome del file.
+	 * Il valore inviato come lista di stringhe non vuote: una checkbox o una select multipla ne ha
+	 * più d'uno, un campo vuoto nessuno. Per file $raw è l'elemento di $_FILES e il valore è il nome del file.
 	 *
 	 * @return list<string>
 	 */
 	public static function normalize( Field $field, mixed $raw ): array {
-		$values = match ( $field->type ) {
-			'checkbox'   => array_map( [ self::class, 'line' ], is_array( $raw ) ? array_values( $raw ) : [ $raw ] ),
+		$values = self::multiple( $field ) ? array_map( [ self::class, 'line' ], is_array( $raw ) ? array_values( $raw ) : [ $raw ] ) : match ( $field->type ) {
 			'textarea'   => [ self::text( $raw ) ],
 			'consent'    => [ in_array( $raw, [ true, 1, '1', 'on', 'true' ], true ) ? '1' : '' ],
 			// Il valore fisso viene dalla config, non dal client.
@@ -261,11 +273,23 @@ final class FieldTypes {
 				) . '></textarea>';
 
 			case 'select':
-				$options = '<option value="">' . esc_html( $text['placeholder'] ?? '' ) . '</option>';
+				$multiple = self::multiple( $field );
+				// In una select multipla l'opzione vuota si potrebbe scegliere, e conterebbe per required.
+				$options = $multiple ? '' : '<option value="">' . esc_html( $text['placeholder'] ?? '' ) . '</option>';
 				foreach ( self::choices( $field, $text ) as $choice ) {
 					$options .= sprintf( '<option value="%s">%s</option>', esc_attr( $choice['value'] ), esc_html( $choice['label'] ) );
 				}
-				return $above . '<select' . self::attrs( $attrs ) . ">{$options}</select>";
+				$hint = '';
+				if ( $multiple ) {
+					$attrs                     = [
+						'name'     => "{$field->key}[]",
+						'multiple' => true,
+					] + $attrs;
+					$attrs['aria-describedby'] = "{$id}-hint {$id}-error";
+					// Su desktop un clic senza Ctrl o Cmd sostituisce la scelta di prima. form.css lo nasconde sui telefoni.
+					$hint = sprintf( '<p class="barrio-form__hint" id="%s-hint">%s</p>', esc_attr( $id ), esc_html__( 'Hold Ctrl (⌘ on Mac) to pick more than one.', 'barrio-suite' ) );
+				}
+				return $above . '<select' . self::attrs( $attrs ) . ">{$options}</select>{$hint}";
 
 			case 'radio':
 			case 'checkbox':

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Barrio Suite Migration
- * Description:       Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with one WP-CLI command per module: forms, SEO, popups, banners, opening hours, company details, blocks, ordering, duplicate, alt text and analytics. Once done, it can be removed.
+ * Description:       Moves the data of Suite Barrio, the previous plugin, to Barrio Suite from Barrio → Migration, one module at a time: forms, SEO, company details, popups, banners, opening hours, blocks, ordering, duplication, alt text and analytics. Once done, it can be removed.
  * Version:           0.1.0
  * Requires at least: 6.9
  * Requires PHP:      8.2
@@ -18,6 +18,7 @@
 // Ogni barrio_migration_{modulo}_run( $dry_run, &$report ) riempie il report (BarrioMigrationReport in
 // phpstan.neon.dist) e restituisce null, o un WP_Error se non c'è niente da migrare.
 
+use BarrioSuite\Admin;
 use BarrioSuite\Database\Db;
 use BarrioSuite\Modules;
 
@@ -38,12 +39,13 @@ require __DIR__ . '/alt.php';
 require __DIR__ . '/analytics.php';
 
 // I moduli di Barrio Suite con il nome del loro modulo nel prototipo (Suite Barrio → Strumenti). stats e info_azienda
-// non sono tra gli strumenti: nel prototipo sono sempre accesi.
+// non sono tra gli strumenti: nel prototipo sono sempre accesi. Nell'ordine della pagina Migrazione, dopo Forms e SEO:
+// Dati aziendali prende Info Azienda e, dove non ha niente, lo schema del SEO.
 const BARRIO_MIGRATION_MODULES = [
+	'company'   => 'info_azienda',
 	'popups'    => 'popups',
 	'banners'   => 'banners',
 	'hours'     => 'orari',
-	'company'   => 'info_azienda',
 	'blocks'    => 'blocks',
 	'ordering'  => 'orders',
 	'duplicate' => 'duplicate',
@@ -61,6 +63,11 @@ add_action(
 		if ( class_exists( Modules::class ) ) {
 			barrio_migration_seo_boot();
 			barrio_migration_modules_boot();
+			add_action( 'admin_notices', 'barrio_migration_notice' );
+			// Prima di Estensioni e Impostazioni (Admin::menu_end(), 11, aggiunta dopo).
+			add_action( 'admin_menu', 'barrio_migration_menu', 11 );
+			add_action( 'rest_api_init', 'barrio_migration_rest' );
+			add_filter( 'barrio_admin_data', 'barrio_migration_admin_data' );
 		}
 	},
 	9
@@ -74,33 +81,9 @@ function barrio_migration_modules_boot(): void {
 			Modules::set( $module, false );
 			update_option( "barrio_migration_{$module}", 'held' );
 		}
-		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			WP_CLI::add_command(
-				"barrio {$module} migrate",
-				static function ( array $args, array $assoc ) use ( $module ): void {
-					barrio_migration_module_command( $module, isset( $assoc['dry-run'] ) );
-				},
-				[
-					'shortdesc' => "Moves the {$module} data of Suite Barrio to Barrio Suite, then turns the module of Suite Barrio off and the one of Barrio Suite on.",
-					'synopsis'  => [
-						[
-							'type'        => 'flag',
-							'name'        => 'dry-run',
-							'optional'    => true,
-							'description' => 'Shows the counts and warnings without saving anything.',
-						],
-					],
-				]
-			);
-		}
 	}
-	add_action( 'admin_notices', 'barrio_migration_modules_notice' );
 	barrio_migration_popups_boot();
 	barrio_migration_banners_boot();
-	add_action( 'barrio_hours_changed', static fn() => barrio_migration_revalidate( 'wp:orari' ) );
-	// wp:option nel frontend copre anche lo schema, che prende da qui nome, contatti e indirizzo.
-	add_action( 'barrio_company_changed', static fn() => barrio_migration_revalidate( 'wp:option' ) );
-	add_action( 'barrio_ordering_changed', static fn( string $kind, string $name ) => barrio_migration_revalidate( "wp:type:{$name}" ), 10, 2 );
 }
 
 // Il prototipo è attivo con quel modulo acceso.
@@ -108,78 +91,208 @@ function barrio_migration_prototype( string $module ): bool {
 	return function_exists( 'suite_barrio_tools_module_enabled' ) && suite_barrio_tools_module_enabled( $module );
 }
 
-function barrio_migration_modules_notice(): void {
+// I moduli trattenuti, con il link alla pagina che li migra.
+function barrio_migration_notice(): void {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	$held = array_filter( array_keys( BARRIO_MIGRATION_MODULES ), static fn( string $module ): bool => 'held' === get_option( "barrio_migration_{$module}" ) && ! Modules::is_enabled( $module ) );
+	$titles = barrio_migration_titles();
+	$held   = array_filter( [ 'seo', ...array_keys( BARRIO_MIGRATION_MODULES ) ], static fn( string $module ): bool => 'held' === get_option( "barrio_migration_{$module}" ) && ! Modules::is_enabled( $module ) );
 	if ( $held ) {
 		printf(
-			'<div class="notice notice-warning"><p>%s</p></div>',
-			sprintf(
-				/* translators: %s: list of WP-CLI commands. */
-				esc_html__( 'These modules of Barrio Suite stay off until the same modules of Suite Barrio are migrated, so the site does not get them twice. Run each command with --dry-run first: %s.', 'barrio-suite-migration' ),
-				implode( ', ', array_map( static fn( string $module ): string => "<code>wp barrio {$module} migrate</code>", $held ) ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- nomi fissi dei moduli.
-			)
+			'<div class="notice notice-warning"><p>%s <a href="%s">%s</a></p></div>',
+			esc_html(
+				sprintf(
+					/* translators: %s: list of module names. */
+					__( 'These modules of Barrio Suite stay off until the same modules of Suite Barrio are migrated, so the site does not get them twice: %s.', 'barrio-suite-migration' ),
+					implode( ', ', array_map( static fn( string $module ): string => $titles[ $module ][0], $held ) )
+				)
+			),
+			esc_url( admin_url( 'admin.php?page=barrio-migration' ) ),
+			esc_html__( 'Migrate them', 'barrio-suite-migration' )
 		);
 	}
 }
 
-// Il ponte verso la revalidation di Next.js del prototipo, finché è attivo, con i suoi tag.
-function barrio_migration_revalidate( string $tag ): void {
-	if ( function_exists( 'suite_barrio_invalidate_vercel_cache' ) ) {
-		suite_barrio_invalidate_vercel_cache( $tag );
-	}
-}
-
-// L'indirizzo del frontend headless (GraphQL → Settings) da un URL del prototipo; vuoto se è quello di WordPress.
-function barrio_migration_frontend( string $url ): string {
-	$url = trim( $url );
-	$url = '' === $url ? '' : untrailingslashit( esc_url_raw( preg_match( '#^https?://#i', $url ) ? $url : "https://{$url}", [ 'http', 'https' ] ) );
-	return untrailingslashit( home_url() ) === $url ? '' : $url;
+/**
+ * Nome e descrizione di ogni passaggio, nell'ordine della pagina.
+ *
+ * @return array<string, array{string, string}>
+ */
+function barrio_migration_titles(): array {
+	return [
+		'forms'     => [ __( 'Forms', 'barrio-suite-migration' ), __( 'Forms with the same ID, their entries and uploaded files, notifications and settings. Last, the old shortcodes in contents, meta and widgets become [barrio_form].', 'barrio-suite-migration' ) ],
+		'seo'       => [ __( 'SEO', 'barrio-suite-migration' ), __( 'Settings, schema of the organization, meta of contents and terms, redirects.', 'barrio-suite-migration' ) ],
+		'company'   => [ __( 'Company details', 'barrio-suite-migration' ), __( 'The company details of Suite Barrio (Info Azienda) first, then the SEO schema where Info Azienda has nothing. Only in the empty fields.', 'barrio-suite-migration' ) ],
+		'popups'    => [ __( 'Popups', 'barrio-suite-migration' ), __( 'Popups with their translations: the active one stays on.', 'barrio-suite-migration' ) ],
+		'banners'   => [ __( 'Banners', 'barrio-suite-migration' ), __( 'Banners with their translations: the active one stays on.', 'barrio-suite-migration' ) ],
+		'hours'     => [ __( 'Opening hours', 'barrio-suite-migration' ), __( 'The Google Place ID and the last week read from Google.', 'barrio-suite-migration' ) ],
+		'blocks'    => [ __( 'Blocks', 'barrio-suite-migration' ), __( 'The blocks allowed to each role and the editor of each content type.', 'barrio-suite-migration' ) ],
+		'ordering'  => [ __( 'Ordering', 'barrio-suite-migration' ), __( 'The sortable types and taxonomies, with the order of the terms.', 'barrio-suite-migration' ) ],
+		'duplicate' => [ __( 'Duplication', 'barrio-suite-migration' ), __( 'The content types with the Duplicate link.', 'barrio-suite-migration' ) ],
+		'alt'       => [ __( 'Alt text', 'barrio-suite-migration' ), __( 'The alt text written on upload.', 'barrio-suite-migration' ) ],
+		'analytics' => [ __( 'Analytics', 'barrio-suite-migration' ), __( 'The Google Analytics property, checked with the service account.', 'barrio-suite-migration' ) ],
+	];
 }
 
 /**
- * Una revalidation a ogni inizio e fine futuri degli accesi, perché lì cambia ciò che il frontend mostra senza che
- * niente si salvi. Il timestamp negli argomenti tiene distinti due eventi a meno di 10 minuti.
+ * I passaggi di Barrio → Migration, nell'ordine in cui farli. status: pending, migrated o empty (niente da migrare);
+ * items: ciò che la pagina chiede uno per richiesta (i form), prima di chiudere con una senza item.
  *
- * @param callable(): list<array{is_enabled: bool, starts_at: string|null, ends_at: string|null}> $all
+ * @return list<array{id: string, title: string, description: string, status: string, path: string, items: list<int>, columns: array<string, string>}>
  */
-function barrio_migration_schedule( string $hook, callable $all ): void {
-	wp_unschedule_hook( $hook );
-	if ( ! function_exists( 'suite_barrio_invalidate_vercel_cache' ) ) {
-		return;
-	}
-	foreach ( array_filter( $all(), static fn( array $item ): bool => $item['is_enabled'] ) as $item ) {
-		foreach ( [ $item['starts_at'], $item['ends_at'] ] as $date ) {
-			$time = null === $date ? 0 : (int) strtotime( "{$date} UTC" );
-			if ( $time > time() ) {
-				wp_schedule_single_event( $time, $hook, [ $time ] );
+function barrio_migration_steps(): array {
+	$titles = barrio_migration_titles();
+	$counts = [
+		'data'     => __( 'Data', 'barrio-suite-migration' ),
+		'found'    => __( 'Found', 'barrio-suite-migration' ),
+		'migrated' => __( 'Migrated', 'barrio-suite-migration' ),
+		'skipped'  => __( 'Skipped', 'barrio-suite-migration' ),
+	];
+	$steps  = [];
+	foreach ( barrio_migration_ids() as $id ) {
+		$columns = $counts;
+		$items   = [];
+		if ( 'forms' === $id ) {
+			[ $items, $pending ] = barrio_migration_forms_ids();
+			$status              = $pending ? 'pending' : ( $items ? 'migrated' : 'empty' );
+			$columns             = [
+				'id'            => __( 'ID', 'barrio-suite-migration' ),
+				'title'         => __( 'Form', 'barrio-suite-migration' ),
+				'entries'       => __( 'Entries', 'barrio-suite-migration' ),
+				'migrated'      => __( 'Migrated', 'barrio-suite-migration' ),
+				'files'         => __( 'Files', 'barrio-suite-migration' ),
+				'missing_files' => __( 'Missing files', 'barrio-suite-migration' ),
+				'result'        => __( 'Result', 'barrio-suite-migration' ),
+			];
+		} else {
+			$state  = get_option( "barrio_migration_{$id}" );
+			$status = match ( true ) {
+				'migrated' === $state => 'migrated',
+				'held' === $state || barrio_migration_prototype( BARRIO_MIGRATION_MODULES[ $id ] ?? 'seo' ) => 'pending',
+				default => 'empty',
+			};
+			if ( 'seo' === $id ) {
+				$columns = array_slice( $counts, 0, 3 ) + [ 'default' => __( 'Default', 'barrio-suite-migration' ) ] + $counts;
 			}
 		}
+		$steps[] = [
+			'id'          => $id,
+			'title'       => $titles[ $id ][0],
+			'description' => $titles[ $id ][1],
+			'status'      => $status,
+			'path'        => "/barrio/v1/migration/{$id}",
+			'items'       => $items,
+			'columns'     => $columns,
+		];
+	}
+	return $steps;
+}
+
+// Forms solo con il suo modulo acceso: scrive con le sue classi e nelle sue tabelle.
+/** @return list<string> */
+function barrio_migration_ids(): array {
+	return [ ...( Modules::is_enabled( 'forms' ) ? [ 'forms' ] : [] ), 'seo', ...array_keys( BARRIO_MIGRATION_MODULES ) ];
+}
+
+// Solo con qualcosa da migrare: un modulo del prototipo acceso, uno trattenuto o un form non ancora passato.
+function barrio_migration_menu(): void {
+	if ( current_user_can( 'manage_options' ) && in_array( 'pending', array_column( barrio_migration_steps(), 'status' ), true ) ) {
+		Admin::add_page( 'barrio-migration', __( 'Migration', 'barrio-suite-migration' ), 'manage_options' );
 	}
 }
 
-/** @param key-of<BARRIO_MIGRATION_MODULES> $module */
-function barrio_migration_module_command( string $module, bool $dry_run ): void {
-	$report = barrio_migration_module_run( $module, $dry_run );
-	if ( $report instanceof WP_Error ) {
-		WP_CLI::error( $report->get_error_message() );
-	}
-	if ( $report['counts'] ) {
-		WP_CLI\Utils\format_items( 'table', $report['counts'], [ 'data', 'found', 'migrated', 'skipped' ] );
-	}
-	foreach ( $report['notes'] as $note ) {
-		WP_CLI::log( $note );
-	}
-	foreach ( $report['warnings'] as $warning ) {
-		WP_CLI::warning( $warning );
-	}
-	WP_CLI::success(
-		$dry_run
-			? 'Dry run: nothing was saved. Run the command without --dry-run to migrate.'
-			: "Migration complete: the {$module} module of Suite Barrio is off and the one of Barrio Suite is on. Empty the page cache."
+/**
+ * Per la pagina Migrazione del core, in window.barrioAdmin.migration.
+ *
+ * @param array<string, mixed> $data
+ * @return array<string, mixed>
+ */
+function barrio_migration_admin_data( array $data ): array {
+	return current_user_can( 'manage_options' ) ? $data + [ 'migration' => barrio_migration_steps() ] : $data;
+}
+
+function barrio_migration_rest(): void {
+	$admin = static fn(): bool => current_user_can( 'manage_options' );
+	register_rest_route(
+		'barrio/v1',
+		'/migration/(?P<step>[a-z]+)',
+		[
+			'methods'             => 'POST',
+			'callback'            => 'barrio_migration_rest_run',
+			'permission_callback' => $admin,
+			'args'                => [
+				'step'    => [
+					'type' => 'string',
+					'enum' => barrio_migration_ids(),
+				],
+				'dry_run' => [
+					'type'     => 'boolean',
+					'required' => true,
+				],
+				'item'    => [
+					'type'    => 'integer',
+					'minimum' => 1,
+				],
+			],
+		]
 	);
+}
+
+/**
+ * Un passaggio, o un suo item (un form), con il passaggio com'è dopo.
+ *
+ * @return array{rows: list<array<string, int|string>>, notes: list<string>, warnings: list<string>, step: array<string, mixed>}|WP_Error
+ */
+function barrio_migration_rest_run( WP_REST_Request $request ): array|WP_Error {
+	global $wpdb;
+	// Due richieste insieme creerebbero popup e banner due volte. Il lock cade con la connessione, quindi anche dopo un
+	// tempo scaduto; il nome include il database, come in Migrator.
+	$lock = 'barrio_migration_' . md5( DB_NAME . '.' . $wpdb->prefix ); // @phpstan-ignore constant.notFound (definita in wp-config.php)
+	if ( '1' !== Db::var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $lock ) ) ) {
+		return new WP_Error( 'barrio_migration_running', 'Another migration is running.', [ 'status' => 409 ] );
+	}
+	// Un form con molte registrazioni o file può durare: il limite si alza, mai si abbassa. Quello dell'hosting resta:
+	// un form interrotto si annulla da solo e si rilancia.
+	$limit = (int) ini_get( 'max_execution_time' );
+	if ( $limit > 0 && $limit < 300 && function_exists( 'set_time_limit' ) ) {
+		set_time_limit( 300 );
+	}
+	$step    = (string) $request['step'];
+	$dry_run = (bool) $request['dry_run'];
+	try {
+		$report = match ( true ) {
+			'forms' === $step => isset( $request['item'] ) ? barrio_migration_run( $dry_run, [ (int) $request['item'] ], false ) : barrio_migration_run( $dry_run, [] ),
+			'seo' === $step => barrio_migration_seo_run( $dry_run ),
+			array_key_exists( $step, BARRIO_MIGRATION_MODULES ) => barrio_migration_module_run( $step, $dry_run ),
+			default => new WP_Error( 'rest_invalid_param', 'Unknown step.' ),
+		};
+	} catch ( Throwable $e ) {
+		// Un errore del database (Db lancia RuntimeException) con il suo motivo, non come errore critico di WordPress.
+		return new WP_Error( 'barrio_migration_error', $e->getMessage(), [ 'status' => 500 ] );
+	} finally {
+		Db::var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+	}
+	if ( $report instanceof WP_Error ) {
+		return new WP_Error( $report->get_error_code(), $report->get_error_message(), [ 'status' => 400 ] );
+	}
+	return [
+		'rows'     => $report['forms'] ?? $report['counts'],
+		'notes'    => $report['notes'],
+		'warnings' => $report['warnings'],
+		'step'     => current( wp_list_filter( barrio_migration_steps(), [ 'id' => $step ] ) ),
+	];
+}
+
+// L'indirizzo del frontend headless (barrio_frontend, di barrio-suite-wpgraphql) da un URL del prototipo; vuoto se è
+// quello di WordPress, o se Barrio Suite ne ha già uno, che resta.
+function barrio_migration_frontend( string $url ): string {
+	$url = trim( $url );
+	if ( '' === $url || ! empty( ( (array) get_option( 'barrio_frontend', [] ) )['url'] ) ) {
+		return '';
+	}
+	$url = untrailingslashit( esc_url_raw( preg_match( '#^https?://#i', $url ) ? $url : "https://{$url}", [ 'http', 'https' ] ) );
+	return untrailingslashit( home_url() ) === $url ? '' : $url;
 }
 
 /**
@@ -229,7 +342,7 @@ function barrio_migration_tables( string $module ): ?WP_Error {
 	$migrator = Modules::migrator( $module );
 	$error    = $migrator->run();
 	if ( $error || ! $migrator->is_current() ) {
-		return $error ?? new WP_Error( 'barrio_migration_tables', "The tables of the Barrio Suite {$module} module are being created by another request: run the command again." );
+		return $error ?? new WP_Error( 'barrio_migration_tables', "The tables of the Barrio Suite {$module} module are being created by another request: migrate again." );
 	}
 	return null;
 }
@@ -277,6 +390,54 @@ function barrio_migration_shortcode_uses( array $tags ): array {
 		}
 	}
 	return $uses;
+}
+
+/**
+ * Un avviso per ogni dato pieno con una chiave che il prototipo, in tutta la storia del suo repo, non ha mai avuto: viene
+ * da una versione modificata per un sito, e senza avviso si perderebbe. Solo il nome: il valore
+ * può essere una chiave segreta.
+ *
+ * @param array<mixed>  $data
+ * @param list<string>  $known
+ * @param list<string>  $warnings
+ */
+function barrio_migration_unknown( string $where, array $data, array $known, array &$warnings ): void {
+	foreach ( array_keys( array_diff_key( array_filter( $data ), array_flip( $known ) ) ) as $key ) {
+		$warnings[] = "{$where}: Suite Barrio never had \"{$key}\" (a version changed for this site?), it was not migrated.";
+	}
+}
+
+/**
+ * Le opzioni del modulo, per prefisso, che il prototipo non ha mai avuto. Quelle per ID (le colonne scelte di un form)
+ * valgono per il nome senza l'ID.
+ *
+ * @param list<string> $prefixes
+ * @param list<string> $known
+ * @param list<string> $warnings
+ */
+function barrio_migration_unknown_options( string $where, array $prefixes, array $known, array &$warnings ): void {
+	global $wpdb;
+	$options = [];
+	foreach ( $prefixes as $prefix ) {
+		foreach ( Db::col( $wpdb->prepare( 'SELECT option_name FROM %i WHERE option_name LIKE %s ORDER BY option_name', $wpdb->options, $wpdb->esc_like( $prefix ) . '%' ) ) as $name ) {
+			if ( ! in_array( preg_replace( '/_\d+$/', '', $name ), $known, true ) ) {
+				$options[ $name ] = get_option( $name );
+			}
+		}
+	}
+	barrio_migration_unknown( $where, $options, [], $warnings );
+}
+
+/**
+ * Le colonne di una tabella del prototipo che il prototipo non ha mai avuto, anche vuote: sono già una modifica.
+ *
+ * @param list<string> $known
+ * @param list<string> $warnings
+ */
+function barrio_migration_unknown_columns( string $where, string $table, array $known, array &$warnings ): void {
+	global $wpdb;
+	$columns = array_diff( Db::col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ) ), $known );
+	barrio_migration_unknown( $where, array_fill_keys( array_map( static fn( string $column ): string => "{$table}.{$column}", $columns ), true ), [], $warnings );
 }
 
 /**

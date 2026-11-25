@@ -53,6 +53,11 @@ function init( form ) {
 					) {
 						return control.checked ? [ control.value ] : [];
 					}
+					if ( control.type === 'select-multiple' ) {
+						return [ ...control.selectedOptions ].map(
+							( option ) => option.value
+						);
+					}
 					if ( control.type === 'file' ) {
 						return [ ...control.files ].map(
 							( file ) => file.name

@@ -10,7 +10,7 @@ GraphQL, e la risposta non arriva.
 Sul WordPress del sito servono Barrio Suite, `barrio-suite-wpgraphql` e i moduli accesi (Barrio → Settings → Modules).
 Con un modulo acceso, i nomi che ha anche il prototipo (`hbForm`, `hbSubmitForm`, `hbPopup`, `hbBanner`,
 `hbCompanyInfo`, `seo`, `hbSitemap`, `hbRedirects`, `hbLlms`) rispondono con lo schema nuovo, e le query vecchie danno
-errore. Se il sito ha ancora il prototipo, la migrazione (`wp barrio <modulo> migrate`, estensione
+errore. Se il sito ha ancora il prototipo, la migrazione (Barrio → Migration, estensione
 `barrio-suite-migration`) tiene spenti il SEO e gli altri moduli di Barrio Suite finché quelli del prototipo non sono
 migrati, e alla fine li accende; Forms no: è acceso da subito, quindi `hbForm` e `hbSubmitForm` cambiano appena
 `barrio-suite-wpgraphql` è attiva. Il frontend portato si pubblica quindi insieme all'estensione e alla migrazione. I
@@ -53,6 +53,7 @@ query getForm($id: Int!, $language: String = "it") {
         label
         placeholder
         isRequired
+        isMultiple
         pattern
         errorMessage
         min
@@ -82,6 +83,7 @@ query getForm($id: Int!, $language: String = "it") {
 | `id` del form | `databaseId` | `form.id` → `form.databaseId`: gli `id` HTML (`hbform${form.id}`) e `formId` dell'invio |
 | `fields { id }` | Tolto: era uguale a `name` | `field.name` |
 | `required` | `isRequired` | `field.required` → `field.isRequired`, nei campi e nelle regole di validazione |
+| `multiple` (solo in un prototipo modificato sul server) | `isMultiple`: `true` per una select multipla, `false` per tutti gli altri campi | `field.multiple` → `field.isMultiple`, nel tipo e nella scelta del componente (`MultiSelectCombobox`) |
 | `conditionalLogic.enabled` | Tolto: era sempre `true`. Un campo sempre visibile ha `conditionalLogic: null` | `!cl?.enabled` → `!cl` |
 | `action`: `show`, `hide` | `SHOW`, `HIDE` | `action === "show"` → `action === "SHOW"`; un default `?? "show"` → `?? "SHOW"` |
 | `logicType`: `all`, `any` | `ALL`, `ANY` | `logicType === "all"` → `logicType === "ALL"` |
@@ -120,7 +122,8 @@ L'input: `{ formId, fields: [{ name, value }], language, pageUrl }`.
 
 `message` resta com'era: il messaggio di successo, oppure il primo errore con la sua etichetta. Un invio rifiutato
 torna con `success: false`, non come errore GraphQL. I valori si inviano come prima: checkbox come
-`"Etichetta: true | Etichetta: false"` o valori separati da virgole, date come `dd/MM/yyyy` o `yyyy-MM-dd`, file come
+`"Etichetta: true | Etichetta: false"` o valori separati da virgole, la select multipla come la checkbox (un frontend
+con la select multipla univa i valori con `|`: ora con `,`), date come `dd/MM/yyyy` o `yyyy-MM-dd`, file come
 JSON `{"content": "<base64>", "filename": "cv.pdf"}`, il consenso come la checkbox con una scelta. I valori per le
 estensioni stanno tra i campi (`{ name: "_barrio_recaptcha", value: token }`). L'invio con l'application password del
 frontend non ha il limite per IP solo se il suo utente può scrivere contenuti (da Autore in su).
@@ -357,8 +360,16 @@ query getCompanyInfo {
     registrationNumber
     shareCapital
     invoiceCode
-    address { street postalCode locality region country mapsUrl }
-    operatingAddress { street postalCode locality region country mapsUrl }
+    address {
+      name street postalCode locality region country mapsUrl
+      phones { label value }
+      emails { label value }
+    }
+    offices {
+      name street postalCode locality region country mapsUrl
+      phones { label value }
+      emails { label value }
+    }
     profiles { network url }
   }
 }
@@ -373,12 +384,15 @@ query getCompanyInfo {
 | `partitaIva`, `codiceFiscale` | `vatId`, `taxCode` |
 | `rea`, `capitaleSociale`, `codiceUnivoco` | `registrationNumber`, `shareCapital`, `invoiceCode` |
 | `sedeLegale { via citta cap provincia googleMaps }` | `address { street locality postalCode region mapsUrl }`, più `country` (ISO 3166-1, come `IT`) |
-| `sedeOperativa { … }` | `operatingAddress { … }` |
+| `sedeOperativa { … }` | `offices { … }`, una lista: le sedi operative, la prima è quella del prototipo |
+| — | `name` in ogni sede, il nome facoltativo ("Magazzino di Milano") |
+| `telefoni { label value }`, `email { label value }` in una sede (solo prototipi modificati sul server) | `phones { label value }`, `emails { label value }` |
 | `social { facebook instagram linkedin twitter youtube telegram tiktok }` | `profiles { network url }` |
 | `sitoWeb` | Tolto: l'indirizzo del sito lo conosce il frontend (`process.env.SITE_DOMAIN`), quello di WordPress è `generalSettings { url }` |
 
-- Un dato vuoto è `null`, come prima. `address` è `null` senza indirizzo, `operatingAddress` è `null` quando la sede
-  operativa è la sede legale: `infoAzienda.sedeOperativa.via` → `company.operatingAddress?.street`.
+- Un dato vuoto è `null`, come prima. `address` è `null` senza indirizzo; `offices` è vuota quando la sede legale è
+  l'unica: `infoAzienda.sedeOperativa.via` → `company.offices[0]?.street`, oppure un `map` su tutte le sedi.
+- `phones` ed `emails` di una sede non sono mai `null`: vuote senza contatti. `label` è `null` se non c'è.
 - `profiles` è una lista al posto dei sette social fissi, nell'ordine scelto in WordPress. `network` è la rete
   riconosciuta dall'indirizzo (`facebook`, `instagram`, `linkedin`, `x`, `youtube`, `telegram`, `tiktok`, `whatsapp`,
   `pinterest`, `threads`), oppure `null` per un altro sito: `social.facebook` →
@@ -388,17 +402,33 @@ query getCompanyInfo {
 
 - `HB_Form_Type`: `id` → `databaseId`; `settings` senza `errorMessage` né `displayPageInfo`, con
   `afterSubmit: "MESSAGE" | "REDIRECT"`.
-- `inputField`: `required` → `isRequired`; `conditionalLogic` è
+- `inputField`: `required` → `isRequired`, `multiple` → `isMultiple`; `conditionalLogic` è
   `{ action: "SHOW" | "HIDE"; logicType: "ALL" | "ANY"; rules: { fieldName: string; operator: string; value: string | null }[] } | null`.
 - Il risultato dell'invio (`submitForm.ts`): `submissionId` → `entryId`,
   `errors: { name: string | null; message: string }[]`; senza `pageTitle` tra le opzioni.
 
 ## 9. Cache
 
-I tag non cambiano: finché il prototipo è attivo, `barrio-suite-migration` chiama la sua revalidation con gli stessi
-tag (`wp:popup`, `wp:banner`, `wp:orari`, `wp:option`, `wp:seo`…). Il salvataggio dei Dati aziendali manda
-`wp:option`, che deve stare sia in `getInfoAzienda` sia in `getSchema`, perché anche il JSON-LD prende da lì nome,
-contatti e indirizzo.
+I tag non cambiano: `barrio-suite-wpgraphql` chiama `GET {frontend}/api/revalidate/?tag=a,b` come il prototipo, con
+gli stessi tag (`wp:uri:…`, `wp:type:…`, `page_{id}`, `wp:menu`, `form_{id}`, `wp:popup`, `wp:banner`, `wp:orari`,
+`wp:option`, `wp:seo`…), all'indirizzo del frontend di Barrio → Impostazioni → Frontend headless (la migrazione lo
+prende dal sito web di Info Azienda). Il salvataggio dei Dati aziendali manda `wp:option`, che deve stare sia in `getInfoAzienda` sia in
+`getSchema`, perché anche il JSON-LD prende da lì nome, contatti e indirizzo.
+
+Il prototipo mandava `Authorization: Bearer YOUR_TOKEN` e la route non lo controllava: chiunque poteva svuotare la
+cache. Barrio Suite manda il token della stessa card (Token di revalidation); la route lo controlla quando il
+frontend ha `REVALIDATE_TOKEN`, all'inizio di `GET` in `app/api/revalidate/route.ts`:
+
+```ts
+const token = process.env.REVALIDATE_TOKEN;
+if (token && request.headers.get("authorization") !== `Bearer ${token}`) {
+  return Response.json({ message: "Invalid token" }, { status: 401 });
+}
+```
+
+Lo stesso valore va in WordPress e in `REVALIDATE_TOKEN` (`.env.example` senza valore, le variabili del progetto su
+Vercel). Svuota cache, nella stessa card (Svuota la cache), prova la chiamata: con un token diverso risponde 401.
+Finita la migrazione, il prototipo e `barrio-suite-migration` si eliminano: la revalidation resta.
 
 ## 10. Lista di controllo finale
 
@@ -418,4 +448,4 @@ Poi, a mano:
 - [ ] Un invio con un campo obbligatorio vuoto mostra l'errore sotto quel campo; uno riuscito fa ciò che dice
       `afterSubmit`.
 - [ ] I tipi TypeScript del §8, e la build del frontend (`npm run build`) senza errori.
-- [ ] I tag della cache del §9.
+- [ ] I tag della cache e il controllo del token del §9.

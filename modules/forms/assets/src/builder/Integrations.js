@@ -1,7 +1,7 @@
 // Integrazioni delle estensioni (Integrations.php): la scheda del builder con le impostazioni per
 // form, e SettingControl, usato anche per le impostazioni globali e per la config dei campi. Ogni
 // controllo viene dallo schema: title, description, enum (etichette in labels), options (una rotta REST
-// con le scelte), array, number e i formati del plugin field, field:tipi e field_map; il resto è un
+// con le scelte), array, number, boolean e i formati del plugin field, field:tipi e field_map; il resto è un
 // testo (le password le gestisce Settings.js). In un'altra lingua si cambiano solo le impostazioni
 // translatable.
 import apiFetch from '@wordpress/api-fetch';
@@ -9,10 +9,12 @@ import { useEffect, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import {
+	AddButton,
 	Card,
 	Fixed,
 	Icon,
 	Menu,
+	RemoveButton,
 	SectionHead,
 	Select,
 	Text,
@@ -357,6 +359,16 @@ export function SettingControl( {
 			/>
 		);
 	}
+	if ( 'boolean' === schema.type ) {
+		return (
+			<Toggle
+				label={ label }
+				help={ help }
+				checked={ value }
+				onChange={ onChange }
+			/>
+		);
+	}
 	if ( 'array' === schema.type ) {
 		return (
 			<ListInput label={ label } value={ value } onChange={ onChange } />
@@ -412,16 +424,12 @@ function FieldMap( { label, help, value, fields, onChange } ) {
 	return (
 		<>
 			<SectionHead title={ label } level={ 3 }>
-				<button
-					type="button"
-					className="barrio-button"
+				<AddButton
+					label={ __( 'Add a field', 'barrio-suite' ) }
 					onClick={ () =>
 						onChange( [ ...value, [ '', fields[ 0 ]?.key ?? '' ] ] )
 					}
-				>
-					<Icon name="plus-alt2" />
-					{ __( 'Add', 'barrio-suite' ) }
-				</button>
+				/>
 			</SectionHead>
 			{ value.length > 0 && (
 				<div className="barrio-choices">
@@ -447,18 +455,13 @@ function FieldMap( { label, help, value, fields, onChange } ) {
 								options={ fieldOptions( fields, null, key ) }
 								onChange={ ( v ) => set( i, [ remote, v ] ) }
 							/>
-							<button
-								type="button"
-								className="barrio-icon-button is-danger"
-								aria-label={ __( 'Remove', 'barrio-suite' ) }
+							<RemoveButton
 								onClick={ () =>
 									onChange(
 										value.filter( ( p, j ) => i !== j )
 									)
 								}
-							>
-								<Icon name="no-alt" />
-							</button>
+							/>
 						</div>
 					) ) }
 				</div>

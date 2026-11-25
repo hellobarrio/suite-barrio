@@ -4,16 +4,19 @@ import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
 
 import {
+	AddButton,
 	Card,
+	Details,
 	Group,
 	HowTo,
 	Icon,
 	Permissions,
+	RemoveButton,
+	SectionHead,
 	Text,
 	TextList,
-	Toggle,
 } from '../../../../assets/src/admin/ui.js';
-import { body, editable, problem } from './model.js';
+import { OFFICE, body, editable, officeTitle, problem } from './model.js';
 
 // Anche nella card Moduli di Barrio → Impostazioni.
 export const COMPANY = {
@@ -49,7 +52,7 @@ const FIELDS = [
 	[ 'email', __( 'Email', 'barrio-suite' ) ],
 	[ 'privacy_email', __( 'Privacy email', 'barrio-suite' ) ],
 	[ 'address', __( 'Registered office', 'barrio-suite' ) ],
-	[ 'operating_address', __( 'Operating office', 'barrio-suite' ) ],
+	[ 'offices', __( 'Operating offices', 'barrio-suite' ) ],
 ];
 
 // I nomi dello shortcode, come le card della pagina, ognuno con il nome leggibile accanto.
@@ -70,7 +73,7 @@ const GROUPS = [
 		__( 'Contacts', 'barrio-suite' ),
 		[ 'phone', 'mobile', 'email', 'certified_email', 'privacy_email' ],
 	],
-	[ __( 'Offices', 'barrio-suite' ), [ 'address', 'operating_address' ] ],
+	[ __( 'Offices', 'barrio-suite' ), [ 'address', 'offices' ] ],
 ];
 
 const Codes = ( { codes } ) => {
@@ -86,12 +89,89 @@ const Codes = ( { codes } ) => {
 	);
 };
 
-// I campi di una sede, con il link alla mappa.
-function AddressFields( { address, onChange } ) {
+// I telefoni o le email di una sede: il valore e l'etichetta facoltativa, una riga ciascuno.
+function Contacts( {
+	title,
+	level,
+	add,
+	label,
+	type,
+	maxLength,
+	values,
+	onChange,
+} ) {
+	const set = ( index, contact ) =>
+		onChange(
+			values.map( ( item, i ) => ( i === index ? contact : item ) )
+		);
+	return (
+		<>
+			<SectionHead title={ title } level={ level }>
+				<AddButton
+					label={ add }
+					onClick={ () =>
+						onChange( [ ...values, { label: '', value: '' } ] )
+					}
+				/>
+			</SectionHead>
+			{ values.length > 0 && (
+				<div className="barrio-choices">
+					{ values.map( ( contact, index ) => (
+						<div className="barrio-choice" key={ index }>
+							<Text
+								hideLabel
+								label={ label }
+								placeholder={ label }
+								type={ type }
+								maxLength={ maxLength }
+								value={ contact.value }
+								onChange={ ( value ) =>
+									set( index, { ...contact, value } )
+								}
+							/>
+							<Text
+								hideLabel
+								label={ __( 'Label', 'barrio-suite' ) }
+								placeholder={ __(
+									'Label, such as Sales',
+									'barrio-suite'
+								) }
+								value={ contact.label }
+								onChange={ ( text ) =>
+									set( index, { ...contact, label: text } )
+								}
+							/>
+							<RemoveButton
+								onClick={ () =>
+									onChange(
+										values.filter( ( v, i ) => i !== index )
+									)
+								}
+							/>
+						</div>
+					) ) }
+				</div>
+			) }
+		</>
+	);
+}
+
+// I campi di una sede, con il link alla mappa e i contatti. level è quello dei titoli dei contatti: 4 dentro un Details,
+// che ha già il suo h3.
+function AddressFields( { address, level = 3, onChange } ) {
 	const set = ( name ) => ( value ) =>
 		onChange( { ...address, [ name ]: value } );
 	return (
 		<>
+			<Text
+				label={ __( 'Office name', 'barrio-suite' ) }
+				help={ __(
+					'Optional, such as Head office or Milan warehouse. On the site it takes the place of Registered office or Operating office.',
+					'barrio-suite'
+				) }
+				value={ address.name }
+				onChange={ set( 'name' ) }
+			/>
 			<Text
 				label={ __( 'Street and number', 'barrio-suite' ) }
 				value={ address.street }
@@ -131,12 +211,38 @@ function AddressFields( { address, onChange } ) {
 				value={ address.maps_url }
 				onChange={ set( 'maps_url' ) }
 			/>
+			<Contacts
+				level={ level }
+				title={ __( 'Phones', 'barrio-suite' ) }
+				add={ __( 'Add phone', 'barrio-suite' ) }
+				label={ __( 'Phone', 'barrio-suite' ) }
+				type="tel"
+				maxLength={ 64 }
+				values={ address.phones }
+				onChange={ set( 'phones' ) }
+			/>
+			<Contacts
+				level={ level }
+				title={ __( 'Emails', 'barrio-suite' ) }
+				add={ __( 'Add email', 'barrio-suite' ) }
+				label={ __( 'Email', 'barrio-suite' ) }
+				type="email"
+				values={ address.emails }
+				onChange={ set( 'emails' ) }
+			/>
 		</>
 	);
 }
 
+// Module::data() toglie dal sito una sede senza indirizzo, anche con il nome e i contatti.
+const WITH_ADDRESS = __(
+	'An office is shown on the site only with an address.',
+	'barrio-suite'
+);
+
 function CompanyCards( { draft, set } ) {
 	const field = ( name ) => ( value ) => set( { ...draft, [ name ]: value } );
+	const setOffices = field( 'offices' );
 	return (
 		<>
 			<Card
@@ -251,6 +357,7 @@ function CompanyCards( { draft, set } ) {
 				className="barrio-wide"
 				icon="location"
 				title={ __( 'Registered office', 'barrio-suite' ) }
+				description={ WITH_ADDRESS }
 			>
 				<AddressFields
 					address={ draft.address }
@@ -261,22 +368,59 @@ function CompanyCards( { draft, set } ) {
 			<Card
 				className="barrio-wide"
 				icon="store"
-				title={ __( 'Operating office', 'barrio-suite' ) }
-			>
-				<Toggle
-					label={ __(
-						'Operating office different from the registered office',
-						'barrio-suite'
-					) }
-					checked={ draft.operating }
-					onChange={ field( 'operating' ) }
-				/>
-				{ draft.operating && (
-					<AddressFields
-						address={ draft.operating_address }
-						onChange={ field( 'operating_address' ) }
+				title={ __( 'Operating offices', 'barrio-suite' ) }
+				description={ `${ __(
+					'The other offices of the company, such as branches, warehouses or shops. Without them, the registered office is the only one.',
+					'barrio-suite'
+				) } ${ WITH_ADDRESS }` }
+				actions={
+					<AddButton
+						label={ __( 'Add office', 'barrio-suite' ) }
+						onClick={ () =>
+							setOffices( [ ...draft.offices, OFFICE ] )
+						}
 					/>
-				) }
+				}
+			>
+				{ draft.offices.map( ( office, index ) => (
+					<Details
+						// Con una sede in più o in meno i pannelli si rimontano chiusi: tolta una sede, la successiva non
+						// resta aperta con Rimuovi sotto il puntatore.
+						key={ `${ index }/${ draft.offices.length }` }
+						title={
+							officeTitle( office ) ||
+							__( 'New office', 'barrio-suite' )
+						}
+					>
+						<AddressFields
+							address={ office }
+							level={ 4 }
+							onChange={ ( next ) =>
+								setOffices(
+									draft.offices.map( ( item, i ) =>
+										i === index ? next : item
+									)
+								)
+							}
+						/>
+						<button
+							type="button"
+							className="barrio-button is-danger"
+							onClick={ () =>
+								setOffices(
+									draft.offices.filter(
+										( v, i ) => i !== index
+									)
+								)
+							}
+						>
+							<Icon name="trash" />
+							<span className="barrio-button__text">
+								{ __( 'Remove office', 'barrio-suite' ) }
+							</span>
+						</button>
+					</Details>
+				) ) }
 			</Card>
 
 			<TextList
@@ -299,9 +443,17 @@ function CompanyCards( { draft, set } ) {
 	);
 }
 
-// Un'email o un paese che il server rifiuterebbe, detti con il nome del campo (model.js).
-function problemMessage( [ field, type ] ) {
-	const label = Object.fromEntries( FIELDS )[ field ];
+// Un'email o un paese che il server rifiuterebbe, detti con il nome del campo o della sede operativa (model.js).
+function problemMessage( [ field, type, index ], data ) {
+	const label =
+		'offices' === field
+			? officeTitle( data.offices[ index ] ) ||
+				sprintf(
+					/* translators: %d: position of an operating office, like 2. */
+					__( 'Operating office %d', 'barrio-suite' ),
+					index + 1
+				)
+			: Object.fromEntries( FIELDS )[ field ];
 	return 'email' === type
 		? sprintf(
 				/* translators: %s: name of a field, like Certified email. */
@@ -327,7 +479,7 @@ export const companySection = {
 		const data = body( draft );
 		const wrong = problem( data );
 		return wrong
-			? Promise.reject( new Error( problemMessage( wrong ) ) )
+			? Promise.reject( new Error( problemMessage( wrong, data ) ) )
 			: apiFetch( { path: '/barrio/v1/company', method: 'PUT', data } );
 	},
 	Cards: CompanyCards,
@@ -417,14 +569,20 @@ export function CompanyCard() {
 						className="barrio-button is-primary"
 						href="?page=barrio-company"
 					>
-						{ __( 'Edit', 'barrio-suite' ) }
+						<Icon name="edit" />
+						<span className="barrio-button__text">
+							{ __( 'Edit', 'barrio-suite' ) }
+						</span>
 					</a>
 					{ canManageOptions && (
 						<a
 							className="barrio-button"
 							href="?page=barrio-company&tab=settings"
 						>
-							{ __( 'Settings', 'barrio-suite' ) }
+							<Icon name="admin-generic" />
+							<span className="barrio-button__text">
+								{ __( 'Settings', 'barrio-suite' ) }
+							</span>
 						</a>
 					) }
 				</div>

@@ -17,11 +17,6 @@ namespace {
 	/** @param array<string, mixed> $config */
 	function register_graphql_mutation( string $mutation_name, array $config ): void {}
 
-	/** @param array<string, mixed> $config */
-	function register_graphql_settings_field( string $group, array $config ): void {}
-
-	function get_graphql_setting( string $option_name, mixed $default_value = '', string $section_name = 'graphql_general_settings' ): mixed {}
-
 	function is_graphql_request(): bool {}
 }
 

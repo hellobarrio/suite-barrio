@@ -27,16 +27,29 @@ function barrio_wpgraphql_company_boot(): void {
 
 function barrio_wpgraphql_register_company(): void {
 	register_graphql_object_type(
+		'HbCompanyContact',
+		[
+			'description' => 'A phone number or an email of an office.',
+			'fields'      => [
+				'label' => barrio_wpgraphql_string( 'Optional, like Sales.' ),
+				'value' => barrio_wpgraphql_required( 'String' ),
+			],
+		]
+	);
+	register_graphql_object_type(
 		'HbCompanyAddress',
 		[
 			'description' => 'An office of the company.',
 			'fields'      => [
+				'name'       => barrio_wpgraphql_string( 'Optional, like Milan warehouse.' ),
 				'street'     => barrio_wpgraphql_string( 'Street and number.' ),
 				'postalCode' => barrio_wpgraphql_string(),
 				'locality'   => barrio_wpgraphql_string( 'The city.' ),
 				'region'     => barrio_wpgraphql_string( 'The province or region, like NA.' ),
 				'country'    => barrio_wpgraphql_string( 'ISO 3166-1 alpha-2, like IT.' ),
 				'mapsUrl'    => barrio_wpgraphql_string( 'A link to the office on a map.' ),
+				'phones'     => barrio_wpgraphql_list( 'HbCompanyContact', 'The phone numbers of the office.' ),
+				'emails'     => barrio_wpgraphql_list( 'HbCompanyContact', 'The emails of the office.' ),
 			],
 		]
 	);
@@ -71,14 +84,8 @@ function barrio_wpgraphql_register_company(): void {
 					'type'        => 'HbCompanyAddress',
 					'description' => 'The registered office. Null without an address.',
 				],
-				'operatingAddress'   => [
-					'type'        => 'HbCompanyAddress',
-					'description' => 'The operating office. Null when it is the registered office.',
-				],
-				'profiles'           => [
-					'type'        => [ 'non_null' => [ 'list_of' => [ 'non_null' => 'HbCompanyProfile' ] ] ],
-					'description' => 'In the order of Company details.',
-				],
+				'offices'            => barrio_wpgraphql_list( 'HbCompanyAddress', 'The operating offices, in the order of Company details. Empty when the registered office is the only one.' ),
+				'profiles'           => barrio_wpgraphql_list( 'HbCompanyProfile', 'In the order of Company details.' ),
 			],
 		]
 	);
@@ -95,16 +102,26 @@ function barrio_wpgraphql_register_company(): void {
 
 /** @return array<string, mixed> */
 function barrio_wpgraphql_company(): array {
-	$text    = static fn( string $value ): ?string => '' === trim( $value ) ? null : trim( $value );
-	$address = static fn( ?array $place ): ?array => null === $place ? null : [
+	$text     = static fn( string $value ): ?string => '' === trim( $value ) ? null : trim( $value );
+	$contacts = static fn( array $contacts ): array => array_map(
+		static fn( array $contact ): array => [
+			'label' => $text( $contact['label'] ),
+			'value' => $contact['value'],
+		],
+		$contacts
+	);
+	$address  = static fn( ?array $place ): ?array => null === $place ? null : [
+		'name'       => $text( $place['name'] ),
 		'street'     => $text( $place['street'] ),
 		'postalCode' => $text( $place['postal_code'] ),
 		'locality'   => $text( $place['locality'] ),
 		'region'     => $text( $place['region'] ),
 		'country'    => $text( $place['country'] ),
 		'mapsUrl'    => $text( $place['maps_url'] ),
+		'phones'     => $contacts( $place['phones'] ),
+		'emails'     => $contacts( $place['emails'] ),
 	];
-	$data    = Module::data();
+	$data     = Module::data();
 	return [
 		'name'               => $text( $data['name'] ),
 		'legalName'          => $text( $data['legal_name'] ),
@@ -119,7 +136,7 @@ function barrio_wpgraphql_company(): array {
 		'shareCapital'       => $text( $data['share_capital'] ),
 		'invoiceCode'        => $text( $data['invoice_code'] ),
 		'address'            => $address( $data['address'] ),
-		'operatingAddress'   => $address( $data['operating_address'] ),
+		'offices'            => array_map( $address, $data['offices'] ),
 		'profiles'           => array_map(
 			static fn( string $url ): array => [
 				'network' => barrio_wpgraphql_network( $url ),

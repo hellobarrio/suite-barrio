@@ -3,7 +3,8 @@
 const NUMBER = /^-?\d+(\.\d+)?$/;
 const numeric = ( ...values ) => values.every( ( v ) => NUMBER.test( v ) );
 
-// Una checkbox ha più valori: basta che uno soddisfi la regola (per != nessuno deve essere uguale).
+// Una checkbox o una select multipla ha più valori: basta che uno soddisfi la regola (per != nessuno
+// deve essere uguale).
 function test( values, operator, expected ) {
 	switch ( operator ) {
 		case '=':

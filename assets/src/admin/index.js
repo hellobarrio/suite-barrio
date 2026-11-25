@@ -45,6 +45,7 @@ import { Dashboard } from '../dashboard/Dashboard.js';
 import { Extensions } from '../extensions/Extensions.js';
 import { General } from '../general/General.js';
 import { Launch } from '../launch/Launch.js';
+import { Migration } from '../migration/Migration.js';
 import { Tabs } from './ui.js';
 import './admin.css';
 
@@ -103,6 +104,14 @@ const PAGES = {
 				sections={ [ performanceSection ] }
 			/>
 		),
+	},
+	'barrio-migration': {
+		title: __( 'Migration', 'barrio-suite' ),
+		description: __(
+			'The data of another plugin, moved to Barrio Suite one step at a time.',
+			'barrio-suite'
+		),
+		page: <Migration />,
 	},
 	'barrio-extensions': {
 		title: __( 'Extensions', 'barrio-suite' ),

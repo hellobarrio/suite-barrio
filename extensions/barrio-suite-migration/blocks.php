@@ -10,6 +10,8 @@ function barrio_migration_blocks_run( bool $dry_run, array &$report ): ?WP_Error
 	if ( false === $saved && ! barrio_migration_prototype( 'blocks' ) ) {
 		return new WP_Error( 'barrio_migration_no_prototype', 'There are no block settings of Suite Barrio in this database.' );
 	}
+	barrio_migration_unknown_options( 'Blocks', [ 'suite_barrio_blocks_' ], [ 'suite_barrio_blocks_settings' ], $report['warnings'] );
+	barrio_migration_unknown( 'Blocks, suite_barrio_blocks_settings', (array) $saved, [ 'enabled', 'allowed', 'gutenberg_post_types' ], $report['warnings'] );
 	if ( false !== get_option( 'barrio_blocks' ) ) {
 		$report['notes'][] = 'Blocks: Barrio Suite already has its settings, they stay as they are.';
 		return null;

@@ -24,14 +24,6 @@ function barrio_migration_banners_boot(): void {
 		},
 		20
 	);
-	add_action(
-		'barrio_banners_changed',
-		static function (): void {
-			barrio_migration_revalidate( 'wp:banner' );
-			barrio_migration_schedule( 'barrio_migration_banners_period', [ BannerRepository::class, 'all' ] );
-		}
-	);
-	add_action( 'barrio_migration_banners_period', static fn() => barrio_migration_revalidate( 'wp:banner' ) );
 }
 
 /** @param BarrioMigrationReport $report */
@@ -45,6 +37,11 @@ function barrio_migration_banners_run( bool $dry_run, array &$report ): ?WP_Erro
 	if ( $error ) {
 		return $error;
 	}
+	barrio_migration_unknown_columns( 'Banners', $table, [ 'id', 'title', 'link', 'link_target', 'active', 'created_at', 'updated_at' ], $report['warnings'] );
+	if ( barrio_migration_table_exists( "{$table}_translations" ) ) {
+		barrio_migration_unknown_columns( 'Banners', "{$table}_translations", [ 'id', 'banner_id', 'lang', 'title', 'link', 'link_target', 'updated_at' ], $report['warnings'] );
+	}
+	barrio_migration_unknown_options( 'Banners', [ 'suite_barrio_banners_' ], [ 'suite_barrio_banners_db_version', 'suite_barrio_banners_limit' ], $report['warnings'] );
 	$main   = I18n::languages()[0];
 	$texts  = barrio_migration_translations( "{$table}_translations", 'banner_id', $main );
 	$map    = array_map( 'intval', (array) get_option( 'barrio_migration_banners_ids', [] ) );

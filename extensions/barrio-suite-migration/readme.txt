@@ -12,11 +12,11 @@ Moves the data of Suite Barrio, the previous plugin, to Barrio Suite, one module
 
 == Description ==
 
-Run `wp barrio forms migrate --dry-run` to see the counts and warnings without saving anything, then `wp barrio forms migrate`. Forms keep their ID, old shortcodes are rewritten to `[barrio_form]`, uploaded files move to the protected folder; IP addresses, user agents and referrers are not imported. When the migration is done, delete the extension.
+Migrate from Barrio → Migration, which administrators see while there is something to migrate. One step per module, in the right order: forms, SEO, company details, popups, banners, opening hours, blocks, ordering, duplication, alt text and analytics. Each step has a dry run, which shows the counts and the warnings without saving anything, then Migrate, which opens after the dry run. Every step can be run again: what Barrio Suite already has stays as it is. The page reads the module switches of Suite Barrio, so Suite Barrio stays active, with its modules on, until the last step is migrated.
 
-For the SEO, run `wp barrio seo migrate --dry-run`, then `wp barrio seo migrate`: settings, schema, content and term meta and redirects move to Barrio Suite, then the SEO of Suite Barrio turns off and the one of Barrio Suite on. Until then, while the SEO of Suite Barrio is on, the extension keeps the SEO module of Barrio Suite off, so meta tags are not printed twice.
+Forms keep their ID, one form per request; old shortcodes in contents, meta and widgets are rewritten to `[barrio_form]` once every form is migrated; uploaded files move to the protected folder; IP addresses, user agents and referrers are not imported.
 
-For popups, banners, opening hours, company details, blocks, ordering, duplicate, alt text and analytics there is one command each: `wp barrio popups migrate`, `banners`, `hours`, `company`, `blocks`, `ordering`, `duplicate`, `alt` and `analytics`, always with `--dry-run` first. Company details come after the SEO, which already moves the name, contacts and address of the schema: they only fill the empty fields. Until a module of Suite Barrio is migrated, the extension keeps the same module of Barrio Suite off, so the site does not get two popups, two Duplicate links or the GraphQL types twice. At the end of each command the module of Suite Barrio turns off and the one of Barrio Suite on. The commands can be run again: what Barrio Suite already has stays as it is.
+Until a module of Suite Barrio is migrated, the extension keeps the same module of Barrio Suite off, so the site does not get meta tags, popups, Duplicate links or the GraphQL types twice. At the end of each step the module of Suite Barrio turns off and the one of Barrio Suite on. Company details come from Info Azienda first, then from the SEO schema where Info Azienda has nothing: they only fill the empty fields. When the migration is done, delete the extension.
 
 It needs Barrio Suite.
 

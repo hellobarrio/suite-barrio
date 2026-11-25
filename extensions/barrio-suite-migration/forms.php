@@ -1,10 +1,10 @@
 <?php
 // Il passaggio dal modulo Forms del prototipo: legge le sue tabelle wpb_* e le sue opzioni e scrive
 // con i Repository di Barrio Suite, che del prototipo non sa niente. Ogni form passa in una
-// transazione, con lo stesso ID; la prova a vuoto (--dry-run) è la stessa importazione, annullata
-// alla fine. I dati del prototipo restano dove sono, tranne i file caricati, che lasciano la cartella
-// pubblica degli upload per quella protetta. IP, user agent e referrer non si importano. Alla fine
-// gli shortcode del prototipo nei contenuti diventano [barrio_form]: poi l'estensione si può eliminare.
+// transazione, con lo stesso ID; la prova a vuoto è la stessa importazione, annullata alla fine. I
+// dati del prototipo restano dove sono, tranne i file caricati, che lasciano la cartella pubblica degli
+// upload per quella protetta. IP, user agent e referrer non si importano. Alla fine gli shortcode del
+// prototipo nei contenuti diventano [barrio_form]: poi l'estensione si può eliminare.
 
 use BarrioSuite\Database\Db;
 use BarrioSuite\Forms\Conditions;
@@ -30,6 +30,21 @@ const BARRIO_MIGRATION_TYPES   = [ 'text', 'email', 'textarea', 'tel', 'number',
 const BARRIO_MIGRATION_CHOICES = [ 'select', 'radio', 'checkbox' ];
 // Le estensioni che il prototipo elencava senza controllarle: un campo file di Barrio Suite vuole l'elenco.
 const BARRIO_MIGRATION_EXTENSIONS = [ 'jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv', 'zip' ];
+// Le chiavi del prototipo in tutte le sue versioni, anche quelle che non si migrano: le altre danno un avviso.
+// showFields è la logica condizionale prima di conditionalLogic, multiple viene da un prototipo modificato sul server.
+const BARRIO_MIGRATION_FIELD_KEYS        = [ 'id', 'name', 'type', 'label', 'placeholder', 'required', 'error_message', 'options', 'min', 'max', 'format', 'pattern', 'conditionalLogic', 'showFields', 'multiple' ];
+const BARRIO_MIGRATION_SETTINGS_KEYS     = [ 'submit_text', 'submit_label', 'success_message', 'after_submit', 'redirect_url', 'display_page_info', 'notifications', 'domain_email', 'email_logo_url', 'email_bg_color', 'email_header_color', 'email_sent_label', 'email_source_label', 'email_page_label', 'email_attachments_label', 'email_footer', 'mailjet_api_key', 'mailjet_secret_key', 'mailup_enabled', 'mailup_list_id', 'mailup_group_id', 'mailup_email_field', 'mailup_name_field', 'mailup_optin_field', 'mailup_field_map', 'mailchimp_enabled', 'mailchimp_list_id', 'mailchimp_email_field', 'mailchimp_optin_field', 'mailchimp_tags', 'mailchimp_consent_tags', 'mailchimp_field_map' ];
+const BARRIO_MIGRATION_NOTIFICATION_KEYS = [ 'notification_name', 'to_email', 'to_name', 'from_email', 'from_name', 'cc_email', 'cc_name', 'replyto_email', 'replyto_name', 'subject', 'email_title', 'message', 'message_mode', '_open' ];
+// I dati di servizio di una registrazione; _file_ e il nome sono i file.
+const BARRIO_MIGRATION_ENTRY_KEYS = [ '_page_url', '_page_title', '_page_referrer', '_lang' ];
+// Le opzioni globali con le loro chiavi; columns è per form (suite_barrio_forms_columns_{ID}).
+const BARRIO_MIGRATION_FORMS_OPTIONS = [
+	'suite_barrio_forms_mailjet'   => [ 'api_key', 'secret_key' ],
+	'suite_barrio_forms_mailchimp' => [ 'api_key' ],
+	'suite_barrio_forms_mailup'    => [ 'client_id', 'client_secret' ],
+	'suite_barrio_forms_recaptcha' => [ 'project_id', 'site_key', 'api_key' ],
+	'suite_barrio_forms_retention' => [ 'enabled', 'years', 'days' ],
+];
 
 /**
  * Solo le estensioni che WordPress ammette su questo sito: con le altre il form non si salverebbe.
@@ -46,23 +61,6 @@ function barrio_migration_forms_boot(): void {
 	// Per gli shortcode che la migrazione non riscrive (nei file del tema) o non ancora riscritti. Dopo il
 	// prototipo, che li registra al caricamento: se il suo modulo Forms è acceso restano suoi.
 	add_action( 'init', 'barrio_migration_shortcodes', 20 );
-	if ( defined( 'WP_CLI' ) && WP_CLI ) {
-		WP_CLI::add_command(
-			'barrio forms migrate',
-			'barrio_migration_command',
-			[
-				'shortdesc' => 'Moves the forms, entries, files and settings of Suite Barrio to Barrio Suite.',
-				'synopsis'  => [
-					[
-						'type'        => 'flag',
-						'name'        => 'dry-run',
-						'optional'    => true,
-						'description' => 'Runs the whole migration and rolls it back: nothing is saved and no file is moved.',
-					],
-				],
-			]
-		);
-	}
 }
 
 function barrio_migration_shortcodes(): void {
@@ -74,49 +72,11 @@ function barrio_migration_shortcodes(): void {
 }
 
 /**
- * @param list<string>          $args
- * @param array<string, string> $assoc
- */
-function barrio_migration_command( array $args, array $assoc ): void {
-	$dry_run = isset( $assoc['dry-run'] );
-	$report  = barrio_migration_run( $dry_run );
-	if ( $report instanceof WP_Error ) {
-		WP_CLI::error( $report->get_error_message() );
-	}
-	if ( $report['forms'] ) {
-		WP_CLI\Utils\format_items( 'table', $report['forms'], [ 'id', 'title', 'entries', 'migrated', 'files', 'missing_files', 'result' ] );
-	}
-	foreach ( $report['notes'] as $note ) {
-		WP_CLI::log( $note );
-	}
-	foreach ( $report['warnings'] as $warning ) {
-		WP_CLI::warning( $warning );
-	}
-	$failed = count( array_filter( $report['forms'], static fn( array $form ): bool => str_starts_with( $form['result'], 'error' ) ) );
-	if ( $failed ) {
-		WP_CLI::error( "{$failed} forms were not migrated (the others are" . ( $dry_run ? ' ready' : ' done' ) . '): fix them and run the command again. The shortcodes in the pages are rewritten once every form is in Barrio Suite.' );
-	}
-
-	// Gli shortcode del prototipo diventano [barrio_form] con lo stesso ID, ovunque WordPress li salvi:
-	// contenuti, dati dei page builder, widget (search-replace gestisce i dati serializzati). Solo con
-	// tutti i form migrati, perché un ID rimasto indietro mostrerebbe un altro form.
-	foreach ( [ 'suite_barrio_form', 'wpb_form' ] as $tag ) {
-		WP_CLI::runcommand( "search-replace '[{$tag}' '[barrio_form' --skip-columns=guid --report-changed-only" . ( $dry_run ? ' --dry-run' : '' ), [ 'launch' => false ] );
-	}
-	WP_CLI::success(
-		$dry_run
-			? 'Dry run: nothing was saved. Run the command without --dry-run to migrate.'
-			: 'Migration complete. Turn off the Forms module of Suite Barrio and empty the page cache. This extension is no longer needed, unless a theme file calls the old shortcodes (search it for suite_barrio_form and wpb_form).'
-	);
-}
-
-/**
- * Tutti i form, poi le impostazioni globali. Si può rilanciare: i form già migrati si saltano e le
- * impostazioni si copiano solo dove mancano.
+ * Le tabelle dei form del prototipo.
  *
- * @return array{forms: list<array{id: int, title: string, entries: int, migrated: int, files: int, missing_files: int, result: string}>, notes: list<string>, warnings: list<string>}|WP_Error
+ * @return array{forms: string, entries: string, i18n: ?string}|WP_Error
  */
-function barrio_migration_run( bool $dry_run ): array|WP_Error {
+function barrio_migration_forms_tables(): array|WP_Error {
 	global $wpdb;
 	$tables = [
 		'forms'   => "{$wpdb->prefix}wpb_forms",
@@ -130,29 +90,134 @@ function barrio_migration_run( bool $dry_run ): array|WP_Error {
 	if ( ! barrio_migration_table_exists( $tables['i18n'] ) ) {
 		$tables['i18n'] = null;
 	}
+	return $tables;
+}
 
+/**
+ * Gli ID dei form del prototipo e quelli ancora da migrare.
+ *
+ * @return array{list<int>, list<int>}
+ */
+function barrio_migration_forms_ids(): array {
+	global $wpdb;
+	$tables = barrio_migration_forms_tables();
+	$ids    = $tables instanceof WP_Error ? [] : array_map( 'intval', Db::col( $wpdb->prepare( 'SELECT id FROM %i ORDER BY id', $tables['forms'] ) ) );
+	return [ $ids, array_values( array_diff( $ids, array_map( 'intval', (array) get_option( 'barrio_migration_forms', [] ) ) ) ) ];
+}
+
+/**
+ * I form ($ids, o tutti), poi con $finish le impostazioni globali e gli shortcode. La pagina Migrazione chiede un
+ * form per richiesta, perché uno con molte registrazioni può durare, e alla fine il resto. Si può rilanciare: i form
+ * già migrati si saltano e le impostazioni si copiano solo dove mancano.
+ *
+ * @param list<int>|null $ids
+ * @return array{forms: list<array{id: int, title: string, entries: int, migrated: int, files: int, missing_files: int, result: string}>, notes: list<string>, warnings: list<string>}|WP_Error
+ */
+function barrio_migration_run( bool $dry_run, ?array $ids = null, bool $finish = true ): array|WP_Error {
+	global $wpdb;
+	$tables = barrio_migration_forms_tables();
+	if ( $tables instanceof WP_Error ) {
+		return $tables;
+	}
 	$main   = I18n::languages()[0];
 	$report = [
 		'forms'    => [],
 		'notes'    => [],
 		'warnings' => [],
 	];
+	$forms  = Db::rows( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id', $tables['forms'] ) );
+	foreach ( $forms as $row ) {
+		if ( null === $ids || in_array( (int) $row['id'], $ids, true ) ) {
+			$report['forms'][] = barrio_migration_form( $row, $tables, $main, $dry_run, $report['warnings'] );
+		}
+	}
+	if ( ! $finish ) {
+		return $report;
+	}
+
 	if ( function_exists( 'suite_barrio_forms_get' ) ) {
 		$report['warnings'][] = 'The Forms module of Suite Barrio is still on: what it receives from now on stays there. Turn it off in Suite Barrio → Tools.';
 	}
-	$forms     = Db::rows( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id', $tables['forms'] ) );
-	$languages = [ $main => true ];
-	foreach ( $forms as $row ) {
-		$report['forms'][] = barrio_migration_form( $row, $tables, $main, $dry_run, $report['warnings'], $languages );
+	barrio_migration_unknown_columns( 'Forms', $tables['forms'], [ 'id', 'title', 'slug', 'fields', 'settings', 'created_at', 'updated_at' ], $report['warnings'] );
+	barrio_migration_unknown_columns( 'Forms', $tables['entries'], [ 'id', 'form_id', 'data', 'lang', 'ip', 'user_agent', 'created_at' ], $report['warnings'] );
+	$languages = [ $main ];
+	if ( null !== $tables['i18n'] ) {
+		barrio_migration_unknown_columns( 'Forms', $tables['i18n'], [ 'id', 'form_id', 'lang', 'fields_i18n', 'settings_i18n', 'updated_at' ], $report['warnings'] );
+		foreach ( Db::col( $wpdb->prepare( 'SELECT DISTINCT lang FROM %i WHERE form_id IN (SELECT id FROM %i)', $tables['i18n'], $tables['forms'] ) ) as $lang ) {
+			$languages[] = barrio_migration_lang( $lang, $main );
+		}
 	}
-	$report['notes'][] = 1 === count( $languages ) ? "Language: {$main}." : 'Languages: ' . implode( ', ', array_keys( $languages ) ) . " ({$main} is the main one).";
+	barrio_migration_unknown_options( 'Forms', [ 'suite_barrio_forms_' ], [ ...array_keys( BARRIO_MIGRATION_FORMS_OPTIONS ), 'suite_barrio_forms_db_version', 'suite_barrio_forms_columns' ], $report['warnings'] );
+	foreach ( BARRIO_MIGRATION_FORMS_OPTIONS as $option => $keys ) {
+		barrio_migration_unknown( "Forms, {$option}", (array) get_option( $option, [] ), $keys, $report['warnings'] );
+	}
+	$languages         = array_unique( $languages );
+	$report['notes'][] = 1 === count( $languages ) ? "Language: {$main}." : 'Languages: ' . implode( ', ', $languages ) . " ({$main} is the main one).";
 
 	$orphans = (int) Db::var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE form_id NOT IN (SELECT id FROM %i)', $tables['entries'], $tables['forms'] ) );
 	if ( $orphans ) {
 		$report['warnings'][] = "Entries of forms deleted in Suite Barrio, not migrated: {$orphans}.";
 	}
 	barrio_migration_settings( $forms, $dry_run, $report );
+
+	// Un ID rimasto indietro mostrerebbe un altro form, o niente.
+	$pending = barrio_migration_forms_ids()[1];
+	if ( $pending && ! $dry_run ) {
+		$report['warnings'][] = count( $pending ) . ' forms are not migrated: fix them and migrate again. The shortcodes in the pages are rewritten once every form is in Barrio Suite.';
+	} else {
+		barrio_migration_forms_shortcodes( $dry_run, $report['notes'] );
+	}
 	return $report;
+}
+
+/**
+ * Gli shortcode del prototipo diventano [barrio_form] con lo stesso ID, ovunque WordPress li salvi: nei contenuti, nei
+ * meta (i page builder) e nelle opzioni (i widget), anche serializzati. I file del tema no: lì li tiene vivi
+ * barrio_migration_shortcodes() finché l'estensione è attiva.
+ *
+ * @param list<string> $notes
+ */
+function barrio_migration_forms_shortcodes( bool $dry_run, array &$notes ): void {
+	global $wpdb;
+	$old     = [ '[suite_barrio_form', '[wpb_form' ];
+	$like    = static fn( string $column ): string => implode( ' OR ', array_map( static fn( string $tag ): string => $wpdb->prepare( '%i LIKE %s', $column, '%' . $wpdb->esc_like( $tag ) . '%' ), $old ) );
+	$replace = static function ( mixed $value ) use ( &$replace, $old ): mixed {
+		if ( is_string( $value ) ) {
+			return str_replace( $old, '[barrio_form', $value );
+		}
+		if ( is_array( $value ) ) {
+			return array_map( $replace, $value );
+		}
+		// Gli oggetti che alcuni page builder serializzano nei meta.
+		if ( is_object( $value ) && ! $value instanceof __PHP_Incomplete_Class ) {
+			foreach ( get_object_vars( $value ) as $key => $item ) {
+				$value->$key = $replace( $item );
+			}
+		}
+		return $value;
+	};
+	$posts   = Db::col( "SELECT ID FROM {$wpdb->posts} WHERE " . $like( 'post_content' ) );
+	$meta    = Db::col( "SELECT meta_id FROM {$wpdb->postmeta} WHERE " . $like( 'meta_value' ) );
+	$options = Db::col( "SELECT option_name FROM {$wpdb->options} WHERE " . $like( 'option_value' ) );
+	if ( ! $posts && ! $meta && ! $options ) {
+		return;
+	}
+	$notes[] = ( $dry_run ? 'Shortcodes to rewrite' : 'Shortcodes rewritten' ) . ' as [barrio_form]: ' . count( $posts ) . ' contents, ' . count( $meta ) . ' meta, ' . count( $options ) . ' options.';
+	if ( $dry_run ) {
+		return;
+	}
+	Db::query( "UPDATE {$wpdb->posts} SET post_content = REPLACE(REPLACE(post_content, '[suite_barrio_form', '[barrio_form'), '[wpb_form', '[barrio_form') WHERE " . $like( 'post_content' ) );
+	array_map( 'clean_post_cache', array_map( 'intval', $posts ) );
+	// Deserializzati, sostituiti e salvati di nuovo: nel testo serializzato cambierebbero le lunghezze.
+	foreach ( $meta as $id ) {
+		$item = get_metadata_by_mid( 'post', (int) $id );
+		if ( $item ) {
+			update_metadata_by_mid( 'post', (int) $id, $replace( $item->meta_value ) );
+		}
+	}
+	foreach ( $options as $name ) {
+		update_option( $name, $replace( get_option( $name ) ) );
+	}
 }
 
 /**
@@ -161,10 +226,9 @@ function barrio_migration_run( bool $dry_run ): array|WP_Error {
  * @param array<string, string|null>                         $row
  * @param array{forms: string, entries: string, i18n: ?string} $tables
  * @param list<string>                                       $warnings
- * @param array<string, true>                                $languages
  * @return array{id: int, title: string, entries: int, migrated: int, files: int, missing_files: int, result: string}
  */
-function barrio_migration_form( array $row, array $tables, string $main, bool $dry_run, array &$warnings, array &$languages ): array {
+function barrio_migration_form( array $row, array $tables, string $main, bool $dry_run, array &$warnings ): array {
 	global $wpdb;
 	$id    = (int) $row['id'];
 	$title = mb_substr( trim( (string) $row['title'] ), 0, 191 ) ?: "Form {$id}";
@@ -178,6 +242,8 @@ function barrio_migration_form( array $row, array $tables, string $main, bool $d
 		'missing_files' => 0,
 		'result'        => '',
 	];
+	// Una richiesta finita con un errore fatale lascia in un object cache persistente il form che il rollback ha tolto.
+	wp_cache_delete( $id, FormRepository::CACHE_GROUP );
 	if ( null !== FormRepository::get( $id ) ) {
 		// Un altro form con questo ID prenderebbe il posto di questo nelle pagine e nei frontend.
 		$stats['result'] = in_array( $id, array_map( 'intval', (array) get_option( 'barrio_migration_forms', [] ) ), true ) ? 'skipped: already migrated' : 'error: another Barrio Suite form has this ID';
@@ -196,18 +262,19 @@ function barrio_migration_form( array $row, array $tables, string $main, bool $d
 			}
 		}
 	}
-	$languages += array_fill_keys( array_keys( $texts ), true );
-	$form       = barrio_migration_definition( $title, $texts, $warnings );
+	$form = barrio_migration_definition( $title, $texts, $warnings );
 
 	// La versione 1 è l'archivio: anche i campi che oggi non ci sono più ma che le registrazioni hanno.
-	$extras = [];
-	$used   = array_fill_keys( array_map( static fn( Field $field ): string => $field->key, $form['fields'] ), true );
+	$extras  = [];
+	$service = []; // _page_url, _page_title, _lang: servizio, non campi.
+	$used    = array_fill_keys( array_map( static fn( Field $field ): string => $field->key, $form['fields'] ), true );
 	foreach ( barrio_migration_submissions( $tables['entries'], $id ) as $submission ) {
 		foreach ( $submission['data'] as $name => $item ) {
 			$name = (string) $name;
 			$file = str_starts_with( $name, '_file_' );
 			if ( ! is_array( $item ) || ( str_starts_with( $name, '_' ) && ! $file ) ) {
-				continue; // _page_url, _page_title, _lang: servizio, non campi.
+				$service[ $name ] = true;
+				continue;
 			}
 			if ( ! isset( $form['targets'][ $name ] ) ) {
 				$key                      = barrio_migration_key( $file ? substr( $name, 6 ) : $name, $used );
@@ -228,6 +295,7 @@ function barrio_migration_form( array $row, array $tables, string $main, bool $d
 			}
 		}
 	}
+	barrio_migration_unknown( "Form \"{$title}\", entries", $service, BARRIO_MIGRATION_ENTRY_KEYS, $warnings );
 	$archive = $form['fields'];
 	foreach ( $extras as $key => $extra ) {
 		$archive[] = new Field( $key, $extra['type'], [ $main => [ 'label' => $extra['label'] ] ], false, 'file' === $extra['type'] ? [ 'extensions' => barrio_migration_extensions( array_values( $extra['extensions'] ) ) ] : [] );
@@ -236,6 +304,19 @@ function barrio_migration_form( array $row, array $tables, string $main, bool $d
 	$stored    = []; // Le copie nella cartella protetta, da eliminare se la transazione si annulla.
 	$originals = []; // I file negli upload, da eliminare dopo il commit.
 	$dry_done  = false; // L'unica eccezione che non è un errore: il rollback voluto della prova a vuoto.
+	$finished  = $dry_run;
+	if ( ! $dry_run ) {
+		// Il tempo massimo di PHP è un errore fatale: il catch non gira, e le copie resterebbero senza una riga che le nomini.
+		add_action(
+			'shutdown',
+			static function () use ( $id, &$stored, &$finished ): void {
+				if ( ! $finished ) {
+					Db::query( 'ROLLBACK' );
+					barrio_migration_form_orphans( $id, $stored );
+				}
+			}
+		);
+	}
 	try {
 		Db::transaction(
 			static function () use ( $id, $title, $form, $archive, $extras, $tables, $main, $dry_run, $count, &$stats, &$stored, &$originals, &$dry_done ): void {
@@ -277,15 +358,32 @@ function barrio_migration_form( array $row, array $tables, string $main, bool $d
 			$stats['result'] = 'error: ' . $e->getMessage();
 			return $stats;
 		}
+	} finally {
+		$finished = true;
+	}
+	// Prima il form segnato come migrato, poi gli originali: una richiesta che finisce tra i due lascerebbe un form
+	// confermato che al rilancio sembra di un altro.
+	if ( ! $dry_run ) {
+		update_option( 'barrio_migration_forms', [ ...(array) get_option( 'barrio_migration_forms', [] ), $id ], false );
 	}
 	foreach ( $originals as $file ) {
 		wp_delete_file( $file );
 	}
-	if ( ! $dry_run ) {
-		update_option( 'barrio_migration_forms', [ ...(array) get_option( 'barrio_migration_forms', [] ), $id ], false );
-	}
 	$stats['result'] = $dry_run ? 'ready' : 'migrated';
 	return $stats;
+}
+
+/**
+ * Dopo un errore fatale a metà di un form, annullata la transazione: le copie dei file si eliminano, se il form non è
+ * stato confermato.
+ *
+ * @param list<string> $stored
+ */
+function barrio_migration_form_orphans( int $id, array $stored ): void {
+	wp_cache_delete( $id, FormRepository::CACHE_GROUP );
+	if ( null === FormRepository::get( $id ) ) {
+		array_map( [ FileStore::class, 'delete' ], $stored );
+	}
 }
 
 /**
@@ -302,11 +400,13 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 	$choices               = []; // Per chiave e lingua: etichetta inviata → valore della scelta.
 	$used                  = [];
 	$draft                 = [];
+	barrio_migration_unknown( "Form \"{$title}\"", $settings, BARRIO_MIGRATION_SETTINGS_KEYS, $warnings );
 	foreach ( array_values( $fields ) as $i => $field ) {
 		$field = (array) $field;
 		$type  = (string) ( $field['type'] ?? 'text' );
 		$name  = (string) ( $field['name'] ?? '' );
 		$label = (string) ( $field['label'] ?? '' );
+		barrio_migration_unknown( "Form \"{$title}\", field \"{$label}\"", $field, BARRIO_MIGRATION_FIELD_KEYS, $warnings );
 		if ( ! in_array( $type, BARRIO_MIGRATION_TYPES, true ) ) {
 			$warnings[] = "Form \"{$title}\", field \"{$label}\": the type \"{$type}\" does not exist in Barrio Suite, it is now a text field.";
 			$type       = 'text';
@@ -348,6 +448,8 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 			// Nel prototipo un limite vuoto era ''.
 			'number' => array_map( 'floatval', array_filter( array_intersect_key( $field, array_flip( [ 'min', 'max' ] ) ), 'is_numeric' ) ),
 			'file'   => [ 'extensions' => barrio_migration_extensions() ],
+			// multiple c'è solo in un prototipo modificato sul server, che lo salvava nel campo.
+			'select' => $values ? array_filter( [ 'multiple' => filter_var( $field['multiple'] ?? false, FILTER_VALIDATE_BOOLEAN ) ] ) + [ 'choices' => array_values( $values ) ] : [],
 			default  => $values ? [ 'choices' => array_values( $values ) ] : [],
 		};
 		if ( in_array( $type, BARRIO_MIGRATION_CHOICES, true ) && ! $values ) {
@@ -448,6 +550,7 @@ function barrio_migration_definition( string $title, array $texts, array &$warni
 			$warnings[] = "Form \"{$title}\", notification \"{$name}\": no recipient, so it was never sent; not migrated.";
 			continue;
 		}
+		barrio_migration_unknown( "Form \"{$title}\", notification \"{$name}\"", $notification, BARRIO_MIGRATION_NOTIFICATION_KEYS, $warnings );
 		if ( ! empty( $notification['from_email'] ) || ! empty( $notification['cc_email'] ) ) {
 			$warnings[] = "Form \"{$title}\", notification \"{$name}\": the sender and the Bcc are not migrated, emails use the sender of the SMTP settings.";
 		}
@@ -681,6 +784,9 @@ function barrio_migration_values( Field $field, mixed $raw, array $labels ): arr
 				$items[] = $checked[1];
 			}
 		}
+	} elseif ( ! empty( $field->config['multiple'] ) && is_string( $raw ) ) {
+		// Il frontend di quel prototipo inviava la select multipla come "a|b|c".
+		$items = explode( '|', $raw );
 	}
 	$values = [];
 	foreach ( $items as $item ) {
@@ -805,7 +911,7 @@ function barrio_migration_settings( array $forms, bool $dry_run, array &$report 
 			continue;
 		}
 		if ( ! isset( $definitions[ $slug ] ) ) {
-			$report['warnings'][] = "The {$slug} settings of Suite Barrio need the Barrio Suite " . ucfirst( $slug ) . ' extension: activate it and run the command again.';
+			$report['warnings'][] = "The {$slug} settings of Suite Barrio need the Barrio Suite " . ucfirst( $slug ) . ' extension: activate it and migrate again.';
 			continue;
 		}
 		$apply( "{$definitions[ $slug ]['label']}: the account settings of Suite Barrio.", static fn() => Integrations::save_settings( [ $slug => $values ] ) );

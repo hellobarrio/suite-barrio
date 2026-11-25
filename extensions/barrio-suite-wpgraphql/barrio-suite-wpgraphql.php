@@ -11,10 +11,11 @@
  * Requires Plugins:  barrio-suite
  */
 
-// L'unico codice che conosce WPGraphQL: lo schema hb* di PLAN-GRAPHQL.md, fotografato in
+// L'unico codice che conosce WPGraphQL: lo schema hb* (docs/hooks.md), fotografato in
 // tests/fixtures/wpgraphql-*.txt. Un file per modulo, con la sua funzione _boot(): si collega solo se il modulo è
 // acceso (barrio_<modulo>_loaded) e se c'è WPGraphQL, che si carica dopo questo plugin e quindi si controlla qui, su
-// init. Le descrizioni dello schema non si traducono: lo schema deve essere lo stesso in ogni lingua.
+// init. Le descrizioni dello schema non si traducono: lo schema deve essere lo stesso in ogni lingua. frontend.php
+// (impostazioni del frontend e revalidation) si collega sempre.
 
 defined( 'ABSPATH' ) || exit;
 
@@ -40,6 +41,9 @@ function barrio_wpgraphql_required( mixed $type, string $description = '' ): arr
 function barrio_wpgraphql_list( string $type, string $description = '' ): array {
 	return barrio_wpgraphql_required( [ 'list_of' => [ 'non_null' => $type ] ], $description );
 }
+
+require __DIR__ . '/frontend.php';
+barrio_wpgraphql_frontend_boot();
 
 foreach ( [ 'forms', 'seo', 'popups', 'banners', 'hours', 'company' ] as $barrio_module ) {
 	require __DIR__ . "/{$barrio_module}.php";

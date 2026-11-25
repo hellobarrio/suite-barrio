@@ -12,6 +12,8 @@ function barrio_migration_duplicate_run( bool $dry_run, array &$report ): ?WP_Er
 	if ( false === $saved && ! barrio_migration_prototype( 'duplicate' ) ) {
 		return new WP_Error( 'barrio_migration_no_prototype', 'There are no duplicate settings of Suite Barrio in this database.' );
 	}
+	barrio_migration_unknown_options( 'Duplicate', [ 'suite_barrio_duplicate_' ], [ 'suite_barrio_duplicate_settings' ], $report['warnings'] );
+	barrio_migration_unknown( 'Duplicate, suite_barrio_duplicate_settings', (array) $saved, [ 'enabled_post_types', 'enabled_taxonomies' ], $report['warnings'] );
 	if ( false !== get_option( 'barrio_duplicate' ) ) {
 		$report['notes'][] = 'Duplicate: Barrio Suite already has its settings, they stay as they are.';
 		return null;

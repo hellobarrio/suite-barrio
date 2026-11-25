@@ -29,6 +29,7 @@ import {
 	useUnsavedWarning,
 } from '../admin/ui.js';
 import { settingsSections } from '../extensions/Extensions.js';
+import { frontendSection } from './Frontend.js';
 import { googleSection } from './Google.js';
 import { smtpSection } from './Smtp.js';
 
@@ -135,6 +136,8 @@ const SECTIONS = [
 	modulesSection,
 	smtpSection,
 	googleSection,
+	// Solo con barrio-suite-wpgraphql, che ne ha i dati.
+	...( window.barrioAdmin.frontend ? [ frontendSection ] : [] ),
 	...settingsSections,
 	uninstallSection,
 ];

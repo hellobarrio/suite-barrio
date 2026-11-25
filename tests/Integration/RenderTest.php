@@ -64,6 +64,21 @@ final class RenderTest extends WP_UnitTestCase {
 					),
 					new Field( 'next', 'page_break', [ 'en' => [ 'label' => 'Continue' ] ] ),
 					new Field( 'topics', 'checkbox', [ 'en' => [ 'label' => 'Topics' ] ], true, [ 'choices' => [ 'news' ] ] ),
+					new Field(
+						'areas',
+						'select',
+						[
+							'en' => [
+								'label'       => 'Areas',
+								'placeholder' => 'Pick',
+							],
+						],
+						true,
+						[
+							'multiple' => true,
+							'choices'  => [ 'to', 'mi' ],
+						]
+					),
 					new Field( 'cv', 'file', [ 'en' => [ 'label' => 'CV' ] ], false, [ 'extensions' => [ 'pdf', 'csv' ] ] ),
 					new Field( 'privacy', 'consent', [ 'en' => [ 'label' => 'I agree to the <a href="/privacy">policy</a><script>alert(1)</script>' ] ], true ),
 					new Field( 'campaign', 'hidden', [ 'en' => [ 'label' => 'Campaign' ] ], false, [ 'param' => 'utm_campaign' ] ),
@@ -84,7 +99,7 @@ final class RenderTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( "name=\"_barrio_version\" value=\"{$this->form->current->id}\"", $html );
 		$this->assertStringContainsString( 'name="_barrio_lang" value="en"', $html );
 		$this->assertStringContainsString( 'name="_barrio_hp"', $html );
-		$this->assertSame( [ 'name', 'request', 'budget', 'topics', 'cv', 'privacy', 'campaign', 'source' ], self::captures( '/data-barrio-field="([a-z_]+)"/', $html ) );
+		$this->assertSame( [ 'name', 'request', 'budget', 'topics', 'areas', 'cv', 'privacy', 'campaign', 'source' ], self::captures( '/data-barrio-field="([a-z_]+)"/', $html ) );
 		$this->assertMatchesRegularExpression( '/data-barrio-field="budget" data-conditions="\{[^"]*&quot;action&quot;:&quot;show&quot;/', $html );
 		$this->assertStringContainsString( 'pattern="[A-Za-z ]+"', $html );
 		$this->assertStringContainsString( 'autocomplete="name"', $html );
@@ -98,6 +113,10 @@ final class RenderTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/type="radio"[^>]*value="info" required/', $html );
 		$this->assertStringContainsString( 'data-required', $html );
 		$this->assertStringNotContainsString( 'name="topics[]" value="news" required', $html );
+		// La select multipla non ha l'opzione vuota: scelta, conterebbe per required.
+		$this->assertMatchesRegularExpression( '/<select name="areas\[\]" multiple id="[^"]+" required[^>]*><option value="to">/', $html );
+		// Come sceglierne più di una, letto anche dagli screen reader.
+		$this->assertMatchesRegularExpression( '/<select name="areas\[\]"[^>]* aria-describedby="([^"]+)-hint \1-error"[^>]*>.*?<\/select><p class="barrio-form__hint" id="\1-hint">Hold Ctrl/s', $html );
 		// csv non è più tra le estensioni ammesse da WordPress.
 		$this->assertStringContainsString( 'accept=".pdf"', $html );
 		$this->assertStringContainsString( 'name="campaign" data-param="utm_campaign"', $html );
@@ -134,7 +153,7 @@ final class RenderTest extends WP_UnitTestCase {
 
 		$html = do_blocks( "<!-- wp:barrio/form {\"id\":{$this->form->id}} /-->" );
 		$this->assertStringContainsString( 'data-barrio-form', $html );
-		$this->assertSame( 8, substr_count( $html, 'data-barrio-field=' ) );
+		$this->assertSame( 9, substr_count( $html, 'data-barrio-field=' ) );
 	}
 
 	/** @return list<string> */

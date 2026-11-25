@@ -29,17 +29,17 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		$GLOBALS['barrio_test_revalidated'] = [];
-		$this->image                        = self::factory()->attachment->create_object(
+		$GLOBALS['barrio_wpgraphql_tags'] = [];
+		$this->image                      = self::factory()->attachment->create_object(
 			[
 				'file'           => '2026/11/logo.jpg',
 				'post_mime_type' => 'image/jpeg',
 			]
 		);
-		$this->post                         = self::factory()->post->create();
-		$this->page                         = self::factory()->post->create( [ 'post_type' => 'page' ] );
-		$this->other                        = self::factory()->post->create();
-		$this->term                         = self::factory()->category->create();
+		$this->post                       = self::factory()->post->create();
+		$this->page                       = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$this->other                      = self::factory()->post->create();
+		$this->term                       = self::factory()->category->create();
 		$this->prototype();
 	}
 
@@ -123,7 +123,15 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$this->assertSame( [ 'Pesce', 'Pizza' ], $organization['knows_about'] );
 		$this->assertSame( [ 'https://facebook.com/trattoria' ], $company['profiles'] );
 		$this->assertSame( [ 8.5, null ], array_column( $organization['offers']['items'], 'price' ) );
-		$this->assertSame( 'https://www.trattoria.it', get_option( 'graphql_general_settings' )['barrio_frontend_url'] );
+		$this->assertSame( 'https://www.trattoria.it', get_option( 'barrio_frontend' )['url'] );
+	}
+
+	public function test_a_frontend_address_already_written_stays_and_is_not_reported(): void {
+		update_option( 'barrio_frontend', [ 'url' => 'https://www.scritto-a-mano.it' ] );
+		$report = $this->migrate();
+
+		$this->assertSame( [], preg_grep( '/^Frontend address/', $report['notes'] ) );
+		$this->assertSame( 'https://www.scritto-a-mano.it', get_option( 'barrio_frontend' )['url'] );
 	}
 
 	public function test_a_schema_language_other_than_the_site_one_is_reported(): void {
@@ -133,24 +141,28 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$this->assertContains( 'Schema: the language was it-IT, Barrio Suite uses the one of the site (en-US). If it is wrong, change it in Settings → General.', $report['warnings'] );
 	}
 
-	public function test_without_schema_the_company_info_fills_the_company_details_only_where_empty(): void {
+	// Con Info Azienda l'anagrafica la scrive il suo passaggio (ModulesMigrationTest), anche senza schema.
+	public function test_with_company_info_the_company_details_wait_for_their_own_step(): void {
 		delete_option( 'suite_barrio_schema_settings' );
 		update_option(
 			'suite_barrio_company_info',
 			[
 				'ragione_sociale' => 'Trattoria Srl',
+				'sito_web'        => 'www.trattoria-sito.it',
 				'partita_iva'     => 'IT0123',
 				'sede_citta'      => 'Napoli',
 				'instagram'       => 'https://instagram.com/trattoria',
 			]
 		);
 		update_option( 'barrio_company', [ 'vat_id' => 'IT9999' ] );
-		$this->migrate();
+		$report = $this->migrate();
 
 		$company = Company::settings();
 		$this->assertSame( 'LocalBusiness', Settings::get()['organization']['type'] );
-		$this->assertSame( [ 'Trattoria Srl', 'IT9999', 'Napoli' ], [ $company['name'], $company['vat_id'], $company['address']['locality'] ], 'What is written by hand stays.' );
-		$this->assertSame( [ 'https://instagram.com/trattoria' ], $company['profiles'] );
+		$this->assertSame( [ '', 'IT9999', '', [] ], [ $company['name'], $company['vat_id'], $company['address']['locality'], $company['profiles'] ] );
+		$this->assertContains( 'Company details: they come from Info Azienda, in the Company details step.', $report['notes'] );
+		// Anche l'indirizzo del frontend: il prototipo faceva la revalidation sul sito web di Info Azienda.
+		$this->assertSame( [], get_option( 'barrio_frontend', [] ) );
 	}
 
 	public function test_meta_become_barrio_meta_and_explicit_defaults_become_default(): void {
@@ -227,8 +239,7 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$this->assertSame( "Una trattoria di mare.\nA Napoli.", Settings::get()['texts']['en']['llms_intro'] );
 		$this->assertFileDoesNotExist( ABSPATH . 'llms.txt' );
 		// Il frontend headless rilegge tutto.
-		$this->assertContains( 'wp:seo,wp:schema,wp:sitemap,wp:llms', $GLOBALS['barrio_test_revalidated'] );
-		$this->assertContains( 'wp:redirects', $GLOBALS['barrio_test_revalidated'] );
+		$this->assertSame( [], array_diff( [ 'wp:seo', 'wp:schema', 'wp:sitemap', 'wp:llms', 'wp:redirects' ], array_keys( $GLOBALS['barrio_wpgraphql_tags'] ) ) );
 	}
 
 	public function test_a_dry_run_reports_the_same_counts_and_writes_nothing(): void {
@@ -303,14 +314,56 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		$this->assertContains( 'Organization: Barrio Suite does not have the type "Architect", it becomes LocalBusiness. Choose another one in SEO → Organization.', $report['warnings'] );
 	}
 
+	// Un SEO modificato per un sito: opzioni, chiavi e meta che il prototipo non ha mai avuto; dei redirect un avviso
+	// per chiave, non per riga.
+	public function test_what_suite_barrio_never_had_gives_a_warning_each_also_in_a_dry_run(): void {
+		update_option( 'suite_barrio_llms_cache', 'x' );
+		update_option( 'suite_barrio_meta_settings', [ 'noindex_search' => 1 ] + get_option( 'suite_barrio_meta_settings' ) );
+		$content                                    = get_option( 'suite_barrio_meta_content' );
+		$content['archives']                        = [ 'author' => [ 'index' => 0 ] ];
+		$content['post_types']['page']['canonical'] = 1;
+		update_option( 'suite_barrio_meta_content', $content );
+		$schema                     = get_option( 'suite_barrio_schema_settings' );
+		$schema['opening_hours']    = 'Mo-Fr 12:00-15:00';
+		$schema['offers'][1]['sku'] = 'CAT-1';
+		update_option( 'suite_barrio_schema_settings', $schema );
+		$redirects            = get_option( 'suite_barrio_redirects' );
+		$redirects[0]['hits'] = 12;
+		$redirects[2]['hits'] = 3;
+		update_option( 'suite_barrio_redirects', $redirects );
+		update_post_meta( $this->post, '_suite_barrio_seo_canonical', 'https://example.org/' );
+		update_term_meta( $this->term, '_wpb_seo_noarchive', '1' );
+		$never    = static fn( string $where, string $key ): string => "{$where}: Suite Barrio never had \"{$key}\" (a version changed for this site?), it was not migrated.";
+		$warnings = [
+			$never( 'SEO, content meta', '_suite_barrio_seo_canonical' ),
+			$never( 'SEO, term meta', '_wpb_seo_noarchive' ),
+			$never( 'SEO', 'suite_barrio_llms_cache' ),
+			$never( 'SEO, suite_barrio_meta_settings', 'noindex_search' ),
+			$never( 'SEO, suite_barrio_meta_content', 'archives' ),
+			$never( 'SEO, suite_barrio_meta_content, page', 'canonical' ),
+			$never( 'SEO, suite_barrio_schema_settings', 'opening_hours' ),
+			$never( 'SEO, suite_barrio_schema_settings, offer 2', 'sku' ),
+			$never( 'SEO, suite_barrio_redirects', 'hits' ),
+		];
+
+		$dry    = barrio_migration_seo_run( true );
+		$report = $this->migrate();
+
+		$this->assertIsArray( $dry );
+		$this->assertSame( $warnings, array_values( preg_grep( '/Suite Barrio never had/', $dry['warnings'] ) ) );
+		$this->assertSame( $warnings, array_values( preg_grep( '/Suite Barrio never had/', $report['warnings'] ) ) );
+	}
+
 	public function test_while_the_prototype_seo_is_on_the_module_is_turned_off_once(): void {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 		barrio_migration_seo_boot();
 
 		$this->assertFalse( Modules::is_enabled( 'seo' ) );
 		ob_start();
-		barrio_migration_seo_notice();
-		$this->assertStringContainsString( '<code>wp barrio seo migrate --dry-run</code>', (string) ob_get_clean() );
+		barrio_migration_notice();
+		$notice = (string) ob_get_clean();
+		$this->assertStringContainsString( 'until the same modules of Suite Barrio are migrated, so the site does not get them twice: SEO', $notice );
+		$this->assertStringContainsString( 'admin.php?page=barrio-migration', $notice );
 
 		// Chi lo riaccende prima della migrazione lo sceglie.
 		Modules::set( 'seo', true );
@@ -324,13 +377,6 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 
 		$this->assertTrue( Modules::is_enabled( 'seo' ) );
 		$this->assertFalse( get_option( 'barrio_migration_seo' ) );
-	}
-
-	public function test_seo_changes_reach_the_revalidation_of_the_prototype(): void {
-		update_post_meta( $this->post, '_barrio_seo_index', 'noindex' );
-		do_action( 'barrio_seo_changed', 'redirects' );
-
-		$this->assertSame( [ $this->post, 'wp:sitemap', 'wp:redirects' ], $GLOBALS['barrio_test_revalidated'] );
 	}
 
 	private function empty_prototype(): void {
@@ -520,6 +566,6 @@ final class SeoMigrationTest extends WP_UnitTestCase {
 		}
 		update_term_meta( $this->term, '_suite_barrio_seo_index', '0' );
 		update_term_meta( $this->term, '_suite_barrio_seo_keywords', 'uno, due' );
-		$GLOBALS['barrio_test_revalidated'] = [];
+		$GLOBALS['barrio_wpgraphql_tags'] = [];
 	}
 }
