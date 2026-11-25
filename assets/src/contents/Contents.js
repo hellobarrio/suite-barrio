@@ -85,7 +85,11 @@ export function ContentsCard() {
 			module={ CONTENTS }
 			stats={ TOOLS.flatMap( ( { stats } ) => stats() ) }
 			actions={ [
-				[ __( 'Settings', 'barrio-suite' ), '?page=barrio-contents' ],
+				[
+					__( 'Settings', 'barrio-suite' ),
+					'?page=barrio-contents',
+					'admin-generic',
+				],
 			] }
 		/>
 	);

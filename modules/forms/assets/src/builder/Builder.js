@@ -7,7 +7,10 @@ import { useEffect, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import {
+	AddButton,
 	Bar,
+	Buttons,
+	CancelButton,
 	Card,
 	Dialog,
 	Fixed,
@@ -15,6 +18,7 @@ import {
 	LangNotice,
 	LangPicker,
 	Loading,
+	Lucide,
 	Notice,
 	SaveButton,
 	SectionHead,
@@ -224,23 +228,25 @@ export function Builder( { id } ) {
 					/>
 				) }
 				<LangPicker value={ lang } onChange={ setLang } />
-				<button
-					type="button"
-					className="barrio-button"
-					// Non durante l'anteprima: disattivato perderebbe il focus, che alla chiusura deve tornare qui.
-					disabled={ 'save' === busy }
-					onClick={ () => showPreview() }
-				>
-					<Icon name="visibility" />
-					<span className="barrio-button__text">
-						{ __( 'Preview', 'barrio-suite' ) }
-					</span>
-				</button>
-				<SaveButton
-					busy={ 'save' === busy }
-					disabled={ !! busy || ! dirty }
-					onClick={ () => save() }
-				/>
+				<Buttons>
+					<button
+						type="button"
+						className="barrio-button"
+						// Non durante l'anteprima: disattivato perderebbe il focus, che alla chiusura deve tornare qui.
+						disabled={ 'save' === busy }
+						onClick={ () => showPreview() }
+					>
+						<Icon name="visibility" />
+						<span className="barrio-button__text">
+							{ __( 'Preview', 'barrio-suite' ) }
+						</span>
+					</button>
+					<SaveButton
+						busy={ 'save' === busy }
+						disabled={ !! busy || ! dirty }
+						onClick={ () => save() }
+					/>
+				</Buttons>
 			</Bar>
 			<Notice
 				notice={
@@ -248,7 +254,7 @@ export function Builder( { id } ) {
 						? {
 								...notice,
 								action: (
-									<>
+									<Buttons>
 										<button
 											type="button"
 											className="barrio-button"
@@ -256,10 +262,13 @@ export function Builder( { id } ) {
 												window.location.reload()
 											}
 										>
-											{ __(
-												'Reload the form',
-												'barrio-suite'
-											) }
+											<Icon name="update" />
+											<span className="barrio-button__text">
+												{ __(
+													'Reload the form',
+													'barrio-suite'
+												) }
+											</span>
 										</button>
 										<button
 											type="button"
@@ -269,12 +278,15 @@ export function Builder( { id } ) {
 												save( notice.conflict )
 											}
 										>
-											{ __(
-												'Save my version anyway',
-												'barrio-suite'
-											) }
+											<Lucide name="save" />
+											<span className="barrio-button__text">
+												{ __(
+													'Save my version anyway',
+													'barrio-suite'
+												) }
+											</span>
 										</button>
-									</>
+									</Buttons>
 								),
 							}
 						: notice
@@ -350,13 +362,10 @@ export function Builder( { id } ) {
 					onRequestClose={ closePreview }
 					// Dopo l'iframe serve un controllo, o con Tab il focus esce dalla modale.
 					footer={
-						<button
-							type="button"
-							className="barrio-button"
+						<CancelButton
+							text={ __( 'Close', 'barrio-suite' ) }
 							onClick={ closePreview }
-						>
-							{ __( 'Close', 'barrio-suite' ) }
-						</button>
+						/>
 					}
 				>
 					<div className="barrio-stack">
@@ -556,15 +565,11 @@ function NotificationsTab( { form, lang, update, onPreview, busy } ) {
 			<SectionHead
 				title={ __( 'Emails sent after each entry', 'barrio-suite' ) }
 			>
-				<button
-					type="button"
-					className="barrio-button is-primary"
+				<AddButton
+					label={ __( 'Add notification', 'barrio-suite' ) }
 					disabled={ translating }
 					onClick={ add }
-				>
-					<Icon name="plus-alt2" />
-					{ __( 'Add notification', 'barrio-suite' ) }
-				</button>
+				/>
 			</SectionHead>
 			{ form.notifications.map( ( n, i ) => (
 				<NotificationCard
@@ -643,7 +648,9 @@ function NotificationCard( {
 							onClick={ onPreview }
 						>
 							<Icon name="visibility" />
-							{ __( 'Preview', 'barrio-suite' ) }
+							<span className="barrio-button__text">
+								{ __( 'Preview', 'barrio-suite' ) }
+							</span>
 						</button>
 						<button
 							type="button"

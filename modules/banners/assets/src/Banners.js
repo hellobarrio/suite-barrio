@@ -2,32 +2,21 @@
 // l'anteprima; agli amministratori la scheda Impostazioni con i Permessi. E la card della Bacheca. I testi si traducono
 // come nel builder dei form (TextIn): nelle altre lingue un testo vuoto vale quello della lingua principale.
 import apiFetch from '@wordpress/api-fetch';
-import { TabPanel } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import {
 	LinkField,
-	PeriodCard,
+	PeriodEditor,
 	PeriodList,
-	fillTexts,
-	trimTexts,
+	pageUrl,
 } from '../../../../assets/src/admin/period.js';
 import {
-	Bar,
 	Card,
-	Fixed,
 	HowTo,
-	Icon,
-	LangNotice,
-	LangPicker,
-	Loading,
 	ModuleCard,
-	Notice,
 	Permissions,
-	SaveButton,
 	errorMessage,
-	useUnsavedWarning,
 } from '../../../../assets/src/admin/ui.js';
 import { textIn } from '../../../../assets/src/admin/i18n.js';
 import { TextIn } from '../../../../assets/src/admin/texts.js';
@@ -49,9 +38,6 @@ const [ main ] = languages;
 // La capability del modulo, nei Permessi (Module::CAP).
 const CAPS = { barrio_manage_banners: __( 'Manage', 'barrio-suite' ) };
 
-const pageUrl = ( params = {} ) =>
-	'?' + new URLSearchParams( { page: 'barrio-banners', ...params } );
-
 const blank = () => ( {
 	is_enabled: true,
 	new_tab: false,
@@ -63,14 +49,20 @@ const blank = () => ( {
 const textOf = ( banner ) =>
 	( banner.i18n[ main ] ?? Object.values( banner.i18n )[ 0 ] )?.text ?? '';
 
-// I testi dell'elenco (PeriodList).
-const LIST = {
+// I testi dell'elenco e dell'editor (PeriodList e PeriodEditor).
+const TEXTS = {
 	column: __( 'Text', 'barrio-suite' ),
 	title: __( 'Banners', 'barrio-suite' ),
 	search: __( 'Search banners', 'barrio-suite' ),
 	empty: __( 'No banners found.', 'barrio-suite' ),
 	all: __( 'All banners', 'barrio-suite' ),
 	add: __( 'New banner', 'barrio-suite' ),
+	edit: __( 'Edit banner', 'barrio-suite' ),
+	saved: __( 'Banner saved.', 'barrio-suite' ),
+	period: __(
+		'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up.',
+		'barrio-suite'
+	),
 	duplicated: __( 'Banner duplicated: the copy is off.', 'barrio-suite' ),
 	on: ( n ) =>
 		sprintf(
@@ -188,171 +180,46 @@ function Preview( { banner, lang } ) {
 	);
 }
 
-function BannerEditor( { id } ) {
-	const [ banner, setBanner ] = useState( id ? null : blank );
-	const [ saved, setSaved ] = useState( banner );
-	const [ lang, setLang ] = useState( main );
-	const [ notice, setNotice ] = useState( null );
-	const [ busy, setBusy ] = useState( false );
-
-	const fail = ( error ) =>
-		setNotice( { status: 'error', message: errorMessage( error ) } );
-	const load = ( { status, ...data } ) => {
-		const loaded = trimTexts( data );
-		setSaved( loaded );
-		setBanner( loaded );
-	};
-	useEffect( () => {
-		if ( id ) {
-			apiFetch( { path: `/barrio/v1/banners/${ id }` } )
-				.then( load )
-				.catch( fail );
+const BannerEditor = ( { id } ) => (
+	<PeriodEditor
+		name="banners"
+		id={ id }
+		blank={ blank }
+		check={ ( { i18n } ) =>
+			i18n[ main ]?.text.trim()
+				? null
+				: __( 'Write the text of the banner.', 'barrio-suite' )
 		}
-	}, [ id ] );
-
-	const dirty = JSON.stringify( banner ) !== JSON.stringify( saved );
-	useUnsavedWarning( dirty );
-
-	if ( ! banner ) {
-		return notice ? <Notice notice={ notice } /> : <Loading />;
-	}
-	const set = ( changes ) => setBanner( { ...banner, ...changes } );
-	const save = () => {
-		if ( ! banner.i18n[ main ]?.text.trim() ) {
-			setNotice( {
-				status: 'error',
-				message: __( 'Write the text of the banner.', 'barrio-suite' ),
-			} );
-			return;
-		}
-		setBusy( true );
-		setNotice( null );
-		const { id: current, ...data } = fillTexts( banner );
-		apiFetch(
-			current
-				? {
-						path: `/barrio/v1/banners/${ current }`,
-						method: 'PUT',
-						data,
-					}
-				: { path: '/barrio/v1/banners', method: 'POST', data }
-		)
-			.then( ( result ) => {
-				load( result );
-				if ( ! current ) {
-					window.history.replaceState(
-						null,
-						'',
-						pageUrl( { banner: result.id } )
-					);
-				}
-				setNotice( {
-					status: 'success',
-					message: __( 'Banner saved.', 'barrio-suite' ),
-				} );
-			} )
-			.catch( fail )
-			.finally( () => setBusy( false ) );
-	};
-
-	return (
-		<div className="barrio-stack">
-			<Bar
-				title={
-					<>
-						<a
-							className="barrio-icon-button"
-							href={ pageUrl() }
-							aria-label={ __( 'All banners', 'barrio-suite' ) }
-						>
-							<Icon name="arrow-left-alt2" />
-						</a>
-						<h2 className="barrio-bar__title">
-							{ banner.id
-								? __( 'Edit banner', 'barrio-suite' )
-								: __( 'New banner', 'barrio-suite' ) }
-						</h2>
-					</>
-				}
-			>
-				<LangPicker value={ lang } onChange={ setLang } />
-				<SaveButton
-					busy={ busy }
-					disabled={ banner.id && ! dirty }
-					onClick={ save }
+		texts={ TEXTS }
+		content={ ( { item: banner, lang, setItem } ) => (
+			<Card icon="text" title={ __( 'Content', 'barrio-suite' ) }>
+				<TextIn
+					item={ banner }
+					lang={ lang }
+					name="text"
+					label={ __( 'Text', 'barrio-suite' ) }
+					maxLength={ 255 }
+					onChange={ setItem }
 				/>
-			</Bar>
-			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
-			<LangNotice lang={ lang } />
-			<TabPanel
-				tabs={ [
-					{ name: 'content', title: __( 'Content', 'barrio-suite' ) },
-					{ name: 'options', title: __( 'Options', 'barrio-suite' ) },
-				] }
-			>
-				{ ( tab ) => (
-					// L'anteprima solo nel contenuto, come i campi del builder; le opzioni a tutta larghezza.
-					<div
-						className={
-							'content' === tab.name
-								? 'barrio-fields'
-								: 'barrio-stack'
-						}
-					>
-						<div className="barrio-stack">
-							{ 'content' === tab.name ? (
-								<Card
-									icon="text"
-									title={ __( 'Content', 'barrio-suite' ) }
-								>
-									<TextIn
-										item={ banner }
-										lang={ lang }
-										name="text"
-										label={ __( 'Text', 'barrio-suite' ) }
-										maxLength={ 255 }
-										onChange={ setBanner }
-									/>
-									<LinkField
-										item={ banner }
-										lang={ lang }
-										label={ __( 'Link', 'barrio-suite' ) }
-										help={ __(
-											'Optional: the whole banner leads here.',
-											'barrio-suite'
-										) }
-										newTab={ ( item ) => item.new_tab }
-										withNewTab={ ( item, on ) => ( {
-											...item,
-											new_tab: on,
-										} ) }
-										onChange={ setBanner }
-									/>
-								</Card>
-							) : (
-								<Fixed lang={ lang }>
-									<PeriodCard
-										item={ banner }
-										description={ __(
-											'Times in the time zone of the site. Without a start it shows up as soon as it is saved, without an end it stays until it is turned off. With more banners on, the most recent one shows up.',
-											'barrio-suite'
-										) }
-										onChange={ set }
-									/>
-								</Fixed>
-							) }
-						</div>
-						{ 'content' === tab.name && (
-							<div className="barrio-panel">
-								<Preview banner={ banner } lang={ lang } />
-							</div>
-						) }
-					</div>
-				) }
-			</TabPanel>
-		</div>
-	);
-}
+				<LinkField
+					item={ banner }
+					lang={ lang }
+					label={ __( 'Link', 'barrio-suite' ) }
+					help={ __(
+						'Optional: the whole banner leads here.',
+						'barrio-suite'
+					) }
+					newTab={ ( item ) => item.new_tab }
+					withNewTab={ ( item, on ) => ( { ...item, new_tab: on } ) }
+					onChange={ setItem }
+				/>
+			</Card>
+		) }
+		preview={ ( { item, lang } ) => (
+			<Preview banner={ item } lang={ lang } />
+		) }
+	/>
+);
 
 // La scheda Banner: l'elenco o l'editor, secondo ?banner=.
 export function BannersTab() {
@@ -363,7 +230,7 @@ export function BannersTab() {
 	return /^[1-9]\d*$/.test( param ?? '' ) ? (
 		<BannerEditor id={ Number( param ) } />
 	) : (
-		<PeriodList name="banners" label={ textOf } texts={ LIST } />
+		<PeriodList name="banners" label={ textOf } texts={ TEXTS } />
 	);
 }
 
@@ -437,10 +304,11 @@ export function BannersCard() {
 				]
 			}
 			actions={ [
-				[ __( 'Manage banners', 'barrio-suite' ), pageUrl() ],
+				[ BANNERS.title, pageUrl( 'banners' ), BANNERS.icon ],
 				[
 					__( 'New banner', 'barrio-suite' ),
-					pageUrl( { banner: 'new' } ),
+					pageUrl( 'banners', 'new' ),
+					'plus-alt2',
 				],
 			] }
 		/>

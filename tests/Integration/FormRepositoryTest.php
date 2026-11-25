@@ -156,7 +156,7 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_every_save_is_a_new_version_and_unused_ones_are_dropped(): void {
+	public function test_every_save_is_a_new_version_and_unused_ones_are_dropped_one_save_later(): void {
 		$v1 = FormRepository::create( 'A', [], [], self::fields( 'name' ) );
 
 		$v2 = FormRepository::save( $v1->id, 1, 'B', [], [], self::fields( 'name', 'email' ) );
@@ -164,7 +164,15 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 		$this->assertInstanceOf( Form::class, $v2 );
 		$this->assertSame( [ 'B', 2, [ 'name', 'email' ] ], [ $v2->title, $v2->current->version, array_column( $v2->current->fields, 'key' ) ] );
 		$this->assertNotSame( $v1->current->fields[0]->id, $v2->current->fields[0]->id );
+		// Quella appena sostituita resta per le pagine in cache, ma non dà colonne alle registrazioni.
+		$this->assertNotNull( FormRepository::version( (int) $v1->current->id ) );
+		$this->assertSame( [ $v2->current->id ], array_column( FormRepository::versions( $v1->id ), 'id' ) );
+
+		$v3 = FormRepository::save( $v1->id, 2, 'C', [], [], self::fields( 'name' ) );
+
+		$this->assertInstanceOf( Form::class, $v3 );
 		$this->assertNull( FormRepository::version( (int) $v1->current->id ), 'Version 1 had no entries and should be gone.' );
+		$this->assertNotNull( FormRepository::version( (int) $v2->current->id ) );
 	}
 
 	public function test_versions_with_entries_are_kept(): void {
@@ -177,8 +185,8 @@ final class FormRepositoryTest extends WP_UnitTestCase {
 		$this->assertInstanceOf( Form::class, $v3 );
 
 		$this->assertNotNull( FormRepository::version( (int) $v1->current->id ) );
-		$this->assertNull( FormRepository::version( (int) $v2->current->id ) );
 		$this->assertSame( 3, $v3->current->version );
+		$this->assertSame( [ $v3->current->id, $v1->current->id ], array_column( FormRepository::versions( $v1->id ), 'id' ) );
 	}
 
 	public function test_saving_from_an_outdated_version_is_a_conflict(): void {

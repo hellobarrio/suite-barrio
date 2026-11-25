@@ -10,6 +10,7 @@ import {
 	Card,
 	Details,
 	Fixed,
+	Icon,
 	Notice,
 	RemoveButton,
 	Select,
@@ -125,9 +126,14 @@ const CompanyNotice = () => (
 							: '?page=barrio-settings'
 					}
 				>
-					{ seoData.company
-						? __( 'Company details', 'barrio-suite' )
-						: __( 'Settings', 'barrio-suite' ) }
+					<Icon
+						name={ seoData.company ? 'building' : 'admin-generic' }
+					/>
+					<span className="barrio-button__text">
+						{ seoData.company
+							? __( 'Company details', 'barrio-suite' )
+							: __( 'Settings', 'barrio-suite' ) }
+					</span>
 				</a>
 			),
 		} }
@@ -260,7 +266,7 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 						) }
 						actions={
 							<AddButton
-								text={ __( 'Add area', 'barrio-suite' ) }
+								label={ __( 'Add area', 'barrio-suite' ) }
 								onClick={ () =>
 									set( 'area_served' )( [
 										...o.area_served,
@@ -323,7 +329,7 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 						title={ __( 'Offers', 'barrio-suite' ) }
 						actions={
 							<AddButton
-								text={ __( 'Add offer', 'barrio-suite' ) }
+								label={ __( 'Add offer', 'barrio-suite' ) }
 								onClick={ () =>
 									setItems( [ ...o.offers.items, OFFER ] )
 								}
@@ -352,7 +358,8 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 						/>
 						{ o.offers.items.map( ( item, index ) => (
 							<Details
-								key={ index }
+								// Come le sedi dei Dati aziendali: tolta un'offerta, la successiva non resta aperta.
+								key={ `${ index }/${ o.offers.items.length }` }
 								title={
 									item.name ||
 									__( 'New offer', 'barrio-suite' )
@@ -450,7 +457,10 @@ function OrganizationCards( { seo, lang, texts, setSeo, setText } ) {
 										)
 									}
 								>
-									{ __( 'Remove offer', 'barrio-suite' ) }
+									<Icon name="trash" />
+									<span className="barrio-button__text">
+										{ __( 'Remove offer', 'barrio-suite' ) }
+									</span>
 								</button>
 							</Details>
 						) ) }

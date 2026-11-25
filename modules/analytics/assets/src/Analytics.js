@@ -15,6 +15,7 @@ import {
 	Bar,
 	Card,
 	Details,
+	Icon,
 	Loading,
 	ModuleCard,
 	Notice,
@@ -612,7 +613,8 @@ function Setup( { missing } ) {
 				message,
 				action: (
 					<a className="barrio-button" href={ link }>
-						{ text }
+						<Icon name="admin-generic" />
+						<span className="barrio-button__text">{ text }</span>
 					</a>
 				),
 			} }
@@ -768,7 +770,10 @@ export function Widget() {
 				</>
 			) }
 			<a className="barrio-button" href="admin.php?page=barrio-analytics">
-				{ __( 'All analytics', 'barrio-suite' ) }
+				<Icon name={ ANALYTICS.icon } />
+				<span className="barrio-button__text">
+					{ __( 'All analytics', 'barrio-suite' ) }
+				</span>
 			</a>
 		</div>
 	);
@@ -809,10 +814,11 @@ export function AnalyticsCard() {
 			notice={ notice }
 			stats={ stats }
 			actions={ [
-				[ ANALYTICS.title, '?page=barrio-analytics' ],
+				[ ANALYTICS.title, '?page=barrio-analytics', ANALYTICS.icon ],
 				window.barrioAdmin.canManageOptions && [
 					__( 'Settings', 'barrio-suite' ),
 					'?page=barrio-analytics&tab=settings',
+					'admin-generic',
 				],
 			].filter( Boolean ) }
 		/>

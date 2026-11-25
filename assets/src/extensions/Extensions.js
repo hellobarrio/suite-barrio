@@ -122,7 +122,8 @@ export function Extensions() {
 				short( extension.name )
 			)
 		);
-	const button = ( extension, action, label, style = '' ) => {
+	// Ogni azione con la sua icona: nelle card stanno nello stesso posto.
+	const button = ( extension, action, label, icon, style = '' ) => {
 		const text =
 			`${ extension.slug }-${ action }` === busy
 				? __( 'Please wait…', 'barrio-suite' )
@@ -138,7 +139,8 @@ export function Extensions() {
 					confirmed( extension, action ) && act( extension, action )
 				}
 			>
-				{ text }
+				<Icon name={ icon } />
+				<span className="barrio-button__text">{ text }</span>
 			</button>
 		);
 	};
@@ -234,13 +236,15 @@ export function Extensions() {
 										extension,
 										'install',
 										__( 'Install', 'barrio-suite' ),
+										'download',
 										'is-primary'
 									) }
 								{ extension.active &&
 									button(
 										extension,
 										'deactivate',
-										__( 'Deactivate', 'barrio-suite' )
+										__( 'Deactivate', 'barrio-suite' ),
+										'controls-pause'
 									) }
 								{ /* Prima delle altre: la principale resta per ultima. */ }
 								{ extension.installed &&
@@ -250,6 +254,7 @@ export function Extensions() {
 										extension,
 										'delete',
 										__( 'Delete', 'barrio-suite' ),
+										'trash',
 										'is-danger'
 									) }
 								{ extension.installed &&
@@ -258,6 +263,7 @@ export function Extensions() {
 										extension,
 										'activate',
 										__( 'Activate', 'barrio-suite' ),
+										'controls-play',
 										update ? '' : 'is-primary'
 									) }
 								{ update && (
@@ -265,7 +271,10 @@ export function Extensions() {
 										className="barrio-button is-primary"
 										href={ update }
 									>
-										{ __( 'Update', 'barrio-suite' ) }
+										<Icon name="update" />
+										<span className="barrio-button__text">
+											{ __( 'Update', 'barrio-suite' ) }
+										</span>
 									</a>
 								) }
 							</>

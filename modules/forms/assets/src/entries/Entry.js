@@ -6,6 +6,7 @@ import { __, sprintf } from '@wordpress/i18n';
 
 import {
 	Bar,
+	Buttons,
 	Card,
 	Icon,
 	Lang,
@@ -197,34 +198,36 @@ export function Entry( { id } ) {
 					</>
 				}
 			>
-				<button
-					type="button"
-					className="barrio-button"
-					disabled={ !! busy }
-					onClick={ () =>
-						run(
-							'unread',
-							bulk( 'unread', entry.form.id, id ),
-							leave
-						)
-					}
-				>
-					<Icon name="hidden" />
-					<span className="barrio-button__text">
-						{ __( 'Mark as unread', 'barrio-suite' ) }
-					</span>
-				</button>
-				<button
-					type="button"
-					className="barrio-button is-danger"
-					disabled={ !! busy }
-					onClick={ remove }
-				>
-					<Icon name="trash" />
-					<span className="barrio-button__text">
-						{ __( 'Delete', 'barrio-suite' ) }
-					</span>
-				</button>
+				<Buttons>
+					<button
+						type="button"
+						className="barrio-button"
+						disabled={ !! busy }
+						onClick={ () =>
+							run(
+								'unread',
+								bulk( 'unread', entry.form.id, id ),
+								leave
+							)
+						}
+					>
+						<Icon name="hidden" />
+						<span className="barrio-button__text">
+							{ __( 'Mark as unread', 'barrio-suite' ) }
+						</span>
+					</button>
+					<button
+						type="button"
+						className="barrio-button is-danger"
+						disabled={ !! busy }
+						onClick={ remove }
+					>
+						<Icon name="trash" />
+						<span className="barrio-button__text">
+							{ __( 'Delete', 'barrio-suite' ) }
+						</span>
+					</button>
+				</Buttons>
 			</Bar>
 			<Notice notice={ notice } onClose={ () => setNotice( null ) } />
 
@@ -302,9 +305,18 @@ export function Entry( { id } ) {
 										onClick={ () => resend( notification ) }
 									>
 										<Icon name="email-alt" />
-										{ `resend-${ notification.id }` === busy
-											? __( 'Sending…', 'barrio-suite' )
-											: __( 'Resend', 'barrio-suite' ) }
+										<span className="barrio-button__text">
+											{ `resend-${ notification.id }` ===
+											busy
+												? __(
+														'Sending…',
+														'barrio-suite'
+													)
+												: __(
+														'Resend',
+														'barrio-suite'
+													) }
+										</span>
 									</button>
 								</div>
 							) ) }
@@ -351,7 +363,9 @@ export function Entry( { id } ) {
 								onClick={ addNote }
 							>
 								<Icon name="plus-alt2" />
-								{ __( 'Add note', 'barrio-suite' ) }
+								<span className="barrio-button__text">
+									{ __( 'Add note', 'barrio-suite' ) }
+								</span>
 							</button>
 						</div>
 					</Card>

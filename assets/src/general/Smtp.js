@@ -5,7 +5,14 @@ import apiFetch from '@wordpress/api-fetch';
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
-import { Card, Details, Select, Text, errorMessage } from '../admin/ui.js';
+import {
+	Card,
+	Details,
+	Icon,
+	Select,
+	Text,
+	errorMessage,
+} from '../admin/ui.js';
 
 const PASSWORD_HELP = {
 	none: '',
@@ -82,9 +89,12 @@ function SmtpFields( {
 						className="barrio-button"
 						onClick={ () => setShowPassword( ! showPassword ) }
 					>
-						{ showPassword
-							? __( 'Hide', 'barrio-suite' )
-							: __( 'Show', 'barrio-suite' ) }
+						<Icon name={ showPassword ? 'hidden' : 'visibility' } />
+						<span className="barrio-button__text">
+							{ showPassword
+								? __( 'Hide', 'barrio-suite' )
+								: __( 'Show', 'barrio-suite' ) }
+						</span>
 					</button>
 				}
 				actions={
@@ -95,7 +105,10 @@ function SmtpFields( {
 							className="barrio-button is-danger"
 							onClick={ onRemovePassword }
 						>
-							{ __( 'Remove password', 'barrio-suite' ) }
+							<Icon name="trash" />
+							<span className="barrio-button__text">
+								{ __( 'Remove password', 'barrio-suite' ) }
+							</span>
 						</button>
 					)
 				}
@@ -137,9 +150,11 @@ function TestEmail( { dirty, onNotice } ) {
 			method: 'POST',
 			data: to ? { to } : {},
 		} )
-			.then( ( data ) =>
-				onNotice( { status: 'success', message: data.message } )
-			)
+			.then( ( data ) => {
+				onNotice( { status: 'success', message: data.message } );
+				// L'avviso di PHP sull'ultimo invio fallito (Smtp::notice()) non vale più.
+				document.getElementById( 'barrio-mail-error' )?.remove();
+			} )
 			.catch( ( error ) =>
 				onNotice( { status: 'error', message: errorMessage( error ) } )
 			)
@@ -169,9 +184,12 @@ function TestEmail( { dirty, onNotice } ) {
 					disabled={ busy || dirty }
 					onClick={ send }
 				>
-					{ busy
-						? __( 'Sending…', 'barrio-suite' )
-						: __( 'Send test email', 'barrio-suite' ) }
+					<Icon name="email-alt" />
+					<span className="barrio-button__text">
+						{ busy
+							? __( 'Sending…', 'barrio-suite' )
+							: __( 'Send test email', 'barrio-suite' ) }
+					</span>
 				</button>
 			}
 		/>

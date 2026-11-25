@@ -8,6 +8,7 @@ import { __ } from '@wordpress/i18n';
 
 import { Handle, Sortable } from '../../../../assets/src/admin/sortable.js';
 import {
+	CancelButton,
 	Dialog,
 	Loading,
 	Notice,
@@ -126,13 +127,7 @@ function ReorderModal( { onClose } ) {
 		<Dialog
 			footer={
 				<>
-					<button
-						type="button"
-						className="barrio-button"
-						onClick={ close }
-					>
-						{ __( 'Cancel', 'barrio-suite' ) }
-					</button>
+					<CancelButton onClick={ close } />
 					<SaveButton
 						busy={ busy }
 						disabled={ ! dirty }

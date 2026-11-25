@@ -61,13 +61,11 @@ export function FormsCard() {
 				]
 			}
 			actions={ [
-				canManageForms && [
-					__( 'Manage forms', 'barrio-suite' ),
-					pageUrl(),
-				],
+				canManageForms && [ FORMS.title, pageUrl(), FORMS.icon ],
 				canManageEntries && [
 					__( 'Entries', 'barrio-suite' ),
 					entriesUrl(),
+					'list-view',
 				],
 			].filter( Boolean ) }
 		/>

@@ -462,22 +462,66 @@ export const HowTo = ( { description, codes = [], children } ) => (
 	</Card>
 );
 
-export const AddButton = ( { text, onClick } ) => (
-	<button type="button" className="barrio-button" onClick={ onClick }>
+/**
+ * "Aggiungi" nell'intestazione di un elenco: il titolo dice già cosa, così è largo uguale ovunque. Il nome completo
+ * resta a chi usa un lettore di schermo.
+ *
+ * @param {Object}     props
+ * @param {string}     props.label      Cosa aggiunge, come "Add phone".
+ * @param {() => void} props.onClick
+ * @param {boolean}    [props.disabled]
+ */
+export const AddButton = ( { label, onClick, disabled } ) => (
+	<button
+		type="button"
+		className="barrio-button"
+		aria-label={ label }
+		disabled={ disabled }
+		onClick={ onClick }
+	>
 		<Icon name="plus-alt2" />
-		<span className="barrio-button__text">{ text }</span>
+		<span className="barrio-button__text">
+			{ __( 'Add', 'barrio-suite' ) }
+		</span>
 	</button>
 );
 
-export const RemoveButton = ( { onClick } ) => (
+// Toglie una riga da un elenco: sempre il cestino, rosso al passaggio.
+export const RemoveButton = ( { label, onClick, disabled } ) => (
 	<button
 		type="button"
-		className="barrio-icon-button"
-		aria-label={ __( 'Remove', 'barrio-suite' ) }
+		className="barrio-icon-button is-danger"
+		aria-label={ label || __( 'Remove', 'barrio-suite' ) }
+		disabled={ disabled }
 		onClick={ onClick }
 	>
 		<Icon name="trash" />
 	</button>
+);
+
+// Annulla (o Chiudi) e Applica nei piedi dei dialoghi, con l'icona come Salva (SaveButton).
+export const CancelButton = ( {
+	text = __( 'Cancel', 'barrio-suite' ),
+	...props
+} ) => (
+	<button type="button" className="barrio-button" { ...props }>
+		<Icon name="no-alt" />
+		<span className="barrio-button__text">{ text }</span>
+	</button>
+);
+
+export const ApplyButton = ( props ) => (
+	<button type="button" className="barrio-button is-primary" { ...props }>
+		<Icon name="yes" />
+		<span className="barrio-button__text">
+			{ __( 'Apply', 'barrio-suite' ) }
+		</span>
+	</button>
+);
+
+// Bottoni accanto, tutti larghi quanto il più largo (admin.css).
+export const Buttons = ( { children } ) => (
+	<div className="barrio-buttons">{ children }</div>
 );
 
 // Un elenco di testi (competenze, profili) in una card, una riga ciascuno.
@@ -498,7 +542,7 @@ export function TextList( {
 			description={ description }
 			actions={
 				<AddButton
-					text={ add }
+					label={ add }
 					onClick={ () => onChange( [ ...values, '' ] ) }
 				/>
 			}
@@ -632,7 +676,11 @@ export const Dialog = ( { className = '', footer, children, ...props } ) => (
 		{ ...props }
 	>
 		<div className="barrio-modal__body">{ children }</div>
-		{ footer && <div className="barrio-modal__footer">{ footer }</div> }
+		{ footer && (
+			<div className="barrio-modal__footer">
+				<Buttons>{ footer }</Buttons>
+			</div>
+		) }
 	</Modal>
 );
 
@@ -651,11 +699,11 @@ export const Details = ( { title, children } ) => (
  * Nella Bacheca, la card di un modulo acceso, con al massimo tre numeri: le card restano alte uguali. La descrizione
  * e ogni numero stanno in una riga; il testo che non ci sta finisce con … e si legge intero al passaggio.
  *
- * @param {Object}                       props
- * @param {Object}                       props.module   icon, title, description e color del modulo.
- * @param {Array<[string, number]>|null} props.stats    [ etichetta, numero ]; null mentre si caricano. Oltre il terzo non si mostrano.
- * @param {Array<[string, string]>}      props.actions  [ testo, link ], la prima è la principale.
- * @param {Object}                       [props.notice] Un errore nel caricare i numeri.
+ * @param {Object}                          props
+ * @param {Object}                          props.module   icon, title, description e color del modulo.
+ * @param {Array<[string, number]>|null}    props.stats    [ etichetta, numero ]; null mentre si caricano. Oltre il terzo non si mostrano.
+ * @param {Array<[string, string, string]>} props.actions  [ testo, link, icona ], la prima è la principale.
+ * @param {Object}                          [props.notice] Un errore nel caricare i numeri.
  */
 export const ModuleCard = ( { module, stats, actions, notice } ) => (
 	<section className="barrio-card barrio-module">
@@ -687,14 +735,15 @@ export const ModuleCard = ( { module, stats, actions, notice } ) => (
 			) : (
 				! notice && <Loading />
 			) }
-			<div className="barrio-row is-fill">
-				{ actions.map( ( [ text, href ], index ) => (
+			<div className="barrio-row">
+				{ actions.map( ( [ text, href, icon ], index ) => (
 					<a
 						key={ href }
 						className={ `barrio-button${ index ? '' : ' is-primary' }` }
 						href={ href }
 					>
-						{ text }
+						<Icon name={ icon } />
+						<span className="barrio-button__text">{ text }</span>
 					</a>
 				) ) }
 			</div>
@@ -1255,7 +1304,10 @@ function Filters( {
 						aria-disabled={ ! changed }
 						onClick={ () => changed && onClear() }
 					>
-						{ __( 'Clear filters', 'barrio-suite' ) }
+						<Icon name="undo" />
+						<span className="barrio-button__text">
+							{ __( 'Clear filters', 'barrio-suite' ) }
+						</span>
 					</button>
 				</div>
 			) }

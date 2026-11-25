@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import {
+	Buttons,
+	CancelButton,
 	Card,
 	Details,
 	Icon,
@@ -82,37 +84,36 @@ function Account( { google, value, onChange, onRemove } ) {
 					}
 				} }
 			/>
-			{ value ? (
-				<button
-					type="button"
-					className="barrio-button"
-					onClick={ () => onChange( '' ) }
-				>
-					{ __( 'Cancel', 'barrio-suite' ) }
-				</button>
-			) : (
-				<button
-					type="button"
-					className="barrio-button"
-					onClick={ () => input.current.click() }
-				>
-					<Icon name="upload" />
-					<span className="barrio-button__text">
-						{ connected
-							? __( 'Replace key', 'barrio-suite' )
-							: __( 'Upload JSON key', 'barrio-suite' ) }
-					</span>
-				</button>
-			) }
-			{ ! value && 'none' !== google.status && (
-				<button
-					type="button"
-					className="barrio-button is-danger"
-					onClick={ onRemove }
-				>
-					{ __( 'Remove key', 'barrio-suite' ) }
-				</button>
-			) }
+			<Buttons>
+				{ value ? (
+					<CancelButton onClick={ () => onChange( '' ) } />
+				) : (
+					<button
+						type="button"
+						className="barrio-button"
+						onClick={ () => input.current.click() }
+					>
+						<Icon name="upload" />
+						<span className="barrio-button__text">
+							{ connected
+								? __( 'Replace key', 'barrio-suite' )
+								: __( 'Upload JSON key', 'barrio-suite' ) }
+						</span>
+					</button>
+				) }
+				{ ! value && 'none' !== google.status && (
+					<button
+						type="button"
+						className="barrio-button is-danger"
+						onClick={ onRemove }
+					>
+						<Icon name="trash" />
+						<span className="barrio-button__text">
+							{ __( 'Remove key', 'barrio-suite' ) }
+						</span>
+					</button>
+				) }
+			</Buttons>
 		</div>
 	);
 }
