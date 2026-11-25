@@ -11,7 +11,7 @@ use WP_Theme_JSON;
 use WP_Theme_JSON_Data;
 
 /**
- * Cosa trova nell'editor chi scrive (PLAN-MODULI.md §5): i blocchi e le restrizioni per ruolo, l'editor per tipo di
+ * Cosa trova nell'editor chi scrive: i blocchi e le restrizioni per ruolo, l'editor per tipo di
  * contenuto, i contenuti esterni. Ognuna è un filtro del core, tranne l'H1 (assets/editor/no-h1.js). Nel sito e nei
  * contenuti già salvati non cambia niente. Si sceglie in Barrio → Contenuti → Blocchi.
  *
@@ -161,7 +161,7 @@ final class Module {
 
 	/**
 	 * Tutti i blocchi registrati tranne quelli spenti. I blocchi registrati solo nel JavaScript non sono nell'elenco,
-	 * quindi con un blocco spento spariscono anche loro (PLAN-MODULI.md §11).
+	 * quindi con un blocco spento spariscono anche loro.
 	 *
 	 * @param bool|string[] $allowed
 	 * @return bool|string[]

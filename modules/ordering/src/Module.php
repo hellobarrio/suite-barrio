@@ -11,7 +11,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * L'ordine manuale di contenuti e termini (PLAN-MODULI.md §6): si accende per tipo e per tassonomia in Barrio → Contenuti
+ * L'ordine manuale di contenuti e termini: si accende per tipo e per tassonomia in Barrio → Contenuti
  * → Ordinamento, si riordina trascinando nella modale di Riordina, accanto ad Aggiungi nella lista di ogni elenco, e
  * vale in ogni query che non chiede un altro ordine. Spegnerlo toglie l'ordine dalle query e lascia menu_order e i meta dei termini.
  *

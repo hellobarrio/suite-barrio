@@ -12,7 +12,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Orari (PLAN-MODULI.md §4): la settimana e i giorni speciali, scritti a mano o presi ogni notte da Google Places con
+ * Orari: la settimana e i giorni speciali, scritti a mano o presi ogni notte da Google Places con
  * il service account del core. Nel sito il blocco barrio/hours e lo shortcode [barrio_hours] (Render) e, con il modulo
  * SEO, openingHoursSpecification dell'organizzazione. Un solo record, l'opzione barrio_hours, validata con schema()
  * prima di ogni scrittura.

@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Prestazioni con ciò che WordPress sa già fare, senza servizi esterni (PLAN-SEO.md, "Da Jetpack"): il formato
+ * Prestazioni con ciò che WordPress sa già fare, senza servizi esterni: il formato
  * delle immagini, il caricamento speculativo e un head più leggero. Un modulo a sé e non nel SEO, perché serve
  * anche ai siti con Yoast o Rank Math. Si sceglie nella sua pagina, Barrio → Prestazioni; accese di default solo
  * le funzioni che non cambiano file né comportamento.

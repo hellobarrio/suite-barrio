@@ -12,7 +12,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Popup (PLAN-MODULI.md §2): un <dialog> modale in wp_footer, in tutte le pagine, il più recente tra gli accesi nel loro
+ * Popup: un <dialog> modale in wp_footer, in tutte le pagine, il più recente tra gli accesi nel loro
  * periodo. Sceglierlo non costa query (PopupRepository::live()); stamparlo sì, per l'immagine e per un form nel testo.
  * CSS e JS solo con un popup.
  *

@@ -12,7 +12,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Statistiche (PLAN-MODULI.md §9): i report di Google Analytics 4 della proprietà scelta, letti con il service account
+ * Statistiche: i report di Google Analytics 4 della proprietà scelta, letti con il service account
  * del core (src/Google.php), che è Visualizzatore della proprietà. In Barrio → Statistiche, nella card della Bacheca e
  * in un widget della Bacheca di WordPress. Il plugin non tiene una copia dei dati: la risposta resta un'ora in un
  * transient, e Google si chiama solo quando qualcuno guarda.

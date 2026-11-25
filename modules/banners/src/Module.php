@@ -11,7 +11,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Banner (PLAN-MODULI.md §3): una riga di testo che scorre in cima a tutte le pagine (wp_body_open), il più recente tra
+ * Banner: una riga di testo che scorre in cima a tutte le pagine (wp_body_open), il più recente tra
  * gli accesi nel loro periodo. Nel sito nessuna query (BannerRepository::live()), e CSS e JS solo con un banner.
  *
  * @phpstan-import-type Banner from BannerRepository
