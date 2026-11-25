@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-24T13:05:25+00:00\n"
+"POT-Creation-Date: 2026-11-25T15:09:15+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: barrio-suite-migration\n"
@@ -21,7 +21,7 @@ msgstr ""
 
 #. Description of the plugin
 #: barrio-suite-migration.php
-msgid "Moves the data of Suite Barrio, the previous plugin, to Barrio Suite with one WP-CLI command per module: forms, SEO, popups, banners, opening hours, company details, blocks, ordering, duplicate, alt text and analytics. Once done, it can be removed."
+msgid "Moves the data of Suite Barrio, the previous plugin, to Barrio Suite from Barrio → Migration, one module at a time: forms, SEO, company details, popups, banners, opening hours, blocks, ordering, duplication, alt text and analytics. Once done, it can be removed."
 msgstr ""
 
 #. Author of the plugin
@@ -29,18 +29,153 @@ msgstr ""
 msgid "Hellobarrio"
 msgstr ""
 
-#. translators: %s: list of WP-CLI commands.
-#: barrio-suite-migration.php:122
+#. translators: %s: list of module names.
+#: barrio-suite-migration.php:108
 #, php-format
-msgid "These modules of Barrio Suite stay off until the same modules of Suite Barrio are migrated, so the site does not get them twice. Run each command with --dry-run first: %s."
+msgid "These modules of Barrio Suite stay off until the same modules of Suite Barrio are migrated, so the site does not get them twice: %s."
 msgstr ""
 
-#: forms.php:361
+#: barrio-suite-migration.php:113
+msgid "Migrate them"
+msgstr ""
+
+#: barrio-suite-migration.php:125
+msgid "Forms"
+msgstr ""
+
+#: barrio-suite-migration.php:125
+msgid "Forms with the same ID, their entries and uploaded files, notifications and settings. Last, the old shortcodes in contents, meta and widgets become [barrio_form]."
+msgstr ""
+
+#: barrio-suite-migration.php:126
+msgid "SEO"
+msgstr ""
+
+#: barrio-suite-migration.php:126
+msgid "Settings, schema of the organization, meta of contents and terms, redirects."
+msgstr ""
+
+#: barrio-suite-migration.php:127
+msgid "Company details"
+msgstr ""
+
+#: barrio-suite-migration.php:127
+msgid "The company details of Suite Barrio (Info Azienda) first, then the SEO schema where Info Azienda has nothing. Only in the empty fields."
+msgstr ""
+
+#: barrio-suite-migration.php:128
+msgid "Popups"
+msgstr ""
+
+#: barrio-suite-migration.php:128
+msgid "Popups with their translations: the active one stays on."
+msgstr ""
+
+#: barrio-suite-migration.php:129
+msgid "Banners"
+msgstr ""
+
+#: barrio-suite-migration.php:129
+msgid "Banners with their translations: the active one stays on."
+msgstr ""
+
+#: barrio-suite-migration.php:130
+msgid "Opening hours"
+msgstr ""
+
+#: barrio-suite-migration.php:130
+msgid "The Google Place ID and the last week read from Google."
+msgstr ""
+
+#: barrio-suite-migration.php:131
+msgid "Blocks"
+msgstr ""
+
+#: barrio-suite-migration.php:131
+msgid "The blocks allowed to each role and the editor of each content type."
+msgstr ""
+
+#: barrio-suite-migration.php:132
+msgid "Ordering"
+msgstr ""
+
+#: barrio-suite-migration.php:132
+msgid "The sortable types and taxonomies, with the order of the terms."
+msgstr ""
+
+#: barrio-suite-migration.php:133
+msgid "Duplication"
+msgstr ""
+
+#: barrio-suite-migration.php:133
+msgid "The content types with the Duplicate link."
+msgstr ""
+
+#: barrio-suite-migration.php:134
+msgid "Alt text"
+msgstr ""
+
+#: barrio-suite-migration.php:134
+msgid "The alt text written on upload."
+msgstr ""
+
+#: barrio-suite-migration.php:135
+msgid "Analytics"
+msgstr ""
+
+#: barrio-suite-migration.php:135
+msgid "The Google Analytics property, checked with the service account."
+msgstr ""
+
+#: barrio-suite-migration.php:148
+msgid "Data"
+msgstr ""
+
+#: barrio-suite-migration.php:149
+msgid "Found"
+msgstr ""
+
+#: barrio-suite-migration.php:150
+#: barrio-suite-migration.php:164
+msgid "Migrated"
+msgstr ""
+
+#: barrio-suite-migration.php:151
+msgid "Skipped"
+msgstr ""
+
+#: barrio-suite-migration.php:161
+msgid "ID"
+msgstr ""
+
+#: barrio-suite-migration.php:162
+msgid "Form"
+msgstr ""
+
+#: barrio-suite-migration.php:163
+msgid "Entries"
+msgstr ""
+
+#: barrio-suite-migration.php:165
+msgid "Files"
+msgstr ""
+
+#: barrio-suite-migration.php:166
+msgid "Missing files"
+msgstr ""
+
+#: barrio-suite-migration.php:167
+msgid "Result"
+msgstr ""
+
+#: barrio-suite-migration.php:177
+msgid "Default"
+msgstr ""
+
+#: barrio-suite-migration.php:202
+msgid "Migration"
+msgstr ""
+
+#: forms.php:463
 msgid "Next"
-msgstr ""
-
-#. translators: 1: dry run command, 2: migration command.
-#: seo.php:65
-#, php-format
-msgid "The SEO module of Barrio Suite stays off until the SEO of Suite Barrio is migrated: run %1$s, then %2$s. Turned on before, it prints the meta tags twice."
 msgstr ""

@@ -28,11 +28,11 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		hbOpeningHours(language: $language) { syncedAt displayName currentWeek { day slots isClosed } }
 	}';
 
-	// Tutti i campi di getInfoAzienda tranne sitoWeb, nello stesso ordine.
+	// Tutti i campi di getInfoAzienda tranne sitoWeb, nello stesso ordine; la sede operativa è la prima di offices.
 	private const GET_COMPANY = '{
 		hbCompanyInfo {
 			address { postalCode locality mapsUrl region street }
-			operatingAddress { postalCode locality mapsUrl region street }
+			offices { postalCode locality mapsUrl region street }
 			profiles { network url }
 			shareCapital mobile taxCode invoiceCode email privacyEmail vatId certifiedEmail legalName registrationNumber phone
 		}
@@ -69,7 +69,7 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	// La fotografia dello schema, stampata con WpGraphqlTest::sdl() (PLAN-GRAPHQL.md §3.3, §3.4 e §3.5).
+	// La fotografia dello schema, stampata con WpGraphqlTest::sdl().
 	public function test_the_schema_matches_the_snapshot(): void {
 		$this->assertStringEqualsFile(
 			dirname( __DIR__ ) . '/fixtures/wpgraphql-modules-schema.txt',
@@ -376,7 +376,7 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame(
 			[
 				'address'            => null,
-				'operatingAddress'   => null,
+				'offices'            => [],
 				'profiles'           => [],
 				'shareCapital'       => null,
 				'mobile'             => null,
@@ -416,10 +416,12 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 				'certified_email'     => 'trattoriamario@pec.it',
 				'privacy_email'       => 'privacy@trattoriamario.it',
 				'address'             => $office,
-				'operating_address'   => [
-					'street'   => 'Via Toledo 2',
-					'maps_url' => 'https://maps.app.goo.gl/abc',
-				] + $office,
+				'offices'             => [
+					[
+						'street'   => 'Via Toledo 2',
+						'maps_url' => 'https://maps.app.goo.gl/abc',
+					] + $office,
+				],
 				'profiles'            => [
 					'https://www.facebook.com/trattoriamario',
 					'https://m.facebook.com/trattoriamario',
@@ -448,7 +450,7 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 			],
 			$company['address']
 		);
-		$this->assertSame( [ 'Via Toledo 2', 'https://maps.app.goo.gl/abc' ], [ $company['operatingAddress']['street'], $company['operatingAddress']['mapsUrl'] ] );
+		$this->assertSame( [ 'Via Toledo 2', 'https://maps.app.goo.gl/abc' ], [ $company['offices'][0]['street'], $company['offices'][0]['mapsUrl'] ] );
 		$this->assertSame(
 			[ 'facebook', 'facebook', 'linkedin', 'x', 'x', 'youtube', 'telegram', 'whatsapp', 'threads', 'pinterest', null, null ],
 			array_column( $company['profiles'], 'network' )
@@ -456,7 +458,7 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 		$this->assertSame( 'https://www.tripadvisor.it/Restaurant_Review-trattoriamario', $company['profiles'][10]['url'] );
 		$this->assertSame(
 			[ '10.000 € i.v.', '333 1234567', '01234567890', 'ABC1234', 'info@trattoriamario.it', 'privacy@trattoriamario.it', 'IT01234567890', 'trattoriamario@pec.it', 'NA-123456', '081 1234567' ],
-			array_values( array_diff_key( $company, array_flip( [ 'address', 'operatingAddress', 'profiles', 'legalName' ] ) ) )
+			array_values( array_diff_key( $company, array_flip( [ 'address', 'offices', 'profiles', 'legalName' ] ) ) )
 		);
 		$this->assertSame(
 			[
@@ -464,6 +466,70 @@ final class ModulesGraphqlTest extends WP_UnitTestCase {
 				'address' => [ 'country' => 'IT' ],
 			],
 			$this->query( '{ hbCompanyInfo { name address { country } } }' )['hbCompanyInfo']
+		);
+
+		update_option( 'barrio_company', [ 'address' => [ 'name' => 'Head office' ] + $office ] + get_option( 'barrio_company' ) );
+		$this->assertSame(
+			[
+				'address' => [ 'name' => 'Head office' ],
+				'offices' => [ [ 'name' => null ] ],
+			],
+			$this->query( '{ hbCompanyInfo { address { name } offices { name } } }' )['hbCompanyInfo'],
+			'The name of an office, null without one.'
+		);
+
+		$contacts = '{ hbCompanyInfo { address { phones { label value } emails { label value } } } }';
+		$this->assertSame(
+			[
+				'phones' => [],
+				'emails' => [],
+			],
+			$this->query( $contacts )['hbCompanyInfo']['address'],
+			'Without contacts, empty lists.'
+		);
+		update_option(
+			'barrio_company',
+			[
+				'address' => [
+					'phones' => [
+						[
+							'label' => '',
+							'value' => '+39 011.48.13.111',
+						],
+						[
+							'label' => 'Sales',
+							'value' => '+39 011.48.13.133',
+						],
+					],
+					'emails' => [
+						[
+							'label' => '',
+							'value' => 'torino@trattoriamario.it',
+						],
+					],
+				] + $office,
+			] + get_option( 'barrio_company' )
+		);
+		$this->assertSame(
+			[
+				'phones' => [
+					[
+						'label' => null,
+						'value' => '+39 011.48.13.111',
+					],
+					[
+						'label' => 'Sales',
+						'value' => '+39 011.48.13.133',
+					],
+				],
+				'emails' => [
+					[
+						'label' => null,
+						'value' => 'torino@trattoriamario.it',
+					],
+				],
+			],
+			$this->query( $contacts )['hbCompanyInfo']['address']
 		);
 	}
 

@@ -25,7 +25,7 @@
 		"visible": { "city": true, "zone": false }
 	},
 	{
-		"name": "= on a checkbox matches any of its values",
+		"name": "= on a checkbox or a multiple select matches any of its values",
 		"fields": [
 			{ "key": "topics", "conditions": null },
 			{ "key": "events", "conditions": { "action": "show", "logic": "all", "rules": [ { "field": "topics", "operator": "=", "value": "events" } ] } }

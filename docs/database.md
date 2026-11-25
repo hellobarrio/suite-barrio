@@ -48,7 +48,8 @@ erDiagram
   `source_url` è senza query string e frammento, che possono contenere dati personali o identificativi di
   tracciamento (`be_url_chk`). Una raccolta in più, se servirà, arriverà come opzione disattivata di default.
 - **Foreign key sempre**: `CASCADE` verso i figli puri, `RESTRICT` dove c'è un file su disco o un dato storico.
-  Nessuna FK verso le tabelle di WordPress: `entry_notes.user_id` si azzera sull'hook `deleted_user`.
+  Nessuna FK verso le tabelle di WordPress, che sui siti vecchi possono essere MyISAM e non conoscono i nostri
+  vincoli: `entry_notes.user_id` si azzera sull'hook `deleted_user`.
 - **Insiemi chiusi due volte**: CHECK nel database ed `enum` PHP (`FormStatus`, `NoteLevel`); un test verifica che coincidano.
 - **Nomi dei vincoli con il prefisso delle tabelle** (`wp_bf_status_chk`), perché in MySQL sono unici per database.
   MySQL accetta nomi fino a 64 caratteri, e il più lungo è quello della tabella `{prefisso}barrio_form_notifications_i18n`:
@@ -79,12 +80,16 @@ quando la si riattiva.
    di versione è il blocco ottimistico, quindi ogni salvataggio crea una versione, anche se cambiano solo testi o notifiche.
 3. Sostituisce testi del form, notifiche e integrazioni (le loro traduzioni seguono in CASCADE).
 4. Inserisce la versione `corrente + 1` con campi e testi.
-5. `DELETE IGNORE` delle versioni precedenti: quelle usate da registrazioni restano, perché il RESTRICT di
-   `entries` fa fallire la loro cancellazione e `IGNORE` passa alla riga successiva. Così è il database a decidere
-   quali versioni sono in uso, anche con un invio in corso nello stesso momento.
+5. `DELETE IGNORE` delle versioni precedenti, tranne quella appena sostituita: quelle usate da registrazioni
+   restano, perché il RESTRICT di `entries` fa fallire la loro cancellazione e `IGNORE` passa alla riga successiva.
+   Così è il database a decidere quali versioni sono in uso, anche con un invio in corso nello stesso momento.
 
-Un invio che arriva con una versione appena eliminata (form salvato mentre l'utente compilava, senza altre
-registrazioni) viene rifiutato dalla FK: nessun dato incoerente, l'utente ricarica la pagina.
+La versione appena sostituita resta fino al salvataggio successivo anche senza registrazioni: una pagina in cache la
+mostra ancora, e l'invio la usa se l'ultimo salvataggio del form ha meno di una settimana (`_barrio_version`,
+`Submission::process()`), così chi
+compilava non deve ricaricare la pagina, che dalla cache tornerebbe uguale. Finché non ha registrazioni non dà
+colonne a Registrazioni (`FormRepository::versions()`). Un invio con una versione già eliminata vale per la versione
+corrente.
 
 `field_key` identifica lo stesso campo tra le versioni (HTML, GraphQL, merge tag, export); l'`id` cambia a ogni versione.
 
@@ -138,7 +143,7 @@ generate da `npm run seed -- --entries=100000`. `EXPLAIN` su MariaDB 12.3:
 | Lingue dei form nell'elenco (`FormRepository::all()`) | `UNION` dei testi del form, delle notifiche e dei campi della versione corrente (`MAX(version)` per form) | scansione di `form_i18n` e delle notifiche (poche righe), `form_version` e `version_position` (coprenti), poi `PRIMARY` |
 
 Spazio occupato con quei dati: `entries` 9,5 MB + 16 MB di indici, `entry_values` 52 MB + 43 MB di indici. Le
-definizioni sono trascurabili: una versione con 10 campi in 2 lingue sono 31 righe, e restano solo le versioni usate.
+definizioni sono trascurabili: una versione con 10 campi in 2 lingue sono 31 righe, e restano solo le versioni usate e quella appena sostituita.
 
 ### Perché non uno snapshot JSON per registrazione
 
@@ -308,11 +313,14 @@ migrazione `0001` assegna `barrio_manage_hours` agli amministratori e agli edito
 Nessuna tabella: un solo record, letto intero. L'opzione `barrio_company` (in autoload: la leggono il blocco, lo
 shortcode e lo schema del SEO, anche con il modulo spento) ha i dati in righe di testo (`name`, `legal_name`,
 `tax_code`, `registration_number`, `share_capital`, `invoice_code`; `vat_id`, `phone` e `mobile` al più 64
-caratteri), le email (`email`, `certified_email`, `privacy_email`, un'email o vuote), `address` e `operating_address`
-(`{street, postal_code, locality, region, country, maps_url}`, il paese in ISO 3166-1, la mappa `http(s)` o vuota) e
+caratteri), le email (`email`, `certified_email`, `privacy_email`, un'email o vuote), la sede legale `address` e le
+sedi operative `offices`, una lista (ogni sede `{name, street, postal_code, locality, region, country, maps_url,
+phones, emails}`, il nome facoltativo, il paese in ISO 3166-1, la mappa `http(s)` o vuota, i contatti liste di
+`{label, value}` con l'etichetta facoltativa, telefoni al più 64 caratteri ed email valide, senza righe vuote; una sede
+salvata prima del nome e dei contatti li legge vuoti) e
 `profiles` (URL `http(s)`). Nessun testo per lingua: sono dati legali. Lo schema JSON di `Company\Module::schema()` la
-valida prima di ogni scrittura, sulla rotta `PUT /company` e nella migrazione dal prototipo; una sede operativa tutta
-vuota è la sede legale. La migrazione `0001` crea l'opzione con l'anagrafica tolta da `barrio_seo.organization`
+valida prima di ogni scrittura, sulla rotta `PUT /company` e nella migrazione dal prototipo; senza sedi operative la
+sede legale è l'unica. La migrazione `0001` crea l'opzione con l'anagrafica tolta da `barrio_seo.organization`
 (`same_as` diventa `profiles`), e la toglie da lì solo se l'opzione nasce in quel momento; la `0002` assegna
 `barrio_manage_company` ai soli amministratori.
 

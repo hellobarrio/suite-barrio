@@ -35,7 +35,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			updatedAt
 			steps {
 				fields {
-					name type label placeholder isRequired pattern errorMessage min max format
+					name type label placeholder isRequired isMultiple pattern errorMessage min max format
 					options { value label }
 					conditionalLogic { action logicType rules { fieldName operator value } }
 				}
@@ -113,6 +113,24 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 							],
 						]
 					),
+					new Field(
+						'areas',
+						'select',
+						[
+							'en' => [
+								'label'   => 'Areas',
+								'options' => [
+									'to' => 'Turin',
+									'mi' => 'Milan',
+								],
+							],
+						],
+						false,
+						[
+							'multiple' => true,
+							'choices'  => [ 'to', 'mi' ],
+						]
+					),
 				]
 			)
 		);
@@ -127,7 +145,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	// La fotografia dello schema, stampata con sdl() (PLAN-GRAPHQL.md §3.1): ogni cambiamento si vede nel diff.
+	// La fotografia dello schema, stampata con sdl(): ogni cambiamento si vede nel diff.
 	public function test_the_schema_matches_the_snapshot(): void {
 		$this->assertStringEqualsFile( dirname( __DIR__ ) . '/fixtures/wpgraphql-schema.txt', self::sdl() );
 	}
@@ -156,9 +174,9 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 		$this->assertNull( $form['title'] );
 		$this->assertSame( Period::iso( $this->form->created_at ), $form['createdAt'] );
 		$this->assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $form['updatedAt'] );
-		$this->assertSame( [ [ 'name', 'email', 'topics' ], [ 'date', 'cv' ] ], array_map( static fn( array $step ): array => array_column( $step['fields'], 'name' ), $form['steps'] ) );
+		$this->assertSame( [ [ 'name', 'email', 'topics' ], [ 'date', 'cv', 'areas' ] ], array_map( static fn( array $step ): array => array_column( $step['fields'], 'name' ), $form['steps'] ) );
 		[ $name, $email, $topics ] = $form['steps'][0]['fields'];
-		[ $date, $cv ]             = $form['steps'][1]['fields'];
+		[ $date, $cv, $areas ]     = $form['steps'][1]['fields'];
 		$this->assertSame(
 			[
 				'name'             => 'name',
@@ -166,6 +184,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 				'label'            => 'Name',
 				'placeholder'      => 'Your name',
 				'isRequired'       => true,
+				'isMultiple'       => false,
 				'pattern'          => '',
 				'errorMessage'     => '',
 				'min'              => null,
@@ -191,6 +210,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 			],
 			$topics['options']
 		);
+		$this->assertSame( [ false, true ], [ $topics['isMultiple'], $areas['isMultiple'] ] );
 		$this->assertSame( 'dd/MM/yyyy', $date['format'] );
 		$this->assertSame(
 			[
@@ -268,6 +288,7 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 				'next'   => null,
 				'date'   => [ '2026-11-16' ],
 				'cv'     => null,
+				'areas'  => null,
 			],
 			$values
 		);
@@ -332,6 +353,21 @@ final class WpGraphqlTest extends WP_UnitTestCase {
 
 		$topics = $this->form->current->fields[2];
 		$this->assertSame( [ 'news', 'events' ], EntryRepository::get( $payload['entryId'] )->values[ (int) $topics->id ] );
+	}
+
+	public function test_a_multiple_select_arrives_like_a_checkbox(): void {
+		$payload = $this->submit(
+			[
+				'name'  => 'Ada',
+				'email' => 'ada@example.com',
+				'areas' => 'Milan,to',
+			]
+		);
+
+		$areas = $this->form->current->fields[6];
+		$this->assertSame( [ 'mi', 'to' ], EntryRepository::get( $payload['entryId'] )->values[ (int) $areas->id ] );
+		$errors = array_column( $this->submit( [ 'areas' => 'to,cn' ] )['errors'], 'message', 'name' );
+		$this->assertSame( 'Please choose one of the available options.', $errors['areas'] );
 	}
 
 	// Il problema del prototipo: un .php in base64 finiva in /uploads con il nome scelto dal client.

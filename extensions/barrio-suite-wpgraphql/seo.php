@@ -1,6 +1,6 @@
 <?php
 // Il SEO in GraphQL: seo su contenuti e termini, hbSeoSettings, hbSeoSchema, hbSitemap, hbRedirects, hbLlms e
-// hbLlmsFull, sopra la risoluzione unica del modulo (Seo\Meta); e l'indirizzo del frontend in GraphQL → Settings.
+// hbLlmsFull, sopra la risoluzione unica del modulo (Seo\Meta), con i link sull'indirizzo del frontend.
 
 use BarrioSuite\Seo\Llms;
 use BarrioSuite\Seo\Meta;
@@ -24,16 +24,6 @@ function barrio_wpgraphql_seo_boot(): void {
 	foreach ( [ 'clean_post_cache', 'clean_term_cache', 'add_option_barrio_seo', 'update_option_barrio_seo', 'update_option_blogname' ] as $hook ) {
 		add_action( $hook, 'barrio_wpgraphql_sitemap_flush' );
 	}
-	register_graphql_settings_field(
-		'graphql_general_settings',
-		[
-			'name'              => 'barrio_frontend_url',
-			'label'             => __( 'Frontend address', 'barrio-suite-wpgraphql' ),
-			'desc'              => __( 'The address of the headless site, like https://www.example.com. In GraphQL the links of the Barrio Suite SEO (canonical, JSON-LD, llms.txt) point there instead of WordPress; images stay on WordPress.', 'barrio-suite-wpgraphql' ),
-			'type'              => 'url',
-			'sanitize_callback' => static fn( mixed $value ): string => untrailingslashit( esc_url_raw( (string) $value, [ 'http', 'https' ] ) ),
-		]
-	);
 }
 
 function barrio_wpgraphql_register_seo(): void {
@@ -216,8 +206,9 @@ function barrio_wpgraphql_register_seo(): void {
  * Con http o https: home_url() passa a https nelle richieste sicure anche se l'opzione dice http.
  */
 function barrio_wpgraphql_frontend_url( string $url ): string {
-	$frontend = (string) get_graphql_setting( 'barrio_frontend_url' );
-	if ( '' === $frontend || ! is_graphql_request() ) {
+	// Prima di leggere l'opzione, che finché nessuno la salva costa una query.
+	$frontend = is_graphql_request() ? barrio_wpgraphql_frontend()['url'] : '';
+	if ( '' === $frontend ) {
 		return $url;
 	}
 	$home = (string) preg_replace( '#^https?:#i', '', untrailingslashit( (string) get_option( 'home' ) ) );

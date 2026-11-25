@@ -9,6 +9,7 @@ import { __, sprintf } from '@wordpress/i18n';
 
 import { Handle, Sortable } from '../../../../../assets/src/admin/sortable.js';
 import {
+	AddButton,
 	Card,
 	Details,
 	Fixed,
@@ -382,7 +383,10 @@ function Preview( { field, lang } ) {
 		case 'select':
 			return (
 				<select className="barrio-input" disabled>
-					<option>{ text.placeholder || choices[ 0 ]?.label }</option>
+					<option>
+						{ ( ! field.config.multiple && text.placeholder ) ||
+							choices[ 0 ]?.label }
+					</option>
 				</select>
 			);
 		case 'radio':
@@ -476,7 +480,12 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 		} );
 	const setConfig = ( key ) => ( value ) => {
 		const config = { ...field.config, [ key ]: value };
-		if ( value === undefined || value === '' || value.length === 0 ) {
+		if (
+			value === undefined ||
+			value === false ||
+			value === '' ||
+			value.length === 0
+		) {
 			delete config[ key ];
 		}
 		set( { config } );
@@ -547,9 +556,18 @@ function FieldPanel( { field, saved, lang, previous, keys, onChange } ) {
 					name="placeholder"
 					optional
 					label={
-						'select' === field.type
+						'select' === field.type && ! field.config.multiple
 							? __( 'Empty option', 'barrio-suite' )
 							: __( 'Placeholder', 'barrio-suite' )
+					}
+					help={
+						// La select multipla non ha l'opzione vuota.
+						'select' === field.type && field.config.multiple
+							? __(
+									'Only headless frontends show it.',
+									'barrio-suite'
+								)
+							: undefined
 					}
 					onChange={ onChange }
 				/>
@@ -680,16 +698,12 @@ function Choices( { field, saved, lang, onChange } ) {
 							onClick: () => applyPreset( preset ),
 						} ) ) }
 					/>
-					<button
-						type="button"
-						className="barrio-button"
+					<AddButton
+						label={ __( 'Add choice', 'barrio-suite' ) }
 						onClick={ () =>
 							set( [ ...rows, { value: '', label: '' } ] )
 						}
-					>
-						<Icon name="plus-alt2" />
-						{ __( 'Add', 'barrio-suite' ) }
-					</button>
+					/>
 				</Fixed>
 			</SectionHead>
 			<div className="barrio-choices" ref={ box } tabIndex={ -1 }>
@@ -779,7 +793,7 @@ function Choices( { field, saved, lang, onChange } ) {
 									);
 								} }
 							>
-								<Icon name="no-alt" />
+								<Icon name="trash" />
 							</button>
 						</div>
 					) }

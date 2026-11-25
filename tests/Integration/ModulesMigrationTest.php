@@ -7,7 +7,10 @@ use BarrioSuite\Crypto;
 use BarrioSuite\Modules;
 use BarrioSuite\Popups\PopupRepository;
 use DateTimeImmutable;
+use WP_REST_Request;
+use WP_REST_Response;
 use WP_UnitTestCase;
+use wpdb;
 
 // Qui e non in bootstrap.php: con il prototipo già al boot, l'estensione spegnerebbe i moduli in ogni test.
 require_once dirname( __DIR__ ) . '/prototype.php';
@@ -40,7 +43,7 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		$GLOBALS['barrio_test_revalidated'] = [];
+		$GLOBALS['barrio_wpgraphql_tags'] = [];
 		add_filter( 'barrio_languages', static fn(): array => [ 'it', 'en' ] );
 		$this->image = self::factory()->attachment->create_object(
 			[
@@ -295,8 +298,8 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 		$this->assertSame(
 			[
 				'data'     => 'company details',
-				'found'    => 16,
-				'migrated' => 11,
+				'found'    => 19,
+				'migrated' => 14,
 				'skipped'  => 5,
 			],
 			$report['counts'][0]
@@ -317,20 +320,48 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 				'certified_email'     => 'trattoriamario@pec.it',
 				'privacy_email'       => 'privacy@trattoriamario.it',
 				'address'             => [
+					'name'        => '',
 					'street'      => 'Via Roma 1',
 					'postal_code' => '80100',
 					'locality'    => 'Napoli',
 					'region'      => 'NA',
 					'country'     => 'IT',
 					'maps_url'    => 'https://maps.app.goo.gl/abc',
+					'phones'      => [
+						[
+							'label' => '',
+							'value' => '+39 081.123.4567',
+						],
+						[
+							'label' => 'Prenotazioni',
+							'value' => '081 7654321',
+						],
+					],
+					'emails'      => [],
 				],
-				'operating_address'   => [
-					'street'      => 'Via Toledo 2',
-					'postal_code' => '80134',
-					'locality'    => 'Napoli',
-					'region'      => 'NA',
-					'country'     => '',
-					'maps_url'    => '',
+				// La sede operativa del prototipo è la prima di Barrio Suite.
+				'offices'             => [
+					[
+						'name'        => '',
+						'street'      => 'Via Toledo 2',
+						'postal_code' => '80134',
+						'locality'    => 'Napoli',
+						'region'      => 'NA',
+						'country'     => '',
+						'maps_url'    => '',
+						'phones'      => [
+							[
+								'label' => '',
+								'value' => '081 5555555',
+							],
+						],
+						'emails'      => [
+							[
+								'label' => 'Eventi',
+								'value' => 'eventi@trattoriamario.it',
+							],
+						],
+					],
 				],
 				'profiles'            => [ 'https://www.facebook.com/trattoriamario' ],
 			],
@@ -344,11 +375,78 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 			],
 			$report['warnings']
 		);
-		$this->assertSame( [ 'Frontend address (GraphQL → Settings): https://www.trattoriamario.it.' ], $report['notes'] );
-		$this->assertSame( 'https://www.trattoriamario.it', get_option( 'graphql_general_settings' )['barrio_frontend_url'] );
-		$this->assertSame( [ 'wp:option' ], $GLOBALS['barrio_test_revalidated'] );
+		$this->assertSame( [ 'Frontend address (Barrio → Settings): https://www.trattoriamario.it.' ], $report['notes'] );
+		$this->assertSame( 'https://www.trattoriamario.it', get_option( 'barrio_frontend' )['url'] );
+		$this->assertSame( [ 'wp:option' ], array_keys( $GLOBALS['barrio_wpgraphql_tags'] ) );
 		$this->assertFalse( suite_barrio_tools_module_enabled( 'info_azienda' ) );
 		$this->assertTrue( Modules::is_enabled( 'company' ) );
+	}
+
+	// Come su un sito vero: lo schema del SEO ancora quello del modello, Info Azienda con i dati che il sito mostrava.
+	public function test_company_details_come_from_info_azienda_before_the_seo_schema(): void {
+		update_option( 'barrio_company', [] );
+		update_option(
+			'suite_barrio_schema_settings',
+			[
+				'business_name'  => 'Hello Standard',
+				'telephone'      => '+39 0173 33125',
+				'email'          => 'info@hellobarrio.it',
+				'street_address' => 'Via Duccio Galimberti 10b',
+				'postal_code'    => '12051',
+				'locality'       => 'Alba',
+				'region'         => 'CN',
+				'country'        => 'IT',
+				'facebook'       => 'https://www.facebook.com/hellobarrio/',
+			]
+		);
+		$report  = $this->migrate( 'company' );
+		$company = get_option( 'barrio_company' );
+
+		$this->assertSame(
+			[ 'Trattoria da Mario S.r.l.', '081 1234567', 'info@trattoriamario.it', 'Via Roma 1', [ '+39 081.123.4567', '081 7654321' ] ],
+			[ $company['name'], $company['phone'], $company['email'], $company['address']['street'], array_column( $company['address']['phones'], 'value' ) ]
+		);
+		$this->assertSame( [ 'https://www.facebook.com/trattoriamario', 'https://instagram.com/trattoriamario' ], $company['profiles'] );
+		$this->assertContains( 'Company details, name of the SEO schema: Barrio Suite has "Trattoria da Mario S.r.l.", which stays; Suite Barrio had "Hello Standard".', $report['warnings'] );
+		$this->assertContains( 'Company details, address of the SEO schema: Barrio Suite has "Via Roma 1, 80100 Napoli (NA)", which stays; Suite Barrio had "Via Duccio Galimberti 10b, 12051 Alba (CN)".', $report['warnings'] );
+
+		// Lo schema riempie ciò che Info Azienda non ha, e con lo stesso indirizzo dà il paese.
+		update_option( 'barrio_company', [] );
+		$info = get_option( 'suite_barrio_company_info' );
+		unset( $info['telefono'] );
+		update_option( 'suite_barrio_company_info', $info );
+		update_option(
+			'suite_barrio_schema_settings',
+			[
+				'telephone'      => '081 0000000',
+				'street_address' => 'Via Roma 1',
+				'postal_code'    => '80100',
+				'locality'       => 'Napoli',
+				'region'         => 'NA',
+				'country'        => 'IT',
+			]
+		);
+		$report  = $this->migrate( 'company' );
+		$company = get_option( 'barrio_company' );
+		$this->assertSame( [ '081 0000000', 'IT' ], [ $company['phone'], $company['address']['country'] ] );
+		$this->assertSame( [], $report['warnings'] );
+	}
+
+	public function test_company_contacts_as_plain_values_and_a_warning_for_what_is_not_understood(): void {
+		update_option( 'barrio_company', [] );
+		update_option(
+			'suite_barrio_company_info',
+			[
+				'sede_telefoni'    => [ '011 1111111', '011 2222222' ],
+				'sede_op_telefoni' => 'Ufficio: 02 333',
+			] + get_option( 'suite_barrio_company_info' )
+		);
+		$report  = $this->migrate( 'company' );
+		$company = get_option( 'barrio_company' );
+
+		$this->assertSame( [ '011 1111111', '011 2222222' ], array_column( $company['address']['phones'], 'value' ) );
+		$this->assertSame( [], $company['offices'][0]['phones'] );
+		$this->assertContains( 'Company details, sede_op_telefoni: Barrio Suite does not understand its value, it was not migrated. Add the contacts in Barrio → Company details.', $report['warnings'] );
 	}
 
 	public function test_company_details_without_the_operating_office_toggle_and_run_again(): void {
@@ -359,14 +457,67 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 		$this->assertSame( [], get_option( 'barrio_company' ) );
 		$this->assertSame( $dry, $this->migrate( 'company' ) );
 		$company = get_option( 'barrio_company' );
-		$this->assertSame( [ 'Trattoria da Mario S.r.l.', 'Trattoria da Mario S.r.l.', '' ], [ $company['name'], $company['legal_name'], $company['operating_address']['street'] ] );
+		$this->assertSame( [ 'Trattoria da Mario S.r.l.', 'Trattoria da Mario S.r.l.', [] ], [ $company['name'], $company['legal_name'], $company['offices'] ] );
 		$this->assertSame( [ 'https://www.facebook.com/trattoriamario', 'https://instagram.com/trattoriamario' ], $company['profiles'] );
 		$this->assertSame( [], $dry['warnings'] );
 
 		$again = $this->migrate( 'company' );
-		$this->assertSame( [ 15, 0, 15 ], [ $again['counts'][0]['found'], $again['counts'][0]['migrated'], $again['counts'][0]['skipped'] ] );
+		$this->assertSame( [ 16, 0, 16 ], [ $again['counts'][0]['found'], $again['counts'][0]['migrated'], $again['counts'][0]['skipped'] ] );
 		$this->assertSame( [], $again['warnings'] );
 		$this->assertSame( $company, get_option( 'barrio_company' ) );
+	}
+
+	public function test_company_details_add_the_operating_office_once_and_keep_other_offices(): void {
+		$toledo = [
+			'street'      => 'Via Toledo 2',
+			'postal_code' => '80134',
+			'locality'    => 'Napoli',
+			'region'      => 'NA',
+		];
+		update_option( 'barrio_company', [ 'offices' => [ [ 'name' => 'Toledo' ] + $toledo ] ] );
+		$report  = $this->migrate( 'company' );
+		$offices = get_option( 'barrio_company' )['offices'];
+		$this->assertSame( [ 'Toledo', [ '081 5555555' ] ], [ $offices[0]['name'], array_column( $offices[0]['phones'], 'value' ) ], 'The same address: its contacts, no other office.' );
+		$this->assertCount( 1, $offices );
+		$this->assertSame( [], $report['warnings'] );
+
+		$chiaia = [ 'street' => 'Via Chiaia 5' ] + $toledo;
+		update_option( 'barrio_company', [ 'offices' => [ $chiaia ] ] );
+		$report = $this->migrate( 'company' );
+		$this->assertSame( [ 'Via Chiaia 5' ], array_column( get_option( 'barrio_company' )['offices'], 'street' ) );
+		$this->assertContains( 'Company details, operating office: Barrio Suite has "Via Chiaia 5, 80134 Napoli (NA)", which stays; Suite Barrio had "Via Toledo 2, 80134 Napoli (NA)".', $report['warnings'] );
+	}
+
+	// Un prototipo modificato per un sito: ogni modulo avvisa per un'opzione sua e per una chiave delle sue opzioni che
+	// il prototipo non ha mai avuto, uguale nella prova a vuoto. Le colonne delle tabelle in MigrationTest.
+	public function test_every_module_warns_about_what_suite_barrio_never_had(): void {
+		$never = static fn( string $where, string $key ): string => "{$where}: Suite Barrio never had \"{$key}\" (a version changed for this site?), it was not migrated.";
+		$cases = [
+			// Modulo, dove, un'opzione nuova, un'opzione con una chiave nuova e il suo dove.
+			[ 'popups', 'Popups', 'suite_barrio_popups_style', null, '' ],
+			[ 'banners', 'Banners', 'suite_barrio_banners_style', null, '' ],
+			[ 'hours', 'Opening hours', 'suite_barrio_orari_note', 'suite_barrio_orari_data', 'Opening hours, suite_barrio_orari_data' ],
+			[ 'company', 'Company details', 'suite_barrio_company_logo', 'suite_barrio_company_info', 'Company details' ],
+			[ 'blocks', 'Blocks', 'suite_barrio_blocks_roles', 'suite_barrio_blocks_settings', 'Blocks, suite_barrio_blocks_settings' ],
+			[ 'ordering', 'Ordering', 'suite_barrio_orders_mode', 'suite_barrio_orders_settings', 'Ordering, suite_barrio_orders_settings' ],
+			[ 'duplicate', 'Duplicate', 'suite_barrio_duplicate_mode', 'suite_barrio_duplicate_settings', 'Duplicate, suite_barrio_duplicate_settings' ],
+			[ 'alt', 'Alt text', 'suite_barrio_alt_ai_prompt', null, '' ],
+			[ 'analytics', 'Analytics', 'suite_barrio_stats_view', 'suite_barrio_stats_settings', 'Analytics, suite_barrio_stats_settings' ],
+		];
+		foreach ( $cases as [ $module, $where, $option, $keys, $keys_where ] ) {
+			update_option( $option, 'x' );
+			$expected = [ $never( $where, $option ) ];
+			if ( null !== $keys ) {
+				update_option( $keys, [ 'extra' => 'x' ] + get_option( $keys ) );
+				$expected[] = $never( $keys_where, 'extra' );
+			}
+
+			$dry    = $this->migrate( $module, true );
+			$report = $this->migrate( $module );
+
+			$this->assertSame( $expected, array_values( preg_grep( '/Suite Barrio never had/', $report['warnings'] ) ), $module );
+			$this->assertSame( $expected, array_values( preg_grep( '/Suite Barrio never had/', $dry['warnings'] ) ), $module );
+		}
 	}
 
 	/** @param array<string, mixed> $args */
@@ -381,6 +532,73 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 			'response' => [ 'code' => 200 ],
 			'cookies'  => [],
 		];
+	}
+
+	// Barrio → Migration: solo per chi ha manage_options e solo con qualcosa da migrare.
+	public function test_the_page_is_only_for_administrators_and_only_with_something_to_migrate(): void {
+		$page = static function (): bool {
+			barrio_migration_menu();
+			return false !== remove_submenu_page( 'barrio', 'barrio-migration' );
+		};
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertFalse( $page() );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$this->assertTrue( $page() );
+		// Ogni modulo del prototipo spento, nessuno trattenuto e nessun form.
+		update_option( 'suite_barrio_tools_modules', array_fill_keys( [ 'seo', ...array_values( BARRIO_MIGRATION_MODULES ) ], 0 ) );
+		$this->assertFalse( $page() );
+	}
+
+	public function test_the_routes_give_the_reports_of_the_migration_only_to_administrators(): void {
+		$request = static function ( string $method, string $route, array $params = [] ): WP_REST_Response {
+			$request = new WP_REST_Request( $method, $route );
+			$request->set_body_params( $params );
+			return rest_get_server()->dispatch( $request );
+		};
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( 403, $request( 'POST', '/barrio/v1/migration/popups', [ 'dry_run' => true ] )->get_status() );
+		$this->assertArrayNotHasKey( 'migration', apply_filters( 'barrio_admin_data', [] ) );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$steps = apply_filters( 'barrio_admin_data', [] )['migration'];
+		// Senza dry_run una richiesta incompleta migrerebbe davvero.
+		$this->assertSame( 400, $request( 'POST', '/barrio/v1/migration/popups' )->get_status() );
+		$dry   = $this->migrate( 'popups', true );
+		$tried = $request( 'POST', '/barrio/v1/migration/popups', [ 'dry_run' => true ] )->get_data();
+		$done  = $request( 'POST', '/barrio/v1/migration/popups', [ 'dry_run' => false ] )->get_data();
+
+		$this->assertSame( [ 'forms', 'seo', 'company', 'popups', 'banners', 'hours', 'blocks', 'ordering', 'duplicate', 'alt', 'analytics' ], array_column( $steps, 'id' ) );
+		$this->assertSame( 'pending', $steps[3]['status'] );
+		$this->assertSame( [ $dry['counts'], $dry['notes'], $dry['warnings'], 'pending' ], [ $tried['rows'], $tried['notes'], $tried['warnings'], $tried['step']['status'] ] );
+		$this->assertSame( [ $dry['counts'], 'migrated' ], [ $done['rows'], $done['step']['status'] ] );
+		$this->assertCount( 2, PopupRepository::all() );
+		$this->assertSame( 400, $request( 'POST', '/barrio/v1/migration/nope', [ 'dry_run' => true ] )->get_status() );
+
+		// Forms scrive con le classi del suo modulo: spento, il passaggio non c'è.
+		Modules::set( 'forms', false );
+		$this->assertNotContains( 'forms', array_column( barrio_migration_steps(), 'id' ) );
+	}
+
+	public function test_a_database_error_comes_with_its_reason_and_a_second_request_waits_for_the_first(): void {
+		global $wpdb;
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$post = static function (): WP_REST_Response {
+			$request = new WP_REST_Request( 'POST', '/barrio/v1/migration/popups' );
+			$request->set_body_params( [ 'dry_run' => false ] );
+			return rest_get_server()->dispatch( $request );
+		};
+
+		$other = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
+		$other->query( "SELECT GET_LOCK('barrio_migration_" . md5( DB_NAME . '.' . $wpdb->prefix ) . "', 0)" );
+		$this->assertSame( [ 409, [] ], [ $post()->get_status(), PopupRepository::all() ] );
+		$other->close();
+
+		$wpdb->suppress_errors();
+		add_filter( 'query', static fn( string $query ): string => str_starts_with( $query, 'INSERT' ) && str_contains( $query, 'barrio_popups' ) ? 'SELECT broken' : $query );
+		$response = $post();
+		$this->assertSame( [ 500, 'barrio_migration_error' ], [ $response->get_status(), $response->get_data()['code'] ] );
+		$this->assertStringContainsString( 'broken', $response->get_data()['message'] );
 	}
 
 	public function test_a_dry_run_reports_the_same_and_writes_nothing(): void {
@@ -459,31 +677,6 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 
 		$this->assertTrue( Modules::is_enabled( 'ordering' ) );
 		$this->assertFalse( Modules::is_enabled( 'duplicate' ) );
-	}
-
-	public function test_changes_reach_the_revalidation_of_the_prototype_also_when_a_period_starts(): void {
-		$start = gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS );
-		PopupRepository::save(
-			null,
-			[
-				'is_enabled' => true,
-				'starts_at'  => $start,
-				'ends_at'    => null,
-				'image_id'   => null,
-				'settings'   => [
-					'new_tab' => false,
-					'days'    => 7,
-				],
-				'i18n'       => [ 'it' => [ 'title' => 'Natale' ] ],
-			]
-		);
-		do_action( 'barrio_ordering_changed', 'term', 'category' );
-		do_action( 'barrio_hours_changed' );
-		do_action( 'barrio_company_changed' );
-
-		$this->assertSame( [ 'wp:popup', 'wp:type:category', 'wp:orari', 'wp:option' ], $GLOBALS['barrio_test_revalidated'] );
-		$time = (int) strtotime( "{$start} UTC" );
-		$this->assertSame( $time, wp_next_scheduled( 'barrio_migration_popups_period', [ $time ] ) );
 	}
 
 	private function company(): void {
@@ -659,6 +852,40 @@ final class ModulesMigrationTest extends WP_UnitTestCase {
 				'sede_op_cap'            => '80134',
 				'sede_op_provincia'      => 'NA',
 				'sede_op_google_maps'    => '',
+				// I contatti per sede di un prototipo modificato sul server.
+				'sede_telefoni'          => [
+					[
+						'label' => '',
+						'value' => '+39 081.123.4567',
+					],
+					[
+						'label' => 'Prenotazioni',
+						'value' => '081 7654321',
+					],
+					[
+						'label' => 'Vuoto',
+						'value' => '',
+					],
+				],
+				'sede_email'             => [],
+				'sede_op_telefoni'       => [
+					[
+						'label' => '',
+						'value' => '081 5555555',
+					],
+				],
+				'sede_op_email'          => wp_json_encode(
+					[
+						[
+							'label' => 'Eventi',
+							'value' => 'eventi@trattoriamario.it',
+						],
+						[
+							'label' => '',
+							'value' => 'non valida',
+						],
+					]
+				),
 				'facebook'               => 'https://www.facebook.com/trattoriamario',
 				'instagram'              => 'https://instagram.com/trattoriamario',
 				'linkedin'               => '',

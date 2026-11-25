@@ -25,6 +25,9 @@ function barrio_migration_hours_run( bool $dry_run, array &$report ): ?WP_Error 
 	if ( ! $options && ! $data ) {
 		return new WP_Error( 'barrio_migration_no_prototype', 'There are no opening hours of Suite Barrio in this database.' );
 	}
+	barrio_migration_unknown_options( 'Opening hours', [ 'suite_barrio_orari_' ], [ 'suite_barrio_orari_settings', 'suite_barrio_orari_data' ], $report['warnings'] );
+	barrio_migration_unknown( 'Opening hours, suite_barrio_orari_settings', $options, [ 'google_api_key', 'place_id' ], $report['warnings'] );
+	barrio_migration_unknown( 'Opening hours, suite_barrio_orari_data', $data, [ 'orari_settimanali', 'ultimo_aggiornamento', 'display_name' ], $report['warnings'] );
 	if ( '' !== trim( (string) ( $options['google_api_key'] ?? '' ) ) ) {
 		$report['warnings'][] = 'Opening hours: the API key of Suite Barrio is not migrated. Barrio Suite connects to Google with the service account of Barrio → Settings, with Places API (New) enabled in its project.' . ( null === Google::account() ? ' Add it before the next sync.' : '' );
 	}

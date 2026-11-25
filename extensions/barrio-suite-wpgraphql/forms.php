@@ -80,6 +80,7 @@ function barrio_wpgraphql_register(): void {
 				'placeholder'      => barrio_wpgraphql_string(),
 				'errorMessage'     => barrio_wpgraphql_string( 'The custom error message, if any.' ),
 				'isRequired'       => barrio_wpgraphql_required( 'Boolean' ),
+				'isMultiple'       => barrio_wpgraphql_required( 'Boolean', 'A select where more than one choice can be picked: its values are submitted like those of a checkbox.' ),
 				'pattern'          => barrio_wpgraphql_string( 'A regular expression the whole value must match.' ),
 				'min'              => barrio_wpgraphql_string( 'Number fields.' ),
 				'max'              => barrio_wpgraphql_string( 'Number fields.' ),
@@ -159,7 +160,7 @@ function barrio_wpgraphql_register(): void {
 			'description' => 'The value of a field.',
 			'fields'      => [
 				'name'  => barrio_wpgraphql_required( 'String', 'The name of the field. Values for extensions, like the reCAPTCHA token, start with _ (_barrio_recaptcha).' ),
-				'value' => barrio_wpgraphql_string( 'Checkboxes: the values separated by commas, or "Label: true | Label: false". Files: {"content": base64, "filename": "…"} as JSON.' ),
+				'value' => barrio_wpgraphql_string( 'Checkboxes and multiple selects: the values separated by commas, or "Label: true | Label: false". Files: {"content": base64, "filename": "…"} as JSON.' ),
 			],
 		]
 	);
@@ -257,6 +258,7 @@ function barrio_wpgraphql_field( Field $field, array $text ): array {
 		'placeholder'      => $text['placeholder'] ?? '',
 		'errorMessage'     => $text['error_message'] ?? '',
 		'isRequired'       => $field->required,
+		'isMultiple'       => ! empty( $config['multiple'] ),
 		'pattern'          => $config['pattern'] ?? ( 'email' === $field->type ? BARRIO_WPGRAPHQL_EMAIL : '' ),
 		'min'              => isset( $config['min'] ) ? (string) $config['min'] : null,
 		'max'              => isset( $config['max'] ) ? (string) $config['max'] : null,
@@ -329,7 +331,7 @@ function barrio_wpgraphql_submit( array $input ): array {
 		if ( 'file' === $type ) {
 			// Con il campo ripetuto, il file temporaneo di una seconda copia non verrebbe mai cancellato.
 			$files[ $key ] ??= barrio_wpgraphql_file( $value );
-		} elseif ( 'checkbox' === $type ) {
+		} elseif ( null !== $type && FieldTypes::multiple( $fields[ $key ] ) ) {
 			$values[ $key ] = barrio_wpgraphql_checked( $fields[ $key ], $value, $lang );
 		} elseif ( 'consent' === $type ) {
 			// La checkbox di barrio_wpgraphql_field(): "Etichetta: true" se spuntata, oppure il valore 1.
@@ -441,8 +443,8 @@ function barrio_wpgraphql_file( string $value ): ?array {
 }
 
 /**
- * Le checkbox come le inviano i frontend headless: "Etichetta: true | Etichetta: false", con le etichette
- * nella lingua del form, oppure i valori separati da virgole.
+ * Le checkbox e le select multiple come le inviano i frontend headless: "Etichetta: true | Etichetta: false",
+ * con le etichette nella lingua del form, oppure i valori separati da virgole.
  *
  * @return list<string> I valori delle scelte; uno sconosciuto resta com'è e la pipeline lo rifiuta.
  */

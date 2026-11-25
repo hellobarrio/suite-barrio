@@ -24,14 +24,6 @@ function barrio_migration_popups_boot(): void {
 		},
 		20
 	);
-	add_action(
-		'barrio_popups_changed',
-		static function (): void {
-			barrio_migration_revalidate( 'wp:popup' );
-			barrio_migration_schedule( 'barrio_migration_popups_period', [ PopupRepository::class, 'all' ] );
-		}
-	);
-	add_action( 'barrio_migration_popups_period', static fn() => barrio_migration_revalidate( 'wp:popup' ) );
 }
 
 /** @param BarrioMigrationReport $report */
@@ -45,6 +37,11 @@ function barrio_migration_popups_run( bool $dry_run, array &$report ): ?WP_Error
 	if ( $error ) {
 		return $error;
 	}
+	barrio_migration_unknown_columns( 'Popups', $table, [ 'id', 'title', 'content', 'image_id', 'image_url', 'link', 'link_title', 'link_target', 'active', 'created_at', 'updated_at' ], $report['warnings'] );
+	if ( barrio_migration_table_exists( "{$table}_translations" ) ) {
+		barrio_migration_unknown_columns( 'Popups', "{$table}_translations", [ 'id', 'popup_id', 'lang', 'title', 'content', 'link', 'link_title', 'link_target', 'updated_at' ], $report['warnings'] );
+	}
+	barrio_migration_unknown_options( 'Popups', [ 'suite_barrio_popups_' ], [ 'suite_barrio_popups_db_version', 'suite_barrio_popups_limit' ], $report['warnings'] );
 	$main   = I18n::languages()[0];
 	$texts  = barrio_migration_translations( "{$table}_translations", 'popup_id', $main );
 	$map    = array_map( 'intval', (array) get_option( 'barrio_migration_popups_ids', [] ) );

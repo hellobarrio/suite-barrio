@@ -15,21 +15,27 @@ use WP_UnitTestCase;
 final class CompanyTest extends WP_UnitTestCase {
 
 	private const ADDRESS = [
+		'name'        => '',
 		'street'      => '',
 		'postal_code' => '',
 		'locality'    => '',
 		'region'      => '',
 		'country'     => '',
 		'maps_url'    => '',
+		'phones'      => [],
+		'emails'      => [],
 	];
 
 	private const OFFICE = [
+		'name'        => '',
 		'street'      => 'Via Roma 1',
 		'postal_code' => '80100',
 		'locality'    => 'Napoli',
 		'region'      => 'NA',
 		'country'     => 'IT',
 		'maps_url'    => 'https://maps.app.goo.gl/abc',
+		'phones'      => [],
+		'emails'      => [],
 	];
 
 	public function set_up(): void {
@@ -49,7 +55,7 @@ final class CompanyTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'barrio_company', wp_load_alloptions(), 'In autoload: the block and the schema read it.' );
 
 		delete_option( 'barrio_company' );
-		$address = array_diff_key( self::OFFICE, [ 'maps_url' => '' ] );
+		$address = array_diff_key( self::OFFICE, array_flip( [ 'name', 'maps_url', 'phones', 'emails' ] ) );
 		update_option(
 			'barrio_seo',
 			[
@@ -96,33 +102,96 @@ final class CompanyTest extends WP_UnitTestCase {
 
 	public function test_the_schema_refuses_invalid_emails_urls_and_countries(): void {
 		$valid = [
-			'email'             => 'info@trattoriamario.it',
-			'certified_email'   => 'trattoriamario@pec.it',
-			'privacy_email'     => '',
-			'address'           => self::OFFICE,
-			'operating_address' => [ 'country' => 'IT' ] + self::ADDRESS,
-			'profiles'          => [ 'https://www.instagram.com/trattoriamario' ],
+			'email'           => 'info@trattoriamario.it',
+			'certified_email' => 'trattoriamario@pec.it',
+			'privacy_email'   => '',
+			'address'         => [
+				'phones' => [
+					[
+						'label' => 'Sales',
+						'value' => str_repeat( '1', 64 ),
+					],
+				],
+			] + self::OFFICE,
+			'offices'         => [
+				[
+					'name'    => 'Milan warehouse',
+					'country' => 'IT',
+					'emails'  => [
+						[
+							'label' => '',
+							'value' => 'info@trattoriamario.it',
+						],
+					],
+				] + self::ADDRESS,
+			],
+			'profiles'        => [ 'https://www.instagram.com/trattoriamario' ],
 		];
 		$this->assertSame( 200, $this->request( 'PUT', $valid )->get_status() );
 
 		$invalid = [
-			'email'           => [ 'email' => 'info.trattoriamario.it' ],
-			'pec'             => [ 'certified_email' => 'trattoriamario.pec.it' ],
-			'privacy email'   => [ 'privacy_email' => 'privacy@' ],
-			'script map'      => [ 'address' => [ 'maps_url' => 'javascript:alert(1)' ] + self::OFFICE ],
-			'map with spaces' => [ 'address' => [ 'maps_url' => 'https://maps google.com' ] + self::OFFICE ],
-			'office map'      => [ 'operating_address' => [ 'maps_url' => 'ftp://maps.example' ] + self::ADDRESS ],
-			'country'         => [ 'address' => [ 'country' => 'Italy' ] + self::OFFICE ],
-			'partial office'  => [ 'operating_address' => [ 'street' => 'Via Roma 1' ] ],
-			'unknown key'     => [ 'operating_address' => [ 'phone' => '081' ] + self::ADDRESS ],
-			'script profile'  => [ 'profiles' => [ 'javascript:alert(1)' ] ],
-			'long line'       => [ 'legal_name' => str_repeat( 'a', 256 ) ],
-			'long phone'      => [ 'phone' => str_repeat( '1', 65 ) ],
+			'email'            => [ 'email' => 'info.trattoriamario.it' ],
+			'pec'              => [ 'certified_email' => 'trattoriamario.pec.it' ],
+			'privacy email'    => [ 'privacy_email' => 'privacy@' ],
+			'script map'       => [ 'address' => [ 'maps_url' => 'javascript:alert(1)' ] + self::OFFICE ],
+			'map with spaces'  => [ 'address' => [ 'maps_url' => 'https://maps google.com' ] + self::OFFICE ],
+			'office map'       => [ 'offices' => [ [ 'maps_url' => 'ftp://maps.example' ] + self::ADDRESS ] ],
+			'country'          => [ 'address' => [ 'country' => 'Italy' ] + self::OFFICE ],
+			'partial office'   => [ 'offices' => [ [ 'street' => 'Via Roma 1' ] ] ],
+			'unknown key'      => [ 'offices' => [ [ 'phone' => '081' ] + self::ADDRESS ] ],
+			'not a list'       => [ 'offices' => self::OFFICE ],
+			'office email'     => [
+				'address' => [
+					'emails' => [
+						[
+							'label' => '',
+							'value' => 'info@',
+						],
+					],
+				] + self::OFFICE,
+			],
+			'long office tel'  => [
+				'address' => [
+					'phones' => [
+						[
+							'label' => '',
+							'value' => str_repeat( '1', 65 ),
+						],
+					],
+				] + self::OFFICE,
+			],
+			'empty office tel' => [
+				'address' => [
+					'phones' => [
+						[
+							'label' => 'Sales',
+							'value' => '',
+						],
+					],
+				] + self::OFFICE,
+			],
+			'contact no label' => [ 'address' => [ 'phones' => [ [ 'value' => '081' ] ] ] + self::OFFICE ],
+			'old office'       => [ 'address' => array_diff_key( self::OFFICE, [ 'name' => '' ] ) ],
+			'script profile'   => [ 'profiles' => [ 'javascript:alert(1)' ] ],
+			'long line'        => [ 'legal_name' => str_repeat( 'a', 256 ) ],
+			'long phone'       => [ 'phone' => str_repeat( '1', 65 ) ],
 		];
 		foreach ( $invalid as $name => $body ) {
 			$this->assertSame( 400, $this->request( 'PUT', $body )->get_status(), $name );
 		}
 		$this->assertSame( 'trattoriamario@pec.it', Module::settings()['certified_email'], 'Nothing invalid is saved.' );
+		$this->assertSame( [ $valid['address'], $valid['offices'] ], [ Module::settings()['address'], Module::settings()['offices'] ] );
+
+		$old = array_diff_key( self::OFFICE, array_flip( [ 'name', 'phones', 'emails' ] ) );
+		update_option(
+			'barrio_company',
+			[
+				'address' => $old,
+				'offices' => [ $old ],
+			]
+		);
+		$this->assertEquals( [ self::OFFICE ], Module::settings()['offices'], 'An office saved before the name and the contacts gets them empty.' );
+		$this->assertEquals( self::OFFICE, Module::settings()['address'] );
 	}
 
 	public function test_the_data_fall_back_on_the_name_and_drop_empty_offices(): void {
@@ -147,23 +216,41 @@ final class CompanyTest extends WP_UnitTestCase {
 		$data = Module::data();
 		$this->assertSame( 'Trattoria Mario', $data['legal_name'], 'An empty company name is the name.' );
 		$this->assertSame( self::OFFICE, $data['address'] );
-		$this->assertNull( $data['operating_address'], 'Empty: the operating office is the registered office.' );
+		$this->assertSame( [], $data['offices'], 'None: the registered office is the only one.' );
 		$this->assertArrayNotHasKey( 'profiles', $data );
 
 		$this->request(
 			'PUT',
 			[
-				'legal_name'        => 'Trattoria Mario S.r.l.',
-				'address'           => [ 'maps_url' => 'https://maps.app.goo.gl/abc' ] + self::ADDRESS,
-				'operating_address' => [
-					'street'   => 'Via Toledo 2',
-					'locality' => 'Napoli',
-				] + self::ADDRESS,
+				'legal_name' => 'Trattoria Mario S.r.l.',
+				'address'    => [ 'maps_url' => 'https://maps.app.goo.gl/abc' ] + self::ADDRESS,
+				'offices'    => [
+					[ 'name' => 'Only a name' ] + self::ADDRESS,
+					[
+						'street'   => 'Via Toledo 2',
+						'locality' => 'Napoli',
+					] + self::ADDRESS,
+				],
 			]
 		);
 		$data = Module::data();
-		$this->assertSame( [ 'Trattoria Mario S.r.l.', 'Via Toledo 2' ], [ $data['legal_name'], $data['operating_address']['street'] ?? null ] );
+		$this->assertSame( [ 'Trattoria Mario S.r.l.', [ 'Via Toledo 2' ] ], [ $data['legal_name'], array_column( $data['offices'], 'street' ) ] );
 		$this->assertNull( $data['address'], 'A map without an address is no office.' );
+
+		$this->request(
+			'PUT',
+			[
+				'address' => [
+					'phones' => [
+						[
+							'label' => '',
+							'value' => '081 1234567',
+						],
+					],
+				] + self::ADDRESS,
+			]
+		);
+		$this->assertNull( Module::data()['address'], 'Neither are contacts.' );
 	}
 
 	public function test_block_and_shortcode_give_the_same_html_with_the_details_chosen(): void {
@@ -189,11 +276,85 @@ final class CompanyTest extends WP_UnitTestCase {
 		$list = '<ul class="barrio-company is-list"><li><a href="tel:0811234567">081 123 45 67</a></li><li><a href="mailto:info@trattoriamario.it">info@trattoriamario.it</a></li><li>Trattoria Mario</li></ul>';
 		$this->assertSame( $list, do_shortcode( '[barrio_company fields="phone, email,mobile,unknown,name" layout="list" labels="0"]' ), 'In the order chosen, without the empty and the unknown ones.' );
 		$this->assertSame( $list, do_blocks( '<!-- wp:barrio/company {"fields":["phone","email","mobile","unknown","name"],"layout":"list","labels":false} /-->' ) );
+
+		$this->request(
+			'PUT',
+			[
+				'address' => [
+					'phones' => [
+						[
+							'label' => 'Sales <b>',
+							'value' => '+39 011.48.13.111',
+						],
+						[
+							'label' => '',
+							'value' => '+39 011.48.13.133',
+						],
+					],
+					'emails' => [
+						[
+							'label' => '',
+							'value' => 'torino@trattoriamario.it',
+						],
+					],
+				] + self::OFFICE,
+			]
+		);
+		$office   = '<a href="https://maps.app.goo.gl/abc">Via Roma 1, 80100 Napoli (NA)</a>';
+		$contacts = [ 'Sales &lt;b&gt;: <a href="tel:+390114813111">+39 011.48.13.111</a>', '<a href="tel:+390114813133">+39 011.48.13.133</a>', '<a href="mailto:torino@trattoriamario.it">torino@trattoriamario.it</a>' ];
+		$line     = '<p class="barrio-company is-line">Registered office: ' . implode( ' · ', [ $office, ...$contacts ] ) . ' · VAT number: IT01234567890</p>';
+		$this->assertSame( $line, do_shortcode( '[barrio_company fields="address,vat_id"]' ), 'The contacts follow their office.' );
+		$this->assertSame( $line, do_blocks( '<!-- wp:barrio/company {"fields":["address","vat_id"]} /-->' ) );
+		$list = '<ul class="barrio-company is-list"><li>' . implode( '<br>', [ $office, ...$contacts ] ) . '</li></ul>';
+		$this->assertSame( $list, do_shortcode( '[barrio_company fields="address" layout="list" labels="0"]' ), 'In a list, under it.' );
+		$this->assertSame( $list, do_blocks( '<!-- wp:barrio/company {"fields":["address"],"layout":"list","labels":false} /-->' ) );
+
+		$this->request(
+			'PUT',
+			[
+				'address' => [ 'name' => 'Head office' ] + self::OFFICE,
+				'offices' => [
+					[
+						'name'     => 'Milan <warehouse>',
+						'street'   => 'Via Meucci 3',
+						'locality' => 'Sesto San Giovanni',
+						'phones'   => [
+							[
+								'label' => '',
+								'value' => '02 1234567',
+							],
+						],
+					] + self::ADDRESS,
+					[
+						'street'   => 'Via Toledo 2',
+						'locality' => 'Napoli',
+					] + self::ADDRESS,
+				],
+			]
+		);
+		$list = '<ul class="barrio-company is-list"><li>Head office: ' . $office . '</li><li>Milan &lt;warehouse&gt;: Via Meucci 3, Sesto San Giovanni<br><a href="tel:021234567">02 1234567</a></li><li>Operating office: Via Toledo 2, Napoli</li></ul>';
+		$this->assertSame( $list, do_shortcode( '[barrio_company fields="address,offices" layout="list"]' ), 'Every operating office on its own, the name in place of the label.' );
+		$this->assertSame( $list, do_blocks( '<!-- wp:barrio/company {"fields":["address","offices"],"layout":"list"} /-->' ) );
+		$this->assertSame(
+			'<p class="barrio-company is-line">Via Meucci 3, Sesto San Giovanni · <a href="tel:021234567">02 1234567</a> · Via Toledo 2, Napoli</p>',
+			do_shortcode( '[barrio_company fields="offices" labels="0"]' ),
+			'Without labels, without names.'
+		);
 	}
 
 	public function test_without_details_nothing_is_shown(): void {
 		$this->assertSame( '', do_shortcode( '[barrio_company]' ) );
-		$this->assertSame( '', do_blocks( '<!-- wp:barrio/company {"fields":["name","operating_address"]} /-->' ) );
+		$this->assertSame( '', do_blocks( '<!-- wp:barrio/company {"fields":["name","offices"]} /-->' ) );
+
+		// Il solo paese non è una sede: niente "Registered office: " vuoto.
+		update_option(
+			'barrio_company',
+			[
+				'vat_id'  => 'IT0123',
+				'address' => [ 'country' => 'IT' ],
+			]
+		);
+		$this->assertSame( '<p class="barrio-company is-line">VAT number: IT0123</p>', do_shortcode( '[barrio_company fields="address,vat_id"]' ) );
 	}
 
 	public function test_the_organization_schema_reads_the_details_from_here_also_with_the_module_off(): void {

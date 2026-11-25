@@ -24,27 +24,45 @@ msgstr "Barrio Suite WPGraphQL"
 msgid "Hellobarrio"
 msgstr "Hellobarrio"
 
-#: forms.php:302
+#: forms.php:291
 msgid "Sorry, you are not allowed to list the forms."
 msgstr "Non hai i permessi per elencare i form."
 
-#: forms.php:329
+#: forms.php:318
 msgid "Form not found."
 msgstr "Form non trovato."
 
-#: forms.php:393
+#: forms.php:384
 msgid "Thank you, your submission has been received."
 msgstr "Grazie, abbiamo ricevuto il tuo messaggio."
-
-#: seo.php:31
-msgid "Frontend address"
-msgstr "Indirizzo del frontend"
-
-#: seo.php:32
-msgid "The address of the headless site, like https://www.example.com. In GraphQL the links of the Barrio Suite SEO (canonical, JSON-LD, llms.txt) point there instead of WordPress; images stay on WordPress."
-msgstr "L'indirizzo del sito headless, come https://www.esempio.it. In GraphQL i link del SEO di Barrio Suite (canonical, JSON-LD, llms.txt) puntano lì invece che a WordPress; le immagini restano su WordPress."
 
 #. Description of the plugin
 #: barrio-suite-wpgraphql.php
 msgid "The Barrio Suite forms, SEO, popups, banners, opening hours and company details in WPGraphQL, for headless frontends."
 msgstr "I form, il SEO, i popup, i banner, gli orari e i dati aziendali di Barrio Suite in WPGraphQL, per i frontend headless."
+
+#: frontend.php:177
+msgid "The frontend did not answer: check its address."
+msgstr "Il frontend non ha risposto: controlla il suo indirizzo."
+
+#: frontend.php:163
+msgid "The frontend cleared its cache."
+msgstr "Il frontend ha svuotato la cache."
+
+#. translators: %d: HTTP status code, like 401.
+#: frontend.php:180
+#, php-format
+msgid "The frontend answered with the error %d: with 401, the token is not the one of the frontend."
+msgstr "Il frontend ha risposto con l'errore %d: con 401, il token non è quello del frontend."
+
+#: frontend.php:132
+msgid "The address of the frontend must start with https:// or http://."
+msgstr "L'indirizzo del frontend deve iniziare con https:// o http://."
+
+#: frontend.php:159
+msgid "Write the address of the frontend and at least one tag."
+msgstr "Scrivi l'indirizzo del frontend e almeno un tag."
+
+#: frontend.php:138
+msgid "The token can only have letters, numbers and the characters . _ ~ + / = - without spaces."
+msgstr "Il token può avere solo lettere, numeri e i caratteri . _ ~ + / = - senza spazi."

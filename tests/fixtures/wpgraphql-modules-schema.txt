@@ -18,11 +18,19 @@ type HbBannerCta {
 
 type HbCompanyAddress {
   country: String
+  emails: [HbCompanyContact!]!
   locality: String
   mapsUrl: String
+  name: String
+  phones: [HbCompanyContact!]!
   postalCode: String
   region: String
   street: String
+}
+
+type HbCompanyContact {
+  label: String
+  value: String!
 }
 
 type HbCompanyInfo {
@@ -33,7 +41,7 @@ type HbCompanyInfo {
   legalName: String
   mobile: String
   name: String
-  operatingAddress: HbCompanyAddress
+  offices: [HbCompanyAddress!]!
   phone: String
   privacyEmail: String
   profiles: [HbCompanyProfile!]!

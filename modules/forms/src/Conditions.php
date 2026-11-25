@@ -96,7 +96,7 @@ final class Conditions {
 		return 'hide' === $conditions['action'] ? ! $met : $met;
 	}
 
-	// Una checkbox ha più valori: basta che uno soddisfi la regola (per != nessuno deve essere uguale).
+	// Una checkbox o una select multipla ha più valori: basta che uno soddisfi la regola (per != nessuno deve essere uguale).
 	/** @param list<string> $values */
 	private static function test( array $values, string $operator, string $expected ): bool {
 		$some = static fn( callable $test ): bool => [] !== array_filter( $values, $test );

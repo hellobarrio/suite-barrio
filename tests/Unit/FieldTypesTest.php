@@ -51,6 +51,20 @@ final class FieldTypesTest extends TestCase {
 			'extension WP refuses'  => [ 'file', [ 'extensions' => [ 'pdf', 'exe' ] ] ],
 			'number min not number' => [ 'number', [ 'min' => 'five' ] ],
 			'invalid conditions'    => [ 'text', [], $show_if ],
+			'multiple not on radio' => [
+				'radio',
+				[
+					'choices'  => [ 'a' ],
+					'multiple' => true,
+				],
+			],
+			'multiple not boolean'  => [
+				'select',
+				[
+					'choices'  => [ 'a' ],
+					'multiple' => 'yes',
+				],
+			],
 		] as $what => $definition ) {
 			$this->assertIsString( FieldTypes::check( new Field( 'a', $definition[0], [], config: $definition[1], conditions: $definition[2] ?? null ) ), $what );
 		}
@@ -70,6 +84,8 @@ final class FieldTypesTest extends TestCase {
 			'textarea keeps lines'       => [ 'textarea', [], "Uno\r\n\tDue\r\n", [ "Uno\n\tDue" ] ],
 			'checkbox values'            => [ 'checkbox', [], [ 'news', '', 'news', [ 'x' ], 'events' ], [ 'news', 'events' ] ],
 			'checkbox single value'      => [ 'checkbox', [], 'news', [ 'news' ] ],
+			'multiple select values'     => [ 'select', [ 'multiple' => true ], [ 'to', ' to ', 'mi' ], [ 'to', 'mi' ] ],
+			'array to a single select'   => [ 'select', [], [ 'to', 'mi' ], [] ],
 			'consent given'              => [ 'consent', [], 'on', [ '1' ] ],
 			'consent from JSON'          => [ 'consent', [], true, [ '1' ] ],
 			'consent refused'            => [ 'consent', [], 'no', [] ],
@@ -136,6 +152,15 @@ final class FieldTypesTest extends TestCase {
 			'valid date'                  => [ 'datepicker', [], [ '2028-02-29' ], null ],
 			'unknown choice'              => [ 'select', [ 'choices' => [ 'to', 'cn' ] ], [ 'mi' ], 'Please choose one of the available options.' ],
 			'one bad choice'              => [ 'checkbox', [ 'choices' => [ 'a', 'b' ] ], [ 'a', 'c' ], 'Please choose one of the available options.' ],
+			'one bad multiple choice'     => [
+				'select',
+				[
+					'choices'  => [ 'to', 'mi' ],
+					'multiple' => true,
+				],
+				[ 'to', 'cn' ],
+				'Please choose one of the available options.',
+			],
 			'pattern'                     => [ 'tel', [ 'pattern' => '\+?[0-9 ]{6,}' ], [ '+39 011 1234' ], null ],
 			// Come l'attributo HTML: deve corrispondere tutto il valore.
 			'partial pattern'             => [ 'tel', [ 'pattern' => '[0-9]+' ], [ '123abc' ], 'Please match the requested format.' ],

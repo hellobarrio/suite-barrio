@@ -48,6 +48,7 @@ type HbFormField {
   conditionalLogic: HbConditionalLogic
   errorMessage: String
   format: String
+  isMultiple: Boolean!
   isRequired: Boolean!
   label: String
   max: String

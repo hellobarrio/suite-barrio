@@ -9,14 +9,15 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * Dati aziendali (PLAN-GRAPHQL.md §5): nome, contatti, dati legali, sedi e profili dell'azienda, nell'opzione
+ * Dati aziendali: nome, contatti, dati legali, sedi e profili dell'azienda, nell'opzione
  * barrio_company, validata con schema() prima di ogni scrittura. È l'unico posto dove si scrivono: lo schema del SEO
  * (Seo\Schema) li legge da qui, anche con il modulo spento. Nel sito il blocco barrio/company e lo shortcode
  * [barrio_company], con lo stesso HTML.
  *
- * @phpstan-type Address array{street: string, postal_code: string, locality: string, region: string, country: string, maps_url: string}
- * @phpstan-type Settings array{name: string, legal_name: string, vat_id: string, tax_code: string, registration_number: string, share_capital: string, invoice_code: string, phone: string, mobile: string, email: string, certified_email: string, privacy_email: string, address: Address, operating_address: Address, profiles: list<string>}
- * @phpstan-type Data array{name: string, legal_name: string, phone: string, mobile: string, email: string, privacy_email: string, certified_email: string, vat_id: string, tax_code: string, registration_number: string, share_capital: string, invoice_code: string, address: Address|null, operating_address: Address|null}
+ * @phpstan-type Contact array{label: string, value: string}
+ * @phpstan-type Office array{name: string, street: string, postal_code: string, locality: string, region: string, country: string, maps_url: string, phones: list<Contact>, emails: list<Contact>}
+ * @phpstan-type Settings array{name: string, legal_name: string, vat_id: string, tax_code: string, registration_number: string, share_capital: string, invoice_code: string, phone: string, mobile: string, email: string, certified_email: string, privacy_email: string, address: Office, offices: list<Office>, profiles: list<string>}
+ * @phpstan-type Data array{name: string, legal_name: string, phone: string, mobile: string, email: string, privacy_email: string, certified_email: string, vat_id: string, tax_code: string, registration_number: string, share_capital: string, invoice_code: string, address: Office|null, offices: list<Office>}
  */
 final class Module {
 
@@ -26,16 +27,21 @@ final class Module {
 	// In autoload: la legge ogni pagina con il blocco o con lo schema. Nasce dalla migrazione 0001.
 	private const OPTION = 'barrio_company';
 
-	private const ADDRESS = [
+	// Una sede: la legale (address) o una operativa (offices). Il nome è facoltativo ("Magazzino di Milano").
+	public const OFFICE = [
+		'name'        => '',
 		'street'      => '',
 		'postal_code' => '',
 		'locality'    => '',
 		'region'      => '',
 		'country'     => '',
 		'maps_url'    => '',
+		// I contatti della sede, con l'etichetta facoltativa ("Commerciale").
+		'phones'      => [],
+		'emails'      => [],
 	];
 
-	// address è la sede legale; una sede operativa vuota è la sede legale.
+	// address è la sede legale; senza sedi operative è l'unica.
 	private const DEFAULTS = [
 		'name'                => '',
 		'legal_name'          => '',
@@ -49,8 +55,8 @@ final class Module {
 		'email'               => '',
 		'certified_email'     => '',
 		'privacy_email'       => '',
-		'address'             => self::ADDRESS,
-		'operating_address'   => self::ADDRESS,
+		'address'             => self::OFFICE,
+		'offices'             => [],
 		'profiles'            => [],
 	];
 
@@ -143,6 +149,18 @@ final class Module {
 			'type'      => 'string',
 			'maxLength' => 64,
 		];
+		$contact = static fn( array $value ): array => [
+			'type'  => 'array',
+			'items' => [
+				'type'                 => 'object',
+				'properties'           => [
+					'label' => $line,
+					'value' => $value,
+				],
+				'required'             => [ 'label', 'value' ],
+				'additionalProperties' => false,
+			],
+		];
 		$email   = [
 			'type'  => 'string',
 			'anyOf' => [
@@ -156,9 +174,10 @@ final class Module {
 				],
 			],
 		];
-		$address = [
+		$office  = [
 			'type'                 => 'object',
 			'properties'           => [
+				'name'        => $line,
 				'street'      => $line,
 				'postal_code' => $line,
 				'locality'    => $line,
@@ -173,8 +192,15 @@ final class Module {
 					'maxLength' => 2048,
 					'pattern'   => '^(https?://\S+)?$',
 				],
+				'phones'      => $contact( [ 'minLength' => 1 ] + $code ),
+				'emails'      => $contact(
+					[
+						'type'   => 'string',
+						'format' => 'email',
+					]
+				),
 			],
-			'required'             => array_keys( self::ADDRESS ),
+			'required'             => array_keys( self::OFFICE ),
 			'additionalProperties' => false,
 		];
 		return [
@@ -190,8 +216,11 @@ final class Module {
 			'email'               => $email,
 			'certified_email'     => $email,
 			'privacy_email'       => $email,
-			'address'             => $address,
-			'operating_address'   => $address,
+			'address'             => $office,
+			'offices'             => [
+				'type'  => 'array',
+				'items' => $office,
+			],
 			// I profili social e le schede dell'azienda (Facebook, Instagram, Google Business Profile…).
 			'profiles'            => [
 				'type'  => 'array',
@@ -206,30 +235,37 @@ final class Module {
 
 	/** @return Settings */
 	public static function settings(): array {
+		$settings = array_intersect_key( (array) get_option( self::OPTION, [] ), self::DEFAULTS ) + self::DEFAULTS;
+		// Le sedi salvate prima del nome e dei contatti non li hanno.
+		$office              = static fn( mixed $place ): array => array_intersect_key( (array) $place, self::OFFICE ) + self::OFFICE;
+		$settings['address'] = $office( $settings['address'] );
+		$settings['offices'] = array_map( $office, array_values( (array) $settings['offices'] ) );
 		/** @var Settings */
-		return array_intersect_key( (array) get_option( self::OPTION, [] ), self::DEFAULTS ) + self::DEFAULTS;
+		return $settings;
 	}
 
 	/**
-	 * I dati per il blocco e GraphQL: la ragione sociale vuota vale il nome, una sede senza indirizzo è null.
+	 * I dati per il blocco e GraphQL: la ragione sociale vuota vale il nome, una sede senza indirizzo non c'è, anche con
+	 * il nome e i contatti.
 	 *
 	 * @return Data
 	 */
 	public static function data(): array {
 		$data = self::settings();
 		unset( $data['profiles'] );
-		$data['legal_name']        = $data['legal_name'] ?: $data['name'];
-		$data['address']           = self::address( $data['address'] );
-		$data['operating_address'] = self::address( $data['operating_address'] );
+		$data['legal_name'] = $data['legal_name'] ?: $data['name'];
+		$data['address']    = self::address( $data['address'] );
+		$data['offices']    = array_values( array_filter( array_map( [ self::class, 'address' ], $data['offices'] ) ) );
 		return $data;
 	}
 
 	/**
-	 * @param Address $place
-	 * @return Address|null
+	 * @param Office $place
+	 * @return Office|null
 	 */
 	private static function address( array $place ): ?array {
-		return array_filter( array_diff_key( $place, [ 'maps_url' => '' ] ) ) ? $place : null;
+		// Il solo paese non è un indirizzo: line() non lo stampa.
+		return array_filter( array_diff_key( $place, array_flip( [ 'name', 'country', 'maps_url', 'phones', 'emails' ] ) ) ) ? $place : null;
 	}
 
 	// I Permessi agli amministratori.
@@ -255,8 +291,9 @@ final class Module {
 
 	/**
 	 * Il blocco e lo shortcode: i dati scelti, nel loro ordine (fields; senza, la riga legale), in una riga separati da
-	 * " · " o in un elenco (layout), con le etichette (labels) tranne i nomi. Un dato vuoto si salta; senza dati niente.
-	 * Nessun CSS: il testo prende lo stile del tema.
+	 * " · " o in un elenco (layout), con le etichette (labels) tranne i nomi. Ogni sede operativa è un dato a sé, e il nome
+	 * di una sede fa da etichetta; i suoi contatti la seguono, nell'elenco sotto. Un dato vuoto si salta; senza dati
+	 * niente. Nessun CSS: il testo prende lo stile del tema.
 	 *
 	 * @param array<mixed> $atts Del blocco (fields è una lista) o dello shortcode (fields separati da virgole).
 	 */
@@ -264,19 +301,32 @@ final class Module {
 		$fields = $atts['fields'] ?? [];
 		$fields = array_filter( array_map( 'trim', is_array( $fields ) ? array_map( 'strval', $fields ) : explode( ',', (string) $fields ) ) ) ?: self::LINE;
 		$labels = filter_var( $atts['labels'] ?? true, FILTER_VALIDATE_BOOLEAN ) ? self::labels() : [];
+		$list   = 'list' === ( $atts['layout'] ?? 'line' );
 		$data   = self::data();
 		$items  = [];
 		foreach ( $fields as $field ) {
+			$places = match ( $field ) {
+				'address' => array_filter( [ $data['address'] ] ),
+				'offices' => $data['offices'],
+				default   => null,
+			};
+			if ( null !== $places ) {
+				foreach ( $places as $place ) {
+					$label   = $labels ? ( $place['name'] ?: $labels[ $field ] ) : '';
+					$item    = '' === $label ? self::office( $place ) : self::pair( $label, self::office( $place ) );
+					$items[] = implode( $list ? '<br>' : ' · ', [ $item, ...self::contacts( $place ) ] );
+				}
+				continue;
+			}
 			$value = self::value( $field, $data );
 			if ( '' !== $value ) {
-				/* translators: 1: name of a company detail, like VAT number; 2: its value. */
-				$items[] = isset( $labels[ $field ] ) ? sprintf( __( '%1$s: %2$s', 'barrio-suite' ), esc_html( $labels[ $field ] ), $value ) : $value;
+				$items[] = isset( $labels[ $field ] ) ? self::pair( $labels[ $field ], $value ) : $value;
 			}
 		}
 		if ( ! $items ) {
 			return '';
 		}
-		return 'list' === ( $atts['layout'] ?? 'line' )
+		return $list
 			? '<ul class="barrio-company is-list"><li>' . implode( '</li><li>', $items ) . '</li></ul>'
 			: '<p class="barrio-company is-line">' . implode( ' · ', $items ) . '</p>';
 	}
@@ -299,7 +349,7 @@ final class Module {
 			'email'               => __( 'Email', 'barrio-suite' ),
 			'privacy_email'       => __( 'Privacy email', 'barrio-suite' ),
 			'address'             => __( 'Registered office', 'barrio-suite' ),
-			'operating_address'   => __( 'Operating office', 'barrio-suite' ),
+			'offices'             => __( 'Operating office', 'barrio-suite' ),
 		];
 	}
 
@@ -315,24 +365,61 @@ final class Module {
 	}
 
 	/**
-	 * Un dato in HTML: email e telefoni come link, una sede in una riga ("Via Roma 1, 80100 Napoli (NA)") con il link
-	 * alla mappa. Vuoto per un dato vuoto o che non esiste.
+	 * Un dato in HTML: email e telefoni come link, la sede legale come self::office(). Vuoto per un dato vuoto o che
+	 * non esiste.
 	 *
 	 * @param Data $data
 	 */
 	private static function value( string $field, array $data ): string {
-		$value = $data[ $field ] ?? '';
-		if ( is_array( $value ) ) {
-			$text = esc_html( self::line( $value ) );
-			return '' === $value['maps_url'] ? $text : sprintf( '<a href="%s">%s</a>', esc_url( $value['maps_url'] ), $text );
+		if ( 'address' === $field ) {
+			return null === $data['address'] ? '' : self::office( $data['address'] );
 		}
-		if ( '' === $value ) {
+		$value = $data[ $field ] ?? '';
+		if ( ! is_string( $value ) || '' === $value ) {
 			return '';
 		}
 		return match ( $field ) {
-			'email', 'privacy_email', 'certified_email' => sprintf( '<a href="%s">%s</a>', esc_url( "mailto:{$value}" ), esc_html( $value ) ),
-			'phone', 'mobile' => sprintf( '<a href="%s">%s</a>', esc_url( 'tel:' . preg_replace( '/[^0-9+]/', '', $value ) ), esc_html( $value ) ),
+			'email', 'privacy_email', 'certified_email' => self::link( 'mailto', $value ),
+			'phone', 'mobile' => self::link( 'tel', $value ),
 			default => esc_html( $value ),
 		};
+	}
+
+	/**
+	 * Una sede in una riga ("Via Roma 1, 80100 Napoli (NA)"), con il link alla mappa.
+	 *
+	 * @param Office $place
+	 */
+	private static function office( array $place ): string {
+		$text = esc_html( self::line( $place ) );
+		return '' === $place['maps_url'] ? $text : sprintf( '<a href="%s">%s</a>', esc_url( $place['maps_url'] ), $text );
+	}
+
+	/**
+	 * I telefoni e le email di una sede come link, con la loro etichetta.
+	 *
+	 * @param Office $place
+	 * @return list<string>
+	 */
+	private static function contacts( array $place ): array {
+		$items = [];
+		foreach ( [ 'phones', 'emails' ] as $list ) {
+			foreach ( $place[ $list ] as $contact ) {
+				$link    = self::link( 'phones' === $list ? 'tel' : 'mailto', $contact['value'] );
+				$items[] = '' === $contact['label'] ? $link : self::pair( $contact['label'], $link );
+			}
+		}
+		return $items;
+	}
+
+	private static function link( string $scheme, string $value ): string {
+		$href = 'tel' === $scheme ? preg_replace( '/[^0-9+]/', '', $value ) : $value;
+		return sprintf( '<a href="%s">%s</a>', esc_url( "{$scheme}:{$href}" ), esc_html( $value ) );
+	}
+
+	// $html è già HTML, l'etichetta no.
+	private static function pair( string $label, string $html ): string {
+		/* translators: 1: name of a company detail, like VAT number; 2: its value. */
+		return sprintf( __( '%1$s: %2$s', 'barrio-suite' ), esc_html( $label ), $html );
 	}
 }

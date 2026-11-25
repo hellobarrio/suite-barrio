@@ -19,7 +19,7 @@
 		email: __( 'Email', 'barrio-suite' ),
 		privacy_email: __( 'Privacy email', 'barrio-suite' ),
 		address: __( 'Registered office', 'barrio-suite' ),
-		operating_address: __( 'Operating office', 'barrio-suite' ),
+		offices: __( 'Operating offices', 'barrio-suite' ),
 	};
 	const NAMES = Object.fromEntries(
 		Object.entries( FIELDS ).map( ( [ name, label ] ) => [ label, name ] )

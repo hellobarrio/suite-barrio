@@ -67,6 +67,14 @@
 	display: none;
 }
 
+/* Sui telefoni il selettore nativo di una select multipla non chiede Ctrl. */
+@media (pointer: coarse) {
+
+	.barrio-form select[multiple] + .barrio-form__hint {
+		display: none;
+	}
+}
+
 .barrio-form__choices {
 	display: grid;
 	gap: 0.375rem;

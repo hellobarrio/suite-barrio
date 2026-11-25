@@ -27,6 +27,10 @@ const BARRIO_MIGRATION_SEO_META = [
 	'sitemap'     => 'sitemap',
 ];
 const BARRIO_MIGRATION_SEO_SLUG = '/^[a-z0-9_-]{1,32}$/';
+// Le opzioni SEO del prototipo in tutte le sue versioni, anche quelle che non si migrano: le altre danno un avviso.
+const BARRIO_MIGRATION_SEO_OPTIONS     = [ 'suite_barrio_meta_settings', 'suite_barrio_meta_settings_og_image_id', 'suite_barrio_meta_content', 'suite_barrio_schema_settings', 'suite_barrio_sitemap_settings', 'suite_barrio_redirects', 'suite_barrio_llms_api_key', 'suite_barrio_llms_gemini_key', 'suite_barrio_llms_provider', 'suite_barrio_llms_model', 'suite_barrio_llms_language', 'suite_barrio_llms_tone', 'suite_barrio_llms_focus', 'suite_barrio_llms_pt_modes', 'suite_barrio_llms_tax_modes', 'suite_barrio_llms_last_generated', 'suite_barrio_llms_log', 'suite_barrio_llms_log_enabled', 'suite_barrio_advisor_api_key', 'suite_barrio_advisor_gemini_key', 'suite_barrio_advisor_provider', 'suite_barrio_advisor_model', 'suite_barrio_advisor_language', 'suite_barrio_advisor_tone', 'suite_barrio_advisor_style', 'suite_barrio_advisor_context', 'suite_barrio_advisor_keywords', 'suite_barrio_advisor_log', 'suite_barrio_advisor_log_enabled' ];
+const BARRIO_MIGRATION_SEO_SOCIALS     = [ 'facebook', 'instagram', 'twitter', 'linkedin', 'behance' ];
+const BARRIO_MIGRATION_SEO_SCHEMA_KEYS = [ 'business_type', 'business_name', 'description', 'url', 'logo', 'image', 'telephone', 'email', 'vat_id', 'street_address', 'postal_code', 'locality', 'region', 'country', 'latitude', 'longitude', 'facebook', 'instagram', 'twitter', 'linkedin', 'behance', 'language', 'area_served', 'knows_about', 'offer_catalog_name', 'offer_currency', 'offers' ];
 
 function barrio_migration_seo_boot(): void {
 	// Altrimenti i meta uscirebbero due volte, e in GraphQL vincerebbero le impostazioni di Barrio Suite, ancora
@@ -35,79 +39,6 @@ function barrio_migration_seo_boot(): void {
 		Modules::set( 'seo', false );
 		update_option( 'barrio_migration_seo', 'held' );
 	}
-	add_action( 'admin_notices', 'barrio_migration_seo_notice' );
-	add_action( 'barrio_seo_changed', 'barrio_migration_seo_revalidate', 10, 2 );
-	if ( defined( 'WP_CLI' ) && WP_CLI ) {
-		WP_CLI::add_command(
-			'barrio seo migrate',
-			'barrio_migration_seo_command',
-			[
-				'shortdesc' => 'Moves the SEO settings, content meta and redirects of Suite Barrio to Barrio Suite, then turns the SEO of Suite Barrio off and the one of Barrio Suite on.',
-				'synopsis'  => [
-					[
-						'type'        => 'flag',
-						'name'        => 'dry-run',
-						'optional'    => true,
-						'description' => 'Shows the counts and warnings without saving anything.',
-					],
-				],
-			]
-		);
-	}
-}
-
-function barrio_migration_seo_notice(): void {
-	if ( current_user_can( 'manage_options' ) && 'held' === get_option( 'barrio_migration_seo' ) && ! Modules::is_enabled( 'seo' ) ) {
-		printf(
-			'<div class="notice notice-warning"><p>%s</p></div>',
-			sprintf(
-				/* translators: 1: dry run command, 2: migration command. */
-				esc_html__( 'The SEO module of Barrio Suite stays off until the SEO of Suite Barrio is migrated: run %1$s, then %2$s. Turned on before, it prints the meta tags twice.', 'barrio-suite-migration' ),
-				'<code>wp barrio seo migrate --dry-run</code>',
-				'<code>wp barrio seo migrate</code>'
-			)
-		);
-	}
-}
-
-// Il ponte verso la revalidation di Next.js del prototipo, finché è attivo, con i suoi tag.
-function barrio_migration_seo_revalidate( string $what, int $id = 0 ): void {
-	if ( ! function_exists( 'suite_barrio_invalidate_vercel_cache' ) ) {
-		return;
-	}
-	$tags = match ( $what ) {
-		// Il noindex di un contenuto lo toglie anche dalla sitemap.
-		'post'      => [ $id, 'wp:sitemap' ],
-		'redirects' => [ 'wp:redirects' ],
-		default     => [ 'wp:seo,wp:schema,wp:sitemap,wp:llms' ],
-	};
-	foreach ( $tags as $tag ) {
-		suite_barrio_invalidate_vercel_cache( $tag );
-	}
-}
-
-/**
- * @param list<string>          $args
- * @param array<string, string> $assoc
- */
-function barrio_migration_seo_command( array $args, array $assoc ): void {
-	$dry_run = isset( $assoc['dry-run'] );
-	$report  = barrio_migration_seo_run( $dry_run );
-	if ( $report instanceof WP_Error ) {
-		WP_CLI::error( $report->get_error_message() );
-	}
-	WP_CLI\Utils\format_items( 'table', $report['counts'], [ 'data', 'found', 'migrated', 'default', 'skipped' ] );
-	foreach ( $report['notes'] as $note ) {
-		WP_CLI::log( $note );
-	}
-	foreach ( $report['warnings'] as $warning ) {
-		WP_CLI::warning( $warning );
-	}
-	WP_CLI::success(
-		$dry_run
-			? 'Dry run: nothing was saved. Run the command without --dry-run to migrate.'
-			: 'Migration complete: the SEO of Suite Barrio is off and the one of Barrio Suite is on. Empty the page cache.'
-	);
 }
 
 /**
@@ -129,12 +60,13 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 	if ( ! $options && ! $report['counts'] && ! barrio_migration_prototype( 'seo' ) ) {
 		return new WP_Error( 'barrio_migration_no_prototype', 'There are no SEO settings or meta of Suite Barrio in this database.' );
 	}
+	barrio_migration_seo_unknown( $report['warnings'] );
 
 	// Le tabelle del modulo, anche spento: le crea la sua prima accensione, ma qui si scrive prima.
 	$migrator = Modules::migrator( 'seo' );
 	$error    = $dry_run ? null : $migrator->run();
 	if ( $error || ( ! $dry_run && ! $migrator->is_current() ) ) {
-		return $error ?? new WP_Error( 'barrio_migration_tables', 'The tables of the Barrio Suite SEO module are being created by another request: run the command again.' );
+		return $error ?? new WP_Error( 'barrio_migration_tables', 'The tables of the Barrio Suite SEO module are being created by another request: migrate again.' );
 	}
 	$redirects = barrio_migration_seo_redirects( $migrator->is_current(), $report );
 	$settings  = barrio_migration_seo_settings( $report );
@@ -166,9 +98,8 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 		$company = Company::settings();
 		$empty   = static fn( mixed $value ): bool => ! array_filter( (array) $value );
 		update_option( 'barrio_company', array_replace( $company, array_filter( $settings['company'], static fn( mixed $value, string $key ): bool => $empty( $company[ $key ] ), ARRAY_FILTER_USE_BOTH ) ), true );
-		$graphql = (array) get_option( 'graphql_general_settings', [] );
-		if ( '' !== $settings['frontend'] && empty( $graphql['barrio_frontend_url'] ) ) {
-			update_option( 'graphql_general_settings', [ 'barrio_frontend_url' => $settings['frontend'] ] + $graphql );
+		if ( '' !== $settings['frontend'] ) {
+			update_option( 'barrio_frontend', [ 'url' => $settings['frontend'] ] + (array) get_option( 'barrio_frontend', [] ), true );
 		}
 	}
 	if ( null !== $ai ) {
@@ -180,10 +111,37 @@ function barrio_migration_seo_run( bool $dry_run ): array|WP_Error {
 	update_option( 'suite_barrio_tools_modules', [ 'seo' => 0 ] + (array) get_option( 'suite_barrio_tools_modules', [] ) );
 	Modules::set( 'seo', true );
 	update_option( 'barrio_migration_seo', 'migrated' );
-	// Finché il prototipo è attivo, il ponte fa rileggere tutto al frontend headless.
-	barrio_migration_seo_revalidate( 'settings' );
-	barrio_migration_seo_revalidate( 'redirects' );
+	// Il frontend headless rilegge tutto (la revalidation di barrio-suite-wpgraphql).
+	do_action( 'barrio_seo_changed', 'settings' );
+	do_action( 'barrio_seo_changed', 'redirects' );
 	return $report;
+}
+
+/**
+ * Le opzioni SEO e le loro chiavi che il prototipo non ha mai avuto. Dei redirect un avviso per chiave, non per riga.
+ *
+ * @param list<string> $warnings
+ */
+function barrio_migration_seo_unknown( array &$warnings ): void {
+	barrio_migration_unknown_options( 'SEO', [ 'suite_barrio_meta_', 'suite_barrio_schema_', 'suite_barrio_sitemap_', 'suite_barrio_redirects', 'suite_barrio_llms_', 'suite_barrio_advisor_', 'suite_barrio_seo_' ], BARRIO_MIGRATION_SEO_OPTIONS, $warnings );
+	barrio_migration_unknown( 'SEO, suite_barrio_meta_settings', (array) get_option( 'suite_barrio_meta_settings', [] ), [ 'separator', 'title_order', 'site_title', 'default_desc', 'og_image_id', 'favicon_id', 'robots_default', 'twitter_card' ], $warnings );
+	$content = (array) get_option( 'suite_barrio_meta_content', [] );
+	barrio_migration_unknown( 'SEO, suite_barrio_meta_content', $content, [ 'post_types', 'taxonomies' ], $warnings );
+	foreach ( [ 'post_types', 'taxonomies' ] as $group ) {
+		foreach ( (array) ( $content[ $group ] ?? [] ) as $slug => $robots ) {
+			barrio_migration_unknown( "SEO, suite_barrio_meta_content, {$slug}", (array) $robots, [ 'index', 'follow' ], $warnings );
+		}
+	}
+	$schema = (array) get_option( 'suite_barrio_schema_settings', [] );
+	barrio_migration_unknown( 'SEO, suite_barrio_schema_settings', $schema, BARRIO_MIGRATION_SEO_SCHEMA_KEYS, $warnings );
+	foreach ( array_values( (array) ( $schema['offers'] ?? [] ) ) as $n => $offer ) {
+		barrio_migration_unknown( 'SEO, suite_barrio_schema_settings, offer ' . ( $n + 1 ), (array) $offer, [ 'type', 'name', 'description', 'category', 'url', 'image', 'price', 'availability' ], $warnings );
+	}
+	$redirects = [];
+	foreach ( array_filter( (array) get_option( 'suite_barrio_redirects', [] ), 'is_array' ) as $row ) {
+		$redirects += array_filter( $row );
+	}
+	barrio_migration_unknown( 'SEO, suite_barrio_redirects', $redirects, [ 'id', 'from', 'to', 'code', 'note' ], $warnings );
 }
 
 /**
@@ -237,11 +195,15 @@ function barrio_migration_seo_meta( string $type, array $content, array &$report
 			: $wpdb->prepare( 'SELECT m.term_id AS id, m.meta_key, m.meta_value, o.taxonomy AS subtype FROM %i m JOIN %i o ON o.term_id = m.term_id WHERE m.meta_key LIKE %s OR m.meta_key LIKE %s OR m.meta_key = %s ORDER BY m.meta_id', $wpdb->termmeta, $wpdb->term_taxonomy, $suite, $wpb, '_suite_barrio_schema_collection' )
 	);
 	$objects = [];
+	$unknown = [];
 	foreach ( $rows as $row ) {
 		$name = (string) $row['meta_key'];
 		$old  = str_starts_with( $name, '_wpb_seo_' );
 		$key  = '_suite_barrio_schema_collection' === $name ? 'collection' : ( BARRIO_MIGRATION_SEO_META[ substr( $name, $old ? 9 : 18 ) ] ?? null );
 		$id   = (int) $row['id'];
+		if ( null === $key && '' !== (string) $row['meta_value'] ) {
+			$unknown[ $name ] = true;
+		}
 		// _suite_barrio_seo_ è il nome più recente, se ci sono tutti e due.
 		if ( null !== $key && ( ! $old || ! isset( $objects[ $id ]['values'][ $key ] ) ) ) {
 			$objects[ $id ]['subtype']        = (string) $row['subtype'];
@@ -295,6 +257,7 @@ function barrio_migration_seo_meta( string $type, array $content, array &$report
 	if ( $outside ) {
 		$report['warnings'][] = ( 'post' === $type ? 'Contents' : 'Terms' ) . ' out of the sitemap but indexable, now in the sitemap: set them to noindex if they must stay out. IDs: ' . implode( ', ', $outside ) . '.';
 	}
+	barrio_migration_unknown( 'SEO, ' . ( 'post' === $type ? 'content' : 'term' ) . ' meta', $unknown, [], $report['warnings'] );
 	return $writes;
 }
 
@@ -382,27 +345,10 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 		$report['notes'][] = 'Settings: Barrio Suite already has its SEO settings, they stay as they are.';
 		return null;
 	}
-	$meta    = (array) get_option( 'suite_barrio_meta_settings', [] );
-	$content = (array) get_option( 'suite_barrio_meta_content', [] );
-	$schema  = array_filter( (array) get_option( 'suite_barrio_schema_settings', [] ) );
-	$socials = [ 'facebook', 'instagram', 'twitter', 'linkedin', 'behance', 'youtube', 'telegram', 'tiktok' ];
-	if ( ! $schema ) {
-		// Senza schema, i dati aziendali del prototipo (Info Azienda).
-		$company = (array) get_option( 'suite_barrio_company_info', [] );
-		$schema  = array_filter(
-			[
-				'business_name'  => $company['ragione_sociale'] ?? '',
-				'url'            => $company['sito_web'] ?? '',
-				'telephone'      => $company['telefono'] ?? '',
-				'email'          => $company['email'] ?? '',
-				'vat_id'         => $company['partita_iva'] ?? '',
-				'street_address' => $company['sede_via'] ?? '',
-				'postal_code'    => $company['sede_cap'] ?? '',
-				'locality'       => $company['sede_citta'] ?? '',
-				'region'         => $company['sede_provincia'] ?? '',
-			] + array_intersect_key( $company, array_flip( $socials ) )
-		);
-	}
+	$meta     = (array) get_option( 'suite_barrio_meta_settings', [] );
+	$content  = (array) get_option( 'suite_barrio_meta_content', [] );
+	$schema   = array_filter( (array) get_option( 'suite_barrio_schema_settings', [] ) );
+	$company  = array_filter( (array) get_option( 'suite_barrio_company_info', [] ) );
 	$main     = I18n::languages()[0];
 	$settings = Settings::get();
 	$schemas  = Settings::schema();
@@ -444,8 +390,6 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 
 	$type     = (string) ( $schema['business_type'] ?? '' );
 	$types    = $schemas['organization']['properties']['type']['enum'];
-	$email    = sanitize_email( (string) ( $schema['email'] ?? '' ) );
-	$country  = strtoupper( trim( (string) ( $schema['country'] ?? '' ) ) );
 	$currency = strtoupper( trim( (string) ( $schema['offer_currency'] ?? '' ) ) );
 	$offers   = [];
 	foreach ( (array) ( $schema['offers'] ?? [] ) as $offer ) {
@@ -474,22 +418,6 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 	if ( '' !== $type && ! in_array( $type, $types, true ) ) {
 		$report['warnings'][] = "Organization: Barrio Suite does not have the type \"{$type}\", it becomes LocalBusiness. Choose another one in SEO → Organization.";
 	}
-	// Nome, contatti, partita IVA, indirizzo e profili vanno in Dati aziendali.
-	$company                  = [
-		'name'     => $line( $schema['business_name'] ?? '' ),
-		'phone'    => $line( $schema['telephone'] ?? '', 64 ),
-		'email'    => is_email( $email ) ? $email : '',
-		'vat_id'   => $line( $schema['vat_id'] ?? '', 64 ),
-		'address'  => [
-			'street'      => $line( $schema['street_address'] ?? '' ),
-			'postal_code' => $line( $schema['postal_code'] ?? '' ),
-			'locality'    => $line( $schema['locality'] ?? '' ),
-			'region'      => $line( $schema['region'] ?? '' ),
-			'country'     => preg_match( '/^[A-Z]{2}$/', $country ) ? $country : '',
-			'maps_url'    => '',
-		],
-		'profiles' => array_values( array_filter( array_map( static fn( string $social ): string => esc_url_raw( (string) ( $schema[ $social ] ?? '' ), [ 'http', 'https' ] ), $socials ) ) ),
-	];
 	$settings['organization'] = [
 		'type'        => in_array( $type, $types, true ) ? $type : 'LocalBusiness',
 		'logo'        => $media( $schema['logo'] ?? '', 'logo' ),
@@ -550,18 +478,11 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 		}
 	}
 	$report['notes'][] = 'Settings: ' . implode( ', ', array_keys( $settings ) ) . " (texts in {$main}).";
-	$fields            = Company::schema();
-	$company           = array_filter(
-		$company,
-		static function ( mixed $value, string $key ) use ( $fields, &$report ): bool {
-			$valid = rest_validate_value_from_schema( $value, $fields[ $key ], $key );
-			if ( is_wp_error( $valid ) ) {
-				$report['warnings'][] = "Company details, {$key}: " . $valid->get_error_message() . ' It is left empty.';
-			}
-			return ! is_wp_error( $valid );
-		},
-		ARRAY_FILTER_USE_BOTH
-	);
+	// Con Info Azienda l'anagrafica la scrive il suo passaggio, e lo schema riempie solo ciò che lì manca: su molti
+	// siti lo schema era ancora quello del modello, mentre Info Azienda era ciò che il sito mostrava.
+	if ( $company ) {
+		$report['notes'][] = 'Company details: they come from Info Azienda, in the Company details step.';
+	}
 	// Nel prototipo la lingua dello schema era un'impostazione; in Barrio Suite è quella del sito.
 	$language = (string) ( $schema['language'] ?? '' );
 	$site     = get_bloginfo( 'language' );
@@ -569,16 +490,61 @@ function barrio_migration_seo_settings( array &$report ): ?array {
 		$report['warnings'][] = "Schema: the language was {$language}, Barrio Suite uses the one of the site ({$site}). If it is wrong, change it in Settings → General.";
 	}
 
-	// Il prototipo metteva nello schema l'indirizzo del frontend headless al posto di quello di WordPress.
-	$frontend = barrio_migration_frontend( (string) ( $schema['url'] ?? '' ) );
+	// Il prototipo metteva nello schema l'indirizzo del frontend headless al posto di quello di WordPress, ma faceva la
+	// revalidation sul sito web di Info Azienda: se c'è, lo prende il passaggio dei Dati aziendali.
+	$frontend = empty( $company['sito_web'] ) ? barrio_migration_frontend( (string) ( $schema['url'] ?? '' ) ) : '';
 	if ( '' !== $frontend ) {
-		$report['notes'][] = "Frontend address (GraphQL → Settings): {$frontend}.";
+		$report['notes'][] = "Frontend address (Barrio → Settings): {$frontend}.";
 	}
 	return [
 		'sections' => $settings,
-		'company'  => $company,
+		'company'  => $company ? [] : barrio_migration_seo_company( $schema, $report['warnings'] ),
 		'frontend' => $frontend,
 	];
+}
+
+/**
+ * Nome, contatti, partita IVA, indirizzo e profili dello schema del prototipo, per Dati aziendali, ognuno validato con
+ * il suo schema: uno non valido resta vuoto, con un avviso.
+ *
+ * @param array<string, mixed> $schema
+ * @param list<string>         $warnings
+ * @return array<string, mixed>
+ */
+function barrio_migration_seo_company( array $schema, array &$warnings ): array {
+	$line    = static fn( mixed $value, int $max = 255 ): string => mb_substr( sanitize_text_field( (string) $value ), 0, $max );
+	$email   = sanitize_email( (string) ( $schema['email'] ?? '' ) );
+	$country = strtoupper( trim( (string) ( $schema['country'] ?? '' ) ) );
+	$company = [
+		'name'     => $line( $schema['business_name'] ?? '' ),
+		'phone'    => $line( $schema['telephone'] ?? '', 64 ),
+		'email'    => is_email( $email ) ? $email : '',
+		'vat_id'   => $line( $schema['vat_id'] ?? '', 64 ),
+		'address'  => [
+			'name'        => '',
+			'street'      => $line( $schema['street_address'] ?? '' ),
+			'postal_code' => $line( $schema['postal_code'] ?? '' ),
+			'locality'    => $line( $schema['locality'] ?? '' ),
+			'region'      => $line( $schema['region'] ?? '' ),
+			'country'     => preg_match( '/^[A-Z]{2}$/', $country ) ? $country : '',
+			'maps_url'    => '',
+			'phones'      => [],
+			'emails'      => [],
+		],
+		'profiles' => array_values( array_filter( array_map( static fn( string $social ): string => esc_url_raw( (string) ( $schema[ $social ] ?? '' ), [ 'http', 'https' ] ), BARRIO_MIGRATION_SEO_SOCIALS ) ) ),
+	];
+	$fields  = Company::schema();
+	return array_filter(
+		$company,
+		static function ( mixed $value, string $key ) use ( $fields, &$warnings ): bool {
+			$valid = rest_validate_value_from_schema( $value, $fields[ $key ], $key );
+			if ( is_wp_error( $valid ) ) {
+				$warnings[] = "Company details, {$key}: " . $valid->get_error_message() . ' It is left empty.';
+			}
+			return ! is_wp_error( $valid );
+		},
+		ARRAY_FILTER_USE_BOTH
+	);
 }
 
 // L'introduzione che l'AI aveva scritto nel llms.txt del prototipo, tra l'URL del sito e la prima sezione.
