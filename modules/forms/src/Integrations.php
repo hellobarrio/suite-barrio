@@ -25,7 +25,7 @@ use WP_Error;
  * - field_map: coppie [nome nel servizio, chiave del campo].
  *
  * @phpstan-type Schema array<string, mixed>
- * @phpstan-type Definition array{label: string, description: string, global_settings: array<string, Schema>, form_settings: array<string, Schema>, process: (callable(Entry, Form, array<string, mixed>, array<string, mixed>): mixed)|null}
+ * @phpstan-type Definition array{label: string, description: string, global_settings: array<string, Schema>, form_settings: array<string, Schema>, process: (callable(Entry, Form, array<string, mixed>, array<string, mixed>, array<string, mixed>): mixed)|null}
  */
 final class Integrations {
 
@@ -85,12 +85,16 @@ final class Integrations {
 		return is_wp_error( $valid ) ? $valid->get_error_message() : null;
 	}
 
-	// Listener di barrio_forms_after_submission, come le notifiche: nella lingua di chi ha compilato,
-	// con le impostazioni di quella lingua. Un errore di un'integrazione non ferma le altre.
-	public static function on_submission( Entry $entry, Form $form ): void {
+	/**
+	 * Listener di barrio_forms_after_submission, come le notifiche: nella lingua di chi ha compilato,
+	 * con le impostazioni di quella lingua. Un errore di un'integrazione non ferma le altre.
+	 *
+	 * @param array<string, mixed> $input I valori inviati, con i campi di servizio (_barrio_*) che non si salvano.
+	 */
+	public static function on_submission( Entry $entry, Form $form, array $input = [] ): void {
 		I18n::in(
 			$entry->lang,
-			static function () use ( $entry, $form ): void {
+			static function () use ( $entry, $form, $input ): void {
 				$values = MergeTags::of( $entry, $form )->values;
 				foreach ( $form->integrations as $integration ) {
 					$definition = self::$registered[ $integration->slug ] ?? null;
@@ -98,7 +102,7 @@ final class Integrations {
 						continue;
 					}
 					try {
-						$result = ( $definition['process'] )( $entry, $form, I18n::pick( $integration->i18n, $entry->lang ) + $integration->settings, self::settings( $integration->slug ) );
+						$result = ( $definition['process'] )( $entry, $form, I18n::pick( $integration->i18n, $entry->lang ) + $integration->settings, self::settings( $integration->slug ), $input );
 					} catch ( Throwable $e ) {
 						$result = new WP_Error( 'barrio_integration_failed', $e->getMessage() );
 					}

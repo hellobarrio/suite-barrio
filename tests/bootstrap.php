@@ -17,6 +17,7 @@ tests_add_filter(
 		// Inerti finché un test non simula i filtri di WPML (WpmlTest) o non le configura.
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-wpml/barrio-suite-wpml.php';
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php';
+		require dirname( __DIR__ ) . '/extensions/barrio-suite-hubspot/barrio-suite-hubspot.php';
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php';
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php';
 		require dirname( __DIR__ ) . '/extensions/barrio-suite-migration/barrio-suite-migration.php';

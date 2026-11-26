@@ -509,13 +509,13 @@ msgid "To send this form, please enable JavaScript in your browser."
 msgstr "Per inviare questo form, attiva JavaScript nel tuo browser."
 
 #. translators: %s: integration name, for example Mailchimp.
-#: modules/forms/src/Integrations.php:242
+#: modules/forms/src/Integrations.php:246
 #, php-format
 msgid "Sent to %s."
 msgstr "Inviata a %s."
 
 #. translators: 1: integration name, for example Mailchimp; 2: error message.
-#: modules/forms/src/Integrations.php:244
+#: modules/forms/src/Integrations.php:248
 #, php-format
 msgid "Could not send to %1$s: %2$s"
 msgstr "Invio a %1$s non riuscito: %2$s"
