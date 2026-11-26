@@ -24,7 +24,7 @@ final class Module {
 		add_action( 'admin_menu', [ Admin::class, 'menu' ] );
 		add_filter( 'barrio_admin_data', [ Admin::class, 'data' ] );
 		add_action( 'barrio_forms_after_submission', [ Notifications::class, 'on_submission' ], 10, 2 );
-		add_action( 'barrio_forms_after_submission', [ Integrations::class, 'on_submission' ], 20, 2 );
+		add_action( 'barrio_forms_after_submission', [ Integrations::class, 'on_submission' ], 20, 3 );
 		add_filter( 'wp_privacy_personal_data_exporters', [ Privacy::class, 'exporters' ] );
 		add_filter( 'wp_privacy_personal_data_erasers', [ Privacy::class, 'erasers' ] );
 		add_action( 'init', [ Privacy::class, 'schedule' ] );

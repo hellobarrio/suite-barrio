@@ -1,17 +1,18 @@
 # API per le estensioni
 
 Le estensioni sono plugin separati che usano solo l'API qui sotto: il core non contiene codice per
-plugin o servizi di terzi. Cinque esempi completi, in `extensions/`:
+plugin o servizi di terzi. Sei esempi completi, in `extensions/`:
 
 | Estensione | Cosa mostra |
 |---|---|
 | [`barrio-suite-mailchimp`](../extensions/barrio-suite-mailchimp/barrio-suite-mailchimp.php) | Un'integrazione con impostazioni globali (la chiave API) e per form, anche tradotte, e `process()` |
+| [`barrio-suite-hubspot`](../extensions/barrio-suite-hubspot/barrio-suite-hubspot.php) | Un'integrazione senza segreti che legge in `process()` anche un valore inviato (`_barrio_hutk`, il cookie di HubSpot da un frontend headless) |
 | [`barrio-suite-recaptcha`](../extensions/barrio-suite-recaptcha/barrio-suite-recaptcha.php) | Un captcha: solo impostazioni globali (la chiave del sito, da una tendina con `options`), il service account del core, `barrio_forms_render`, `beforeSubmit` nel browser e `barrio_forms_spam_check`; il filtro `barrio_recaptcha_threshold` cambia il punteggio minimo (0.5) |
 | [`barrio-suite-wpml`](../extensions/barrio-suite-wpml/barrio-suite-wpml.php) | Le lingue da un plugin multilingua, con i filtri `barrio_languages` e seguenti |
 | [`barrio-suite-wpgraphql`](../extensions/barrio-suite-wpgraphql/barrio-suite-wpgraphql.php) | Un'altra porta per i moduli: lo schema GraphQL `hb*` sopra `FormRepository`, `Submission::process()`, `Seo\Meta` e i dati degli altri moduli, un file per modulo, e la card Frontend headless di Barrio → Impostazioni, con le sue rotte e la revalidation (vedi [GraphQL](#graphql)) |
 | [`barrio-suite-migration`](../extensions/barrio-suite-migration/barrio-suite-migration.php) | Un'importazione: legge le tabelle e le opzioni di un altro plugin e scrive con `FormRepository::create()` (con l'ID), `EntryRepository::create()` (con data e stato di lettura), `Seo\Settings::save()`, `RedirectRepository::create()`, `PopupRepository::save()` e `BannerRepository::save()` e le opzioni dei moduli, da Barrio → Migration (rotte `barrio/v1/migration`); tiene spento un modulo finché i dati non sono migrati (vedi [Migrazione dal prototipo](#migrazione-dal-prototipo)) |
 
-I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `RecaptchaTest`, `WpmlTest`,
+I test delle estensioni sono in `tests/Integration/` (`MailchimpTest`, `HubspotTest`, `RecaptchaTest`, `WpmlTest`,
 `WpGraphqlTest`, `SeoGraphqlTest`, `ModulesGraphqlTest`, `MigrationTest`, `SeoMigrationTest`, `ModulesMigrationTest`): le risposte dei servizi si simulano con `pre_http_request`. I test GraphQL girano solo con
 WPGraphQL, come nella riga WPGraphQL della CI: in locale si installa una volta nell'ambiente dei test
 (`npx wp-env run tests-cli wp plugin install wp-graphql`) e si lancia `npm run test:php:graphql`.
@@ -75,7 +76,7 @@ barrio_forms_register_integration( 'mailchimp', [
 | `label`, `description` | Il nome e una frase, già tradotti: titolo e descrizione delle card |
 | `global_settings` | Proprietà JSON Schema delle impostazioni globali. Facoltative: senza, nessuna card nelle Impostazioni |
 | `form_settings` | Proprietà JSON Schema delle impostazioni per form. Con queste l'integrazione si aggiunge ai form e serve `process` |
-| `process` | `callable( Entry $entry, Form $form, array $settings, array $global ): true\|WP_Error` |
+| `process` | `callable( Entry $entry, Form $form, array $settings, array $global, array $input ): true\|WP_Error` |
 
 Ogni proprietà è una stringa (`type: string`), con `title` e `description` per l'etichetta e l'aiuto:
 nelle pagine admin diventa un campo di testo. Con `enum` diventa una tendina delle sole scelte elencate, e
@@ -108,7 +109,9 @@ l'integrazione è attiva nel form e la sua logica condizionale (la stessa dei ca
 
 - `$entry`, la registrazione salvata (con `id`), e `$form`;
 - `$settings`, le impostazioni del form, quelle traducibili nella lingua della registrazione;
-- `$global`, le impostazioni globali con i segreti in chiaro (un segreto che non si legge più è `''`).
+- `$global`, le impostazioni globali con i segreti in chiaro (un segreto che non si legge più è `''`);
+- `$input`, i valori inviati, compresi quelli per le estensioni (`_barrio_hutk`, vedi [Nel browser](#nel-browser)),
+  che non si salvano: vanno validati.
 
 Gira nella lingua di chi ha compilato (`switch_to_locale()`), come le email. I valori si leggono con
 `MergeTags::of( $entry, $form )`: `->values` sono i valori grezzi per chiave del campo
@@ -140,7 +143,7 @@ le aspetta.
 | `barrio_forms_spam_check` | filtro | `?WP_Error`, `array $input`, `Form` | Dopo honeypot e limite per IP. Restituire un `WP_Error` (con `status`) rifiuta l'invio; se arriva già un errore, va restituito così com'è |
 | `barrio_forms_rate_limit` | filtro | `int $limit`, `string $ip` | Invii per IP ogni 10 minuti (10), compresi quelli respinti dall'antispam; 0 toglie il limite, per esempio dietro un proxy che non ripristina l'IP del visitatore |
 | `barrio_forms_entry_data` | filtro | `Entry`, `Form` | La registrazione prima del salvataggio (senza `id`) |
-| `barrio_forms_after_submission` | azione | `Entry`, `Form` | Dopo il salvataggio: notifiche (10) e integrazioni (20). Un'eccezione finisce nelle note |
+| `barrio_forms_after_submission` | azione | `Entry`, `Form`, `array $input` | Dopo il salvataggio: notifiche (10) e integrazioni (20). Un'eccezione finisce nelle note |
 | `barrio_forms_notification` | filtro | `array $email`, `Notification`, `Entry` | `to`, `subject`, `heading`, `body` (HTML), `reply_to`, `attachments` prima dell'invio |
 | `barrio_forms_presets` | filtro | `array $presets` | Scelte pronte del builder: `'id' => [ 'label' => …, 'choices' => [ [ 'valore', 'Etichetta' ], … ] ]`; con `'intl' => 'region'` (o `language`, `weekday`, `month`) le etichette vuote le scrive il builder con `Intl`, nella lingua principale del form |
 | `barrio_languages` | filtro | `list<string>` | Codici delle lingue attive, la principale per prima. Valgono per tutti i moduli (`src/I18n.php`) |

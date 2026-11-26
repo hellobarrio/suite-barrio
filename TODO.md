@@ -34,6 +34,8 @@ Safari e gli screen reader veri.
   - reCAPTCHA Enterprise: una chiave del dominio e i punteggi. Se Google non risponde l'invio non passa (503).
 - **Mailchimp**, con un'audience di prova: iscrizione con il double opt-in, tag di consenso, e i merge field di tipo
   data, che potrebbero rifiutare le date nel formato del sito.
+- **HubSpot**, con un form di prova: un invio vero su `api.hsforms.com` anche da un account EU, il consenso e
+  l'iscrizione registrati sul contatto, `hutk` che lega l'invio alle visite (anche da un frontend headless).
 - **Updater da GitHub** (`con-updater`): la prima release vera su un sito di prova, anche il giro notturno.
 - **Migrazione su un sito reale**: con WPML le lingue delle registrazioni e le etichette delle checkbox;
   con un frontend headless le chiavi dei campi rinominate (un nome scritto a mano nel codice va aggiornato); gli

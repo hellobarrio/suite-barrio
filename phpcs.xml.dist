@@ -49,6 +49,7 @@
 		<properties>
 			<property name="text_domain" type="array">
 				<element value="barrio-suite"/>
+				<element value="barrio-suite-hubspot"/>
 				<element value="barrio-suite-mailchimp"/>
 				<element value="barrio-suite-migration"/>
 				<element value="barrio-suite-recaptcha"/>

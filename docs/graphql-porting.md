@@ -125,8 +125,10 @@ torna con `success: false`, non come errore GraphQL. I valori si inviano come pr
 `"Etichetta: true | Etichetta: false"` o valori separati da virgole, la select multipla come la checkbox (un frontend
 con la select multipla univa i valori con `|`: ora con `,`), date come `dd/MM/yyyy` o `yyyy-MM-dd`, file come
 JSON `{"content": "<base64>", "filename": "cv.pdf"}`, il consenso come la checkbox con una scelta. I valori per le
-estensioni stanno tra i campi (`{ name: "_barrio_recaptcha", value: token }`). L'invio con l'application password del
-frontend non ha il limite per IP solo se il suo utente può scrivere contenuti (da Autore in su).
+estensioni stanno tra i campi (`{ name: "_barrio_recaptcha", value: token }`); un frontend che passava a HubSpot il
+cookie `hubspotutk` come `hutk` ora lo manda come campo `_barrio_hutk`, per `barrio-suite-hubspot`. L'invio con
+l'application password del frontend non ha il limite per IP solo se il suo utente può scrivere contenuti (da Autore
+in su).
 
 ### 3.3 Elenco dei form
 

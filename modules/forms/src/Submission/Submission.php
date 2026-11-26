@@ -133,7 +133,7 @@ final class Submission {
 
 		// Notifiche e integrazioni: un loro errore resta nelle note e non fa ripetere l'invio.
 		try {
-			do_action( 'barrio_forms_after_submission', $entry, $form );
+			do_action( 'barrio_forms_after_submission', $entry, $form, $input );
 		} catch ( Throwable $e ) {
 			EntryRepository::add_note( (int) $entry->id, 'system', NoteLevel::Error, $e->getMessage() );
 		}
